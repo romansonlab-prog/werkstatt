@@ -4486,7 +4486,7 @@ function IncomingAlerts({ alerts, t, onCreateJob, C }) {
           <div style={{ color:C.gray500, padding:"30px 0 16px", fontSize:14 }}>
             {t.noAlerts||"Keine neuen Meldungen"}
           </div>
-          <button onClick={function(){ if(window._ltgRefresh) window._ltgRefresh(); }}
+          <button onClick={function(){ loadAlerts(); }}
             style={{ background:C.surface, border:"1px solid "+C.border,
               borderRadius:8, padding:"8px 16px", color:C.gray300,
               cursor:"pointer", fontSize:12, fontWeight:700 }}>
@@ -4592,6 +4592,7 @@ function App() {
   const [prefillAlert, setPrefillAlert] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const [meldungenOpen, setMeldungenOpen] = useState(false);
+  const [dbStatus, setDbStatus] = useState("loading");
   const t = T[lang];
 
   // Load all data from Supabase
@@ -4610,9 +4611,6 @@ function App() {
         console.error("loadAlerts error:", e);
       });
   }
-
-  // Expose refresh for buttons
-  if (typeof window !== "undefined") window._ltgRefresh = loadAlerts;
 
   useEffect(function() {
     // Safety timeout - if Supabase hangs, show app after 6 seconds anyway
@@ -4878,5 +4876,4 @@ function App() {
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
   </script>
 </body>
-</html>< ! - -   f i x   - - >  
- 
+</html>
