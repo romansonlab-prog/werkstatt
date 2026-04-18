@@ -18,7 +18,6 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-
 // -- Supabase --
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
@@ -252,7 +251,7 @@ function LTGLogo() {
   );
 }
 
-export default function App() {
+function App() {
   const [lang, setLang] = useState("de");
   const [step, setStep] = useState("form"); // form | sent
   const [sending, setSending] = useState(false);
@@ -585,8 +584,7 @@ export default function App() {
   );
 }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(App));
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
   </script>
 </body>
 </html>
