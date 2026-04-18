@@ -9,14 +9,1311 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:#0f1623; }
+    body { background:#0f1623; min-height:100vh; }
     #root { min-height:100vh; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" src="./ltg-fahrer-v2.jsx"></script>
-  <script>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+// -- Supabase --
+const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+const sbInsert = async (table, data) => {
+  try {
+    await fetch(SB_URL + "/rest/v1/" + table, {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify(data)
+    });
+  } catch(e) { console.error("sb:", e); }
+};
+
+
+
+const C = {
+  bg:"#0f1117", surface:"#1a1d27", border:"#2e3350",
+  navy:"#1a2744", navyMid:"#243258", orange:"#f97316",
+  red:"#dc2626", yellow:"#d97706", green:"#16a34a",
+  blue:"#3b82f6", white:"#f1f5f9", gray3:"#94a3b8", gray5:"#64748b",
+};
+
+const TRUCKS = [
+  { id:"malt441", plate:"MA-LT 441", brand:"MAN TGX 2019"         },
+  { id:"hdlg221", plate:"HD-LG 221", brand:"Mercedes Actros 2018" },
+  { id:"malg330", plate:"MA-LG 330", brand:"Volvo FH 2020"        },
+  { id:"malt552", plate:"MA-LT 552", brand:"Scania R450 2021"     },
+];
+
+const TRAILERS = [
+  { id:"mata877", plate:"MA-TA 877", brand:"Schmitz Cargobull" },
+  { id:"masa112", plate:"MA-SA 112", brand:"Krone Profiliner"  },
+  { id:"mata991", plate:"MA-TA 991", brand:"Schmitz S.CS"      },
+  { id:"mata445", plate:"MA-TA 445", brand:"Kogel Cargo"       },
+  { id:"mata213", plate:"MA-TA 213", brand:"Fliegl SDS"        },
+];
+
+const T = {
+  de:{
+    title:"LTG Fahrer App", subtitle:"Hockenheim",
+    inspectTruck:"LKW Inspektion", inspectTrailer:"Auflieger Inspektion",
+    reportBreakdown:"Storung / Unfall", yourName:"Ihr Name", namePh:"Vor- und Nachname",
+    selectTruck:"LKW wahlen",
+    selectOrEnter:"Fahrzeug wählen oder eingeben", enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wahlen",
+    startInspection:"Inspektion starten", back:"Zuruck",
+    defects:"Mangel / Bemerkungen", defectsPh:"Festgestellte Mangel beschreiben...",
+    photo:"Fotos", submit:"Inspektion abschliessen",
+    allChecked:"Alle Punkte gepruft", notAllChecked:"Nicht alle Punkte gepruft",
+    done:"Abgeschlossen!", saved:"Bericht gesendet", newInspection:"Neue Inspektion",
+    ok:"Fahrzeug OK", defectsFound:"Mangel festgestellt",
+    translating:"Ubersetze...", points:"Punkte", translated:"Ubersetzt (DE)",
+    breakdownTitle:"Storung melden", breakdownType:"Art der Storung",
+    location:"Standort", locationPh:"Autobahn A6 km 520 / Hockenheim...",
+    description:"Beschreibung", descPh:"Was ist passiert?",
+    urgency:"Dringlichkeit", urgentYes:"SOFORTIGE HILFE", urgentNo:"KANN WARTEN",
+    send:"STORUNG MELDEN", sending:"Wird gesendet...", sent:"Gemeldet!",
+    sentDesc:"Werkstatt und Schef benachrichtigt", newReport:"Neue Meldung",
+    required:"Pflichtfeld", truck:"LKW", trailer:"Auflieger",
+    truckChecks:[
+      {k:"tires",   emoji:"🔄", label:"Reifen und Luftdruck"},
+      {k:"lights",  emoji:"💡", label:"Beleuchtung"},
+      {k:"brakes",  emoji:"🛑", label:"Bremsen"},
+      {k:"mirrors", emoji:"🔍", label:"Spiegel und Scheiben"},
+      {k:"engine",  emoji:"⚙️", label:"Motor / Ol / Wasser"},
+      {k:"fuel",    emoji:"⛽", label:"Kraftstoff und AdBlue"},
+      {k:"docs",    emoji:"📋", label:"Fahrzeugpapiere"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"🔄", label:"Reifen und Luftdruck"},
+      {k:"lights",   emoji:"💡", label:"Beleuchtung und Blinker"},
+      {k:"body",     emoji:"🚛", label:"Karosserie / Plane"},
+      {k:"coupling", emoji:"🔗", label:"Kupplung und Sattel"},
+      {k:"doors",    emoji:"🚪", label:"Turen und Verschlusse"},
+      {k:"floor",    emoji:"📐", label:"Ladeboden"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Panne / Defekt"},
+      {k:"accident", emoji:"🚨",label:"Unfall"},
+      {k:"tire",     emoji:"🔄",label:"Reifenpanne"},
+      {k:"other",    emoji:"⚠️",label:"Sonstiges"},
+    ],
+  },
+  ru:{
+    title:"LTG Приложение водителя", subtitle:"Хокенхайм",
+    inspectTruck:"Осмотр LKW", inspectTrailer:"Осмотр полуприцепа",
+    reportBreakdown:"Поломка / Авария", yourName:"Ваше имя", namePh:"Имя и фамилия",
+    selectTruck:"Выбрать LKW",
+    selectOrEnter:"Выбрать или ввести номер", enterCustom:"Ввести свой номер", platePh:"напр. MA-LT 441", plateLabel:"Номер машины", selectTrailer:"Выбрать полуприцеп",
+    startInspection:"Начать осмотр", back:"Назад",
+    defects:"Замечания", defectsPh:"Опишите неисправности...",
+    photo:"Фото", submit:"Завершить осмотр",
+    allChecked:"Все пункты проверены", notAllChecked:"Не все пункты проверены",
+    done:"Завершено!", saved:"Отчёт отправлен", newInspection:"Новый осмотр",
+    ok:"Техника в порядке", defectsFound:"Найдены замечания",
+    translating:"Перевожу...", points:"пунктов", translated:"Переведено (DE)",
+    breakdownTitle:"Сообщить о поломке", breakdownType:"Тип проблемы",
+    location:"Местоположение", locationPh:"Автобан A6 км 520 / Хокенхайм...",
+    description:"Описание", descPh:"Что случилось?",
+    urgency:"Срочность", urgentYes:"НУЖНА ПОМОЩЬ", urgentNo:"МОЖЕТ ПОДОЖДАТЬ",
+    send:"СООБЩИТЬ О ПРОБЛЕМЕ", sending:"Отправляется...", sent:"Отправлено!",
+    sentDesc:"Механики и шеф уведомлены", newReport:"Новое сообщение",
+    required:"обязательное поле", truck:"LKW", trailer:"Полуприцеп",
+    truckChecks:[
+      {k:"tires",   emoji:"🔄", label:"Шины и давление"},
+      {k:"lights",  emoji:"💡", label:"Освещение"},
+      {k:"brakes",  emoji:"🛑", label:"Тормоза"},
+      {k:"mirrors", emoji:"🔍", label:"Зеркала и стёкла"},
+      {k:"engine",  emoji:"⚙️", label:"Двигатель / масло / вода"},
+      {k:"fuel",    emoji:"⛽", label:"Топливо и AdBlue"},
+      {k:"docs",    emoji:"📋", label:"Документы"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"🔄", label:"Шины и давление"},
+      {k:"lights",   emoji:"💡", label:"Освещение и поворотники"},
+      {k:"body",     emoji:"🚛", label:"Кузов / тент"},
+      {k:"coupling", emoji:"🔗", label:"Сцепка / седло"},
+      {k:"doors",    emoji:"🚪", label:"Двери и замки"},
+      {k:"floor",    emoji:"📐", label:"Пол кузова"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Поломка / неисправность"},
+      {k:"accident", emoji:"🚨",label:"Авария"},
+      {k:"tire",     emoji:"🔄",label:"Прокол шины"},
+      {k:"other",    emoji:"⚠️",label:"Другое"},
+    ],
+  },
+  en:{
+    title:"LTG Driver App", subtitle:"Hockenheim",
+    inspectTruck:"Truck Inspection", inspectTrailer:"Trailer Inspection",
+    reportBreakdown:"Report Issue", yourName:"Your name", namePh:"First and last name",
+    selectTruck:"Select truck",
+    selectOrEnter:"Select or enter vehicle", enterCustom:"Enter custom plate", platePh:"e.g. MA-LT 441", plateLabel:"Plate / Nr.", selectTrailer:"Select trailer",
+    startInspection:"Start inspection", back:"Back",
+    defects:"Defects / notes", defectsPh:"Describe defects found...",
+    photo:"Photos", submit:"Complete inspection",
+    allChecked:"All items checked", notAllChecked:"Not all items checked",
+    done:"Done!", saved:"Report sent", newInspection:"New inspection",
+    ok:"Vehicle OK", defectsFound:"Defects found",
+    translating:"Translating...", points:"points", translated:"Translated (DE)",
+    breakdownTitle:"Report breakdown / accident", breakdownType:"Type of issue",
+    location:"Location", locationPh:"Motorway A6 km 520 / Hockenheim...",
+    description:"Description", descPh:"What happened?",
+    urgency:"Urgency", urgentYes:"IMMEDIATE HELP", urgentNo:"CAN WAIT",
+    send:"REPORT ISSUE", sending:"Sending...", sent:"Reported!",
+    sentDesc:"Workshop and Chef notified", newReport:"New report",
+    required:"required field", truck:"Truck", trailer:"Trailer",
+    truckChecks:[
+      {k:"tires",   emoji:"🔄", label:"Tires and pressure"},
+      {k:"lights",  emoji:"💡", label:"Lights"},
+      {k:"brakes",  emoji:"🛑", label:"Brakes"},
+      {k:"mirrors", emoji:"🔍", label:"Mirrors and windows"},
+      {k:"engine",  emoji:"⚙️", label:"Engine / oil / water"},
+      {k:"fuel",    emoji:"⛽", label:"Fuel and AdBlue"},
+      {k:"docs",    emoji:"📋", label:"Documents"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"🔄", label:"Tires and pressure"},
+      {k:"lights",   emoji:"💡", label:"Lights and indicators"},
+      {k:"body",     emoji:"🚛", label:"Body / tarpaulin"},
+      {k:"coupling", emoji:"🔗", label:"Coupling and saddle"},
+      {k:"doors",    emoji:"🚪", label:"Doors and locks"},
+      {k:"floor",    emoji:"📐", label:"Load floor"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Breakdown / defect"},
+      {k:"accident", emoji:"🚨",label:"Accident"},
+      {k:"tire",     emoji:"🔄",label:"Flat tire"},
+      {k:"other",    emoji:"⚠️",label:"Other"},
+    ],
+  },
+  uk:{
+    title:"LTG Додаток водія", subtitle:"Хокенхайм",
+    inspectTruck:"Огляд вантажівки", inspectTrailer:"Огляд напівпричепа",
+    reportBreakdown:"Поломка / Аварія", yourName:"Ваше ім'я", namePh:"Ім'я та прізвище",
+    selectTruck:"Обрати вантажівку",
+    selectOrEnter:"Обрати або ввести номер", enterCustom:"Ввести свій номер", platePh:"напр. MA-LT 441", plateLabel:"Номер машини", selectTrailer:"Обрати напівпричіп",
+    startInspection:"Почати огляд", back:"Назад",
+    defects:"Зауваження", defectsPh:"Опишіть несправності...",
+    photo:"Фото", submit:"Завершити огляд",
+    allChecked:"Всі пункти перевірено", notAllChecked:"Не всі пункти перевірено",
+    done:"Завершено!", saved:"Звіт надіслано", newInspection:"Новий огляд",
+    ok:"Техніка в порядку", defectsFound:"Знайдено зауваження",
+    translating:"Перекладаю...", points:"пунктів", translated:"Перекладено (DE)",
+    breakdownTitle:"Повідомити про поломку", breakdownType:"Тип проблеми",
+    location:"Місцезнаходження", locationPh:"Автобан A6 км 520...",
+    description:"Опис", descPh:"Що сталося?",
+    urgency:"Терміновість", urgentYes:"ПОТРІБНА ДОПОМОГА", urgentNo:"МОЖЕ ЗАЧЕКАТИ",
+    send:"ПОВІДОМИТИ", sending:"Надсилається...", sent:"Надіслано!",
+    sentDesc:"Механіки та шеф повідомлені", newReport:"Нове повідомлення",
+    required:"обов'язкове поле", truck:"Вантажівка", trailer:"Напівпричіп",
+    truckChecks:[
+      {k:"tires",   emoji:"🔄", label:"Шини та тиск"},
+      {k:"lights",  emoji:"💡", label:"Освітлення"},
+      {k:"brakes",  emoji:"🛑", label:"Гальма"},
+      {k:"mirrors", emoji:"🔍", label:"Дзеркала та скло"},
+      {k:"engine",  emoji:"⚙️", label:"Двигун / масло / вода"},
+      {k:"fuel",    emoji:"⛽", label:"Пальне та AdBlue"},
+      {k:"docs",    emoji:"📋", label:"Документи"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"🔄", label:"Шини та тиск"},
+      {k:"lights",   emoji:"💡", label:"Освітлення та поворотники"},
+      {k:"body",     emoji:"🚛", label:"Кузов / тент"},
+      {k:"coupling", emoji:"🔗", label:"Зчіпка / сідло"},
+      {k:"doors",    emoji:"🚪", label:"Двері та замки"},
+      {k:"floor",    emoji:"📐", label:"Підлога кузова"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Поломка / несправність"},
+      {k:"accident", emoji:"🚨",label:"Аварія"},
+      {k:"tire",     emoji:"🔄",label:"Прокол шини"},
+      {k:"other",    emoji:"⚠️",label:"Інше"},
+    ],
+  },
+  ro:{
+    title:"LTG App Sofer", subtitle:"Hockenheim",
+    inspectTruck:"Inspectie Camion", inspectTrailer:"Inspectie Semiremorca",
+    reportBreakdown:"Raporteaza Problema", yourName:"Numele dvs", namePh:"Prenume Nume",
+    selectTruck:"Selectati camionul",
+    selectOrEnter:"Selectati sau introduceti", enterCustom:"Introduceti numarul", platePh:"ex. MA-LT 441", plateLabel:"Numar / Nr.", selectTrailer:"Selectati semiremorca",
+    startInspection:"Incepe inspectia", back:"Inapoi",
+    defects:"Defecte", defectsPh:"Descrieti defectele...",
+    photo:"Poze", submit:"Finalizeaza inspectia",
+    allChecked:"Toate verificate", notAllChecked:"Nu toate verificate",
+    done:"Gata!", saved:"Raport trimis", newInspection:"Inspectie noua",
+    ok:"Vehicul OK", defectsFound:"Defecte gasite",
+    translating:"Traducere...", points:"puncte", translated:"Tradus (DE)",
+    breakdownTitle:"Raporteaza problema", breakdownType:"Tipul problemei",
+    location:"Locatie", locationPh:"Autostrada A6 km 520...",
+    description:"Descriere", descPh:"Ce s-a intamplat?",
+    urgency:"Urgenta", urgentYes:"AJUTOR IMEDIAT", urgentNo:"POATE ASTEPTA",
+    send:"RAPORTEAZA", sending:"Se trimite...", sent:"Trimis!",
+    sentDesc:"Atelierul si Seful notificati", newReport:"Raport nou",
+    required:"obligatoriu", truck:"Camion", trailer:"Semiremorca",
+    truckChecks:[
+      {k:"tires",emoji:"🔄",label:"Anvelope"},{k:"lights",emoji:"💡",label:"Iluminat"},
+      {k:"brakes",emoji:"🛑",label:"Frane"},{k:"mirrors",emoji:"🔍",label:"Oglinzi"},
+      {k:"engine",emoji:"⚙️",label:"Motor"},{k:"fuel",emoji:"⛽",label:"Combustibil"},
+      {k:"docs",emoji:"📋",label:"Documente"},
+    ],
+    trailerChecks:[
+      {k:"tires",emoji:"🔄",label:"Anvelope"},{k:"lights",emoji:"💡",label:"Iluminat"},
+      {k:"body",emoji:"🚛",label:"Caroserie"},{k:"coupling",emoji:"🔗",label:"Cuplaj"},
+      {k:"doors",emoji:"🚪",label:"Usi"},{k:"floor",emoji:"📐",label:"Podea"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Pana"},{k:"accident",emoji:"🚨",label:"Accident"},
+      {k:"tire",emoji:"🔄",label:"Cauciuc"},{k:"other",emoji:"⚠️",label:"Altele"},
+    ],
+  },
+  hu:{
+    title:"LTG Sofor App", subtitle:"Hockenheim",
+    inspectTruck:"Teherauto Ellenorzes", inspectTrailer:"Potkocsi Ellenorzes",
+    reportBreakdown:"Problema Bejelentese", yourName:"Az On neve", namePh:"Nev",
+    selectTruck:"Teherauto valasztasa",
+    selectOrEnter:"Valasszon vagy irjon be", enterCustom:"Sajat rendszam", platePh:"pl. MA-LT 441", plateLabel:"Rendszam", selectTrailer:"Potkocsi valasztasa",
+    startInspection:"Ellenorzes kezdese", back:"Vissza",
+    defects:"Hibak", defectsPh:"Irja le a hibakat...",
+    photo:"Kepek", submit:"Ellenorzes befejezese",
+    allChecked:"Minden pont ellenorizve", notAllChecked:"Nem minden pont OK",
+    done:"Kesz!", saved:"Jelentes elkuldve", newInspection:"Uj ellenorzes",
+    ok:"Jarmu rendben", defectsFound:"Hibak talalhatok",
+    translating:"Forditas...", points:"pont", translated:"Lefordítva (DE)",
+    breakdownTitle:"Meghibasodas bejelentese", breakdownType:"Tipus",
+    location:"Helyszin", locationPh:"A6 autopalya km 520...",
+    description:"Leiras", descPh:"Mi tortent?",
+    urgency:"Surgosseg", urgentYes:"AZONNALI SEGITSEG", urgentNo:"VARHAT",
+    send:"BEJELENTES", sending:"Kuldes...", sent:"Elkuldve!",
+    sentDesc:"Muhely es Fonok ertesitve", newReport:"Uj jelentes",
+    required:"kotelezo", truck:"Teherauto", trailer:"Potkocsi",
+    truckChecks:[
+      {k:"tires",emoji:"🔄",label:"Gumik"},{k:"lights",emoji:"💡",label:"Vilagitas"},
+      {k:"brakes",emoji:"🛑",label:"Fekek"},{k:"mirrors",emoji:"🔍",label:"Tukrok"},
+      {k:"engine",emoji:"⚙️",label:"Motor"},{k:"fuel",emoji:"⛽",label:"Uzemanyag"},
+      {k:"docs",emoji:"📋",label:"Okmanyok"},
+    ],
+    trailerChecks:[
+      {k:"tires",emoji:"🔄",label:"Gumik"},{k:"lights",emoji:"💡",label:"Vilagitas"},
+      {k:"body",emoji:"🚛",label:"Karosszeria"},{k:"coupling",emoji:"🔗",label:"Kapcsolo"},
+      {k:"doors",emoji:"🚪",label:"Ajtok"},{k:"floor",emoji:"📐",label:"Padlo"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Meghibasodas"},{k:"accident",emoji:"🚨",label:"Baleset"},
+      {k:"tire",emoji:"🔄",label:"Defekt"},{k:"other",emoji:"⚠️",label:"Egyeb"},
+    ],
+  },
+  cs:{
+    title:"LTG Aplikace Ridice", subtitle:"Hockenheim",
+    inspectTruck:"Kontrola Nakladaku", inspectTrailer:"Kontrola Privese",
+    reportBreakdown:"Nahlasit Problem", yourName:"Vase jmeno", namePh:"Jmeno a prijmeni",
+    selectTruck:"Vyberte nakladak",
+    selectOrEnter:"Vyberte nebo zadejte", enterCustom:"Vlastni SPZ", platePh:"napr. MA-LT 441", plateLabel:"SPZ / Nr.", selectTrailer:"Vyberte prives",
+    startInspection:"Zahajit kontrolu", back:"Zpet",
+    defects:"Zavady", defectsPh:"Popiste zavady...",
+    photo:"Fotky", submit:"Dokoncit kontrolu",
+    allChecked:"Vse zkontrolovano", notAllChecked:"Ne vse zkontrolovano",
+    done:"Hotovo!", saved:"Zprava odeslana", newInspection:"Nova kontrola",
+    ok:"Vozidlo v poradku", defectsFound:"Nalezeny zavady",
+    translating:"Prelozuji...", points:"bodů", translated:"Prelozeno (DE)",
+    breakdownTitle:"Nahlasit poruchu", breakdownType:"Typ problemu",
+    location:"Poloha", locationPh:"Dalnice A6 km 520...",
+    description:"Popis", descPh:"Co se stalo?",
+    urgency:"Nalehavost", urgentYes:"NUTNA POMOC", urgentNo:"MUZE POCKAT",
+    send:"NAHLASIT", sending:"Odesilani...", sent:"Odeslano!",
+    sentDesc:"Dilna a Sef informovani", newReport:"Nova zprava",
+    required:"povinne", truck:"Nakladak", trailer:"Prives",
+    truckChecks:[
+      {k:"tires",emoji:"🔄",label:"Pneumatiky"},{k:"lights",emoji:"💡",label:"Osvetleni"},
+      {k:"brakes",emoji:"🛑",label:"Brzdy"},{k:"mirrors",emoji:"🔍",label:"Zrcatka"},
+      {k:"engine",emoji:"⚙️",label:"Motor"},{k:"fuel",emoji:"⛽",label:"Palivo"},
+      {k:"docs",emoji:"📋",label:"Doklady"},
+    ],
+    trailerChecks:[
+      {k:"tires",emoji:"🔄",label:"Pneumatiky"},{k:"lights",emoji:"💡",label:"Osvetleni"},
+      {k:"body",emoji:"🚛",label:"Karoserie"},{k:"coupling",emoji:"🔗",label:"Spojka"},
+      {k:"doors",emoji:"🚪",label:"Dvere"},{k:"floor",emoji:"📐",label:"Podlaha"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"🔴",label:"Porucha"},{k:"accident",emoji:"🚨",label:"Nehoda"},
+      {k:"tire",emoji:"🔄",label:"Defekt"},{k:"other",emoji:"⚠️",label:"Jine"},
+    ],
+  },
+};
+
+const LANGS = [
+  {code:"de",flag:"🇩🇪"},{code:"ru",flag:"🇷🇺"},{code:"en",flag:"🇬🇧"},
+  {code:"uk",flag:"🇺🇦"},{code:"ro",flag:"🇷🇴"},{code:"hu",flag:"🇭🇺"},{code:"cs",flag:"🇨🇿"},
+];
+
+function translateToGerman(text) {
+  if (!text || !text.trim()) return Promise.resolve(text);
+  return fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514", max_tokens:500,
+      messages:[{role:"user",
+        content:"Translate to German. Return ONLY the translation:\n\n"+text}]
+    })
+  }).then(function(r){ return r.json(); })
+    .then(function(d){ return (d.content && d.content[0] ? d.content[0].text : null) || text; })
+    .catch(function(){ return text; });
+}
+
+function LTGLogo() {
+  return (
+    <svg width="72" height="26" viewBox="0 0 120 44" fill="none">
+      <text x="0" y="32" fontFamily="Arial Black,sans-serif"
+        fontWeight="900" fontSize="36" fill="#ffffff" letterSpacing="-1">LTG</text>
+      <rect x="0" y="37" width="108" height="5" fill="#e2001a" rx="1"/>
+    </svg>
+  );
+}
+
+function PhotoUpload({ photos, onAdd, onRemove, label }) {
+  const handle = (e) => {
+    const files = Array.from(e.target.files);
+    Promise.all(files.map(f => new Promise(res => {
+      const r = new FileReader();
+      r.onload = ev => res(ev.target.result);
+      r.readAsDataURL(f);
+    }))).then(results => onAdd(results));
+  };
+  return (
+    <div style={{ marginBottom:16 }}>
+      <label style={{ display:"flex", alignItems:"center", justifyContent:"center",
+        gap:10, border:"2px dashed "+C.border, borderRadius:10,
+        padding:"12px 20px", cursor:"pointer", color:C.gray3,
+        fontSize:14, fontWeight:600, background:C.surface }}>
+        <span style={{ fontSize:22 }}>📷</span>
+        <span>{label} {photos.length > 0 ? "("+photos.length+")" : ""}</span>
+        <input type="file" accept="image/*" multiple
+          style={{ display:"none" }} onChange={handle} />
+      </label>
+      {photos.length > 0 && (
+        <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
+          {photos.map((src,i) => (
+            <div key={i} style={{ position:"relative" }}>
+              <img src={src} alt="" style={{ width:80, height:60,
+                objectFit:"cover", borderRadius:8, border:"1px solid "+C.border }} />
+              <button onClick={() => onRemove(i)}
+                style={{ position:"absolute", top:-6, right:-6, width:20, height:20,
+                  borderRadius:"50%", background:C.red, border:"none",
+                  color:"#fff", fontSize:12, cursor:"pointer" }}>x</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+// ── Vehicle Dropdown Select ──────────────────────────────────────
+function VehicleSelect({ trucks, trailers, value, onChange, t, C }) {
+  const [open, setOpen]     = useState(false);
+  const [custom, setCustom] = useState(false);
+  const [customVal, setCustomVal] = useState("");
+
+  const all = [
+    ...trucks.map(v  => ({...v, vtype:"truck"})),
+    ...trailers.map(v => ({...v, vtype:"trailer"})),
+  ];
+  const selected = all.find(v => v.id === value);
+  const isCustom = value && value.startsWith("custom_");
+
+  const handleSelect = (v) => {
+    onChange(v.id, v.plate, v.brand, v.vtype);
+    setOpen(false); setCustom(false);
+  };
+
+  const handleCustom = () => {
+    if (!customVal.trim()) return;
+    onChange("custom_"+customVal, customVal.trim(), "", "truck");
+    setCustomVal(""); setCustom(false); setOpen(false);
+  };
+
+  // ── Trigger (closed state) ────────────────────────────────────
+  const Trigger = () => (
+    <button onClick={() => setOpen(true)}
+      style={{ width:"100%", background:"#1a1d27",
+        border:"1px solid "+(value ? "#f97316" : "#2e3350"),
+        borderRadius:10, padding:"13px 16px", cursor:"pointer",
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        textAlign:"left" }}>
+      {selected ? (
+        <div>
+          <div style={{ fontWeight:800, fontSize:15, color:"#f97316" }}>
+            {selected.plate}
+          </div>
+          <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
+            {selected.vtype==="truck" ? t.truck : t.trailer} — {selected.brand}
+          </div>
+        </div>
+      ) : isCustom ? (
+        <div>
+          <div style={{ fontWeight:800, fontSize:15, color:"#f97316" }}>
+            {value.replace("custom_","")}
+          </div>
+          <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>✏️ {t.enterCustom}</div>
+        </div>
+      ) : (
+        <span style={{ color:"#64748b", fontSize:14 }}>{t.selectOrEnter}</span>
+      )}
+      <span style={{ color:"#64748b", fontSize:14, marginLeft:8 }}>▼</span>
+    </button>
+  );
+
+  // ── Modal overlay (open state) ────────────────────────────────
+  if (open) {
+    return (
+      <div style={{ position:"fixed", inset:0, zIndex:999,
+        background:"rgba(0,0,0,0.7)", display:"flex",
+        flexDirection:"column", justifyContent:"flex-end" }}>
+        <div style={{ background:"#1a1d27", borderRadius:"16px 16px 0 0",
+          maxHeight:"80vh", display:"flex", flexDirection:"column",
+          overflow:"hidden" }}>
+          {/* Header */}
+          <div style={{ display:"flex", alignItems:"center",
+            justifyContent:"space-between", padding:"16px 18px",
+            borderBottom:"1px solid #2e3350", flexShrink:0 }}>
+            <div style={{ fontWeight:800, fontSize:15, color:"#f1f5f9" }}>
+              {t.selectOrEnter}
+            </div>
+            <button onClick={() => { setOpen(false); setCustom(false); }}
+              style={{ background:"none", border:"none", color:"#64748b",
+                fontSize:22, cursor:"pointer", padding:0 }}>✕</button>
+          </div>
+
+          {/* Scrollable list */}
+          <div style={{ overflowY:"auto", flex:1 }}>
+            {/* Trucks */}
+            {trucks.length > 0 && (
+              <div>
+                <div style={{ padding:"10px 18px 4px", fontSize:10,
+                  color:"#64748b", fontWeight:700, textTransform:"uppercase",
+                  letterSpacing:"1.2px" }}>
+                  {t.truck}
+                </div>
+                {trucks.map(v => (
+                  <button key={v.id}
+                    onClick={() => handleSelect({...v, vtype:"truck"})}
+                    style={{ display:"flex", alignItems:"center",
+                      justifyContent:"space-between", width:"100%",
+                      padding:"13px 18px",
+                      background:value===v.id?"#f9731611":"transparent",
+                      border:"none", borderBottom:"1px solid #2e335044",
+                      cursor:"pointer", textAlign:"left" }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:15,
+                        color:value===v.id?"#f97316":"#f1f5f9" }}>
+                        {v.plate}
+                      </div>
+                      <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
+                        {v.brand}
+                      </div>
+                    </div>
+                    {value===v.id &&
+                      <span style={{ color:"#f97316", fontSize:18 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Trailers */}
+            {trailers.length > 0 && (
+              <div>
+                <div style={{ padding:"10px 18px 4px", fontSize:10,
+                  color:"#64748b", fontWeight:700, textTransform:"uppercase",
+                  letterSpacing:"1.2px", borderTop:"1px solid #2e3350",
+                  marginTop:4 }}>
+                  {t.trailer}
+                </div>
+                {trailers.map(v => (
+                  <button key={v.id}
+                    onClick={() => handleSelect({...v, vtype:"trailer"})}
+                    style={{ display:"flex", alignItems:"center",
+                      justifyContent:"space-between", width:"100%",
+                      padding:"13px 18px",
+                      background:value===v.id?"#f9731611":"transparent",
+                      border:"none", borderBottom:"1px solid #2e335044",
+                      cursor:"pointer", textAlign:"left" }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:15,
+                        color:value===v.id?"#f97316":"#f1f5f9" }}>
+                        {v.plate}
+                      </div>
+                      <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
+                        {v.brand}
+                      </div>
+                    </div>
+                    {value===v.id &&
+                      <span style={{ color:"#f97316", fontSize:18 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Custom entry */}
+            <div style={{ padding:"12px 18px 24px",
+              borderTop:"1px solid #2e3350", marginTop:4 }}>
+              {!custom ? (
+                <button onClick={() => setCustom(true)}
+                  style={{ width:"100%", padding:"12px 16px",
+                    background:"transparent",
+                    border:"1px dashed #2e3350", borderRadius:10,
+                    color:"#94a3b8", fontSize:14, cursor:"pointer",
+                    fontWeight:600, textAlign:"center" }}>
+                  ✏️ {t.enterCustom}
+                </button>
+              ) : (
+                <div>
+                  <div style={{ fontSize:12, color:"#64748b",
+                    marginBottom:8, fontWeight:600 }}>
+                    {t.platePh}
+                  </div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <input autoFocus
+                      value={customVal}
+                      onChange={e => setCustomVal(e.target.value)}
+                      onKeyDown={e => e.key==="Enter" && handleCustom()}
+                      placeholder={t.platePh}
+                      style={{ flex:1, background:"#0f1117",
+                        border:"1px solid #f97316", borderRadius:8,
+                        padding:"10px 14px", color:"#f1f5f9",
+                        fontSize:15, outline:"none",
+                        fontFamily:"inherit" }} />
+                    <button onClick={handleCustom}
+                      style={{ background:"#f97316", color:"#000",
+                        border:"none", borderRadius:8, padding:"0 18px",
+                        fontWeight:800, fontSize:15, cursor:"pointer" }}>
+                      OK
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <Trigger />;
+}
+
+
+// ── GPS Location Picker ──────────────────────────────────────────
+function LocationPicker({ value, onChange, placeholder, C }) {
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
+  const [coords,  setCoords]  = useState(null);
+
+  const colors = C || { surface:"#1c2840", border:"#2a3a52", white:"#f1f5f9",
+    red:"#ef4444", green:"#22c55e", gray500:"#64748b", blue:"#3b82f6",
+    navyMid:"#1c2840", blueLt:"#60a5fa" };
+
+  const getLocation = function() {
+    if (!navigator.geolocation) {
+      setError("GPS: Bitte Standort manuell eingeben");
+      return;
+    }
+    setLoading(true); setError(null);
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude.toFixed(5);
+        var lng = pos.coords.longitude.toFixed(5);
+        setCoords({ lat: lat, lng: lng });
+        fetch("https://nominatim.openstreetmap.org/reverse?lat="+lat+"&lon="+lng+"&format=json&accept-language=de",
+          { headers: { "Accept-Language":"de", "User-Agent":"LTG-App/1.0" }})
+          .then(function(r){ return r.json(); })
+          .then(function(data) {
+            var p = data.address || {};
+            var parts = [p.road, p.suburb||p.quarter,
+              p.town||p.city||p.village||p.county, p.postcode].filter(Boolean);
+            onChange(parts.length ? parts.join(", ") : lat+", "+lng);
+          })
+          .catch(function(){ onChange(lat+", "+lng); })
+          .then(function(){ setLoading(false); },
+                function(){ setLoading(false); });
+      },
+      function(err) {
+        var msg = err.message || "";
+        if (msg.indexOf("permissions") !== -1 || msg.indexOf("disabled") !== -1 ||
+            msg.indexOf("denied") !== -1) {
+          setError("GPS: Bitte Standort manuell eingeben");
+        } else {
+          setError("GPS Fehler - bitte manuell eingeben");
+        }
+        setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  var openMaps = function() {
+    if (coords) {
+      window.open("https://www.google.com/maps?q="+coords.lat+","+coords.lng+"&zoom=16", "_blank");
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:8 }}>
+        <input value={value} onChange={function(e){ onChange(e.target.value); }}
+          placeholder={placeholder || "Standort eingeben..."}
+          style={{ flex:1, background:colors.surface, border:"1px solid "+colors.border,
+            borderRadius:10, padding:"12px 14px", color:colors.white,
+            fontSize:14, outline:"none", fontFamily:"inherit",
+            boxSizing:"border-box" }} />
+        <button onClick={getLocation} disabled={loading}
+          style={{ background:loading ? colors.navyMid : colors.blue, border:"none",
+            borderRadius:10, padding:"0 16px",
+            cursor:loading ? "not-allowed" : "pointer",
+            fontSize:20, color:"#fff", flexShrink:0,
+            opacity:loading ? 0.6 : 1, minWidth:52 }}>
+          {loading ? "..." : "📍"}
+        </button>
+        {coords && (
+          <button onClick={openMaps}
+            style={{ background:colors.surface, border:"1px solid "+colors.border,
+              borderRadius:10, padding:"0 14px", cursor:"pointer",
+              fontSize:20, flexShrink:0 }}>
+            🗺
+          </button>
+        )}
+      </div>
+      {error && (
+        <div style={{ fontSize:11, color:colors.gray500, marginTop:5, fontStyle:"italic" }}>
+          {error}
+        </div>
+      )}
+      {coords && (
+        <div style={{ fontSize:11, color:colors.gray500, marginTop:5 }}>
+          📍 {coords.lat}, {coords.lng}
+          <button onClick={openMaps}
+            style={{ background:"none", border:"none", color:colors.blueLt,
+              cursor:"pointer", fontSize:11, padding:"0 4px",
+              textDecoration:"underline" }}>
+            Google Maps
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export default function App() {
+  const [lang, setLang] = useState("de");
+  const [screen, setScreen] = useState("home");
+  const [driverName, setDriverName] = useState("");
+
+  const [truckVehicle, setTruckVehicle] = useState(null);
+  const [truckChecks, setTruckChecks] = useState({});
+  const [truckDefects, setTruckDefects] = useState("");
+  const [truckPhotos, setTruckPhotos] = useState([]);
+  const [truckTranslated, setTruckTranslated] = useState("");
+  const [truckLoading, setTruckLoading] = useState(false);
+
+  const [trailerVehicle, setTrailerVehicle] = useState(null);
+  const [trailerChecks, setTrailerChecks] = useState({});
+  const [trailerDefects, setTrailerDefects] = useState("");
+  const [trailerPhotos, setTrailerPhotos] = useState([]);
+  const [trailerTranslated, setTrailerTranslated] = useState("");
+  const [trailerLoading, setTrailerLoading] = useState(false);
+
+  const [bd, setBd] = useState({vehicle:"",type:"",location:"",description:"",urgency:"",photos:[]});
+  const [bdSent, setBdSent] = useState(false);
+  const [bdAlertId, setBdAlertId] = useState(null);
+  const [bdAlertStatus, setBdAlertStatus] = useState("open");
+  const [bdSending, setBdSending] = useState(false);
+  const [bdTranslated, setBdTranslated] = useState("");
+
+  const t = T[lang];
+
+  const submitTruck = function() {
+    setTruckLoading(true);
+    translateToGerman(lang !== "de" && truckDefects.trim() ? truckDefects : "")
+      .then(function(tr) {
+        if (tr && tr !== "") setTruckTranslated(tr);
+        setTruckLoading(false);
+        setScreen("truckDone");
+      });
+  };
+
+  const submitTrailer = function() {
+    setTrailerLoading(true);
+    translateToGerman(lang !== "de" && trailerDefects.trim() ? trailerDefects : "")
+      .then(function(tr) {
+        if (tr && tr !== "") setTrailerTranslated(tr);
+        setTrailerLoading(false);
+        setScreen("trailerDone");
+      });
+  };
+
+  const submitBreakdown = function() {
+    var ok = bd.vehicle && bd.type && bd.location && bd.description && bd.urgency && driverName;
+    if (!ok) return;
+    setBdSending(true);
+    var alertId = "A" + Date.now();
+    translateToGerman(lang !== "de" && bd.description.trim() ? bd.description : "")
+      .then(function(tr) {
+        if (tr && tr !== "") setBdTranslated(tr);
+        setBdSending(false);
+        setBdAlertId(alertId);
+        setBdAlertStatus("open");
+        sbInsert("alerts", {
+          id: alertId, type: bd.type || "breakdown",
+          plate: bd.plate || null, location: bd.location || "",
+          description: bd.description || "", urgency: bd.urgency || "urgent",
+          sender: driverName || "driver", sender_app: "fahrer", status: "open",
+        }).catch(function(e){ console.error("bd alert:", e); });
+        setBdSent(true);
+        var pollInterval = setInterval(function() {
+          fetch(SB_URL + "/rest/v1/alerts?id=eq." + alertId + "&select=status", {
+            headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
+          }).then(function(r){ return r.json(); })
+            .then(function(d){
+              if (d && d[0]) {
+                setBdAlertStatus(d[0].status);
+                if (d[0].status === "done") clearInterval(pollInterval);
+              }
+            }).catch(function(){});
+        }, 10000);
+      });
+  };
+
+  const DoneCard = ({ label, original, translated, color }) => (
+    original ? (
+      <div style={{ background:C.surface, border:"1px solid "+C.border,
+        borderRadius:12, padding:14, marginBottom:14, textAlign:"left" }}>
+        <div style={{ fontSize:11, color:C.gray5, marginBottom:4, textTransform:"uppercase" }}>
+          {label}
+        </div>
+        <div style={{ fontSize:13, color:C.gray3, marginBottom: translated && translated!==original ? 10 : 0 }}>
+          {original}
+        </div>
+        {translated && translated !== original && (
+          <div>
+            <div style={{ fontSize:11, color:C.orange, fontWeight:700,
+              textTransform:"uppercase", marginBottom:4 }}>
+              Deutsch (auto)
+            </div>
+            <div style={{ fontSize:13, color:C.white }}>{translated}</div>
+          </div>
+        )}
+      </div>
+    ) : null
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg,
+      fontFamily:"'DM Sans','Segoe UI',sans-serif", color:C.white }}>
+
+      <div style={{ background:C.navy, borderBottom:"1px solid "+C.border,
+        padding:"0 14px", height:54, display:"flex", alignItems:"center",
+        justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {screen !== "home" && (
+            <button onClick={() => setScreen("home")}
+              style={{ background:"none", border:"none", color:C.gray3,
+                cursor:"pointer", fontSize:22, padding:"0 4px 0 0" }}>
+              &lsaquo;
+            </button>
+          )}
+          <LTGLogo />
+        </div>
+        <div style={{ display:"flex", gap:2, background:C.navyMid, borderRadius:10, padding:3 }}>
+          {LANGS.map(l => (
+            <button key={l.code} onClick={() => setLang(l.code)}
+              style={{ padding:"3px 6px", borderRadius:6, border:"none",
+                cursor:"pointer", fontSize:12,
+                background:lang===l.code ? C.orange : "transparent",
+                opacity:lang===l.code ? 1 : 0.5 }}>
+              {l.flag}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* HOME */}
+      {screen === "home" && (
+        <div style={{ padding:"24px 16px", maxWidth:460, margin:"0 auto" }}>
+          <div style={{ textAlign:"center", marginBottom:28 }}>
+            <div style={{ fontSize:44, marginBottom:8 }}>🚛</div>
+            <div style={{ fontSize:20, fontWeight:900 }}>{t.title}</div>
+            <div style={{ fontSize:13, color:C.gray5, marginTop:3 }}>{t.subtitle}</div>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+              textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+              {t.yourName}
+            </div>
+            <input value={driverName} onChange={e => setDriverName(e.target.value)}
+              placeholder={t.namePh}
+              style={{ width:"100%", background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"12px 14px", color:C.white, fontSize:15,
+                outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {[
+              { screen:"truckSetup", emoji:"🚛", label:t.inspectTruck,
+                sub:t.truckChecks.length+" "+(t.points||"Punkte"), color:C.green, bg:"#16a34a" },
+              { screen:"trailerSetup", emoji:"🚜", label:t.inspectTrailer,
+                sub:t.trailerChecks.length+" "+(t.points||"Punkte"), color:C.blue, bg:"#3b82f6" },
+              { screen:"breakdown", emoji:"🚨", label:t.reportBreakdown,
+                sub:t.breakdownTitle, color:C.red, bg:"#dc2626" },
+            ].map(btn => (
+              <button key={btn.screen} onClick={() => setScreen(btn.screen)}
+                style={{ background:"linear-gradient(135deg,"+btn.bg+"22,"+btn.bg+"11)",
+                  border:"2px solid "+btn.color, borderRadius:16,
+                  padding:"20px 18px", cursor:"pointer", textAlign:"left" }}>
+                <div style={{ fontSize:32, marginBottom:6 }}>{btn.emoji}</div>
+                <div style={{ fontSize:17, fontWeight:900, color:C.white, marginBottom:3 }}>
+                  {btn.label}
+                </div>
+                <div style={{ fontSize:13, color:C.gray3 }}>{btn.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TRUCK SETUP */}
+      {screen === "truckSetup" && (
+        <div style={{ padding:"16px", maxWidth:460, margin:"0 auto" }}>
+          <button onClick={() => setScreen("home")}
+            style={{ background:"none", border:"none", color:C.gray5,
+              cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>
+            {t.back}
+          </button>
+          <div style={{ fontSize:17, fontWeight:800, marginBottom:16 }}>{t.selectTruck}</div>
+          <VehicleSelect
+            trucks={TRUCKS} trailers={[]}
+            value={(truckVehicle && truckVehicle.id) || ""}
+            onChange={(id, plate, brand) => {
+              setTruckVehicle({id, plate, brand});
+              setScreen("truckCheck");
+            }}
+            t={t} C={C}
+          />
+        </div>
+      )}
+
+      {/* TRUCK CHECKLIST */}
+      {screen === "truckCheck" && (
+        <div style={{ padding:"16px", maxWidth:460, margin:"0 auto" }}>
+          {truckLoading ? (
+            <div style={{ textAlign:"center", padding:60 }}>
+              <div style={{ fontSize:36, marginBottom:12 }}>🔄</div>
+              <div style={{ color:C.orange, fontWeight:700 }}>{t.translating}</div>
+            </div>
+          ) : (
+            <div>
+              <button onClick={() => setScreen("truckSetup")}
+                style={{ background:"none", border:"none", color:C.gray5,
+                  cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>
+                {t.back}
+              </button>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+                <span style={{ fontSize:28 }}>🚛</span>
+                <div>
+                  <div style={{ fontSize:17, fontWeight:800 }}>{t.inspectTruck}</div>
+                  <div style={{ fontSize:13, color:C.gray5 }}>
+                    {truckVehicle ? truckVehicle.plate : ""} - {truckVehicle ? truckVehicle.brand : ""}
+                  </div>
+                </div>
+              </div>
+              {t.truckChecks.map(item => (
+                <button key={item.k}
+                  onClick={() => setTruckChecks(c => ({...c,[item.k]:!c[item.k]}))}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                    width:"100%", background:truckChecks[item.k] ? C.green+"18" : C.surface,
+                    border:"1px solid "+(truckChecks[item.k] ? C.green : C.border),
+                    borderRadius:12, padding:"14px 16px", marginBottom:10,
+                    cursor:"pointer", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:22 }}>{item.emoji}</span>
+                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
+                      {item.label}
+                    </span>
+                  </div>
+                  <span style={{ fontSize:22 }}>{truckChecks[item.k] ? "✅" : "⬜"}</span>
+                </button>
+              ))}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:12, padding:14, marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", marginBottom:8 }}>{t.defects}</div>
+                <textarea value={truckDefects} onChange={e => setTruckDefects(e.target.value)}
+                  placeholder={t.defectsPh}
+                  style={{ width:"100%", background:C.bg, border:"1px solid "+C.border,
+                    borderRadius:8, padding:"10px 12px", color:C.white,
+                    fontSize:14, resize:"vertical", minHeight:70,
+                    fontFamily:"inherit", outline:"none", boxSizing:"border-box" }} />
+              </div>
+              <PhotoUpload photos={truckPhotos}
+                onAdd={r => setTruckPhotos(p => [...p,...r])}
+                onRemove={i => setTruckPhotos(p => p.filter((_,j)=>j!==i))}
+                label={t.photo} />
+              {(() => {
+                const allOk = t.truckChecks.every(item => truckChecks[item.k]);
+                return (
+                  <div>
+                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
+                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
+                      borderRadius:10, padding:"10px 14px", marginBottom:14,
+                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
+                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                    </div>
+                    <button onClick={submitTruck} disabled={!allOk}
+                      style={{ width:"100%", background:allOk?C.green:C.border,
+                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
+                        padding:"14px 0", fontWeight:900, fontSize:15,
+                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
+                      {t.submit}
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TRUCK DONE */}
+      {screen === "truckDone" && (
+        <div style={{ padding:"40px 16px", maxWidth:460, margin:"0 auto", textAlign:"center" }}>
+          <div style={{ fontSize:64, marginBottom:12 }}>
+            {truckDefects.trim() ? "⚠️" : "✅"}
+          </div>
+          <div style={{ fontSize:22, fontWeight:900, marginBottom:6,
+            color:truckDefects.trim()?C.yellow:C.green }}>
+            {t.done}
+          </div>
+          <div style={{ fontSize:14, color:C.gray3, marginBottom:24 }}>
+            {truckDefects.trim() ? t.defectsFound : t.ok}
+          </div>
+          <DoneCard label={t.defects} original={truckDefects} translated={truckTranslated} />
+          <button onClick={() => {
+            setTruckChecks({}); setTruckDefects(""); setTruckPhotos([]);
+            setTruckTranslated(""); setScreen("home");
+          }} style={{ width:"100%", background:C.orange, color:"#000",
+            border:"none", borderRadius:12, padding:"14px 0",
+            fontWeight:900, fontSize:15, cursor:"pointer" }}>
+            {t.newInspection}
+          </button>
+        </div>
+      )}
+
+      {/* TRAILER SETUP */}
+      {screen === "trailerSetup" && (
+        <div style={{ padding:"16px", maxWidth:460, margin:"0 auto" }}>
+          <button onClick={() => setScreen("home")}
+            style={{ background:"none", border:"none", color:C.gray5,
+              cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>
+            {t.back}
+          </button>
+          <div style={{ fontSize:17, fontWeight:800, marginBottom:16 }}>{t.selectTrailer}</div>
+          <VehicleSelect
+            trucks={[]} trailers={TRAILERS}
+            value={(trailerVehicle && trailerVehicle.id) || ""}
+            onChange={(id, plate, brand) => {
+              setTrailerVehicle({id, plate, brand});
+              setScreen("trailerCheck");
+            }}
+            t={t} C={C}
+          />
+        </div>
+      )}
+
+      {/* TRAILER CHECKLIST */}
+      {screen === "trailerCheck" && (
+        <div style={{ padding:"16px", maxWidth:460, margin:"0 auto" }}>
+          {trailerLoading ? (
+            <div style={{ textAlign:"center", padding:60 }}>
+              <div style={{ fontSize:36, marginBottom:12 }}>🔄</div>
+              <div style={{ color:C.orange, fontWeight:700 }}>{t.translating}</div>
+            </div>
+          ) : (
+            <div>
+              <button onClick={() => setScreen("trailerSetup")}
+                style={{ background:"none", border:"none", color:C.gray5,
+                  cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>
+                {t.back}
+              </button>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+                <span style={{ fontSize:28 }}>🚜</span>
+                <div>
+                  <div style={{ fontSize:17, fontWeight:800 }}>{t.inspectTrailer}</div>
+                  <div style={{ fontSize:13, color:C.gray5 }}>
+                    {trailerVehicle ? trailerVehicle.plate : ""} - {trailerVehicle ? trailerVehicle.brand : ""}
+                  </div>
+                </div>
+              </div>
+              {t.trailerChecks.map(item => (
+                <button key={item.k}
+                  onClick={() => setTrailerChecks(c => ({...c,[item.k]:!c[item.k]}))}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                    width:"100%", background:trailerChecks[item.k]?C.green+"18":C.surface,
+                    border:"1px solid "+(trailerChecks[item.k]?C.green:C.border),
+                    borderRadius:12, padding:"14px 16px", marginBottom:10,
+                    cursor:"pointer", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:22 }}>{item.emoji}</span>
+                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
+                      {item.label}
+                    </span>
+                  </div>
+                  <span style={{ fontSize:22 }}>{trailerChecks[item.k]?"✅":"⬜"}</span>
+                </button>
+              ))}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:12, padding:14, marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", marginBottom:8 }}>{t.defects}</div>
+                <textarea value={trailerDefects} onChange={e => setTrailerDefects(e.target.value)}
+                  placeholder={t.defectsPh}
+                  style={{ width:"100%", background:C.bg, border:"1px solid "+C.border,
+                    borderRadius:8, padding:"10px 12px", color:C.white,
+                    fontSize:14, resize:"vertical", minHeight:70,
+                    fontFamily:"inherit", outline:"none", boxSizing:"border-box" }} />
+              </div>
+              <PhotoUpload photos={trailerPhotos}
+                onAdd={r => setTrailerPhotos(p => [...p,...r])}
+                onRemove={i => setTrailerPhotos(p => p.filter((_,j)=>j!==i))}
+                label={t.photo} />
+              {(() => {
+                const allOk = t.trailerChecks.every(item => trailerChecks[item.k]);
+                return (
+                  <div>
+                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
+                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
+                      borderRadius:10, padding:"10px 14px", marginBottom:14,
+                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
+                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                    </div>
+                    <button onClick={submitTrailer} disabled={!allOk}
+                      style={{ width:"100%", background:allOk?C.green:C.border,
+                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
+                        padding:"14px 0", fontWeight:900, fontSize:15,
+                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
+                      {t.submit}
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TRAILER DONE */}
+      {screen === "trailerDone" && (
+        <div style={{ padding:"40px 16px", maxWidth:460, margin:"0 auto", textAlign:"center" }}>
+          <div style={{ fontSize:64, marginBottom:12 }}>
+            {trailerDefects.trim() ? "⚠️" : "✅"}
+          </div>
+          <div style={{ fontSize:22, fontWeight:900, marginBottom:6,
+            color:trailerDefects.trim()?C.yellow:C.green }}>
+            {t.done}
+          </div>
+          <div style={{ fontSize:14, color:C.gray3, marginBottom:24 }}>
+            {trailerDefects.trim() ? t.defectsFound : t.ok}
+          </div>
+          <DoneCard label={t.defects} original={trailerDefects} translated={trailerTranslated} />
+          <button onClick={() => {
+            setTrailerChecks({}); setTrailerDefects(""); setTrailerPhotos([]);
+            setTrailerTranslated(""); setScreen("home");
+          }} style={{ width:"100%", background:C.orange, color:"#000",
+            border:"none", borderRadius:12, padding:"14px 0",
+            fontWeight:900, fontSize:15, cursor:"pointer" }}>
+            {t.newInspection}
+          </button>
+        </div>
+      )}
+
+      {/* BREAKDOWN */}
+      {screen === "breakdown" && (
+        <div style={{ padding:"16px", maxWidth:460, margin:"0 auto", paddingBottom:40 }}>
+          {bdSent ? (
+            <div style={{ textAlign:"center", padding:"40px 0" }}>
+              <div style={{ fontSize:64, marginBottom:12 }}>
+                {bd.urgency==="urgent" ? "🚨" : "✅"}
+              </div>
+              <div style={{ fontSize:22, fontWeight:900, marginBottom:8,
+                color:bd.urgency==="urgent"?C.red:C.green }}>
+                {t.sent}
+              </div>
+              <div style={{ fontSize:14, color:C.gray3, marginBottom:16 }}>{t.sentDesc}</div>
+              <div style={{ background: bdAlertStatus === "done" ? "#16a34a22" : bdAlertStatus === "inProgress" ? "#f59e0b22" : "#3b82f622",
+                border: "1px solid " + (bdAlertStatus === "done" ? "#16a34a" : bdAlertStatus === "inProgress" ? "#f59e0b" : "#3b82f6"),
+                borderRadius:10, padding:"12px 16px", marginBottom:20, textAlign:"center" }}>
+                <div style={{ fontSize:13, fontWeight:700,
+                  color: bdAlertStatus === "done" ? "#22c55e" : bdAlertStatus === "inProgress" ? "#f59e0b" : "#60a5fa" }}>
+                  {bdAlertStatus === "done" ? "✅ Erledigt" :
+                   bdAlertStatus === "inProgress" ? "🔧 In Bearbeitung" : "📨 Gesendet — warte auf Mechaniker..."}
+                </div>
+              </div>
+              <DoneCard label={t.description} original={bd.description} translated={bdTranslated} />
+              <button onClick={() => {
+                setBd({vehicle:"",type:"",location:"",description:"",urgency:"",photos:[]});
+                setBdSent(false); setBdTranslated(""); setScreen("home");
+              }} style={{ width:"100%", background:C.orange, color:"#000",
+                border:"none", borderRadius:12, padding:"14px 0",
+                fontWeight:900, fontSize:15, cursor:"pointer" }}>
+                {t.newReport}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <button onClick={() => setScreen("home")}
+                style={{ background:"none", border:"none", color:C.gray5,
+                  cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>
+                {t.back}
+              </button>
+              <div style={{ fontSize:17, fontWeight:800, marginBottom:20 }}>
+                {t.breakdownTitle}
+              </div>
+
+              {/* Driver name - show if empty */}
+              {!driverName && (
+                <div style={{ background:"#f59e0b22", border:"1px solid #f59e0b44",
+                  borderRadius:10, padding:"12px 14px", marginBottom:14 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#f59e0b",
+                    textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+                    {t.yourName} *
+                  </div>
+                  <input value={driverName} onChange={e => setDriverName(e.target.value)}
+                    placeholder={t.namePh}
+                    style={{ width:"100%", background:C.surface, border:"1px solid #f59e0b",
+                      borderRadius:10, padding:"12px 14px", color:C.white, fontSize:15,
+                      outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
+                </div>
+              )}
+
+              {/* Vehicle select */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+                  {t.selectTruck} / {t.selectTrailer} *
+                </div>
+                <VehicleSelect
+                trucks={TRUCKS} trailers={TRAILERS}
+                value={bd.vehicle}
+                onChange={(id, plate, brand, vtype) =>
+                  setBd(b=>({...b, vehicle:id, plate, brand, vtype}))}
+                t={t} C={C}
+              />
+              </div>
+
+              {/* Type */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+                  {t.breakdownType} *
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  {t.types.map(tp => (
+                    <button key={tp.k} onClick={() => setBd(b=>({...b,type:tp.k}))}
+                      style={{ padding:"12px 8px", borderRadius:10, textAlign:"center",
+                        border:"1px solid "+(bd.type===tp.k?C.orange:C.border),
+                        background:bd.type===tp.k?C.orange+"22":C.surface,
+                        color:bd.type===tp.k?C.orange:C.gray3,
+                        fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                      {tp.emoji} {tp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Urgency */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+                  {t.urgency} *
+                </div>
+                {[
+                  {k:"urgent",label:"🔴 "+t.urgentYes,color:C.red,bg:C.red+"22"},
+                  {k:"canwait",label:"🟡 "+t.urgentNo,color:C.yellow,bg:C.yellow+"22"},
+                ].map(opt => (
+                  <button key={opt.k} onClick={() => setBd(b=>({...b,urgency:opt.k}))}
+                    style={{ display:"block", width:"100%", padding:"12px 16px",
+                      borderRadius:10, textAlign:"left", marginBottom:8,
+                      border:"1px solid "+(bd.urgency===opt.k?opt.color:C.border),
+                      background:bd.urgency===opt.k?opt.bg:C.surface,
+                      color:bd.urgency===opt.k?opt.color:C.gray3,
+                      fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Location */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+                  {t.location} *
+                </div>
+                <LocationPicker
+                  value={bd.location}
+                  onChange={v => setBd(b=>({...b,location:v}))}
+                  placeholder={t.locationPh}
+                  t={t}
+                />
+              </div>
+
+              {/* Description */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
+                  {t.description} *
+                </div>
+                <textarea value={bd.description}
+                  onChange={e => setBd(b=>({...b,description:e.target.value}))}
+                  placeholder={t.descPh || "Was ist passiert? / Что случилось?"}
+                  style={{ width:"100%", background:C.surface, border:"1px solid "+C.border,
+                    borderRadius:10, padding:"12px 14px", color:C.white,
+                    fontSize:14, resize:"vertical", minHeight:80,
+                    fontFamily:"inherit", outline:"none", boxSizing:"border-box" }} />
+              </div>
+
+              <PhotoUpload photos={bd.photos}
+                onAdd={r => setBd(b=>({...b,photos:[...b.photos,...r]}))}
+                onRemove={i => setBd(b=>({...b,photos:b.photos.filter((_,j)=>j!==i)}))}
+                label={t.photo} />
+
+              {(!bd.vehicle||!bd.type||!bd.location||!bd.description||!bd.urgency||!driverName) && (
+                <div style={{ fontSize:12, color:"#f59e0b", marginBottom:8, textAlign:"center" }}>
+                  {!driverName ? "* " + t.yourName : !bd.vehicle ? "* " + t.selectTruck : !bd.location ? "* " + t.location : !bd.type ? "* " + t.breakdownType : !bd.urgency ? "* " + t.urgency : !bd.description ? "* " + t.description : ""}
+                </div>
+              )}
+              <button onClick={submitBreakdown}
+                disabled={!bd.vehicle||!bd.type||!bd.location||!bd.description||!bd.urgency||!driverName||bdSending}
+                style={{ width:"100%", borderRadius:14, padding:"16px 0",
+                  fontWeight:900, fontSize:16, border:"none",
+                  background:bd.urgency==="urgent"?C.red:C.orange,
+                  color:"#fff", cursor:"pointer",
+                  opacity:(!bd.vehicle||!bd.type||!bd.location||!bd.description||!bd.urgency||!driverName)?0.5:1,
+                  boxShadow:bd.urgency==="urgent"?"0 4px 20px "+C.red+"66":"none" }}>
+                {bdSending ? t.sending : t.send}
+              </button>
+              <div style={{ textAlign:"center", fontSize:12, color:C.gray5, marginTop:10 }}>
+                * {t.required}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(App));
   </script>
