@@ -2278,7 +2278,14 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         {/* MECHANICS SECTION */}
         {activeSection === "mechanics" && (
           <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
-            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:16 }}>Mechaniker Übersicht</div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:C.white }}>Mechaniker Übersicht</div>
+              <button onClick={function(){ setActiveSection("overview"); }}
+                style={{ background:"#1e4fa0", border:"none", borderRadius:8,
+                  color:"#fff", cursor:"pointer", fontSize:13, fontWeight:700, padding:"6px 14px" }}>
+                ← Overview
+              </button>
+            </div>
             {mechLoad.map(function(m){
               var pct = Math.min(m.min/480, 1);
               var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
@@ -2330,6 +2337,13 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         {/* WASH SECTION */}
         {activeSection === "wash" && (
           <div>
+            <div style={{ marginBottom:14 }}>
+              <button onClick={function(){ setActiveSection("overview"); }}
+                style={{ background:"#1e4fa0", border:"none", borderRadius:8,
+                  color:"#fff", cursor:"pointer", fontSize:13, fontWeight:700, padding:"6px 14px" }}>
+                ← Overview
+              </button>
+            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
               {/* By vehicle type */}
               <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
