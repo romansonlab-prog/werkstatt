@@ -2221,24 +2221,19 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
                 })}
               </div>
 
-              {/* Mойка stats */}
+              {/* Wäsche stats - simple */}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:10, padding:"16px", marginBottom:16 }}>
-                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:12 }}>🚿 Fahrzeugwäsche — heute</div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-                  {[
-                    {v:washCount, l:"Fahrzeuge"},
-                    {v:formatMin(washMin), l:"Zeit"},
-                    {v:washCost.toFixed(0)+"€", l:"Kosten"},
-                  ].map(function(k,i){
-                    return (
-                      <div key={i} style={{ textAlign:"center", background:C.bg,
-                        borderRadius:8, padding:"10px 6px" }}>
-                        <div style={{ fontSize:18, fontWeight:800, color:C.white }}>{k.v}</div>
-                        <div style={{ fontSize:10, color:C.gray500, marginTop:2 }}>{k.l}</div>
-                      </div>
-                    );
-                  })}
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:10 }}>🚿 Fahrzeugwäsche — heute</div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontSize:22, fontWeight:900, color:"#1e4fa0" }}>{washCount}</div>
+                    <div style={{ fontSize:11, color:C.gray500 }}>Fahrzeuge</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:C.white }}>{washCost.toFixed(2)} €</div>
+                    <div style={{ fontSize:11, color:C.gray500 }}>{formatMin(washMin)}</div>
+                  </div>
                 </div>
               </div>
 
@@ -2329,23 +2324,82 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         {/* WASH SECTION */}
         {activeSection === "wash" && (
           <div>
-            <div style={{ background:C.surface, border:"1px solid "+C.border,
-              borderRadius:10, padding:"20px", marginBottom:16 }}>
-              <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:16 }}>🚿 Fahrzeugwäsche — heute</div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:20 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+              {/* By vehicle type */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Fahrzeugtypen</div>
                 {[
-                  {v:washCount, l:"Fahrzeuge gewaschen", c:"#1e4fa0"},
-                  {v:formatMin(washMin), l:"Gesamtzeit", c:"#7c3aed"},
-                  {v:washCost.toFixed(2)+" €", l:"Gesamtkosten", c:"#d97706"},
-                ].map(function(k,i){
+                  {k:"truck",       l:"LKW",        icon:"🚛", color:"#1d4ed8"},
+                  {k:"semiTrailer", l:"Sattelzug",   icon:"🚚", color:"#0369a1"},
+                  {k:"forklift",    l:"Stapler",     icon:"🏗",  color:"#d97706"},
+                  {k:"trailer",     l:"Anhänger",    icon:"🔗", color:"#059669"},
+                  {k:"pkw",         l:"PKW",         icon:"🚗", color:"#7c3aed"},
+                  {k:"other",       l:"Sonstiges",   icon:"🔩", color:"#64748b"},
+                ].map(function(x){
+                  var cnt = washJobs.filter(function(j){ return j.vehicleType===x.k; }).length;
+                  if (cnt === 0) return null;
                   return (
-                    <div key={i} style={{ background:C.bg, borderRadius:10, padding:"16px",
-                      border:"1px solid "+C.border, borderTop:"3px solid "+k.c }}>
-                      <div style={{ fontSize:28, fontWeight:900, color:C.white }}>{k.v}</div>
-                      <div style={{ fontSize:12, color:C.gray500, marginTop:4 }}>{k.l}</div>
+                    <div key={x.k} style={{ display:"flex", alignItems:"center",
+                      padding:"7px 0", borderBottom:"1px solid "+C.border+"44" }}>
+                      <span style={{ fontSize:16, marginRight:10 }}>{x.icon}</span>
+                      <span style={{ flex:1, fontSize:13, color:C.white }}>{x.l}</span>
+                      <span style={{ fontWeight:800, fontSize:16, color:x.color }}>{cnt}</span>
                     </div>
                   );
                 })}
+                {washJobs.length === 0 && (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"16px 0" }}>
+                    Heute noch keine Einträge
+                  </div>
+                )}
+              </div>
+
+              {/* By wash type */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Wascharten</div>
+                {[
+                  {k:"basic",    l:"Einfache Wäsche",   icon:"💧", color:"#0369a1"},
+                  {k:"full",     l:"Vollwäsche",         icon:"🚿", color:"#1e4fa0"},
+                  {k:"chemical", l:"Chemische Reinigung",icon:"🧴", color:"#7c3aed"},
+                  {k:"other",    l:"Sonstiges",          icon:"⚙",  color:"#64748b"},
+                ].map(function(x){
+                  var cnt = washJobs.filter(function(j){ return (j.washType||"basic")===x.k; }).length;
+                  if (cnt === 0) return null;
+                  return (
+                    <div key={x.k} style={{ display:"flex", alignItems:"center",
+                      padding:"7px 0", borderBottom:"1px solid "+C.border+"44" }}>
+                      <span style={{ fontSize:16, marginRight:10 }}>{x.icon}</span>
+                      <span style={{ flex:1, fontSize:13, color:C.white }}>{x.l}</span>
+                      <span style={{ fontWeight:800, fontSize:16, color:x.color }}>{cnt}</span>
+                    </div>
+                  );
+                })}
+                {washJobs.length === 0 && (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"16px 0" }}>
+                    Heute noch keine Einträge
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Wash jobs table */}
+            <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white }}>🚿 Fahrzeugwäsche — heute</div>
+                <div style={{ display:"flex", gap:16 }}>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#1e4fa0" }}>{washCount}</div>
+                    <div style={{ fontSize:10, color:C.gray500 }}>Fahrzeuge</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#d97706" }}>{washCost.toFixed(2)} €</div>
+                    <div style={{ fontSize:10, color:C.gray500 }}>Gesamt</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:C.white }}>{formatMin(washMin)}</div>
+                    <div style={{ fontSize:10, color:C.gray500 }}>Zeit</div>
+                  </div>
+                </div>
               </div>
               {washJobs.length === 0 ? (
                 <div style={{ textAlign:"center", color:C.gray500, padding:"24px 0", fontSize:14 }}>
@@ -2355,7 +2409,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
                 <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
                   <thead>
                     <tr style={{ borderBottom:"2px solid "+C.border }}>
-                      {["Fahrzeug","Mechaniker","Zeit","Kosten"].map(function(h){
+                      {["Fahrzeug","Typ","Waschart","Zeit","Kosten"].map(function(h){
                         return <th key={h} style={{ padding:"8px 10px", textAlign:"left",
                           fontSize:11, color:C.gray500, fontWeight:600 }}>{h}</th>;
                       })}
@@ -2363,10 +2417,13 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
                   </thead>
                   <tbody>
                     {washJobs.map(function(j){
+                      var washTypeLabel = {basic:"Einfach", full:"Vollwäsche", chemical:"Chemisch", other:"Sonstiges"}[j.washType||"basic"]||"Einfach";
+                      var vIcon = {truck:"🚛",semiTrailer:"🚚",forklift:"🏗",trailer:"🔗",pkw:"🚗",other:"🔩"}[j.vehicleType]||"🔩";
                       return (
                         <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
-                          <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>{j.plate}</td>
-                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{j.mechanic}</td>
+                          <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>{vIcon} {j.plate}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.vehicleType}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{washTypeLabel}</td>
                           <td style={{ padding:"9px 10px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
                           <td style={{ padding:"9px 10px", color:C.gray300 }}>{(j.cost||0).toFixed(2)}€</td>
                         </tr>
