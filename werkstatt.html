@@ -1960,7 +1960,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
   };
 
   return (
-    <div style={{ color:C.white }}>
+    <div style={{ color:C.white, padding:24, maxWidth:1400, margin:"0 auto" }}>
 
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
@@ -1984,14 +1984,11 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
               );
             })}
           </div>
-          {/* PDF export - boss only */}
-          {isBoss && (
-            <button onClick={function(){ exportDayReport(jobs, vehicles, lang); }}
-              style={{ background:C.blue, color:"#fff", border:"none", borderRadius:8,
-                padding:"7px 14px", fontWeight:700, fontSize:12, cursor:"pointer" }}>
-              📄 PDF
-            </button>
-          )}
+          <button onClick={function(){ exportDayReport(jobs, vehicles, lang); }}
+            style={{ background:C.blue, color:"#fff", border:"none", borderRadius:8,
+              padding:"7px 14px", fontWeight:700, fontSize:12, cursor:"pointer" }}>
+            📄 PDF
+          </button>
 
         </div>
       </div>
@@ -2021,7 +2018,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
       })}
 
       {/* KPI Strip */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:10 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:8, marginBottom:10 }}>
         {[
           {v:total,              l:t.jobsLabel||"Aufträge",   c:C.gray500},
           {v:open+inProgress,    l:t.openLabel||"Offen",      c:open+inProgress>0?C.orange:C.green},
@@ -2055,7 +2052,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
       </div>
 
       {/* Fleet status + By type - two columns */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10, marginBottom:10 }}>
         {/* Fleet status */}
         <div style={S.card}>
           <div style={S.sectionTitle}>Fuhrpark</div>
@@ -2099,6 +2096,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         })}
       </div>
 
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10 }}>
       {/* Mechanic workload */}
       <div style={S.card}>
         <div style={S.sectionTitle}>{t.mechanicLoad||"Mechaniker"}</div>
@@ -2148,7 +2146,9 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         </div>
       )}
 
+      </div>
       {/* Recent jobs */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10, marginTop:10 }}>
       <div style={S.card}>
         <div style={S.sectionTitle}>Letzte Aufträge</div>
         {filtered.slice(0,5).map(function(j){
@@ -2168,6 +2168,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         })}
       </div>
 
+    </div>
     </div>
   );
 }
@@ -4379,7 +4380,8 @@ function App() {
       )}
 
       {/* Content */}
-      <div style={{ padding: 16, paddingBottom: 80, maxWidth: 700, margin: "0 auto" }}>
+      <div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: 80,
+        maxWidth: activeTab==="dashboard" ? "100%" : 700, margin: "0 auto" }}>
         {activeTab === "new"       && isMechanic && <NewJobForm key={formKey} user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
         {activeTab === "jobs"                      && <MyJobs user={user} jobs={jobs} setJobs={setJobs} t={t} />}
         {(activeTab === "dashboard") && (user.role === "boss" || user.role === "fpl") && <DashboardShared jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} user={user} onNavigate={function(vid){ setSelectedVehicleId(vid); setPrevTab(tab); setTab("fahrzeuge"); }} onCreateJob={function(){ setPrevTab(tab); setTab("melden"); }} />}
