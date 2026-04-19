@@ -714,7 +714,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
     }
     return (
       <div style={{ minHeight:"100vh",
-        background:"linear-gradient(160deg, #0a1020 0%, #0f1623 60%, #131d2e 100%)",
+        background:"linear-gradient(160deg, #0d2145 0%, #1a3a6b 60%, #1e4fa0 100%)",
         display:"flex", flexDirection:"column",
         fontFamily:"'DM Sans','Segoe UI',sans-serif",
         color:C.white, overflowY:"auto" }}>
@@ -852,7 +852,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
     var hasUrgent = openAlerts.some(function(a){ return a.urgency === "urgent"; });
     return (
       <div style={{ minHeight:"100vh",
-        background:"linear-gradient(160deg, #0a1020 0%, #0f1623 60%, #131d2e 100%)",
+        background:"linear-gradient(160deg, #0d2145 0%, #1a3a6b 60%, #1e4fa0 100%)",
         display:"flex", flexDirection:"column",
         fontFamily:"'DM Sans','Segoe UI',sans-serif",
         color:C.white, overflowY:"auto" }}>
@@ -1015,7 +1015,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   var selUser = USERS.find(function(u){ return u.id === selected; });
   return (
     <div style={{ minHeight:"100vh",
-      background:"linear-gradient(160deg, #0a1020 0%, #0f1623 60%, #131d2e 100%)",
+      background:"linear-gradient(160deg, #0d2145 0%, #1a3a6b 60%, #1e4fa0 100%)",
       display:"flex", flexDirection:"column", alignItems:"center",
       justifyContent:"center", fontFamily:"'DM Sans','Segoe UI',sans-serif",
       padding:16, color:C.white }}>
@@ -2045,7 +2045,7 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div>
             <div style={{ fontSize:22, fontWeight:800, color:C.white }}>
-              Workshop <span style={{ color:"#1e4fa0", fontWeight:400 }}>Overview</span>
+              WERKSTATT <span style={{ color:"#1e4fa0", fontWeight:400 }}>HOCKENHEIM</span>
             </div>
             <div style={{ fontSize:12, color:C.gray500, marginTop:2 }}>
               LTG Hockenheim — {today.toLocaleDateString("de-DE")}
@@ -3716,9 +3716,9 @@ function LocationPicker({ value, onChange, placeholder, C }) {
   const [error,   setError]   = useState(null);
   const [coords,  setCoords]  = useState(null);
 
-  const colors = C || { surface:"#1c2840", border:"#2a3a52", white:"#f1f5f9",
+  const colors = C || { surface:"#ffffff", border:"#d0dbe8", white:"#1a2332",
     red:"#ef4444", green:"#22c55e", gray500:"#64748b", blue:"#3b82f6",
-    navyMid:"#1c2840", blueLt:"#60a5fa" };
+    navyMid:"#1e4280", blueLt:"#2d5fa8" };
 
   const getLocation = function() {
     if (!navigator.geolocation) {
@@ -4434,7 +4434,7 @@ function App() {
 
   // Loading screen
   if (loading) return (
-    <div style={{ background: "#0f1623", minHeight: "100vh", display: "flex",
+    <div style={{ background: C.bg, minHeight: "100vh", display: "flex",
       flexDirection: "column", alignItems: "center", justifyContent: "center",
       fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#f1f5f9" }}>
       <div style={{ fontSize: 32, fontWeight: 900, color: "#f1f5f9",
@@ -4444,7 +4444,7 @@ function App() {
       <div style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>
         Verbinde mit Datenbank...
       </div>
-      <div style={{ width: 40, height: 40, border: "3px solid #2a3a52",
+      <div style={{ width: 40, height: 40, border: "3px solid #d0dbe8",
         borderTop: "3px solid #3b82f6", borderRadius: "50%",
         animation: "spin 1s linear infinite" }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -4473,7 +4473,9 @@ function App() {
   return (
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.white }}>
       {/* Header */}
-      <div style={{ background: C.surfaceAlt, borderBottom: "1px solid "+C.border, padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ height: 4, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 50%, #1e4fa0 100%)" }} />
+        <div style={{ background: C.surfaceAlt, borderBottom: "1px solid "+C.border, padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <LTGLogo size={0.7} />
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* DB status dot */}
@@ -4481,16 +4483,7 @@ function App() {
             style={{ width:8, height:8, borderRadius:"50%",
               background: dbStatus==="ok" ? C.green : dbStatus==="error" ? C.red : C.yellow,
               flexShrink:0, cursor:"default" }} />
-          {/* Language selector */}
-          <div style={{ display: "flex", gap: 2, background: C.navyMid, borderRadius: 8, padding: 3 }}>
-            {[{code:"de",flag:"🇩🇪"}].map(l => (
-              <button key={l.code} onClick={() => setLang(l.code)}
-                style={{ padding: "3px 7px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 13, background: lang === l.code ? C.orange : "transparent", opacity: lang === l.code ? 1 : 0.5, transition: "all 0.15s" }}>
-                {l.flag}
-              </button>
-            ))}
-          </div>
-          <div style={{ width: 1, height: 18, background: C.border }} />
+
           {/* Meldungen button - boss/Jens */}
           {isViewer && (function() {
             var cnt = (alerts||[]).filter(function(a){ return a.status !== "done"; }).length;
@@ -4519,12 +4512,13 @@ function App() {
               </button>
             );
           })()}
-          <div style={{ fontSize: 12, color: C.gray500 }}>{(user.name||"").split(" ")[0]}</div>
+
           <button onClick={() => { setPrevTab(tab); setTab(prevTab); }}
             style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 8, padding: "8px 14px", color: C.gray300, fontSize: 18, cursor: "pointer" }}
             title="Zurück">
             ←
           </button>
+        </div>
         </div>
       </div>
 
