@@ -3628,7 +3628,7 @@ function Archive({ jobs, user, t }) {
       "*{box-sizing:border-box}",
       "body{font-family:'Segoe UI',Arial,sans-serif;padding:0;margin:0;color:#1a2332;background:#fff}",
       ".header{background:#1e4fa0;padding:20px 32px;display:flex;align-items:center}",
-      ".header img{height:40px}",
+      ".logo{font-size:42px;font-weight:900;color:#fff;letter-spacing:-2px;line-height:1;font-family:Arial Black,Arial,sans-serif}",
       ".stripe{height:5px;background:linear-gradient(90deg,#1e4fa0 0%,#f5a623 40%,#f5a623 60%,#1e4fa0 100%)}",
       ".body{padding:28px 32px;max-width:640px;margin:0 auto}",
       ".title{font-size:22px;font-weight:800;color:#1e4fa0;margin-bottom:4px}",
@@ -3644,7 +3644,7 @@ function Archive({ jobs, user, t }) {
     const html = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
       + "<title>Auftrag " + j.plate + "</title>"
       + "<style>" + css + "</style></head><body>"
-      + "<div class='header'><svg viewBox='0 0 140 48' xmlns='http://www.w3.org/2000/svg' height='48' style='display:block'><text x='4' y='40' font-family='Arial Black,Arial,sans-serif' font-weight='900' font-size='42' fill='white' letter-spacing='-2'>LTG</text></svg></div>"
+      + "<div class='header'><div class='logo'>LTG</div></div>"
       + "<div class='stripe'></div>"
       + "<div class='body'>"
       + "<div class='title'>Auftrag &mdash; " + j.plate + "</div>"
