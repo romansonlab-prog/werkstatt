@@ -1306,7 +1306,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
   ];
   const workOptions = [
     { v: "repair", l: t.repair }, { v: "maintenance", l: t.maintenance },
-    { v: "inspection", l: t.inspection }, { v: "travelToShop", l: t.travelToShop }, { v: "tireChange", l: t.tireChange||"Reifenwechsel" }, { v: "emergency", l: t.emergency }
+    { v: "inspection", l: t.inspection }, { v: "travelToShop", l: t.travelToShop }, { v: "tireChange", l: t.tireChange||"Reifenwechsel" }, { v: "wash", l: t.wash||"Waschen" }, { v: "emergency", l: t.emergency }
   ];
   const colleagues = USERS.filter(u => u.role === "mechanic" && u.id !== user.id);
 
@@ -1873,13 +1873,11 @@ function exportDayReport(jobs, vehicles, lang) {
   URL.revokeObjectURL(url);
 }
 
-function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, onCreateJob }) {
+function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, onCreateJob, onTabChange }) {
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
-  const isBoss = user && user.role === "boss";
   const [period, setPeriod] = useState("today");
-  const [exporting, setExporting] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
 
   const filtered = period === "today"
     ? (jobs||[]).filter(function(j){ return j.date === todayStr; })
@@ -1888,16 +1886,15 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
     : (jobs||[]);
 
   const total      = filtered.length;
-  const open       = filtered.filter(function(j){ return j.status === "open"; }).length;
-  const inProgress = filtered.filter(function(j){ return j.status === "inProgress"; }).length;
-  const done       = filtered.filter(function(j){ return j.status === "done"; }).length;
+  const openJobs   = filtered.filter(function(j){ return j.status === "open"; });
+  const inProgJobs = filtered.filter(function(j){ return j.status === "inProgress"; });
+  const doneJobs   = filtered.filter(function(j){ return j.status === "done"; });
   const totalCost  = filtered.reduce(function(s,j){ return s+(j.cost||0); }, 0);
   const totalMin   = filtered.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+  const travelMin  = filtered.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
 
-  const openJobs   = (jobs||[]).filter(function(j){ return j.status !== "done"; });
-  const todayJobs  = (jobs||[]).filter(function(j){ return j.date === todayStr; });
-  const travelToday = todayJobs.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
-  const totalDown  = todayJobs.reduce(function(s,j){ return s+(j.downtime||0); }, 0);
+  const allOpen    = (jobs||[]).filter(function(j){ return j.status !== "done"; });
+  const openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
 
   // Fleet doc status
   const getDocStatus = function(v) {
@@ -1908,267 +1905,480 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
     if (min < 30) return "warning";
     return "ok";
   };
+
+  // Fleet by type
+  var fleetTypes = [
+    {k:"truck",       l:"LKW",          color:"#1e4fa0", icon:"🚛"},
+    {k:"semiTrailer", l:"Sattelzug",     color:"#0369a1", icon:"🚚"},
+    {k:"forklift",    l:"Stapler",       color:"#d97706", icon:"🏗"},
+    {k:"trailer",     l:"Anhänger",      color:"#059669", icon:"🔗"},
+    {k:"pkw",         l:"PKW",           color:"#7c3aed", icon:"🚗"},
+    {k:"other",       l:"Sonstiges",     color:"#64748b", icon:"🔩"},
+  ].map(function(x){ return Object.assign({}, x, {
+    count: (vehicles||[]).filter(function(v){ return v.type===x.k; }).length,
+    open:  allOpen.filter(function(j){ return j.vehicleType===x.k; }).length,
+  }); }).filter(function(x){ return x.count > 0 || x.open > 0; });
+
+  var fleetTotal   = (vehicles||[]).length;
   var fleetOk      = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="ok"; }).length;
   var fleetWarning = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="warning"; }).length;
   var fleetExpired = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="expired"; }).length;
 
-  // By vehicle type
-  var byType = [
-    {k:"truck",       l:t.truck||"LKW",        emoji:"LKW", color:"#1d4ed8"},
-    {k:"semiTrailer", l:t.semiTrailer||"SAT",   emoji:"SAT", color:"#0369a1"},
-    {k:"forklift",    l:t.forklift||"STG",      emoji:"STG", color:"#d97706"},
-    {k:"trailer",     l:t.trailer||"ANH",       emoji:"ANH", color:"#059669"},
-    {k:"pkw",         l:t.pkw||"PKW",           emoji:"PKW", color:"#7c3aed"},
-    {k:"other",       l:t.other||"Sonstiges",   emoji:"SNG", color:"#64748b"},
-  ].map(function(x){ return Object.assign({}, x, {
-    count: (vehicles||[]).filter(function(v){ return v.type===x.k; }).length,
-    open:  openJobs.filter(function(j){ return j.vehicleType===x.k; }).length,
-  }); }).filter(function(x){ return x.count > 0 || x.open > 0; });
-
-  // Mechanic workload
+  // Mechanics
   var mechanics = [{id:"roman",name:"Roman"},{id:"petr",name:"Petr"}];
   var mechLoad = mechanics.map(function(m){
-    var mJobs = todayJobs.filter(function(j){ return j.mechanic===m.id; });
+    var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
     var mMin  = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
-    return Object.assign({}, m, { jobs: mJobs.length, min: mMin });
+    var mDone = mJobs.filter(function(j){ return j.status==="done"; }).length;
+    return Object.assign({}, m, { jobs: mJobs.length, min: mMin, done: mDone });
   });
 
   // Upcoming docs
   var upcoming = [];
   (vehicles||[]).forEach(function(v) {
-    [{l:t.docTuev||"TÜV",d:v.tuev},{l:t.insurance||"Versicherung",d:v.insurance},
-     {l:t.docUvv||"UVV",d:v.uvv},{l:t.docWartung||"Service",d:v.nextService}
+    [{l:"TÜV",d:v.tuev},{l:"Versicherung",d:v.insurance},
+     {l:"UVV",d:v.uvv},{l:"Service",d:v.nextService}
     ].forEach(function(doc) {
       if (!doc.d) return;
       var diff = Math.round((new Date(doc.d)-today)/86400000);
-      if (diff < 60) upcoming.push({plate:v.plate, vid:v.id, doc:doc.l, diff:diff, date:doc.d});
+      if (diff < 60) upcoming.push({plate:v.plate, doc:doc.l, diff:diff});
     });
   });
   upcoming.sort(function(a,b){ return a.diff-b.diff; });
-  var showUpcoming = expanded ? upcoming : upcoming.slice(0,3);
 
   var formatMin = function(m) {
     if (!m) return "—";
     return Math.floor(m/60)+"h "+(m%60)+"min";
   };
 
-  var S = {
-    card: { background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"14px 16px", marginBottom:10 },
-    label: { fontSize:10, color:C.gray500, textTransform:"uppercase", letterSpacing:"1px", marginTop:4 },
-    num: { fontSize:24, fontWeight:800, color:C.white, lineHeight:1 },
-    sectionTitle: { fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:"1.2px", marginBottom:10 },
-  };
+  // Nav items
+  var navItems = [
+    {k:"overview",   icon:"📊", label:"Overview"},
+    {k:"fahrzeuge",  icon:"🚛", label:"Technik"},
+    {k:"lager",      icon:"📦", label:"Lager"},
+    {k:"archive",    icon:"🗂",  label:"Archiv"},
+    {k:"mechanics",  icon:"🔧", label:"Mechaniker"},
+    {k:"wash",       icon:"🚿", label:"Wäsche"},
+  ];
+
+  // Wash stats (mock - based on today jobs with workType wash)
+  var washJobs = (jobs||[]).filter(function(j){ return j.workType==="wash" && j.date===todayStr; });
+  var washCount = washJobs.length;
+  var washMin   = washJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+  var washCost  = washJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+
+  var kpis = [
+    {v:total,                    l:"Aufträge",      c:"#1e4fa0", icon:"📋"},
+    {v:openJobs.length+inProgJobs.length, l:"Offen",c:"#ef4444", icon:"⚠"},
+    {v:doneJobs.length,          l:"Erledigt",      c:"#16a34a", icon:"✓"},
+    {v:formatMin(totalMin),      l:"Arbeitszeit",   c:"#0369a1", icon:"⏱"},
+    {v:formatMin(travelMin),     l:"Fahrzeit",      c:"#7c3aed", icon:"🚗"},
+    {v:totalCost.toFixed(0)+" €",l:"Kosten",        c:"#d97706", icon:"€"},
+  ];
 
   return (
-    <div style={{ color:C.white, padding:24, maxWidth:1400, margin:"0 auto" }}>
+    <div style={{ display:"flex", height:"calc(100vh - 54px)", background:C.bg, overflow:"hidden" }}>
 
-      {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
-        <div>
-          <div style={{ fontSize:16, fontWeight:700 }}>Management Overview</div>
-          <div style={{ fontSize:12, color:C.gray500, marginTop:2 }}>
-            LTG Hockenheim — {today.toLocaleDateString(lang==="ru"?"ru-RU":"de-DE")}
+      {/* LEFT SIDEBAR */}
+      <div style={{ width:180, background:"#1e4fa0", display:"flex", flexDirection:"column",
+        flexShrink:0, borderRight:"1px solid #1a3a8a" }}>
+
+        {/* Logo area */}
+        <div style={{ padding:"20px 16px 16px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
+          <LTGLogo size={0.7} />
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.5)", marginTop:6, textTransform:"uppercase", letterSpacing:"1px" }}>
+            Werkstatt
           </div>
         </div>
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          {/* Period selector */}
-          <div style={{ display:"flex", background:C.bg, borderRadius:6, padding:2, border:"1px solid "+C.border }}>
-            {[["today","Heute"],["week","7 Tage"],["all","Alles"]].map(function(p){
-              return (
-                <button key={p[0]} onClick={function(){ setPeriod(p[0]); }}
-                  style={{ padding:"5px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                    background:period===p[0]?C.navy:"transparent",
-                    color:period===p[0]?"#fff":C.gray500, fontSize:11, fontWeight:700 }}>
-                  {p[1]}
-                </button>
-              );
-            })}
-          </div>
-          <button onClick={function(){ exportDayReport(jobs, vehicles, lang); }}
-            style={{ background:C.blue, color:"#fff", border:"none", borderRadius:8,
-              padding:"7px 14px", fontWeight:700, fontSize:12, cursor:"pointer" }}>
-            📄 PDF
-          </button>
 
-        </div>
-      </div>
-
-      {/* NOTRUF alerts */}
-      {(alerts||[]).filter(function(a){ return a.status !== "done"; }).map(function(a) {
-        var isUrgent = a.urgency === "urgent";
-        var appName = a.senderApp==="fahrer"?"🚛 Fahrer":a.senderApp==="stapler"?"🏗 Stapler":"👤 Meldung";
-        return (
-          <div key={a.id} style={{ background:isUrgent?C.red+"22":C.orange+"22",
-            border:"1px solid "+(isUrgent?C.red:C.orange),
-            borderLeft:"4px solid "+(isUrgent?C.red:C.orange),
-            borderRadius:10, padding:"12px 14px", marginBottom:8 }}>
-            <div style={{ display:"flex", justifyContent:"space-between" }}>
-              <span style={{ fontWeight:800, fontSize:13, color:isUrgent?C.red:C.orange }}>
-                {isUrgent?"🔴 NOTRUF":"🟡 Meldung"} · {appName}
-                {a.plate?" · "+a.plate:""}
-              </span>
-              <span style={{ fontSize:11, color:C.gray500 }}>
-                {a.createdAt ? new Date(a.createdAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : ""}
-              </span>
-            </div>
-            {a.location && <div style={{ fontSize:12, color:C.gray300, marginTop:4 }}>📍 {a.location}</div>}
-            {a.description && <div style={{ fontSize:12, color:C.gray300, marginTop:2 }}>{a.description}</div>}
-          </div>
-        );
-      })}
-
-      {/* KPI Strip */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:8, marginBottom:10 }}>
-        {[
-          {v:total,              l:t.jobsLabel||"Aufträge",   c:C.gray500},
-          {v:open+inProgress,    l:t.openLabel||"Offen",      c:open+inProgress>0?C.orange:C.green},
-          {v:done,               l:t.doneLabel||"Erledigt",   c:C.green},
-        ].map(function(k,i){
-          return (
-            <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
-              borderTop:"2px solid "+k.c, borderRadius:8, padding:"12px 14px" }}>
-              <div style={{ fontSize:20, fontWeight:800, color:k.c===C.gray500?C.white:k.c }}>{k.v}</div>
-              <div style={{ fontSize:10, color:C.gray500, marginTop:3, textTransform:"uppercase", letterSpacing:"0.8px" }}>{k.l}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Second KPI row */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:14 }}>
-        {[
-          {v:formatMin(totalMin), l:t.workTimeLabel||"Arbeitszeit", c:C.blue},
-          {v:formatMin(travelToday), l:t.travelLabel||"Fahrzeit", c:C.gray500},
-          {v:totalCost.toFixed(2)+" €", l:t.costsLabel||"Kosten", c:C.orange},
-        ].map(function(k,i){
-          return (
-            <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
-              borderRadius:8, padding:"12px 14px" }}>
-              <div style={{ fontSize:14, fontWeight:800, color:C.white }}>{k.v}</div>
-              <div style={{ fontSize:10, color:C.gray500, marginTop:3, textTransform:"uppercase", letterSpacing:"0.8px" }}>{k.l}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Fleet status + By type - two columns */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10, marginBottom:10 }}>
-        {/* Fleet status */}
-        <div style={S.card}>
-          <div style={S.sectionTitle}>Fuhrpark</div>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-            <span style={{ fontSize:12, color:C.green }}>✓ {fleetOk} OK</span>
-            <span style={{ fontSize:12, color:C.yellow }}>⚠ {fleetWarning}</span>
-            <span style={{ fontSize:12, color:C.red }}>✗ {fleetExpired}</span>
-          </div>
-          <div style={{ background:C.bg, borderRadius:4, height:6, overflow:"hidden" }}>
-            <div style={{ height:"100%", background:C.green,
-              width:((fleetOk/Math.max((vehicles||[]).length,1))*100)+"%" }} />
-          </div>
-          <div style={{ fontSize:11, color:C.gray500, marginTop:6 }}>{(vehicles||[]).length} Fahrzeuge gesamt</div>
-        </div>
-
-        {/* Offene Aufträge */}
-        <div style={S.card}>
-          <div style={S.sectionTitle}>Aktiv</div>
-          <div style={{ fontSize:28, fontWeight:900, color:openJobs.length>0?C.orange:C.green }}>{openJobs.length}</div>
-          <div style={{ fontSize:10, color:C.gray500, textTransform:"uppercase" }}>Offene Aufträge</div>
-          <div style={{ fontSize:11, color:C.gray500, marginTop:6 }}>Heute: {todayJobs.length} Aufträge</div>
-        </div>
-      </div>
-
-      {/* Vehicle type breakdown */}
-      <div style={S.card}>
-        <div style={S.sectionTitle}>Fahrzeugtypen</div>
-        {byType.map(function(x){
-          return (
-            <div key={x.k} style={{ display:"flex", alignItems:"center", padding:"6px 0",
-              borderBottom:"1px solid "+C.border+"44" }}>
-              <div style={{ width:36, fontSize:11, fontWeight:700, color:x.color }}>{x.emoji}</div>
-              <div style={{ flex:1, fontSize:13, color:C.white }}>{x.l}</div>
-              <div style={{ fontSize:12, color:C.gray500, marginRight:12 }}>{x.count} Fzg.</div>
-              {x.open > 0 && (
-                <div style={{ background:C.orange+"22", color:C.orange, borderRadius:4,
-                  padding:"1px 6px", fontSize:11, fontWeight:700 }}>{x.open} offen</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10 }}>
-      {/* Mechanic workload */}
-      <div style={S.card}>
-        <div style={S.sectionTitle}>{t.mechanicLoad||"Mechaniker"}</div>
-        {mechLoad.map(function(m){
-          var pct = Math.min(m.min/480, 1);
-          return (
-            <div key={m.id} style={{ marginBottom:10 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                <span style={{ fontSize:13, fontWeight:700, color:C.white }}>{m.name}</span>
-                <span style={{ fontSize:12, color:C.gray500 }}>{m.jobs} Aufträge · {formatMin(m.min)}</span>
-              </div>
-              <div style={{ background:C.bg, borderRadius:4, height:6 }}>
-                <div style={{ height:"100%", borderRadius:4, background:pct>0.8?C.red:pct>0.5?C.orange:C.blue,
-                  width:(pct*100)+"%" }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Upcoming docs */}
-      {upcoming.length > 0 && (
-        <div style={S.card}>
-          <div style={S.sectionTitle}>Dokumente fällig</div>
-          {showUpcoming.map(function(u, i){
-            var c = u.diff < 0 ? C.red : u.diff < 14 ? C.orange : C.yellow;
+        {/* Nav items */}
+        <div style={{ flex:1, padding:"8px 0", overflowY:"auto" }}>
+          {navItems.map(function(item){
+            var isActive = activeSection === item.k;
             return (
-              <div key={i} style={{ display:"flex", alignItems:"center", padding:"6px 0",
-                borderBottom:"1px solid "+C.border+"44" }}>
-                <div style={{ flex:1 }}>
-                  <span style={{ fontWeight:700, fontSize:13, color:C.white }}>{u.plate}</span>
-                  <span style={{ fontSize:11, color:C.gray500, marginLeft:8 }}>{u.doc}</span>
-                </div>
-                <div style={{ fontSize:12, fontWeight:700, color:c }}>
-                  {u.diff < 0 ? Math.abs(u.diff)+"d überfällig" : u.diff+"d"}
-                </div>
+              <div key={item.k}
+                onClick={function(){
+                  if (item.k === "fahrzeuge" || item.k === "lager" || item.k === "archive") {
+                    if (onTabChange) onTabChange(item.k);
+                  } else {
+                    setActiveSection(item.k);
+                  }
+                }}
+                style={{ display:"flex", alignItems:"center", gap:10,
+                  padding:"11px 16px", cursor:"pointer",
+                  background: isActive ? "rgba(255,255,255,0.15)" : "transparent",
+                  borderLeft: isActive ? "3px solid #f5a623" : "3px solid transparent",
+                  borderRadius:"0 8px 8px 0", margin:"1px 8px 1px 0",
+                  transition:"all 0.15s" }}>
+                <span style={{ fontSize:16 }}>{item.icon}</span>
+                <span style={{ fontSize:13, fontWeight: isActive ? 700 : 400,
+                  color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }}>
+                  {item.label}
+                </span>
               </div>
             );
           })}
-          {upcoming.length > 3 && (
-            <button onClick={function(){ setExpanded(!expanded); }}
-              style={{ marginTop:8, background:"none", border:"none", color:C.blue,
-                cursor:"pointer", fontSize:12, fontWeight:700 }}>
-              {expanded ? "▲ Weniger" : "▼ Alle ("+upcoming.length+")"}
-            </button>
-          )}
         </div>
-      )}
 
-      </div>
-      {/* Recent jobs */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:10, marginTop:10 }}>
-      <div style={S.card}>
-        <div style={S.sectionTitle}>Letzte Aufträge</div>
-        {filtered.slice(0,5).map(function(j){
-          var statusColor = j.status==="done"?C.green:j.status==="inProgress"?C.orange:C.gray500;
-          var vIcon = {truck:"🚛",semiTrailer:"🚚",forklift:"🏗",trailer:"🚜",pkw:"🚗",other:"🔩"}[j.vehicleType]||"🔩";
-          return (
-            <div key={j.id} style={{ display:"flex", alignItems:"center", padding:"7px 0",
-              borderBottom:"1px solid "+C.border+"44" }}>
-              <span style={{ fontSize:16, marginRight:8 }}>{vIcon}</span>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:C.white }}>{j.plate}</div>
-                <div style={{ fontSize:11, color:C.gray500 }}>{j.mechanic} · {j.date}</div>
+        {/* Period selector at bottom */}
+        <div style={{ padding:"12px 10px", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.5)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.8px" }}>Zeitraum</div>
+          {[["today","Heute"],["week","7 Tage"],["all","Gesamt"]].map(function(p){
+            return (
+              <div key={p[0]} onClick={function(){ setPeriod(p[0]); }}
+                style={{ padding:"6px 10px", borderRadius:6, cursor:"pointer", marginBottom:3,
+                  background: period===p[0] ? "rgba(255,255,255,0.2)" : "transparent",
+                  color: period===p[0] ? "#fff" : "rgba(255,255,255,0.6)",
+                  fontSize:12, fontWeight: period===p[0] ? 700 : 400 }}>
+                {p[1]}
               </div>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:statusColor }} />
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-    </div>
+      {/* MAIN CONTENT */}
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
+
+        {/* Top bar */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:22, fontWeight:800, color:C.white }}>
+              Workshop <span style={{ color:"#1e4fa0", fontWeight:400 }}>Overview</span>
+            </div>
+            <div style={{ fontSize:12, color:C.gray500, marginTop:2 }}>
+              LTG Hockenheim — {today.toLocaleDateString("de-DE")}
+            </div>
+          </div>
+          <button onClick={function(){ exportDayReport(jobs, vehicles, lang); }}
+            style={{ background:"#1e4fa0", color:"#fff", border:"none", borderRadius:8,
+              padding:"9px 18px", fontWeight:700, fontSize:13, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:6 }}>
+            📄 PDF Export
+          </button>
+        </div>
+
+        {/* KPI Cards - 6 in a row */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
+          {kpis.map(function(k,i){
+            return (
+              <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
+                borderTop:"3px solid "+k.c, borderRadius:10, padding:"14px 16px",
+                boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
+                <div style={{ fontSize:11, color:C.gray500, marginBottom:6,
+                  textTransform:"uppercase", letterSpacing:"0.8px", display:"flex",
+                  alignItems:"center", gap:4 }}>
+                  <span>{k.icon}</span> {k.l}
+                </div>
+                <div style={{ fontSize:22, fontWeight:800, color:C.white }}>{k.v}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* OVERVIEW SECTION */}
+        {activeSection === "overview" && (
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:16 }}>
+
+            {/* LEFT COLUMN */}
+            <div>
+              {/* Fleet overview */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:C.white }}>Fuhrpark — {fleetTotal} Fahrzeuge</div>
+                  <div style={{ display:"flex", gap:12 }}>
+                    <span style={{ fontSize:12, color:"#16a34a", fontWeight:600 }}>✓ {fleetOk} OK</span>
+                    <span style={{ fontSize:12, color:"#d97706", fontWeight:600 }}>⚠ {fleetWarning}</span>
+                    <span style={{ fontSize:12, color:"#ef4444", fontWeight:600 }}>✗ {fleetExpired}</span>
+                  </div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:8 }}>
+                  {fleetTypes.map(function(x){
+                    return (
+                      <div key={x.k} style={{ background:C.bg, borderRadius:8, padding:"10px 12px",
+                        border:"1px solid "+C.border, borderLeft:"3px solid "+x.color }}>
+                        <div style={{ fontSize:18, marginBottom:4 }}>{x.icon}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:C.white }}>{x.l}</div>
+                        <div style={{ fontSize:20, fontWeight:900, color:x.color }}>{x.count}</div>
+                        {x.open > 0 && (
+                          <div style={{ fontSize:10, color:"#ef4444", marginTop:2 }}>{x.open} offen</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Open jobs table */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>
+                  Aktuelle Aufträge
+                  {allOpen.length > 0 && (
+                    <span style={{ marginLeft:8, background:"#ef4444", color:"#fff",
+                      borderRadius:20, padding:"2px 8px", fontSize:11 }}>
+                      {allOpen.length} offen
+                    </span>
+                  )}
+                </div>
+                <div style={{ overflowX:"auto" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                    <thead>
+                      <tr style={{ borderBottom:"2px solid "+C.border }}>
+                        {["Fahrzeug","Typ","Mechaniker","Lokation","Status","Datum"].map(function(h){
+                          return <th key={h} style={{ padding:"8px 10px", textAlign:"left",
+                            fontSize:11, color:C.gray500, fontWeight:600,
+                            textTransform:"uppercase", letterSpacing:"0.5px" }}>{h}</th>;
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.slice(0,8).map(function(j){
+                        var sc = j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
+                        var sl = j.status==="done"?"Erledigt":j.status==="inProgress"?"In Arbeit":"Offen";
+                        var vIcon = {truck:"🚛",semiTrailer:"🚚",forklift:"🏗",trailer:"🔗",pkw:"🚗",other:"🔩"}[j.vehicleType]||"🔩";
+                        return (
+                          <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
+                            <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>{vIcon} {j.plate}</td>
+                            <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.workType}</td>
+                            <td style={{ padding:"9px 10px", color:C.gray300 }}>{j.mechanic}</td>
+                            <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.location}</td>
+                            <td style={{ padding:"9px 10px" }}>
+                              <span style={{ background:sc+"22", color:sc, borderRadius:20,
+                                padding:"2px 10px", fontSize:11, fontWeight:700 }}>{sl}</span>
+                            </td>
+                            <td style={{ padding:"9px 10px", color:C.gray500, fontSize:12 }}>{j.date}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mechanic load */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px 20px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Mechaniker</div>
+                {mechLoad.map(function(m){
+                  var pct = Math.min(m.min/480, 1);
+                  return (
+                    <div key={m.id} style={{ marginBottom:14 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:14, fontWeight:700, color:C.white }}>🔧 {m.name}</span>
+                        <div style={{ textAlign:"right" }}>
+                          <span style={{ fontSize:12, color:C.gray500 }}>{m.done} erledigt · {formatMin(m.min)}</span>
+                        </div>
+                      </div>
+                      <div style={{ background:C.bg, borderRadius:4, height:8, overflow:"hidden" }}>
+                        <div style={{ height:"100%", borderRadius:4, transition:"width 0.5s",
+                          background:pct>0.8?"#ef4444":pct>0.5?"#d97706":"#1e4fa0",
+                          width:(pct*100)+"%" }} />
+                      </div>
+                      <div style={{ fontSize:11, color:C.gray500, marginTop:3 }}>
+                        {Math.round(pct*100)}% Auslastung
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN - Alerts + Docs */}
+            <div>
+              {/* Alerts */}
+              <div style={{ background: openAlerts.length > 0 ? "#ef444422" : C.surface,
+                border:"1px solid "+(openAlerts.length>0?"#ef4444":C.border),
+                borderRadius:10, padding:"16px", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                  <span style={{ fontSize:16 }}>⚠</span>
+                  <span style={{ fontSize:14, fontWeight:700,
+                    color: openAlerts.length>0?"#ef4444":C.white }}>
+                    Alerts {openAlerts.length > 0 && "("+openAlerts.length+")"}
+                  </span>
+                </div>
+                {openAlerts.length === 0 ? (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"12px 0" }}>
+                    ✓ Keine neuen Meldungen
+                  </div>
+                ) : openAlerts.map(function(a){
+                  var isUrgent = a.urgency === "urgent";
+                  return (
+                    <div key={a.id} style={{ background:isUrgent?"#ef444433":"#d9770633",
+                      border:"1px solid "+(isUrgent?"#ef4444":"#d97706"),
+                      borderRadius:8, padding:"10px 12px", marginBottom:8 }}>
+                      <div style={{ fontWeight:700, fontSize:12,
+                        color:isUrgent?"#ef4444":"#d97706" }}>
+                        {isUrgent?"🔴 NOTRUF":"🟡 Meldung"}
+                        {a.plate?" · "+a.plate:""}
+                      </div>
+                      {a.location && <div style={{ fontSize:11, color:C.gray300, marginTop:3 }}>📍 {a.location}</div>}
+                      {a.description && <div style={{ fontSize:11, color:C.gray300, marginTop:2 }}>{(a.description||"").slice(0,60)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mойка stats */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px", marginBottom:16 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:12 }}>🚿 Fahrzeugwäsche — heute</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                  {[
+                    {v:washCount, l:"Fahrzeuge"},
+                    {v:formatMin(washMin), l:"Zeit"},
+                    {v:washCost.toFixed(0)+"€", l:"Kosten"},
+                  ].map(function(k,i){
+                    return (
+                      <div key={i} style={{ textAlign:"center", background:C.bg,
+                        borderRadius:8, padding:"10px 6px" }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:C.white }}>{k.v}</div>
+                        <div style={{ fontSize:10, color:C.gray500, marginTop:2 }}>{k.l}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Upcoming docs */}
+              <div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:12 }}>
+                  📋 Dokumente fällig
+                </div>
+                {upcoming.length === 0 ? (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"8px 0" }}>
+                    ✓ Alles aktuell
+                  </div>
+                ) : upcoming.slice(0,6).map(function(u, i){
+                  var c = u.diff < 0 ? "#ef4444" : u.diff < 14 ? "#d97706" : "#f5a623";
+                  return (
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"7px 0",
+                      borderBottom:"1px solid "+C.border+"44" }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:C.white }}>{u.plate}</div>
+                        <div style={{ fontSize:11, color:C.gray500 }}>{u.doc}</div>
+                      </div>
+                      <div style={{ fontSize:12, fontWeight:700, color:c,
+                        background:c+"22", borderRadius:6, padding:"2px 8px" }}>
+                        {u.diff < 0 ? Math.abs(u.diff)+"d!" : u.diff+"d"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MECHANICS SECTION */}
+        {activeSection === "mechanics" && (
+          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:16 }}>Mechaniker Übersicht</div>
+            {mechLoad.map(function(m){
+              var pct = Math.min(m.min/480, 1);
+              var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+              return (
+                <div key={m.id} style={{ marginBottom:24, padding:"16px", background:C.bg,
+                  borderRadius:10, border:"1px solid "+C.border }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+                    <span style={{ fontSize:16, fontWeight:800, color:C.white }}>🔧 {m.name}</span>
+                    <span style={{ fontSize:13, color:C.gray500 }}>{m.jobs} Aufträge · {formatMin(m.min)} · {m.done} erledigt</span>
+                  </div>
+                  <div style={{ background:C.surface, borderRadius:4, height:10, overflow:"hidden", marginBottom:16 }}>
+                    <div style={{ height:"100%", borderRadius:4,
+                      background:pct>0.8?"#ef4444":pct>0.5?"#d97706":"#1e4fa0",
+                      width:(pct*100)+"%" }} />
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                    <thead>
+                      <tr style={{ borderBottom:"1px solid "+C.border }}>
+                        {["Fahrzeug","Arbeit","Zeit","Kosten","Status"].map(function(h){
+                          return <th key={h} style={{ padding:"6px 8px", textAlign:"left",
+                            fontSize:11, color:C.gray500, fontWeight:600 }}>{h}</th>;
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mJobs.map(function(j){
+                        var sc = j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
+                        var sl = j.status==="done"?"✓":j.status==="inProgress"?"⚙":"○";
+                        return (
+                          <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"33" }}>
+                            <td style={{ padding:"7px 8px", fontWeight:700, color:C.white }}>{j.plate}</td>
+                            <td style={{ padding:"7px 8px", color:C.gray300, fontSize:12 }}>{j.workType}</td>
+                            <td style={{ padding:"7px 8px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
+                            <td style={{ padding:"7px 8px", color:C.gray300 }}>{(j.cost||0).toFixed(0)}€</td>
+                            <td style={{ padding:"7px 8px" }}>
+                              <span style={{ color:sc, fontWeight:700 }}>{sl}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* WASH SECTION */}
+        {activeSection === "wash" && (
+          <div>
+            <div style={{ background:C.surface, border:"1px solid "+C.border,
+              borderRadius:10, padding:"20px", marginBottom:16 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:16 }}>🚿 Fahrzeugwäsche — heute</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:20 }}>
+                {[
+                  {v:washCount, l:"Fahrzeuge gewaschen", c:"#1e4fa0"},
+                  {v:formatMin(washMin), l:"Gesamtzeit", c:"#7c3aed"},
+                  {v:washCost.toFixed(2)+" €", l:"Gesamtkosten", c:"#d97706"},
+                ].map(function(k,i){
+                  return (
+                    <div key={i} style={{ background:C.bg, borderRadius:10, padding:"16px",
+                      border:"1px solid "+C.border, borderTop:"3px solid "+k.c }}>
+                      <div style={{ fontSize:28, fontWeight:900, color:C.white }}>{k.v}</div>
+                      <div style={{ fontSize:12, color:C.gray500, marginTop:4 }}>{k.l}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {washJobs.length === 0 ? (
+                <div style={{ textAlign:"center", color:C.gray500, padding:"24px 0", fontSize:14 }}>
+                  Heute noch keine Wasch-Aufträge
+                </div>
+              ) : (
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                  <thead>
+                    <tr style={{ borderBottom:"2px solid "+C.border }}>
+                      {["Fahrzeug","Mechaniker","Zeit","Kosten"].map(function(h){
+                        return <th key={h} style={{ padding:"8px 10px", textAlign:"left",
+                          fontSize:11, color:C.gray500, fontWeight:600 }}>{h}</th>;
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {washJobs.map(function(j){
+                      return (
+                        <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
+                          <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>{j.plate}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{j.mechanic}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{(j.cost||0).toFixed(2)}€</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
@@ -4380,11 +4590,11 @@ function App() {
       )}
 
       {/* Content */}
-      <div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: 80,
+      <div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: activeTab==="dashboard" ? 0 : 80,
         maxWidth: activeTab==="dashboard" ? "100%" : 700, margin: "0 auto" }}>
         {activeTab === "new"       && isMechanic && <NewJobForm key={formKey} user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
         {activeTab === "jobs"                      && <MyJobs user={user} jobs={jobs} setJobs={setJobs} t={t} />}
-        {(activeTab === "dashboard") && (user.role === "boss" || user.role === "fpl") && <DashboardShared jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} user={user} onNavigate={function(vid){ setSelectedVehicleId(vid); setPrevTab(tab); setTab("fahrzeuge"); }} onCreateJob={function(){ setPrevTab(tab); setTab("melden"); }} />}
+        {(activeTab === "dashboard") && (user.role === "boss" || user.role === "fpl") && <DashboardShared jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} user={user} onNavigate={function(vid){ setSelectedVehicleId(vid); setPrevTab(tab); setTab("fahrzeuge"); }} onCreateJob={function(){ setPrevTab(tab); setTab("melden"); }} onTabChange={function(k){ setPrevTab(tab); setTab(k); }} />}
         {activeTab === "lager"      && <Lager user={user} stock={stock} setStock={setStock} invoices={invoices} setInvoices={setInvoices} t={t} />}
         {activeTab === "fahrzeuge"  && <Fahrzeuge user={user} vehicles={vehicles} setVehicles={setVehicles} t={t} />}
         {activeTab === "report"     && isMechanic && <EveningReport user={user} jobs={jobs} t={t} />}
