@@ -4474,8 +4474,8 @@ function App() {
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.white }}>
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ height: 4, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 50%, #1e4fa0 100%)" }} />
-        <div style={{ background: C.surfaceAlt, borderBottom: "1px solid "+C.border, padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ height: 5, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 40%, #f5a623 60%, #1e4fa0 100%)" }} />
+        <div style={{ background: "#1e4fa0", borderBottom: "1px solid #1a3a8a", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <LTGLogo size={0.7} />
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* DB status dot */}
@@ -4491,8 +4491,8 @@ function App() {
             if (cnt === 0) return null;
             return (
               <button onClick={function(){ setMeldungenOpen(true); }}
-                style={{ position:"relative", background:hasUrgent?C.red:C.orange,
-                  color:"#fff", border:"none", borderRadius:8,
+                style={{ position:"relative", background:hasUrgent?"#ef4444":"#f5a623",
+                  color:"#000", border:"none", borderRadius:8,
                   padding:"4px 10px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
                 {cnt} Meldung{cnt > 1 ? "en" : ""}
               </button>
@@ -4505,7 +4505,7 @@ function App() {
             if (allOpen.length === 0) return null;
             return (
               <button onClick={function(){ setAlertModal(allOpen[0]); setPrevTab(tab); setTab("eingang"); }}
-                style={{ background:hasUrgent?C.red:C.orange, color:"#fff", border:"none",
+                style={{ background:hasUrgent?"#ef4444":"#f5a623", color:"#000", border:"none",
                   borderRadius:8, padding:"4px 10px", fontSize:12,
                   fontWeight:800, cursor:"pointer" }}>
                 {hasUrgent?"🔴":"🟡"} {allOpen.length}
@@ -4514,7 +4514,7 @@ function App() {
           })()}
 
           <button onClick={() => { setPrevTab(tab); setTab(prevTab); }}
-            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 8, padding: "8px 14px", color: C.gray300, fontSize: 18, cursor: "pointer" }}
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, padding: "8px 14px", color: "#fff", fontSize: 18, cursor: "pointer" }}
             title="Zurück">
             ←
           </button>
@@ -4618,7 +4618,7 @@ function App() {
           setTimeout(function(){ loadAlerts(); }, 2000);
         }} t={t} vehicles={vehicles} />
       {/* Bottom nav */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.surfaceAlt, borderTop: `1px solid ${C.border}`, display: activeTab==="dashboard" && (user.role==="boss"||user.role==="fpl") ? "none" : "flex", zIndex: 100 }}>
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.surfaceAlt, borderTop: `1px solid ${C.border}`, display: (user.role==="boss"||user.role==="fpl") ? "none" : "flex", zIndex: 100 }}>
         {tabs.map(({ k, icon, label }) => (
           <button key={k} onClick={() => { setPrevTab(tab); setTab(k); }} style={{ flex: 1, padding: "10px 0", background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
             <div style={{ position:"relative", fontSize: k === "new" ? 20 : 18, background: activeTab === k && k === "new" ? C.blue : "transparent", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: activeTab === k ? (k === "new" ? "#fff" : C.orange) : C.gray500, fontWeight: 800 }}>
