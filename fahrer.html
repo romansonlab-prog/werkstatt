@@ -362,12 +362,46 @@ function translateToGerman(text) {
     .catch(function(){ return text; });
 }
 
-function LTGLogo() {
+function LTGLogo({ size = 1 }) {
+  const w = Math.round(110 * size), h = Math.round(44 * size);
   return (
-    <svg width="72" height="26" viewBox="0 0 120 44" fill="none">
-      <text x="0" y="32" fontFamily="Arial Black,sans-serif"
-        fontWeight="900" fontSize="36" fill="#c8a84b" letterSpacing="-1" stroke="#1a3a6b" strokeWidth="0.5">LTG</text>
-      <rect x="0" y="37" width="108" height="5" fill="#e2001a" rx="1"/>
+    <svg width={w} height={h} viewBox="0 0 110 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* L */}
+      <text x="0" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        stroke="white" strokeWidth="4" strokeLinejoin="round"
+        fontStyle="italic" letterSpacing="-1">L</text>
+      <text x="0" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        stroke="#f5a623" strokeWidth="2" strokeLinejoin="round"
+        fontStyle="italic" letterSpacing="-1">L</text>
+      <text x="0" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        fontStyle="italic" letterSpacing="-1">L</text>
+      {/* T */}
+      <text x="33" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        stroke="white" strokeWidth="4" strokeLinejoin="round"
+        fontStyle="italic" letterSpacing="-1">T</text>
+      <text x="33" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        stroke="#f5a623" strokeWidth="2" strokeLinejoin="round"
+        fontStyle="italic" letterSpacing="-1">T</text>
+      <text x="33" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        fontStyle="italic" letterSpacing="-1">T</text>
+      {/* G */}
+      <text x="66" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        stroke="white" strokeWidth="4" strokeLinejoin="round"
+        fontStyle="italic" letterSpacing="-1">G</text>
+      <text x="66" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        stroke="#f5a623" strokeWidth="2" strokeLinejoin="round"
+        fontStyle="italic" letterSpacing="-1">G</text>
+      <text x="66" y="34" fontFamily="'Arial Black','Impact','Arial Bold',sans-serif"
+        fontWeight="900" fontSize="38" fill="#1e4fa0"
+        fontStyle="italic" letterSpacing="-1">G</text>
     </svg>
   );
 }
