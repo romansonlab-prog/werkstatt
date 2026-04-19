@@ -4541,53 +4541,54 @@ function App() {
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ height: 5, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 40%, #f5a623 60%, #1e4fa0 100%)" }} />
-        {(user.role==="boss"||user.role==="fpl") ? null : (
         <div style={{ background: "#1e4fa0", borderBottom: "1px solid #1a3a8a", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <LTGLogo size={0.65} />
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* DB status dot */}
-          <div title={dbStatus === "ok" ? "Supabase verbunden" : dbStatus === "error" ? "Supabase Fehler - kein Netzwerk" : "Verbinde..."}
-            style={{ width:8, height:8, borderRadius:"50%",
-              background: dbStatus==="ok" ? C.green : dbStatus==="error" ? C.red : C.yellow,
-              flexShrink:0, cursor:"default" }} />
-
-          {/* Meldungen button - boss/Jens */}
-          {isViewer && (function() {
-            var cnt = (alerts||[]).filter(function(a){ return a.status !== "done"; }).length;
-            var hasUrgent = (alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; });
-            if (cnt === 0) return null;
-            return (
-              <button onClick={function(){ setMeldungenOpen(true); }}
-                style={{ position:"relative", background:hasUrgent?"#ef4444":"#f5a623",
-                  color:"#000", border:"none", borderRadius:8,
-                  padding:"4px 10px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
-                {cnt} Meldung{cnt > 1 ? "en" : ""}
-              </button>
-            );
-          })()}
-          {/* Alert indicator for mechanics */}
-          {isMechanic && (function() {
-            var allOpen = (alerts||[]).filter(function(a){ return a.status !== "done"; });
-            var hasUrgent = allOpen.some(function(a){ return a.urgency === "urgent"; });
-            if (allOpen.length === 0) return null;
-            return (
-              <button onClick={function(){ setAlertModal(allOpen[0]); setPrevTab(tab); setTab("eingang"); }}
-                style={{ background:hasUrgent?"#ef4444":"#f5a623", color:"#000", border:"none",
-                  borderRadius:8, padding:"4px 10px", fontSize:12,
-                  fontWeight:800, cursor:"pointer" }}>
-                {hasUrgent?"🔴":"🟡"} {allOpen.length}
-              </button>
-            );
-          })()}
-
-          <button onClick={() => { setPrevTab(tab); setTab(prevTab); }}
-            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, padding: "8px 14px", color: "#fff", fontSize: 18, cursor: "pointer" }}
-            title="Zurück">
-            ←
-          </button>
+          {/* Left side - always logo */}
+          <LTGLogo size={0.65} />
+          {/* Right side */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div title={dbStatus === "ok" ? "Supabase verbunden" : dbStatus === "error" ? "Supabase Fehler" : "Verbinde..."}
+              style={{ width:8, height:8, borderRadius:"50%",
+                background: dbStatus==="ok" ? C.green : dbStatus==="error" ? C.red : C.yellow,
+                flexShrink:0, cursor:"default" }} />
+            {/* Meldungen button - boss/Jens */}
+            {isViewer && (function() {
+              var cnt = (alerts||[]).filter(function(a){ return a.status !== "done"; }).length;
+              var hasUrgent = (alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; });
+              if (cnt === 0) return null;
+              return (
+                <button onClick={function(){ setMeldungenOpen(true); }}
+                  style={{ background:hasUrgent?"#ef4444":"#f5a623",
+                    color:"#000", border:"none", borderRadius:8,
+                    padding:"4px 10px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+                  {cnt} Meldung{cnt > 1 ? "en" : ""}
+                </button>
+              );
+            })()}
+            {/* Alert indicator for mechanics */}
+            {isMechanic && (function() {
+              var allOpen = (alerts||[]).filter(function(a){ return a.status !== "done"; });
+              var hasUrgent = allOpen.some(function(a){ return a.urgency === "urgent"; });
+              if (allOpen.length === 0) return null;
+              return (
+                <button onClick={function(){ setAlertModal(allOpen[0]); setPrevTab(tab); setTab("eingang"); }}
+                  style={{ background:hasUrgent?"#ef4444":"#f5a623", color:"#000", border:"none",
+                    borderRadius:8, padding:"4px 10px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+                  {hasUrgent?"🔴":"🟡"} {allOpen.length}
+                </button>
+              );
+            })()}
+            {/* Back button - mechanics use prevTab, boss/fpl go to dashboard */}
+            <button onClick={function(){
+                if (isMechanic) { setPrevTab(tab); setTab(prevTab); }
+                else { setPrevTab(tab); setTab("dashboard"); }
+              }}
+              style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
+                borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:18, cursor:"pointer" }}
+              title="Zurück">
+              ←
+            </button>
+          </div>
         </div>
-        </div>
-        )}
       </div>
 
       {/* DB connection error banner */}
@@ -4655,14 +4656,7 @@ function App() {
       {/* Content */}
       <div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: activeTab==="dashboard" ? 0 : 80,
         maxWidth: activeTab==="dashboard" ? "100%" : 700, margin: "0 auto" }}>
-        {/* Back button for boss/fpl on sub-pages */}
-        {isViewer && activeTab !== "dashboard" && (
-          <button onClick={function(){ setPrevTab(tab); setTab("dashboard"); }}
-            style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
-              color:C.blue, cursor:"pointer", fontSize:13, fontWeight:600, marginBottom:12, padding:0 }}>
-            ← Zurück zum Dashboard
-          </button>
-        )}
+
         {activeTab === "new"       && isMechanic && <NewJobForm key={formKey} user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
         {activeTab === "jobs"                      && <MyJobs user={user} jobs={jobs} setJobs={setJobs} t={t} />}
         {(activeTab === "dashboard") && (user.role === "boss" || user.role === "fpl") && <DashboardShared jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} user={user} onNavigate={function(vid){ setSelectedVehicleId(vid); setPrevTab(tab); setTab("fahrzeuge"); }} onCreateJob={function(){ setPrevTab(tab); setTab("melden"); }} onTabChange={function(k){ setPrevTab(tab); setTab(k); }} />}
