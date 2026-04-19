@@ -4816,7 +4816,7 @@ function App() {
             var hasUrgent = allOpen.some(function(a){ return a.urgency === "urgent"; });
             if (allOpen.length === 0) return null;
             return (
-              <button onClick={function(){ setAlertModal(allOpen[0]); setTab("eingang"); }}
+              <button onClick={function(){ setAlertModal(allOpen[0]); setPrevTab(tab); setTab("eingang"); }}
                 style={{ background:hasUrgent?C.red:C.orange, color:"#fff", border:"none",
                   borderRadius:8, padding:"4px 10px", fontSize:12,
                   fontWeight:800, cursor:"pointer" }}>
@@ -4826,13 +4826,14 @@ function App() {
           })()}
           <div style={{ fontSize: 12, color: C.gray500 }}>{(user.name||"").split(" ")[0]}</div>
           <button onClick={() => { setPrevTab(tab); setTab(prevTab); }}
-            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 7, padding: "8px 14px", color: C.gray300, fontSize: 18, cursor: "pointer", borderRadius: 8 }}
+            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 8, padding: "8px 14px", color: C.gray300, fontSize: 18, cursor: "pointer" }}
             title="Zurück">
             ←
           </button>
           <button onClick={() => { setUser(null); setTab("new"); setSelectedVehicleId(null); }}
-            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 7, padding: "4px 10px", color: C.gray300, fontSize: 12, cursor: "pointer" }}>
-            ⏎
+            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 8, padding: "6px 10px", color: C.gray300, fontSize: 14, cursor: "pointer" }}
+            title="Abmelden">
+            🚪
           </button>
         </div>
       </div>
@@ -4869,8 +4870,9 @@ function App() {
               setAlerts(function(prev){ return prev.map(function(x){ return x.id === a.id ? Object.assign({}, x, { status: "done" }) : x; }); });
             }
             setPrefillAlert(a);
-            setTab("jobs");
-            setTimeout(function(){ setTab("new"); }, 50);
+            setPrevTab(tab);
+            setFormKey(function(k){ return k + 1; });
+            setTab("new");
           }}
           style={{ cursor:"pointer", padding:"10px 16px",
             background:(alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; }) ? C.red : C.orange,
@@ -4933,6 +4935,7 @@ function App() {
             }
             setPrefillAlert(alert);
             setFormKey(function(k){ return k + 1; });
+            setPrevTab(tab);
             setTab("new");
           }} />}
         {activeTab === "archive"    && <Archive jobs={jobs} user={user} t={t} />}
@@ -4952,7 +4955,7 @@ function App() {
       {/* Bottom nav */}
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.surfaceAlt, borderTop: `1px solid ${C.border}`, display: "flex", zIndex: 100 }}>
         {tabs.map(({ k, icon, label }) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0", background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <button key={k} onClick={() => { setPrevTab(tab); setTab(k); }} style={{ flex: 1, padding: "10px 0", background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
             <div style={{ position:"relative", fontSize: k === "new" ? 20 : 18, background: activeTab === k && k === "new" ? C.blue : "transparent", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: activeTab === k ? (k === "new" ? "#fff" : C.orange) : C.gray500, fontWeight: 800 }}>
               {icon}
               {k === "eingang" && (alerts||[]).filter(function(a){ return a.status !== "done"; }).length > 0 && (
