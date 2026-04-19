@@ -4542,8 +4542,10 @@ function App() {
       <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ height: 5, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 40%, #f5a623 60%, #1e4fa0 100%)" }} />
         <div style={{ background: "#1e4fa0", borderBottom: "1px solid #1a3a8a", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* Left side - always logo */}
-          <LTGLogo size={0.65} />
+          {/* Left: empty for boss/fpl on dashboard, logo for mechanics */}
+          <div>
+            {isMechanic && <LTGLogo size={0.65} />}
+          </div>
           {/* Right side */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div title={dbStatus === "ok" ? "Supabase verbunden" : dbStatus === "error" ? "Supabase Fehler" : "Verbinde..."}
@@ -4577,16 +4579,21 @@ function App() {
                 </button>
               );
             })()}
-            {/* Back button - mechanics use prevTab, boss/fpl go to dashboard */}
-            <button onClick={function(){
-                if (isMechanic) { setPrevTab(tab); setTab(prevTab); }
-                else { setPrevTab(tab); setTab("dashboard"); }
-              }}
-              style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
-                borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:18, cursor:"pointer" }}
-              title="Zurück">
-              ←
-            </button>
+            {/* Back button */}
+            {isMechanic && (
+              <button onClick={function(){ setPrevTab(tab); setTab(prevTab); }}
+                style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
+                  borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:18, cursor:"pointer" }}>
+                ←
+              </button>
+            )}
+            {isViewer && activeTab !== "dashboard" && (
+              <button onClick={function(){ setPrevTab(tab); setTab("dashboard"); }}
+                style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
+                  borderRadius:8, padding:"6px 14px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                ← Dashboard
+              </button>
+            )}
           </div>
         </div>
       </div>
