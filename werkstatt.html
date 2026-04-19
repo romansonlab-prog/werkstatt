@@ -100,31 +100,31 @@ const sb = {
 const COMPANY_LOGO = null;
 
 const C = {
-  // ── Base ──────────────────────────────
-  bg:       "#0f1623",   // глубокий фон
-  surface:  "#1c2840",   // карточки
-  surfaceAlt:"#151e2d",  // вторичные поверхности
-  navy:     "#151e2d",
-  navyDark: "#0f1623",
-  navyMid:  "#1c2840",
-  border:   "#2a3a52",   // тонкие рамки
+  // ── Base LTG Corporate ────────────────
+  bg:       "#f0f4f8",   // светло-серый фон
+  surface:  "#ffffff",   // белые карточки
+  surfaceAlt:"#1a3a6b",  // тёмно-синий хедер
+  navy:     "#1a3a6b",   // LTG синий
+  navyDark: "#122a52",   // тёмный синий
+  navyMid:  "#1e4280",   // средний синий
+  border:   "#d0dbe8",   // светлые рамки
 
   // ── Текст ─────────────────────────────
-  white:    "#f1f5f9",   // основной текст (не резкий белый)
+  white:    "#1a2332",   // тёмный текст на светлом фоне
   gray50:   "#f8fafc",
   gray100:  "#e2e8f0",
-  gray300:  "#94a3b8",   // вторичный текст
-  gray500:  "#64748b",   // плейсхолдеры
+  gray300:  "#4a6080",   // вторичный текст
+  gray500:  "#7a90a8",   // плейсхолдеры
   gray700:  "#334155",
 
   // ── Акценты ───────────────────────────
-  blue:     "#3b82f6",   // основное действие
-  blueLt:   "#60a5fa",   // hover / secondary
-  orange:   "#f59e0b",   // предупреждение / таймер
-  orangeDim:"#78350f",
+  blue:     "#1a3a6b",   // LTG синий - основное действие
+  blueLt:   "#2d5fa8",   // hover
+  orange:   "#c8a84b",   // LTG золотой - акцент
+  orangeDim:"#7a6020",
   green:    "#22c55e",   // успех / OK
   red:      "#ef4444",   // срочно / ошибка
-  yellow:   "#f59e0b",   // внимание
+  yellow:   "#c8a84b",   // внимание - LTG золотой
 };
 
 // ── Translations ──────────────────────────────────────────────────
@@ -631,10 +631,8 @@ function LTGLogo({ size = 1 }) {
   const w = 120 * size, h = 44 * size;
   return (
     <svg width={w} height={h} viewBox="0 0 120 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* LTG letters */}
-      <text x="0" y="32" fontFamily="'Arial Black', 'Arial Bold', sans-serif" fontWeight="900" fontSize="36" fill="#ffffff" letterSpacing="-1">LTG</text>
-      {/* Red underline bar - LTG brand */}
-      <rect x="0" y="37" width="108" height="5" fill="#e2001a" rx="1"/>
+      <text x="0" y="32" fontFamily="'Arial Black', 'Arial Bold', sans-serif" fontWeight="900" fontSize="36" fill="#c8a84b" letterSpacing="-1" stroke="#1a3a6b" strokeWidth="0.5">LTG</text>
+      <rect x="0" y="37" width="108" height="4" fill="#c8a84b" rx="1"/>
     </svg>
   );
 }
@@ -808,31 +806,34 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
               {sliderX > 10 ? "Los!" : "Zum Öffnen schieben"}
             </div>
             <div ref={sliderRef}
-              style={{ position:"relative", height:60, background:C.surface,
-                border:"1px solid "+C.border, borderRadius:30,
-                overflow:"hidden" }}>
+              style={{ position:"relative", height:56, background:"#e8eef5",
+                border:"2px solid #1a3a6b", borderRadius:4,
+                overflow:"hidden", boxShadow:"inset 0 2px 4px rgba(0,0,0,0.1)" }}>
               <div style={{ position:"absolute", left:0, top:0, bottom:0,
                 width:(sliderX/SLIDER_MAX*100)+"%",
-                background:pct>0.9?C.green+"33":C.blue+"22",
+                background:pct>0.9?"#22c55e33":"#1a3a6b22",
                 transition:dragging?"none":"width 0.3s" }} />
-              <div style={{ position:"absolute", right:18, top:"50%",
-                transform:"translateY(-50%)", fontSize:20,
-                color:C.gray500, opacity:1-pct, userSelect:"none" }}>
-                ›  ›
+              <div style={{ position:"absolute", right:16, top:"50%",
+                transform:"translateY(-50%)", fontSize:16,
+                color:"#7a90a8", opacity:1-pct, userSelect:"none",
+                fontWeight:700, letterSpacing:4 }}>
+                » »
               </div>
               <div
                 onMouseDown={function(e){ e.preventDefault(); startDrag(e.clientX); }}
                 onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}
                 style={{ position:"absolute", left:sliderX+"px", top:"50%",
                   transform:"translateY(-50%)",
-                  width:56, height:56, borderRadius:28,
-                  background:pct>0.9?C.green:C.blue,
+                  width:60, height:48, borderRadius:3,
+                  background:pct>0.9?"#22c55e":"#1a3a6b",
                   display:"flex", alignItems:"center",
-                  justifyContent:"center", fontSize:30,
+                  justifyContent:"center", fontSize:22,
                   cursor:"grab", userSelect:"none",
-                  boxShadow:"0 2px 16px rgba(0,0,0,0.5)",
-                  transition:dragging?"none":"left 0.3s, background 0.2s" }}>
-                🚛
+                  boxShadow:"2px 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                  transition:dragging?"none":"left 0.3s, background 0.2s",
+                  borderRight:"3px solid rgba(255,255,255,0.3)",
+                  borderBottom:"3px solid rgba(0,0,0,0.2)" }}>
+                <span style={{ color:"#c8a84b", fontWeight:900, fontSize:18 }}>▶</span>
               </div>
             </div>
           </div>
@@ -1739,6 +1740,15 @@ function MyJobs({ user, jobs, setJobs, t }) {
       work_min: updated.workMin,
     }).catch(function(e){ console.error("job edit:", e); });
     setJobs(function(prev){ return prev.map(function(j){ return j.id === updated.id ? updated : j; }); });
+    if (updated.status === "done" && updated.plate) {
+      setAlerts(function(prev){ return prev.map(function(a){
+        if (a.status !== "done" && a.plate === updated.plate) {
+          sb.update("alerts", a.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
+          return Object.assign({}, a, { status: "done" });
+        }
+        return a;
+      }); });
+    }
     setEditJob(null);
   };
 
@@ -4830,11 +4840,6 @@ function App() {
             title="Zurück">
             ←
           </button>
-          <button onClick={() => { setUser(null); setTab("new"); setSelectedVehicleId(null); }}
-            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 8, padding: "6px 10px", color: C.gray300, fontSize: 14, cursor: "pointer" }}
-            title="Abmelden">
-            🚪
-          </button>
         </div>
       </div>
 
@@ -4858,21 +4863,8 @@ function App() {
       {/* Inline alert bar for logged-in mechanics */}
       {isMechanic && (alerts||[]).filter(function(a){ return a.status !== "done"; }).length > 0 && activeTab !== "eingang" && (
         <div onClick={function(){
-            var openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
-            openAlerts.sort(function(a,b){
-              if (a.urgency === "urgent" && b.urgency !== "urgent") return -1;
-              if (b.urgency === "urgent" && a.urgency !== "urgent") return 1;
-              return new Date(b.createdAt||0) - new Date(a.createdAt||0);
-            });
-            var a = openAlerts[0];
-            if (a && a.id) {
-              sb.update("alerts", a.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
-              setAlerts(function(prev){ return prev.map(function(x){ return x.id === a.id ? Object.assign({}, x, { status: "done" }) : x; }); });
-            }
-            setPrefillAlert(a);
             setPrevTab(tab);
-            setFormKey(function(k){ return k + 1; });
-            setTab("new");
+            setTab("eingang");
           }}
           style={{ cursor:"pointer", padding:"10px 16px",
             background:(alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; }) ? C.red : C.orange,
@@ -4901,12 +4893,10 @@ function App() {
         <AlertModal alert={alertModal} t={t} C={C}
           onClose={function(){ setAlertModal(null); }}
           onCreateJob={function(a){
-            if (a && a.id) {
-              sb.update("alerts", a.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
-              setAlerts(function(prev){ return prev.map(function(x){ return x.id === a.id ? Object.assign({}, x, { status: "done" }) : x; }); });
-            }
             setPrefillAlert(a);
+            setFormKey(function(k){ return k + 1; });
             setAlertModal(null);
+            setPrevTab(tab);
             setTab("new");
           }} />
       )}
@@ -4929,10 +4919,6 @@ function App() {
         {activeTab === "eingang" && isMechanic && <IncomingAlerts
           alerts={alerts} t={t} C={C}
           onCreateJob={function(alert){
-            if (alert && alert.id) {
-              sb.update("alerts", alert.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
-              setAlerts(function(prev){ return prev.map(function(x){ return x.id === alert.id ? Object.assign({}, x, { status: "done" }) : x; }); });
-            }
             setPrefillAlert(alert);
             setFormKey(function(k){ return k + 1; });
             setPrevTab(tab);

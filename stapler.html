@@ -35,18 +35,18 @@ const sbInsert = async (table, data) => {
 
 
 const C = {
-  bg:      "#0f1117",
-  surface: "#1a1d27",
-  border:  "#2e3350",
-  navy:    "#1a2744",
-  orange:  "#f97316",
+  bg:      "#f0f4f8",
+  surface: "#ffffff",
+  border:  "#d0dbe8",
+  navy:    "#1a3a6b",
+  orange:  "#c8a84b",
   red:     "#dc2626",
-  yellow:  "#d97706",
+  yellow:  "#c8a84b",
   green:   "#16a34a",
-  blue:    "#3b82f6",
-  white:   "#f1f5f9",
-  gray3:   "#94a3b8",
-  gray5:   "#64748b",
+  blue:    "#1a3a6b",
+  white:   "#1a2332",
+  gray3:   "#4a6080",
+  gray5:   "#7a90a8",
 };
 
 const LOCATIONS = [
@@ -245,7 +245,7 @@ function LTGLogo() {
   return (
     <svg width="72" height="26" viewBox="0 0 120 44" fill="none">
       <text x="0" y="32" fontFamily="Arial Black, sans-serif"
-        fontWeight="900" fontSize="36" fill="#ffffff" letterSpacing="-1">LTG</text>
+        fontWeight="900" fontSize="36" fill="#c8a84b" letterSpacing="-1" stroke="#1a3a6b" strokeWidth="0.5">LTG</text>
       <rect x="0" y="37" width="108" height="5" fill="#e2001a" rx="1"/>
     </svg>
   );
@@ -406,7 +406,7 @@ function App() {
           )}
           <LTGLogo />
         </div>
-        <div style={{ display:"flex", gap:3, background:"#243258", borderRadius:10, padding:3 }}>
+        <div style={{ display:"flex", gap:3, background:"#1e4280", borderRadius:10, padding:3 }}>
           {LANGS.map(l => (
             <button key={l.code} onClick={() => setLang(l.code)}
               style={{ padding:"4px 7px", borderRadius:7, border:"none",

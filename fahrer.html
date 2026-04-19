@@ -34,10 +34,10 @@ const sbInsert = async (table, data) => {
 
 
 const C = {
-  bg:"#0f1117", surface:"#1a1d27", border:"#2e3350",
-  navy:"#1a2744", navyMid:"#243258", orange:"#f97316",
+  bg:"#f0f4f8", surface:"#ffffff", border:"#d0dbe8",
+  navy:"#1a3a6b", navyMid:"#1e4280", orange:"#c8a84b",
   red:"#dc2626", yellow:"#d97706", green:"#16a34a",
-  blue:"#3b82f6", white:"#f1f5f9", gray3:"#94a3b8", gray5:"#64748b",
+  blue:"#1a3a6b", white:"#1a2332", gray3:"#4a6080", gray5:"#7a90a8",
 };
 
 const TRUCKS = [
@@ -366,7 +366,7 @@ function LTGLogo() {
   return (
     <svg width="72" height="26" viewBox="0 0 120 44" fill="none">
       <text x="0" y="32" fontFamily="Arial Black,sans-serif"
-        fontWeight="900" fontSize="36" fill="#ffffff" letterSpacing="-1">LTG</text>
+        fontWeight="900" fontSize="36" fill="#c8a84b" letterSpacing="-1" stroke="#1a3a6b" strokeWidth="0.5">LTG</text>
       <rect x="0" y="37" width="108" height="5" fill="#e2001a" rx="1"/>
     </svg>
   );
@@ -439,7 +439,7 @@ function VehicleSelect({ trucks, trailers, value, onChange, t, C }) {
   // ── Trigger (closed state) ────────────────────────────────────
   const Trigger = () => (
     <button onClick={() => setOpen(true)}
-      style={{ width:"100%", background:"#1a1d27",
+      style={{ width:"100%", background:"#ffffff",
         border:"1px solid "+(value ? "#f97316" : "#2e3350"),
         borderRadius:10, padding:"13px 16px", cursor:"pointer",
         display:"flex", alignItems:"center", justifyContent:"space-between",
@@ -473,7 +473,7 @@ function VehicleSelect({ trucks, trailers, value, onChange, t, C }) {
       <div style={{ position:"fixed", inset:0, zIndex:999,
         background:"rgba(0,0,0,0.7)", display:"flex",
         flexDirection:"column", justifyContent:"flex-end" }}>
-        <div style={{ background:"#1a1d27", borderRadius:"16px 16px 0 0",
+        <div style={{ background:"#ffffff", borderRadius:"16px 16px 0 0",
           maxHeight:"80vh", display:"flex", flexDirection:"column",
           overflow:"hidden" }}>
           {/* Header */}
@@ -581,7 +581,7 @@ function VehicleSelect({ trucks, trailers, value, onChange, t, C }) {
                       onChange={e => setCustomVal(e.target.value)}
                       onKeyDown={e => e.key==="Enter" && handleCustom()}
                       placeholder={t.platePh}
-                      style={{ flex:1, background:"#0f1117",
+                      style={{ flex:1, background:"#f0f4f8",
                         border:"1px solid #f97316", borderRadius:8,
                         padding:"10px 14px", color:"#f1f5f9",
                         fontSize:15, outline:"none",
