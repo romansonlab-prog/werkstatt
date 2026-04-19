@@ -710,6 +710,7 @@ function LocationPicker({ value, onChange, placeholder, C }) {
 function App() {
   const [lang, setLang] = useState("de");
   const [screen, setScreen] = useState("home");
+  const [prevScreen, setPrevScreen] = useState("home");
   const [driverName, setDriverName] = useState("");
 
   const [truckVehicle, setTruckVehicle] = useState(null);
@@ -819,10 +820,11 @@ function App() {
         justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           {screen !== "home" && (
-            <button onClick={() => setScreen("home")}
-              style={{ background:"none", border:"none", color:C.gray3,
-                cursor:"pointer", fontSize:22, padding:"0 4px 0 0" }}>
-              &lsaquo;
+            <button onClick={() => { var p = prevScreen; setPrevScreen(screen); setScreen(p); }}
+              style={{ background:C.navyMid, border:"1px solid "+C.border,
+                borderRadius:8, color:C.white,
+                cursor:"pointer", fontSize:22, padding:"4px 12px", fontWeight:700 }}>
+              ←
             </button>
           )}
           <LTGLogo />

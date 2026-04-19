@@ -4646,6 +4646,7 @@ function App() {
   const [lang, setLang] = useState("de");
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState("new");
+  const [prevTab, setPrevTab] = useState("new");
   const [jobs, setJobs] = useState([]);
   const [stock, setStock] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -4655,6 +4656,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(null);
   const [prefillAlert, setPrefillAlert] = useState(null);
+  const [formKey, setFormKey] = useState(0);
+  const goTab = function(newTab) {
+    setPrevTab(function(){ return tab; });
+    setTab(newTab);
+  };
   const [alertModal, setAlertModal] = useState(null);
   const [meldungenOpen, setMeldungenOpen] = useState(false);
   const [dbStatus, setDbStatus] = useState("loading");
@@ -4819,6 +4825,11 @@ function App() {
             );
           })()}
           <div style={{ fontSize: 12, color: C.gray500 }}>{(user.name||"").split(" ")[0]}</div>
+          <button onClick={() => { setPrevTab(tab); setTab(prevTab); }}
+            style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 7, padding: "8px 14px", color: C.gray300, fontSize: 18, cursor: "pointer", borderRadius: 8 }}
+            title="Zurück">
+            ←
+          </button>
           <button onClick={() => { setUser(null); setTab("new"); setSelectedVehicleId(null); }}
             style={{ background: C.navyMid, border: "1px solid "+C.border, borderRadius: 7, padding: "4px 10px", color: C.gray300, fontSize: 12, cursor: "pointer" }}>
             ⏎
@@ -4904,7 +4915,7 @@ function App() {
 
       {/* Content */}
       <div style={{ padding: 16, paddingBottom: 80, maxWidth: 700, margin: "0 auto" }}>
-        {activeTab === "new"       && isMechanic && <NewJobForm user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
+        {activeTab === "new"       && isMechanic && <NewJobForm key={formKey} user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
         {activeTab === "jobs"                      && <MyJobs user={user} jobs={jobs} setJobs={setJobs} t={t} />}
         {activeTab === "dashboard" && user.role === "boss" && <DashboardBoss jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} />}
         {activeTab === "dashboard" && user.role === "fpl"  && <DashboardFPL jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} onNavigate={(vid) => { setSelectedVehicleId(vid); setTab("fahrzeuge"); }} onCreateJob={() => setTab("melden")} />}
@@ -4920,12 +4931,9 @@ function App() {
               sb.update("alerts", alert.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
               setAlerts(function(prev){ return prev.map(function(x){ return x.id === alert.id ? Object.assign({}, x, { status: "done" }) : x; }); });
             }
-            setPrefillAlert(null);
-            setTab("jobs");
-            setTimeout(function(){
-              setPrefillAlert(alert);
-              setTab("new");
-            }, 100);
+            setPrefillAlert(alert);
+            setFormKey(function(k){ return k + 1; });
+            setTab("new");
           }} />}
         {activeTab === "archive"    && <Archive jobs={jobs} user={user} t={t} />}
       </div>
