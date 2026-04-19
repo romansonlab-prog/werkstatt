@@ -1148,6 +1148,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
   const emptyForm = { vehicleType: "truck", plate: "", location: "Werkstatt", workType: "repair", description: "", withColleague: false, colleague: "" };
   const [form, setForm] = useState(emptyForm);
   const [photos, setPhotos] = useState([]);
+  const [hasPrefill, setHasPrefill] = useState(false);
 
   // Travel timers
   const [travelToActive, setTravelToActive]   = useState(false);
@@ -1185,6 +1186,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
       location: prefill.location || f.location,
       description: prefill.description || f.description,
     }); });
+    setHasPrefill(true);
     if (onClearPrefill) onClearPrefill();
   }, [prefill]);
 
@@ -1253,7 +1255,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         location: form.location,
         workType: form.workType,
         description: descDE || form.description,
-        status: workMin > 0 ? "done" : travelToMin > 0 ? "inProgress" : "open",
+        status: workMin > 0 ? "done" : (hasPrefill || travelToMin > 0) ? "inProgress" : "open",
         date: new Date().toISOString().slice(0, 10),
         travelToMin: travelToMin,
         travelBackMin: travelBackMin,
@@ -4844,17 +4846,18 @@ function App() {
       {isMechanic && (alerts||[]).filter(function(a){ return a.status !== "done"; }).length > 0 && activeTab !== "eingang" && (
         <div onClick={function(){
             var openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
-            if (openAlerts.length === 1) {
-              var a = openAlerts[0];
-              if (a && a.id) {
-                sb.update("alerts", a.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
-                setAlerts(function(prev){ return prev.map(function(x){ return x.id === a.id ? Object.assign({}, x, { status: "done" }) : x; }); });
-              }
-              setPrefillAlert(a);
-              setTab("new");
-            } else {
-              setTab("eingang");
+            openAlerts.sort(function(a,b){
+              if (a.urgency === "urgent" && b.urgency !== "urgent") return -1;
+              if (b.urgency === "urgent" && a.urgency !== "urgent") return 1;
+              return new Date(b.createdAt||0) - new Date(a.createdAt||0);
+            });
+            var a = openAlerts[0];
+            if (a && a.id) {
+              sb.update("alerts", a.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
+              setAlerts(function(prev){ return prev.map(function(x){ return x.id === a.id ? Object.assign({}, x, { status: "done" }) : x; }); });
             }
+            setPrefillAlert(a);
+            setTab("new");
           }}
           style={{ cursor:"pointer", padding:"10px 16px",
             background:(alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; }) ? C.red : C.orange,
