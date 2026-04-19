@@ -2199,14 +2199,13 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
                 border:"1px solid "+(openAlerts.length>0?"#ef4444":C.border),
                 borderRadius:10, padding:"16px", marginBottom:16 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-                  <span style={{ fontSize:16 }}>⚠</span>
-                  <span style={{ fontSize:14, fontWeight:700,
-                    color: openAlerts.length>0?"#ef4444":C.white }}>
+                  <span style={{ fontSize:16, color:"#ef4444" }}>⚠</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:"#ef4444" }}>
                     Alerts {openAlerts.length > 0 && "("+openAlerts.length+")"}
                   </span>
                 </div>
                 {openAlerts.length === 0 ? (
-                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"12px 0" }}>
+                  <div style={{ fontSize:13, color:"#ef4444", textAlign:"center", padding:"12px 0" }}>
                     ✓ Keine neuen Meldungen
                   </div>
                 ) : openAlerts.map(function(a){
