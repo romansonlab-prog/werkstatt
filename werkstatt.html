@@ -1752,7 +1752,7 @@ function MyJobs({ user, jobs, setJobs, t }) {
   };
 
   const workTypeIcon = { repair:"🔧", maintenance:"🛢", inspection:"🔍", travelToShop:"🏪", emergency:"🚨" };
-  const vehicleIcon  = { truck:"🚛", semiTrailer:"🚚", forklift:"🏗", trailer:"🚜", pkw:"🚗", other:"🔩" };
+  const vehicleIcon  = { truck:"LKW", semiTrailer:"SAT", forklift:"STG", trailer:"ANH", pkw:"PKW", other:"SNG" };
 
   return (
     <div>
@@ -1763,7 +1763,7 @@ function MyJobs({ user, jobs, setJobs, t }) {
         <Card key={job.id} style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 24 }}>{vehicleIcon[job.vehicleType] || "🔩"}</span>
+              <span style={{ fontSize:9, fontWeight:800, color:"#1e4fa0", background:"#1e4fa018", borderRadius:3, padding:"2px 5px", letterSpacing:"0.5px" }}>{vehicleIcon[job.vehicleType] || "SNG"}</span>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>{job.plate}</div>
                 <div style={{ fontSize: 12, color: C.gray500 }}>{job.location} · {job.date}</div>
@@ -1907,16 +1907,16 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
 
   // Fleet by type
   var fleetTypes = [
-    {k:"truck",       l:"LKW",          color:"#1e4fa0", icon:"🚛"},
-    {k:"semiTrailer", l:"Sattelzug",     color:"#0369a1", icon:"🚚"},
-    {k:"forklift",    l:"Stapler",       color:"#d97706", icon:"🏗"},
-    {k:"trailer",     l:"Anhänger",      color:"#059669", icon:"🔗"},
-    {k:"pkw",         l:"PKW",           color:"#7c3aed", icon:"🚗"},
-    {k:"other",       l:"Sonstiges",     color:"#64748b", icon:"🔩"},
+    {k:"truck",       l:"LKW",          color:"#1e4fa0", abbr:"LKW"},
+    {k:"semiTrailer", l:"Sattelzug",     color:"#1e4fa0", abbr:"SAT"},
+    {k:"forklift",    l:"Stapler",       color:"#1e4fa0", abbr:"STG"},
+    {k:"trailer",     l:"Anhänger",      color:"#1e4fa0", abbr:"ANH"},
+    {k:"pkw",         l:"PKW",           color:"#1e4fa0", abbr:"PKW"},
+    {k:"other",       l:"Sonstiges",     color:"#1e4fa0", abbr:"SNG"},
   ].map(function(x){ return Object.assign({}, x, {
     count: (vehicles||[]).filter(function(v){ return v.type===x.k; }).length,
     open:  allOpen.filter(function(j){ return j.vehicleType===x.k; }).length,
-  }); }).filter(function(x){ return x.count > 0 || x.open > 0; });
+  }); });
 
   var fleetTotal   = (vehicles||[]).length;
   var fleetOk      = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="ok"; }).length;
@@ -2099,11 +2099,13 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
                     return (
                       <div key={x.k} style={{ background:C.bg, borderRadius:8, padding:"10px 12px",
                         border:"1px solid "+C.border, borderLeft:"3px solid "+x.color }}>
-                        <div style={{ fontSize:18, marginBottom:4 }}>{x.icon}</div>
-                        <div style={{ fontSize:13, fontWeight:700, color:C.white }}>{x.l}</div>
-                        <div style={{ fontSize:20, fontWeight:900, color:x.color }}>{x.count}</div>
+                        <div style={{ fontSize:10, fontWeight:800, color:x.color,
+                          background:x.color+"18", borderRadius:4, padding:"2px 6px",
+                          display:"inline-block", marginBottom:6, letterSpacing:"1px" }}>{x.abbr}</div>
+                        <div style={{ fontSize:12, color:C.gray500, marginBottom:2 }}>{x.l}</div>
+                        <div style={{ fontSize:22, fontWeight:900, color:C.white }}>{x.count}</div>
                         {x.open > 0 && (
-                          <div style={{ fontSize:10, color:"#ef4444", marginTop:2 }}>{x.open} offen</div>
+                          <div style={{ fontSize:10, color:"#ef4444", marginTop:2 }}>▲ {x.open} offen</div>
                         )}
                       </div>
                     );
@@ -2418,10 +2420,13 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
                   <tbody>
                     {washJobs.map(function(j){
                       var washTypeLabel = {basic:"Einfach", full:"Vollwäsche", chemical:"Chemisch", other:"Sonstiges"}[j.washType||"basic"]||"Einfach";
-                      var vIcon = {truck:"🚛",semiTrailer:"🚚",forklift:"🏗",trailer:"🔗",pkw:"🚗",other:"🔩"}[j.vehicleType]||"🔩";
+                      var vAbbr3 = {truck:"LKW",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"}[j.vehicleType]||"SNG";
                       return (
                         <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
-                          <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>{vIcon} {j.plate}</td>
+                          <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>
+                            <span style={{ fontSize:9, fontWeight:800, color:"#1e4fa0", background:"#1e4fa018", borderRadius:3, padding:"1px 4px", marginRight:6, letterSpacing:"0.5px" }}>{vAbbr3}</span>
+                            {j.plate}
+                          </td>
                           <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.vehicleType}</td>
                           <td style={{ padding:"9px 10px", color:C.gray300 }}>{washTypeLabel}</td>
                           <td style={{ padding:"9px 10px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
@@ -2742,12 +2747,12 @@ function VehicleBrand({ brand, size=36 }) {
 // Vehicle type icon (professional)
 function VehicleTypeIcon({ type, size=28 }) {
   const icons = {
-    truck:       "🚛",
-    semiTrailer: "🚚",
-    forklift:    "🏗",
-    trailer:     "🚜",
-    pkw:         "🚗",
-    other:       "🔩",
+    truck:       "LKW",
+    semiTrailer: "SAT",
+    forklift:    "STG",
+    trailer:     "ANH",
+    pkw:         "PKW",
+    other:       "SNG",
   };
   // Use styled text instead of emoji for professional look
   const labels = {
