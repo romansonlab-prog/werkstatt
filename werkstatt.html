@@ -4655,6 +4655,14 @@ function App() {
       {/* Content */}
       <div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: activeTab==="dashboard" ? 0 : 80,
         maxWidth: activeTab==="dashboard" ? "100%" : 700, margin: "0 auto" }}>
+        {/* Back button for boss/fpl on sub-pages */}
+        {isViewer && activeTab !== "dashboard" && (
+          <button onClick={function(){ setPrevTab(tab); setTab("dashboard"); }}
+            style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none",
+              color:C.blue, cursor:"pointer", fontSize:13, fontWeight:600, marginBottom:12, padding:0 }}>
+            ← Zurück zum Dashboard
+          </button>
+        )}
         {activeTab === "new"       && isMechanic && <NewJobForm key={formKey} user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
         {activeTab === "jobs"                      && <MyJobs user={user} jobs={jobs} setJobs={setJobs} t={t} />}
         {(activeTab === "dashboard") && (user.role === "boss" || user.role === "fpl") && <DashboardShared jobs={jobs} vehicles={vehicles} alerts={alerts} t={t} lang={lang} user={user} onNavigate={function(vid){ setSelectedVehicleId(vid); setPrevTab(tab); setTab("fahrzeuge"); }} onCreateJob={function(){ setPrevTab(tab); setTab("melden"); }} onTabChange={function(k){ setPrevTab(tab); setTab(k); }} />}
