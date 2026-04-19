@@ -4857,7 +4857,8 @@ function App() {
               setAlerts(function(prev){ return prev.map(function(x){ return x.id === a.id ? Object.assign({}, x, { status: "done" }) : x; }); });
             }
             setPrefillAlert(a);
-            setTab("new");
+            setTab("jobs");
+            setTimeout(function(){ setTab("new"); }, 50);
           }}
           style={{ cursor:"pointer", padding:"10px 16px",
             background:(alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; }) ? C.red : C.orange,
