@@ -3602,46 +3602,61 @@ function Archive({ jobs, user, t }) {
     const win = window.open("", "_blank");
     if (!win) return;
     const tMin = (j.travelToMin||0)+(j.travelBackMin||0);
+    const vTypeLabel = {truck:"LKW",semiTrailer:"Sattelzug",forklift:"Stapler",trailer:"Anhänger",pkw:"PKW",other:"Sonstiges"}[j.vehicleType]||"";
+    const workTypeLabel = {repair:"Reparatur",inspection:"Inspektion",tireChange:"Reifenwechsel",wash:"Wäsche",other:"Sonstiges"}[j.workType]||(j.workType||"");
+    const statusLabel = {done:"Erledigt",open:"Offen",inProgress:"In Arbeit"}[j.status]||(j.status||"");
+    const statusColor = {done:"#16a34a",open:"#ef4444",inProgress:"#d97706"}[j.status]||"#64748b";
     const row = (label, val) =>
       "<div class='row'><span class='label'>" + label + "</span>"
       + "<span class='value'>" + val + "</span></div>";
     const rows = [];
-    rows.push(row("Fahrzeug", j.plate + (j.vehicleType ? " (" + j.vehicleType + ")" : "")));
+    rows.push(row("Datum", j.date ? new Date(j.date).toLocaleDateString("de-DE", {weekday:"long",year:"numeric",month:"long",day:"numeric"}) : ""));
+    rows.push(row("Mechaniker", getName(j.mechanic) + (j.colleague ? " + " + getName(j.colleague) : "")));
     rows.push(row("Standort", j.location || ""));
-    rows.push(row("Datum", j.date || ""));
-    rows.push(row("Arbeitstyp", j.workType || ""));
-    rows.push(row(t.mechanic||"Mechaniker", getName(j.mechanic) + (j.colleague ? " + " + getName(j.colleague) : "")));
-    if (j.description)   rows.push(row("Beschreibung", j.description));
-    if (j.workMin > 0)   rows.push(row("Arbeitszeit", formatMin(j.workMin)));
-    if (tMin > 0)        rows.push(row("Fahrzeit", formatMin(tMin)));
-    if (j.cost > 0)      rows.push(row("Kosten", j.cost.toFixed(2) + " EUR"));
-    if (j.partsType)     rows.push(row("Teile", j.partsType));
-    if (j.partsInvoice)  rows.push(row("Beleg-Nr.", j.partsInvoice + (j.partsDate ? ' · '+j.partsDate : '')));
+    rows.push(row("Fahrzeug", j.plate + (vTypeLabel ? " · " + vTypeLabel : "")));
+    rows.push(row("Art der Arbeit", workTypeLabel));
+    if (j.description) rows.push(row("Beschreibung", j.description));
+    if (j.workMin > 0) rows.push(row("Arbeitszeit", formatMin(j.workMin)));
+    if (tMin > 0)      rows.push(row("Fahrzeit", formatMin(tMin)));
+    if (j.cost > 0)    rows.push(row("Kosten", j.cost.toFixed(2) + " €"));
+    if (j.partsType)   rows.push(row("Teile", {inspection:"Inspektion",from_stock:"Aus Lager",buy:"Eingekauft",used:"Gebraucht",no_parts:"Keine Teile"}[j.partsType]||j.partsType));
+    if (j.partsInvoice) rows.push(row("Beleg-Nr.", j.partsInvoice + (j.partsDate ? " · " + j.partsDate : "")));
     if (j.partsSupplier) rows.push(row("Lieferant", j.partsSupplier));
     rows.push("<div class='row'><span class='label'>Status</span>"
-      + "<span class='value'><span class='status'>" + j.status + "</span></span></div>");
+      + "<span class='value'><span class='status' style='background:" + statusColor + "'>" + statusLabel + "</span></span></div>");
     const css = [
-      "body{font-family:Arial,sans-serif;padding:32px;max-width:600px;margin:0 auto;color:#1a1a1a}",
-      "h2{color:#1e3a5f;border-bottom:3px solid #e2001a;padding-bottom:8px;margin-bottom:16px}",
-      ".row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee}",
-      ".label{color:#666;font-size:13px}",
-      ".value{font-weight:600;font-size:14px}",
-      ".status{background:#22c55e;color:#fff;padding:3px 10px;border-radius:20px;font-size:12px}",
-      ".logo{font-size:26px;font-weight:900;color:#1e3a5f;letter-spacing:-1px;margin-bottom:4px}",
-      ".red{height:4px;background:#e2001a;width:72px;margin-bottom:20px;border-radius:2px}",
-      ".foot{margin-top:28px;font-size:11px;color:#999;text-align:center;padding-top:12px;border-top:1px solid #eee}",
-      "@media print{.noprint{display:none}}",
+      "*{box-sizing:border-box}",
+      "body{font-family:'Segoe UI',Arial,sans-serif;padding:0;margin:0;color:#1a2332;background:#fff}",
+      ".header{background:#1e4fa0;padding:20px 32px;display:flex;align-items:center}",
+      ".header img{height:40px}",
+      ".stripe{height:5px;background:linear-gradient(90deg,#1e4fa0 0%,#f5a623 40%,#f5a623 60%,#1e4fa0 100%)}",
+      ".body{padding:28px 32px;max-width:640px;margin:0 auto}",
+      ".title{font-size:22px;font-weight:800;color:#1e4fa0;margin-bottom:4px}",
+      ".subtitle{font-size:13px;color:#64748b;margin-bottom:24px}",
+      ".divider{border:none;border-top:2px solid #1e4fa0;margin-bottom:20px}",
+      ".row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #e8eef4}",
+      ".label{color:#64748b;font-size:13px}",
+      ".value{font-weight:600;font-size:14px;color:#1a2332;text-align:right;max-width:60%}",
+      ".status{color:#fff;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700}",
+      ".foot{margin-top:28px;font-size:11px;color:#94a3b8;text-align:center;padding-top:12px;border-top:1px solid #e8eef4}",
+      "@media print{.noprint{display:none}body{padding:0}}",
     ].join("");
     const html = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
       + "<title>Auftrag " + j.plate + "</title>"
       + "<style>" + css + "</style></head><body>"
-      + "<div class='logo'>LTG</div>"
-      + "<div class='red'></div>"
-      + "<h2>Auftrag &mdash; " + j.plate + "</h2>"
+      + "<div class='header'><img src= + logo_b64 + '/></div>"
+      + "<div class='stripe'></div>"
+      + "<div class='body'>"
+      + "<div class='title'>Auftrag &mdash; " + j.plate + "</div>"
+      + "<div class='subtitle'>LTG Werkstatt Hockenheim</div>"
+      + "<hr class='divider'/>"
       + rows.join("")
       + "<div class='foot'>LTG Landauer Transportgesellschaft Doll KG &middot; Hockenheim &middot; "
       + new Date().toLocaleDateString("de-DE") + "</div>"
-      + "<br/><button class='noprint' onclick='window.print()'>Drucken</button>"
+      + "</div>"
+      + "<br/><div class='noprint' style='text-align:center;padding:16px'>"
+      + "<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
+      + "</div>"
       + "</body></html>";
     win.document.write(html);
     win.document.close();
