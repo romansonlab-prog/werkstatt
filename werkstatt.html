@@ -1185,9 +1185,10 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
       plate: prefill.plate || f.plate,
       location: prefill.location || f.location,
       description: prefill.description || f.description,
+      workType: prefill.workType || f.workType,
     }); });
     setHasPrefill(true);
-    if (onClearPrefill) onClearPrefill();
+    setTimeout(function(){ if (onClearPrefill) onClearPrefill(); }, 500);
   }, [prefill]);
 
   useEffect(() => {
@@ -4919,9 +4920,12 @@ function App() {
               sb.update("alerts", alert.id, { status: "done" }).catch(function(e){ console.error("alert close:", e); });
               setAlerts(function(prev){ return prev.map(function(x){ return x.id === alert.id ? Object.assign({}, x, { status: "done" }) : x; }); });
             }
-            setPrefillAlert(alert);
-            setAlertModal(null);
-            setTab("new");
+            setPrefillAlert(null);
+            setTab("jobs");
+            setTimeout(function(){
+              setPrefillAlert(alert);
+              setTab("new");
+            }, 100);
           }} />}
         {activeTab === "archive"    && <Archive jobs={jobs} user={user} t={t} />}
       </div>
