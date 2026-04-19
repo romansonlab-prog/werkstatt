@@ -2059,8 +2059,8 @@ function DashboardShared({ jobs, vehicles, alerts, t, lang, user, onNavigate, on
           </button>
         </div>
 
-        {/* KPI Cards - 6 in a row */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
+        {/* KPI Cards - 6 in a row - hide on wash section */}
+        <div style={{ display: activeSection==="wash" ? "none" : "grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
           {kpis.map(function(k,i){
             return (
               <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
