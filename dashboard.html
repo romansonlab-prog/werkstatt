@@ -22,14 +22,14 @@
     .panel { background:white; border:1px solid #d0dbe8; border-radius:18px; padding:16px; box-shadow:0 8px 20px rgba(26,58,107,.07); }
     .panel h2 { font-size:18px; margin:0 0 12px; }
     table { width:100%; border-collapse:collapse; }
-    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:14px; }
+    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:14px; vertical-align:top; }
     th { color:#4a6080; font-size:12px; text-transform:uppercase; }
     .badge { display:inline-block; padding:5px 8px; border-radius:999px; font-weight:900; font-size:11px; background:#e2e8f0; }
     .urgent { background:#fee2e2; color:#b91c1c; }
     .ok { background:#dcfce7; color:#15803d; }
     .warn { background:#fef3c7; color:#92400e; }
     .empty { color:#7a90a8; padding:20px; text-align:center; }
-    @media (max-width: 820px) {
+    @media (max-width: 920px) {
       .kpis { grid-template-columns:1fr 1fr; }
       .grid { grid-template-columns:1fr; }
     }
@@ -46,15 +46,12 @@
 
   <main class="wrap">
     <h1>Dashboard</h1>
+
     <section class="kpis">
       <div class="kpi"><div class="label">Open Jobs</div><div id="kOpen" class="value">—</div></div>
       <div class="kpi"><div class="label">Critical</div><div id="kCritical" class="value">—</div></div>
       <div class="kpi"><div class="label">Waiting Parts</div><div id="kParts" class="value">—</div></div>
       <div class="kpi"><div class="label">Done Today</div><div id="kDone" class="value">—</div></div>
-      <div class="kpi"><div class="label">Waschhalle Heute</div><div id="kWashCount" class="value">—</div></div>
-      <div class="kpi"><div class="label">Waschhalle €</div><div id="kWashRevenue" class="value">—</div></div>
-      <div class="kpi"><div class="label">Waschzeit</div><div id="kWashMinutes" class="value">—</div></div>
-      <div class="kpi"><div class="label">Archiviert</div><div id="kWashArchived" class="value">—</div></div>
     </section>
 
     <section class="grid">
@@ -81,11 +78,11 @@
   </main>
 
   <script>
-    const SB_URL = 'https://vtswzvrflqoueowylidy.supabase.co';
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI';
+    const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
+    const SB_KEY = "sb_publishable_8z54aRy2nVSWkT4n87ACjw_6StWhUxz";
     const supa = window.supabase.createClient(SB_URL, SB_KEY);
+
     let session = null;
-    let profile = null;
     let jobs = [];
     let washOrders = [];
     let washSummary = [];
@@ -111,19 +108,7 @@
         window.location.href = "login.html";
         return false;
       }
-      const res = await fetch(SB_URL + "/rest/v1/user_profiles?user_id=eq." + session.user.id + "&select=role,display_name,active", {
-        headers: await authHeaders()
-      });
-      const data = await res.json();
-      profile = data && data[0] ? data[0] : null;
-
-      if (!profile || !profile.active || ["manager","admin"].indexOf(profile.role) === -1) {
-        alert("Kein Zugriff auf Dashboard.");
-        window.location.href = "login.html";
-        return false;
-      }
-
-      document.getElementById("user").textContent = profile.display_name + " · " + profile.role.toUpperCase();
+      document.getElementById("user").textContent = (session.user.email || "Dashboard") + " · DASHBOARD";
       document.getElementById("logout").style.display = "inline-block";
       return true;
     }
@@ -134,13 +119,19 @@
       });
     }
 
-    async function loadJobs() {
+    function todayIso() {
+      return new Date().toISOString().slice(0,10);
+    }
+
+    function isOpen(j) {
+      return !["done","closed","cancelled"].includes(j.status);
+    }
+
+    async function loadData() {
       const headers = await authHeaders();
 
-      const res = await fetch(SB_URL + "/rest/v1/jobs?select=*&order=created_at.desc&limit=200", {
-        headers
-      });
-      jobs = await res.json();
+      const j = await fetch(SB_URL + "/rest/v1/jobs?select=*&order=created_at.desc&limit=200", { headers });
+      jobs = j.ok ? await j.json() : [];
 
       try {
         const w = await fetch(SB_URL + "/rest/v1/v_wash_orders_dashboard?select=*&order=created_at.desc&limit=100", { headers });
@@ -159,14 +150,6 @@
       render();
     }
 
-    function isOpen(j) {
-      return !["done","closed","cancelled"].includes(j.status);
-    }
-
-    function todayIso() {
-      return new Date().toISOString().slice(0,10);
-    }
-
     function render() {
       const open = jobs.filter(isOpen);
       document.getElementById("kOpen").textContent = open.length;
@@ -175,13 +158,11 @@
       document.getElementById("kDone").textContent = jobs.filter(j => (j.work_finished_at || j.closed_at || "").slice(0,10) === todayIso()).length;
 
       const rows = open.slice(0,50);
-      if (!rows.length) {
-        document.getElementById("jobsTable").innerHTML = '<div class="empty">Keine offenen Aufträge.</div>';
-      } else {
-        document.getElementById("jobsTable").innerHTML = '<table><thead><tr><th>Asset</th><th>Quelle</th><th>Status</th><th>Mechaniker</th></tr></thead><tbody>' +
+      document.getElementById("jobsTable").innerHTML = !rows.length
+        ? '<div class="empty">Keine offenen Aufträge.</div>'
+        : '<table><thead><tr><th>Asset</th><th>Quelle</th><th>Status</th><th>Mechaniker</th></tr></thead><tbody>' +
           rows.map(j => '<tr><td><b>'+escapeHtml(j.asset_label || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml(j.description_de || j.description_raw || "")+'</span></td><td>'+escapeHtml(j.source_app || "")+'</td><td><span class="badge '+(j.urgency==="critical"?"urgent":j.status==="waiting_parts"?"warn":"")+'">'+escapeHtml(j.status || "new")+'</span></td><td>'+escapeHtml(j.assigned_mechanic_name || "-")+'</td></tr>').join("") +
           '</tbody></table>';
-      }
 
       const bySource = {};
       open.forEach(j => bySource[j.source_app || "unknown"] = (bySource[j.source_app || "unknown"] || 0) + 1);
@@ -190,16 +171,6 @@
       ).join("") || '<div class="empty">Keine Daten.</div>';
 
       const todayWash = washOrders.filter(w => (w.work_date || "").slice(0,10) === todayIso());
-      const completedWash = todayWash.filter(w => ["done","archived"].includes(w.status));
-      const washRevenue = completedWash.reduce((s,w) => s + Number(w.price_eur || 0), 0);
-      const washMinutes = completedWash.reduce((s,w) => s + Number(w.duration_minutes || 0), 0);
-      const washArchived = todayWash.filter(w => w.status === "archived").length;
-
-      document.getElementById("kWashCount").textContent = completedWash.length;
-      document.getElementById("kWashRevenue").textContent = washRevenue.toFixed(2) + " €";
-      document.getElementById("kWashMinutes").textContent = washMinutes + " min";
-      document.getElementById("kWashArchived").textContent = washArchived;
-
       if (!todayWash.length) {
         document.getElementById("washTable").innerHTML = '<div class="empty">Keine Waschhalle-Daten heute.</div>';
       } else {
@@ -207,17 +178,14 @@
           '<table><thead><tr><th>Fahrzeug</th><th>Waschtyp</th><th>Preis</th><th>Status</th></tr></thead><tbody>' +
           todayWash.slice(0,50).map(w =>
             '<tr><td><b>'+escapeHtml(w.plate_number || w.fleet_number || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml((w.vehicle_brand || "") + " " + (w.vehicle_model || ""))+'</span></td><td>'+escapeHtml(w.wash_type_name || "-")+'<br><span style="color:#7a90a8">'+escapeHtml(String(w.duration_minutes || 0))+' min</span></td><td><b>'+Number(w.price_eur || 0).toFixed(2)+' €</b></td><td><span class="badge '+(w.status==="archived"?"ok":w.status==="done"?"warn":"")+'">'+escapeHtml(w.status || "")+'</span></td></tr>'
-          ).join("") +
-          '</tbody></table>';
+          ).join("") + '</tbody></table>';
       }
 
-      if (!washSummary.length) {
-        document.getElementById("washSummary").innerHTML = '<div class="empty">Keine Zusammenfassung.</div>';
-      } else {
-        document.getElementById("washSummary").innerHTML = washSummary.slice(0,10).map(s =>
-          '<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #e2e8f0"><div><b>'+escapeHtml(s.work_date || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml(String(s.duration_minutes || 0))+' min</span></div><div style="text-align:right"><b>'+Number(s.revenue_eur || 0).toFixed(2)+' €</b><br><span class="badge">'+escapeHtml(String(s.completed_orders || 0))+' Aufträge</span></div></div>'
-        ).join("");
-      }
+      document.getElementById("washSummary").innerHTML = !washSummary.length
+        ? '<div class="empty">Keine Zusammenfassung.</div>'
+        : washSummary.slice(0,10).map(s =>
+            '<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #e2e8f0"><div><b>'+escapeHtml(s.work_date || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml(String(s.duration_minutes || 0))+' min</span></div><div style="text-align:right"><b>'+Number(s.revenue_eur || 0).toFixed(2)+' €</b><br><span class="badge">'+escapeHtml(String(s.completed_orders || 0))+' Aufträge</span></div></div>'
+          ).join("");
     }
 
     document.getElementById("logout").onclick = async function() {
@@ -227,8 +195,8 @@
 
     (async function boot() {
       if (await checkAuth()) {
-        await loadJobs();
-        setInterval(loadJobs, 30000);
+        await loadData();
+        setInterval(loadData, 30000);
       }
     })();
   </script>
