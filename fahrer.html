@@ -757,7 +757,27 @@ function App() {
 
   const t = T[lang];
 
+  const getInspectionResult = function(checks, items) {
+    return items.some(function(item){ return checks[item.k] === "not_ok"; }) ? "not_ok" : "ok";
+  };
+
+  const getInspectionStats = function(checks, items) {
+    var marked = items.filter(function(item){ return checks[item.k] === "ok" || checks[item.k] === "not_ok"; }).length;
+    var bad = items.filter(function(item){ return checks[item.k] === "not_ok"; }).length;
+    return { marked: marked, total: items.length, bad: bad, complete: marked === items.length };
+  };
+
+  const getBadInspectionItems = function(checks, items) {
+    return items
+      .filter(function(item){ return checks[item.k] === "not_ok"; })
+      .map(function(item){ return { key: item.k, label: item.label }; });
+  };
+
   const submitTruck = function() {
+    const inspectionResult = getInspectionResult(truckChecks, t.truckChecks);
+    const inspectionStats = getInspectionStats(truckChecks, t.truckChecks);
+    const badItems = getBadInspectionItems(truckChecks, t.truckChecks);
+    setTruckResult(inspectionResult);
     setTruckLoading(true);
     translateToGerman(lang !== "de" && safeTrim(truckDefects) ? truckDefects : "")
       .then(async function(tr) {
@@ -771,12 +791,12 @@ function App() {
             reporter_name: driverName || "",
             reporter_contact: driverName || "",
             language: lang || "de",
-            urgency: "low",
+            urgency: inspectionResult === "not_ok" ? "medium" : "low",
             status: "new",
-            description_raw: safeTrim(truckDefects) || (truckResult === "ok" ? "Truck inspection OK" : "Truck inspection not OK"),
-            description_de: (tr && tr !== "") ? tr : (safeTrim(truckDefects) || (truckResult === "ok" ? "LKW-Inspektion OK" : "LKW-Inspektion nicht OK")),
-            checklist_json: { inspection_type: "truck", checks: truckChecks },
-            defects_json: { result: truckResult, defects_text: truckDefects || "", photos: truckPhotos || [] }
+            description_raw: safeTrim(truckDefects) || (inspectionResult === "ok" ? "Truck inspection OK" : "Truck inspection not OK"),
+            description_de: (tr && tr !== "") ? tr : (safeTrim(truckDefects) || (inspectionResult === "ok" ? "LKW-Inspektion OK" : "LKW-Inspektion nicht OK")),
+            checklist_json: { inspection_type: "truck", checks: truckChecks, stats: inspectionStats },
+            defects_json: { result: inspectionResult, defects_text: truckDefects || "", bad_items: badItems, photos: truckPhotos || [] }
           });
         } catch(e) {}
         setTruckLoading(false);
@@ -786,6 +806,10 @@ function App() {
   };
 
   const submitTrailer = function() {
+    const inspectionResult = getInspectionResult(trailerChecks, t.trailerChecks);
+    const inspectionStats = getInspectionStats(trailerChecks, t.trailerChecks);
+    const badItems = getBadInspectionItems(trailerChecks, t.trailerChecks);
+    setTrailerResult(inspectionResult);
     setTrailerLoading(true);
     translateToGerman(lang !== "de" && safeTrim(trailerDefects) ? trailerDefects : "")
       .then(async function(tr) {
@@ -799,12 +823,12 @@ function App() {
             reporter_name: driverName || "",
             reporter_contact: driverName || "",
             language: lang || "de",
-            urgency: "low",
+            urgency: inspectionResult === "not_ok" ? "medium" : "low",
             status: "new",
-            description_raw: safeTrim(trailerDefects) || (trailerResult === "ok" ? "Trailer inspection OK" : "Trailer inspection not OK"),
-            description_de: (tr && tr !== "") ? tr : (safeTrim(trailerDefects) || (trailerResult === "ok" ? "Auflieger-Inspektion OK" : "Auflieger-Inspektion nicht OK")),
-            checklist_json: { inspection_type: "trailer", checks: trailerChecks },
-            defects_json: { result: trailerResult, defects_text: trailerDefects || "", photos: trailerPhotos || [] }
+            description_raw: safeTrim(trailerDefects) || (inspectionResult === "ok" ? "Trailer inspection OK" : "Trailer inspection not OK"),
+            description_de: (tr && tr !== "") ? tr : (safeTrim(trailerDefects) || (inspectionResult === "ok" ? "Auflieger-Inspektion OK" : "Auflieger-Inspektion nicht OK")),
+            checklist_json: { inspection_type: "trailer", checks: trailerChecks, stats: inspectionStats },
+            defects_json: { result: inspectionResult, defects_text: trailerDefects || "", bad_items: badItems, photos: trailerPhotos || [] }
           });
         } catch(e) {}
         setTrailerLoading(false);
@@ -1017,38 +1041,42 @@ function App() {
                   </div>
                 </div>
               </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 54px 72px",
+                gap:8, alignItems:"center", padding:"0 10px 8px 10px",
+                color:C.gray3, fontSize:10, fontWeight:900, letterSpacing:"0.5px",
+                textTransform:"uppercase" }}>
+                <div></div>
+                <div style={{ textAlign:"center" }}>OK</div>
+                <div style={{ textAlign:"center" }}>Nicht OK</div>
+              </div>
               {t.truckChecks.map(item => (
-                <button key={item.k}
-                  onClick={() => setTruckChecks(c => ({...c,[item.k]:!c[item.k]}))}
-                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    width:"100%", background:truckChecks[item.k] ? C.green+"18" : C.surface,
-                    border:"1px solid "+(truckChecks[item.k] ? C.green : C.border),
-                    borderRadius:12, padding:"14px 16px", marginBottom:10,
-                    cursor:"pointer", transition:"all 0.15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div key={item.k}
+                  style={{ display:"grid", gridTemplateColumns:"1fr 54px 72px",
+                    alignItems:"center", gap:8, width:"100%",
+                    background:truckChecks[item.k] === "not_ok" ? C.red+"10" : (truckChecks[item.k] === "ok" ? C.green+"10" : C.surface),
+                    border:"1px solid "+(truckChecks[item.k] === "not_ok" ? C.red : (truckChecks[item.k] === "ok" ? C.green : C.border)),
+                    borderRadius:12, padding:"12px 10px", marginBottom:10,
+                    transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
                     <span style={{ minWidth:42, height:26, borderRadius:7, display:"inline-flex", alignItems:"center", justifyContent:"center", background:"rgba(26,58,107,0.08)", border:"1px solid rgba(26,58,107,0.18)", color:C.navy, fontSize:10, fontWeight:900, letterSpacing:"0.4px" }}>{item.emoji}</span>
-                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
+                    <span style={{ fontWeight:700, fontSize:14, color:C.white, lineHeight:1.25 }}>
                       {item.label}
                     </span>
                   </div>
-                  <span style={{ fontSize:22 }}>{truckChecks[item.k] ? "✅" : "⬜"}</span>
-                </button>
+                  <button type="button" onClick={() => setTruckChecks(c => ({...c,[item.k]:"ok"}))}
+                    style={{ height:36, borderRadius:9, border:"1px solid "+(truckChecks[item.k] === "ok" ? C.green : C.border),
+                      background:truckChecks[item.k] === "ok" ? C.green : C.bg,
+                      color:truckChecks[item.k] === "ok" ? "#fff" : C.gray3,
+                      fontWeight:900, fontSize:16, cursor:"pointer" }}>✓</button>
+                  <button type="button" onClick={() => setTruckChecks(c => ({...c,[item.k]:"not_ok"}))}
+                    style={{ height:36, borderRadius:9, border:"1px solid "+(truckChecks[item.k] === "not_ok" ? C.red : C.border),
+                      background:truckChecks[item.k] === "not_ok" ? C.red : C.bg,
+                      color:truckChecks[item.k] === "not_ok" ? "#fff" : C.gray3,
+                      fontWeight:900, fontSize:12, cursor:"pointer" }}>NICHT</button>
+                </div>
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
-                  textTransform:"uppercase", marginBottom:8 }}>Status</div>
-                <div onClick={() => setTruckResult(truckResult === "ok" ? "not_ok" : "ok")}
-                  style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:999,
-                    padding:4, marginBottom:12, cursor:"pointer", position:"relative", height:42 }}>
-                  <div style={{ position:"absolute", top:4, left:truckResult === "ok" ? 4 : "calc(50% + 0px)",
-                    width:"calc(50% - 4px)", height:34, borderRadius:999,
-                    background:truckResult === "ok" ? C.green : C.red, transition:"all 0.2s" }} />
-                  <div style={{ position:"relative", zIndex:1, display:"grid", gridTemplateColumns:"1fr 1fr", height:"100%", alignItems:"center", textAlign:"center", fontWeight:800, fontSize:13 }}>
-                    <div style={{ color:truckResult === "ok" ? "#fff" : C.gray3 }}>OK</div>
-                    <div style={{ color:truckResult === "not_ok" ? "#fff" : C.gray3 }}>NICHT OK</div>
-                  </div>
-                </div>
                 <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
                   textTransform:"uppercase", marginBottom:8 }}>{t.defects}</div>
                 <textarea value={truckDefects} onChange={e => setTruckDefects(e.target.value)}
@@ -1063,22 +1091,22 @@ function App() {
                 onRemove={i => setTruckPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allChecked = t.truckChecks.every(item => truckChecks[item.k]);
-                const okState = truckResult === "ok";
+                const stats = getInspectionStats(truckChecks, t.truckChecks);
+                const okState = stats.bad === 0;
                 return (
                   <div>
-                    <div style={{ background:okState?C.green+"18":C.yellow+"18",
-                      border:"1px solid "+(okState?C.green:C.yellow)+"44",
+                    <div style={{ background:okState?C.green+"12":C.red+"10",
+                      border:"1px solid "+(okState?C.green:C.red)+"33",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, color:okState?C.green:C.yellow, fontWeight:600 }}>
-                      {okState ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                      fontSize:13, color:okState?C.green:C.red, fontWeight:700 }}>
+                      {stats.marked}/{stats.total} geprüft · {stats.bad === 0 ? "OK" : stats.bad+" nicht OK"}
                     </div>
                     <button onClick={submitTruck}
                       style={{ width:"100%", background:okState?C.green:C.orange,
                         color:okState?"#fff":"#000", border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
                         cursor:"pointer", opacity:1 }}>
-                      {t.submit}{!allChecked ? " (partial)" : ""}
+                      {t.submit}
                     </button>
                   </div>
                 );
@@ -1158,38 +1186,42 @@ function App() {
                   </div>
                 </div>
               </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 54px 72px",
+                gap:8, alignItems:"center", padding:"0 10px 8px 10px",
+                color:C.gray3, fontSize:10, fontWeight:900, letterSpacing:"0.5px",
+                textTransform:"uppercase" }}>
+                <div></div>
+                <div style={{ textAlign:"center" }}>OK</div>
+                <div style={{ textAlign:"center" }}>Nicht OK</div>
+              </div>
               {t.trailerChecks.map(item => (
-                <button key={item.k}
-                  onClick={() => setTrailerChecks(c => ({...c,[item.k]:!c[item.k]}))}
-                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    width:"100%", background:trailerChecks[item.k]?C.green+"18":C.surface,
-                    border:"1px solid "+(trailerChecks[item.k]?C.green:C.border),
-                    borderRadius:12, padding:"14px 16px", marginBottom:10,
-                    cursor:"pointer", transition:"all 0.15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div key={item.k}
+                  style={{ display:"grid", gridTemplateColumns:"1fr 54px 72px",
+                    alignItems:"center", gap:8, width:"100%",
+                    background:trailerChecks[item.k] === "not_ok" ? C.red+"10" : (trailerChecks[item.k] === "ok" ? C.green+"10" : C.surface),
+                    border:"1px solid "+(trailerChecks[item.k] === "not_ok" ? C.red : (trailerChecks[item.k] === "ok" ? C.green : C.border)),
+                    borderRadius:12, padding:"12px 10px", marginBottom:10,
+                    transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
                     <span style={{ minWidth:42, height:26, borderRadius:7, display:"inline-flex", alignItems:"center", justifyContent:"center", background:"rgba(26,58,107,0.08)", border:"1px solid rgba(26,58,107,0.18)", color:C.navy, fontSize:10, fontWeight:900, letterSpacing:"0.4px" }}>{item.emoji}</span>
-                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
+                    <span style={{ fontWeight:700, fontSize:14, color:C.white, lineHeight:1.25 }}>
                       {item.label}
                     </span>
                   </div>
-                  <span style={{ fontSize:22 }}>{trailerChecks[item.k]?"✅":"⬜"}</span>
-                </button>
+                  <button type="button" onClick={() => setTrailerChecks(c => ({...c,[item.k]:"ok"}))}
+                    style={{ height:36, borderRadius:9, border:"1px solid "+(trailerChecks[item.k] === "ok" ? C.green : C.border),
+                      background:trailerChecks[item.k] === "ok" ? C.green : C.bg,
+                      color:trailerChecks[item.k] === "ok" ? "#fff" : C.gray3,
+                      fontWeight:900, fontSize:16, cursor:"pointer" }}>✓</button>
+                  <button type="button" onClick={() => setTrailerChecks(c => ({...c,[item.k]:"not_ok"}))}
+                    style={{ height:36, borderRadius:9, border:"1px solid "+(trailerChecks[item.k] === "not_ok" ? C.red : C.border),
+                      background:trailerChecks[item.k] === "not_ok" ? C.red : C.bg,
+                      color:trailerChecks[item.k] === "not_ok" ? "#fff" : C.gray3,
+                      fontWeight:900, fontSize:12, cursor:"pointer" }}>NICHT</button>
+                </div>
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
-                  textTransform:"uppercase", marginBottom:8 }}>Status</div>
-                <div onClick={() => setTrailerResult(trailerResult === "ok" ? "not_ok" : "ok")}
-                  style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:999,
-                    padding:4, marginBottom:12, cursor:"pointer", position:"relative", height:42 }}>
-                  <div style={{ position:"absolute", top:4, left:trailerResult === "ok" ? 4 : "calc(50% + 0px)",
-                    width:"calc(50% - 4px)", height:34, borderRadius:999,
-                    background:trailerResult === "ok" ? C.green : C.red, transition:"all 0.2s" }} />
-                  <div style={{ position:"relative", zIndex:1, display:"grid", gridTemplateColumns:"1fr 1fr", height:"100%", alignItems:"center", textAlign:"center", fontWeight:800, fontSize:13 }}>
-                    <div style={{ color:trailerResult === "ok" ? "#fff" : C.gray3 }}>OK</div>
-                    <div style={{ color:trailerResult === "not_ok" ? "#fff" : C.gray3 }}>NICHT OK</div>
-                  </div>
-                </div>
                 <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
                   textTransform:"uppercase", marginBottom:8 }}>{t.defects}</div>
                 <textarea value={trailerDefects} onChange={e => setTrailerDefects(e.target.value)}
@@ -1204,22 +1236,22 @@ function App() {
                 onRemove={i => setTrailerPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allChecked = t.trailerChecks.every(item => trailerChecks[item.k]);
-                const okState = trailerResult === "ok";
+                const stats = getInspectionStats(trailerChecks, t.trailerChecks);
+                const okState = stats.bad === 0;
                 return (
                   <div>
-                    <div style={{ background:okState?C.green+"18":C.yellow+"18",
-                      border:"1px solid "+(okState?C.green:C.yellow)+"44",
+                    <div style={{ background:okState?C.green+"12":C.red+"10",
+                      border:"1px solid "+(okState?C.green:C.red)+"33",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, color:okState?C.green:C.yellow, fontWeight:600 }}>
-                      {okState ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                      fontSize:13, color:okState?C.green:C.red, fontWeight:700 }}>
+                      {stats.marked}/{stats.total} geprüft · {stats.bad === 0 ? "OK" : stats.bad+" nicht OK"}
                     </div>
                     <button onClick={submitTrailer}
                       style={{ width:"100%", background:okState?C.green:C.orange,
                         color:okState?"#fff":"#000", border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
                         cursor:"pointer", opacity:1 }}>
-                      {t.submit}{!allChecked ? " (partial)" : ""}
+                      {t.submit}
                     </button>
                   </div>
                 );
