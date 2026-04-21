@@ -958,7 +958,7 @@ function App() {
       {/* HOME */}
       {screen === "home" && (
         <div style={{ padding:"24px 16px", maxWidth:480, margin:"0 auto" }}>
-          <div style={{ textAlign:"center", marginBottom:26 }}>
+          <div style={{ textAlign:"center", marginBottom:28 }}>
             <div style={{ display:"inline-flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
               width:106, height:64, borderRadius:16, marginBottom:12,
               background:"linear-gradient(135deg, #1a3a6b, #0f2445)",
@@ -971,7 +971,7 @@ function App() {
           </div>
 
           <div style={{ marginBottom:22 }}>
-            <div style={{ fontSize:12, fontWeight:800, color:C.gray3,
+            <div style={{ fontSize:12, fontWeight:900, color:C.gray3,
               textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
               {t.yourName}
             </div>
@@ -982,80 +982,41 @@ function App() {
                 outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
           </div>
 
-          {(function(){
-            const actions = [
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            {[
               { screen:"truckSetup", code:t.truckCode || "LKW", label:t.inspectTruck,
                 sub:t.truckChecks.length+" "+(t.points||"Punkte"), color:C.green },
-              { screen:"trailerSetup", code:t.trailerCode || "TRL", label:t.inspectTrailer,
+              { screen:"trailerSetup", code:t.trailerCode || "ANH", label:t.inspectTrailer,
                 sub:t.trailerChecks.length+" "+(t.points||"Punkte"), color:C.blue },
               { screen:"breakdown", code:t.sosCode || "SOS", label:t.reportBreakdown,
                 sub:t.breakdownTitle, color:C.red },
-            ];
-            const selected = actions.find(a => a.screen === homeAction) || actions[0];
-
-            return (
-              <div>
-                <div style={{ fontSize:12, fontWeight:900, color:C.gray3,
-                  textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:10 }}>
-                  {t.chooseAction || "Aktion wählen"}
-                </div>
-
-                <div style={{
-                  display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8,
-                  background:"#e9eff6", border:"1px solid "+C.border,
-                  borderRadius:18, padding:7, marginBottom:16,
-                  boxShadow:"inset 0 1px 0 rgba(255,255,255,0.8)"
+            ].map(btn => (
+              <button key={btn.screen} onClick={() => setScreen(btn.screen)}
+                style={{
+                  width:"100%",
+                  minHeight:132,
+                  background:"linear-gradient(135deg,"+btn.color+"20,"+btn.color+"0d)",
+                  border:"2px solid "+btn.color,
+                  borderRadius:18,
+                  padding:"22px 20px",
+                  cursor:"pointer",
+                  textAlign:"left",
+                  boxShadow:"0 12px 26px rgba(26,58,107,0.10)",
+                  fontFamily:"inherit"
                 }}>
-                  {actions.map(a => {
-                    const active = homeAction === a.screen;
-                    return (
-                      <button key={a.screen} onClick={() => setHomeAction(a.screen)}
-                        style={{
-                          minHeight:62, borderRadius:14,
-                          border:active ? "2px solid "+a.color : "1px solid transparent",
-                          background:active ? "#ffffff" : "transparent",
-                          color:active ? a.color : C.gray3,
-                          cursor:"pointer", fontWeight:900,
-                          fontSize:15, letterSpacing:"0.6px",
-                          boxShadow:active ? "0 8px 18px rgba(26,58,107,0.14)" : "none"
-                        }}>
-                        {a.code}
-                      </button>
-                    );
-                  })}
+                <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+                  minWidth:64, height:38, padding:"0 13px", borderRadius:11, marginBottom:13,
+                  background:btn.color+"18", border:"1px solid "+btn.color,
+                  color:btn.color, fontSize:14, fontWeight:900, letterSpacing:"0.8px" }}>
+                  {btn.code}
                 </div>
-
-                <div style={{
-                  border:"2px solid "+selected.color,
-                  background:"linear-gradient(135deg,"+selected.color+"18,"+selected.color+"08)",
-                  borderRadius:18, padding:"22px 20px", marginBottom:14,
-                  boxShadow:"0 12px 24px rgba(26,58,107,0.08)"
-                }}>
-                  <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
-                    minWidth:62, height:36, padding:"0 12px", borderRadius:11, marginBottom:12,
-                    background:selected.color+"18", border:"1px solid "+selected.color,
-                    color:selected.color, fontSize:13, fontWeight:900, letterSpacing:"0.8px" }}>
-                    {selected.code}
-                  </div>
-                  <div style={{ fontSize:19, fontWeight:900, color:C.white, marginBottom:5 }}>
-                    {selected.label}
-                  </div>
-                  <div style={{ fontSize:13, color:C.gray3 }}>{selected.sub}</div>
+                <div style={{ fontSize:20, fontWeight:900, color:C.white, marginBottom:6 }}>
+                  {btn.label}
                 </div>
-
-                <button onClick={() => setScreen(selected.screen)}
-                  style={{
-                    width:"100%", border:"none", borderRadius:16,
-                    padding:"18px 16px", cursor:"pointer",
-                    background:selected.color, color:"#fff",
-                    fontSize:16, fontWeight:900, letterSpacing:"0.4px",
-                    boxShadow:"0 12px 24px "+selected.color+"33"
-                  }}>
-                  {(t.continueBtn || "Weiter").toUpperCase()} →
-                </button>
-              </div>
-            );
-          })()}
+                <div style={{ fontSize:14, color:C.gray3 }}>{btn.sub}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
