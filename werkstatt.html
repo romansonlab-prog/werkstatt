@@ -22,8 +22,6 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-
-// -- Supabase config --
 const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 
@@ -97,15 +95,14 @@ const sb = {
   }
 };
 
-// ── LTG Brand Colors ──────────────────────────────────────────────
-// ── Company logo on login screen ─────────────────────────────────
-// Replace null with URL or base64 photo string when ready
-// E.g.: const COMPANY_LOGO = "https://example.com/logo.jpg";
-// Or: const COMPANY_LOGO = "data:image/jpeg;base64,/9j/4AAQ...";
+
+
+
+
 const COMPANY_LOGO = null;
 
 const C = {
-  // ── Base LTG Corporate ────────────────
+
   bg:       "#f0f4f8",   // light grey background
   surface:  "#ffffff",   // white cards
   surfaceAlt:"#1a3a6b",  // dark blue header
@@ -114,7 +111,6 @@ const C = {
   navyMid:  "#1e4280",   // medium blue
   border:   "#d0dbe8",   // light borders
 
-  // ──  ─────────────────────────────
   white:    "#1a2332",   // dark text on light bg
   gray50:   "#f8fafc",
   gray100:  "#e2e8f0",
@@ -122,7 +118,6 @@ const C = {
   gray500:  "#7a90a8",   // placeholders
   gray700:  "#334155",
 
-  // Accents
   blue:     "#1a3a6b",   // LTG blue -  
   blueLt:   "#2d5fa8",   // hover
   orange:   "#c8a84b",   // LTG gold accent
@@ -132,7 +127,6 @@ const C = {
   yellow:   "#c8a84b",   // warning - LTG gold
 };
 
-// ── Translations ──────────────────────────────────────────────────
 const T = {
   de: {
     appName:"LTG Werkstatt", login:"Anmelden", logout:"Abmelden",
@@ -554,7 +548,7 @@ const USERS = [
 const LOCATIONS = ["Werkstatt", "HOC 1", "HOC 2", "HOC 3", "HOC 4", "HOC 5", "John Deere Bruchsal"];
 
 const SAMPLE_JOBS = [ // loaded from Supabase
-  // 
+
   { id:"J001", mechanic:"roman", colleague:null, vehicleType:"truck", plate:"MA-LT 441", location:"HOC 2", workType:"repair", description:"Bremsen vorne – Belag verschlissen", status:"done", date:"2024-04-15", travelToMin:18, travelBackMin:18, workMin:95, photos:2, cost:124.50, downtime:95 },
   { id:"J002", mechanic:"petr", colleague:"roman", vehicleType:"forklift", plate:"STG-019", location:"HOC 4", workType:"maintenance", description:"Ölwechsel + Filter", status:"done", date:"2024-04-15", travelToMin:12, travelBackMin:10, workMin:45, photos:0, cost:89.00, downtime:45 },
   { id:"J003", mechanic:"roman", colleague:null, vehicleType:"semiTrailer", plate:"MA-TA 877", location:"Werkstatt", workType:"repair", description:"Beleuchtung hinten – Kabel defekt", status:"inProgress", date:"2024-04-15", travelToMin:0, travelBackMin:0, workMin:30, photos:3, cost:45.00, downtime:30 },
@@ -581,7 +575,6 @@ function formatMin(min) {
   return `${m}min`;
 }
 
-// ── Reusable UI ───────────────────────────────────────────────────
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -632,7 +625,6 @@ function Card({ children, style }) {
   return <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, ...style }}>{children}</div>;
 }
 
-// ── LTG Logo SVG ─────────────────────────────────────────────────
 function LTGLogo({ size = 1 }) {
   var h = Math.round(40 * size);
   var w = Math.round(100 * size);
@@ -643,7 +635,6 @@ function LTGLogo({ size = 1 }) {
   );
 }
 
-// ── Login Screen ──────────────────────────────────────────────────
 function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   const t = T[lang];
   const [selected, setSelected] = useState(null);
@@ -662,7 +653,6 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   const roleColor = (role) => ({ mechanic: C.blue, boss: C.orange, fpl: "#8b5cf6" }[role] || C.gray500);
   const roleLabel = (role) => ({ mechanic: t.roleMechanic, boss: t.roleChef, fpl: t.roleFPL }[role] || role);
 
-  // Slider drag handlers
   var startDrag = function(clientX) {
     setDragging(true);
     var startX = clientX;
@@ -707,10 +697,8 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
     }
   };
 
-  // Open alerts on unlock screen
   var openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
 
-  // MECHANIC UNLOCK SCREEN
   if (selected && USERS.find(function(u){ return u.id === selected && u.role === "mechanic"; })) {
     var mechUser = USERS.find(function(u){ return u.id === selected; });
     var pct = sliderX / SLIDER_MAX;
@@ -724,12 +712,9 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
         display:"flex", flexDirection:"column",
         fontFamily:"'DM Sans','Segoe UI',sans-serif",
         color:C.white, overflowY:"auto" }}>
-
-        {/* TOP: Alert block - full width, prominent */}
-        {openAlerts.length > 0 ? (
+{openAlerts.length > 0 ? (
           <div style={{ padding:"16px 16px 0" }}>
-            {/* Alert header */}
-            <div style={{ background: openAlerts.some(function(a){ return a.urgency==="urgent"; })
+<div style={{ background: openAlerts.some(function(a){ return a.urgency==="urgent"; })
                 ? "#1a0808" : "#0f1a0a",
               border:"1px solid "+(openAlerts.some(function(a){ return a.urgency==="urgent"; })
                 ? C.red+"88" : C.orange+"88"),
@@ -791,9 +776,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
         ) : (
           <div style={{ height:20 }} />
         )}
-
-        {/* BOTTOM: Name + Slider */}
-        <div style={{ flex:1, display:"flex", flexDirection:"column",
+<div style={{ flex:1, display:"flex", flexDirection:"column",
           alignItems:"center", justifyContent:"center",
           padding:"20px 20px 40px" }}>
           <div style={{ marginBottom:16 }}><LTGLogo size={1} /></div>
@@ -803,22 +786,18 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
           <div style={{ fontSize:13, color:C.gray500, marginBottom:36 }}>
             {t.roleMechanic||"Mechaniker"} · LTG Hockenheim
           </div>
-
-          {/* Slider */}
-          <div style={{ width:"100%", maxWidth:300 }}>
+<div style={{ width:"100%", maxWidth:300 }}>
             <div ref={sliderRef}
               style={{ position:"relative", width:300, height:60,
                 background:"#cbd5e1", borderRadius:14,
                 border:"1.5px solid #94a3b8",
                 overflow:"hidden" }}>
-              {/* fill */}
-              <div style={{ position:"absolute", left:0, top:0, bottom:0,
+<div style={{ position:"absolute", left:0, top:0, bottom:0,
                 width:(sliderX + 60)+"px",
                 background: pct>0.9 ? "linear-gradient(90deg,#ef444422,transparent)" : "linear-gradient(90deg,#f5a62322,transparent)",
                 transition:dragging?"none":"width 0.3s",
                 pointerEvents:"none" }} />
-              {/* center text */}
-              <div style={{ position:"absolute", width:"100%", height:"100%",
+<div style={{ position:"absolute", width:"100%", height:"100%",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:12, fontWeight:700, letterSpacing:"0.8px",
                 textTransform:"uppercase", userSelect:"none", pointerEvents:"none",
@@ -826,8 +805,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                 color: pct>0.9 ? "#ef4444" : "#64748b" }}>
                 {sliderX > 10 ? "✓  Los!" : "→ Zum Öffnen schieben"}
               </div>
-              {/* thumb */}
-              <div
+<div
                 onMouseDown={function(e){ e.preventDefault(); startDrag(e.clientX); }}
                 onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}
                 style={{ position:"absolute", left:sliderX+4+"px", top:"50%",
@@ -861,7 +839,6 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
     );
   }
 
-  // BOSS / FPL / DEFAULT: User select + PIN pad
   if (!selected) {
     var hasUrgent = openAlerts.some(function(a){ return a.urgency === "urgent"; });
     return (
@@ -870,14 +847,11 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
         display:"flex", flexDirection:"column",
         fontFamily:"'DM Sans','Segoe UI',sans-serif",
         color:C.white, overflowY:"auto" }}>
-
-        {/* ALERT BLOCK - top, for mechanics */}
-        {openAlerts.length > 0 && (
+{openAlerts.length > 0 && (
           <div style={{ margin:"16px 16px 0" }}>
             <div style={{ borderRadius:14, overflow:"hidden",
               border:"1px solid "+(hasUrgent?C.red+"66":C.orange+"55") }}>
-              {/* Alert header bar */}
-              <div style={{ background:hasUrgent?C.red:C.orange,
+<div style={{ background:hasUrgent?C.red:C.orange,
                 padding:"11px 16px", display:"flex",
                 justifyContent:"space-between", alignItems:"center" }}>
                 <div style={{ fontWeight:900, fontSize:15, color:"#fff" }}>
@@ -888,8 +862,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                   {openAlerts.length}
                 </div>
               </div>
-              {/* Alert list */}
-              {openAlerts.slice(0,4).map(function(a, idx) {
+{openAlerts.slice(0,4).map(function(a, idx) {
                 var isUrg = a.urgency === "urgent";
                 var src = a.senderApp === "fahrer" ? "🚛 Fahrer" :
                           a.senderApp === "stapler" ? "📦 Stapler" :
@@ -925,8 +898,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                   </div>
                 );
               })}
-              {/* Footer: hint + refresh */}
-              <div style={{ background:"rgba(0,0,0,0.3)",
+<div style={{ background:"rgba(0,0,0,0.3)",
                 padding:"8px 16px",
                 display:"flex", justifyContent:"space-between",
                 alignItems:"center" }}>
@@ -944,17 +916,13 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
             </div>
           </div>
         )}
-
-        {/* LOGO + USER LIST */}
-        <div style={{ flex:1, display:"flex", flexDirection:"column",
+<div style={{ flex:1, display:"flex", flexDirection:"column",
           alignItems:"center", justifyContent:"center",
           padding:"24px 16px 32px" }}>
           <LTGLogo size={1} />
           <div style={{ height:4, width:60, background:"#e2001a",
             borderRadius:2, marginTop:6, marginBottom:28 }} />
-
-          {/* Language */}
-          <div style={{ display:"flex", gap:4, background:C.surface,
+<div style={{ display:"flex", gap:4, background:C.surface,
             borderRadius:8, padding:3, marginBottom:24 }}>
             {LANGS.map(function(l) {
               return (
@@ -968,9 +936,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
               );
             })}
           </div>
-
-          {/* Users */}
-          <div style={{ width:"100%", maxWidth:340 }}>
+<div style={{ width:"100%", maxWidth:340 }}>
             {USERS.map(function(u) {
               var isMech = u.role === "mechanic";
               var alertCnt = openAlerts.length;
@@ -1004,8 +970,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                     <div style={{ fontSize:12, color:roleColor(u.role),
                       marginTop:2 }}>{roleLabel(u.role)}</div>
                   </div>
-                  {/* Alert badge on mechanic */}
-                  {isMech && alertCnt > 0 && (
+{isMech && alertCnt > 0 && (
                     <div style={{ background:hasUrgent?C.red:C.orange,
                       color:"#fff", borderRadius:20,
                       padding:"2px 8px", fontSize:12,
@@ -1013,8 +978,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                       {alertCnt}
                     </div>
                   )}
-                  {/* Arrow */}
-                  <div style={{ fontSize:18, color:C.gray500,
+<div style={{ fontSize:18, color:C.gray500,
                     flexShrink:0 }}>›</div>
                 </button>
               );
@@ -1025,7 +989,6 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
     );
   }
 
-  // PIN pad for boss/FPL
   var selUser = USERS.find(function(u){ return u.id === selected; });
   return (
     <div style={{ minHeight:"100vh",
@@ -1039,8 +1002,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
           {selUser ? roleLabel(selUser.role) : ""}
         </div>
       </div>
-      {/* PIN dots */}
-      <div style={{ display:"flex", gap:12, marginBottom:28 }}>
+<div style={{ display:"flex", gap:12, marginBottom:28 }}>
         {[0,1,2,3].map(function(i) {
           return (
             <div key={i} style={{ width:14, height:14, borderRadius:7,
@@ -1049,8 +1011,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
           );
         })}
       </div>
-      {/* Numpad */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)",
+<div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)",
         gap:10, width:220 }}>
         {["1","2","3","4","5","6","7","8","9","","0","del"].map(function(d) {
           if (!d) return <div key="empty" />;
@@ -1077,7 +1038,6 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   );
 }
 
-// ── Timer Block with manual input ────────────────────────────────
 function TimerBox({ label, icon, color, active, elapsed, savedMin, onToggle, onManual, t }) {
   const [manual, setManual] = useState(false);
   const [mH, setMH] = useState("0");
@@ -1135,8 +1095,6 @@ function TimerBox({ label, icon, color, active, elapsed, savedMin, onToggle, onM
   );
 }
 
-
-// ── Auto-translate to German via Claude API ───────────────────────
 function translateToGerman(text) {
   if (!text || !text.trim()) return Promise.resolve(text);
   if (!/[--іІїЇєЄ]/.test(text)) return Promise.resolve(text);
@@ -1157,14 +1115,12 @@ function translateToGerman(text) {
     .catch(function(){ return text; });
 }
 
-// ── New Job Form ──────────────────────────────────────────────────
 function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, onSaved }) {
   const emptyForm = { vehicleType: "truck", plate: "", location: "Werkstatt", workType: "repair", description: "", withColleague: false, colleague: "" };
   const [form, setForm] = useState(emptyForm);
   const [photos, setPhotos] = useState([]);
   const [hasPrefill, setHasPrefill] = useState(false);
 
-  // Travel timers
   const [travelToActive, setTravelToActive]   = useState(false);
   const [travelBackActive, setTravelBackActive] = useState(false);
   const [travelToSec, setTravelToSec]         = useState(0);
@@ -1172,14 +1128,12 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
   const [travelToMin, setTravelToMin]         = useState(0);
   const [travelBackMin, setTravelBackMin]     = useState(0);
 
-  // Work timer
   const [workActive, setWorkActive] = useState(false);
   const [workSec, setWorkSec]       = useState(0);
   const [workMin, setWorkMin]       = useState(0);
 
   const [saved, setSaved] = useState(false);
 
-  // Parts state
   const [partsType, setPartsType] = useState(""); // no_parts | inspection | from_stock | buy | used
   const [partsItems, setPartsItems] = useState([]); // selected stock items
   const [partsInvoice, setPartsInvoice] = useState(""); // invoice number
@@ -1192,7 +1146,6 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
   const travelBackRef = useRef(null);
   const workRef       = useRef(null);
 
-  // Pre-fill form from incoming alert
   useEffect(function() {
     if (!prefill) return;
     setForm(function(f) { return Object.assign({}, f, {
@@ -1334,9 +1287,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           <span>✅</span> {t.saved}
         </div>
       )}
-
-      {/* 1.  */}
-      <Card style={{ marginBottom: 14 }}>
+<Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: C.orange, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>🚛 {t.vehicleType}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label={t.vehicleType}>
@@ -1354,9 +1305,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           </Select>
         </Field>
       </Card>
-
-      {/* 2.   +  */}
-      <Card style={{ marginBottom: 14 }}>
+<Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: C.blueLt, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>🔧 {t.workType}</div>
         <Field label={t.workType}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1372,9 +1321,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           <Textarea placeholder="..." value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} />
         </Field>
       </Card>
-
-      {/* 3.  */}
-      <Card style={{ marginBottom: 14 }}>
+<Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>📷 {t.photos}</div>
         <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, border: `2px dashed ${C.border}`, borderRadius: 10, padding: "18px 20px", cursor: "pointer", color: C.gray300, fontSize: 14, fontWeight: 600, background: C.navyDark }}>
           <span style={{ fontSize: 28 }}>📷</span>
@@ -1393,16 +1340,12 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           </div>
         )}
       </Card>
-
-      {/* 4.  &  */}
-      <Card style={{ marginBottom: 14 }}>
+<Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.orange,
           textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 14 }}>
           📦 {t.partsSection}
         </div>
-
-        {/* Type selector - logical order */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
           {[
             { k:"inspection", e:"📋", l:t.inspectionLabel },
             { k:"from_stock", e:"📦", l:t.fromStockLabel  },
@@ -1421,9 +1364,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
             </button>
           ))}
         </div>
-
-        {/* From stock - select items */}
-        {partsType === "from_stock" && (
+{partsType === "from_stock" && (
           <div>
             <div style={{ fontSize: 11, color: "#1e4fa0", marginBottom: 8,
               textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -1468,9 +1409,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
             )}
           </div>
         )}
-
-        {/* Buy - invoice + supplier + cost */}
-        {partsType === "buy" && (
+{partsType === "buy" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div>
               <div style={{ fontSize: 11, color: "#1e4fa0", marginBottom: 6,
@@ -1540,9 +1479,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
             </div>
           </div>
         )}
-
-        {/* Used part */}
-        {partsType === "used" && (
+{partsType === "used" && (
           <div>
             <div style={{ fontSize: 11, color: "#1e4fa0", marginBottom: 6,
               textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -1571,9 +1508,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
             </div>
           </div>
         )}
-
-        {/* Cost for from_stock */}
-        {partsType === "from_stock" && (
+{partsType === "from_stock" && (
           <div style={{ marginTop: 10 }}>
             <div style={{ fontSize: 11, color: "#1e4fa0", marginBottom: 6,
               textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -1589,9 +1524,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           </div>
         )}
       </Card>
-
-      {/* 5.  /  */}
-      <Card style={{ marginBottom: 14 }}>
+<Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>👥 {t.mechanic}/{t.colleague}</div>
         <div style={{ display: "flex", gap: 10, marginBottom: form.withColleague ? 12 : 0 }}>
           {[false, true].map(v => (
@@ -1610,13 +1543,9 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           </Field>
         )}
       </Card>
-
-      {/* 6.  */}
-      <Card style={{ marginBottom: 20 }}>
+<Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 16 }}>⏱ {t.travelTime}</div>
-
-        {/* Travel row */}
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.orange, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>🚗 {t.travelTime}</div>
+<div style={{ fontSize: 12, fontWeight: 700, color: C.orange, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>🚗 {t.travelTime}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
           <TimerBox
             label={t.travelTo} icon="→" color={C.orange}
@@ -1631,18 +1560,14 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
             onManual={(min) => setTravelBackMin(min)} t={t}
           />
         </div>
-
-        {/* Work row */}
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.green, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>🔧 {t.startWork} / {t.stopWork}</div>
+<div style={{ fontSize: 12, fontWeight: 700, color: C.green, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>🔧 {t.startWork} / {t.stopWork}</div>
         <TimerBox
           label={t.workTotal} icon="🔧" color={C.green}
           active={workActive} elapsed={workSec} savedMin={workMin}
           onToggle={() => { if (!workActive) setWorkActive(true); else stopWork(); }}
           onManual={(min) => setWorkMin(min)} t={t}
         />
-
-        {/* Summary */}
-        {(travelToMin > 0 || travelBackMin > 0 || workMin > 0) && (
+{(travelToMin > 0 || travelBackMin > 0 || workMin > 0) && (
           <div style={{ marginTop: 14, background: C.bg, borderRadius: 8, padding: "10px 14px", display: "flex", gap: 18, flexWrap: "wrap" }}>
             {travelToMin > 0 && <span style={{ fontSize: 13, color: C.orange }}>→ {formatMin(travelToMin)}</span>}
             {travelBackMin > 0 && <span style={{ fontSize: 13, color: C.orange }}>← {formatMin(travelBackMin)}</span>}
@@ -1653,9 +1578,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
           </div>
         )}
       </Card>
-
-      {/* 7.  */}
-      <div style={{ display: "flex", gap: 10 }}>
+<div style={{ display: "flex", gap: 10 }}>
         <Btn onClick={handleSave} style={{ flex: 1 }}>{translating ? "🔄 "+t.translating||"Übersetze..." : "✅ "+t.saveReport}</Btn>
         <Btn variant="secondary" onClick={() => { setForm(emptyForm); setPhotos([]);
           setPartsType(""); setPartsItems([]); setPartsInvoice("");
@@ -1664,7 +1587,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
     </div>
   );
 }
-// ── Edit Job Modal ────────────────────────────────────────────────
+
 function EditJobModal({ job, onSave, onClose, t }) {
   const [travelToMin, setTravelToMin] = useState(job.travelToMin || 0);
   const [travelBackMin, setTravelBackMin] = useState(job.travelBackMin || 0);
@@ -1738,7 +1661,6 @@ function EditJobModal({ job, onSave, onClose, t }) {
   );
 }
 
-// ── My Jobs ───────────────────────────────────────────────────────
 function MyJobs({ user, jobs, setJobs, t }) {
   const isViewer = user.role === "boss" || user.role === "fpl";
   const myJobs = isViewer ? jobs : jobs.filter(j => j.mechanic === user.id || j.colleague === user.id);
@@ -1823,7 +1745,6 @@ function MyJobs({ user, jobs, setJobs, t }) {
   );
 }
 
-// ── KPI Card ──────────────────────────────────────────────────────
 function KPI({ value, label, color, icon }) {
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `3px solid ${color}`, borderRadius: 12, padding: "16px 18px" }}>
@@ -1833,10 +1754,8 @@ function KPI({ value, label, color, icon }) {
   );
 }
 
-// ── Dashboard Herr Doll ───────────────────────────────────────────
-// ── Dashboard Herr Doll ──────────────────────────────────────────
 
-// -- PDF Export --
+
 function exportDayReport(jobs, vehicles, lang) {
   var today = new Date().toISOString().slice(0,10);
   var todayJobs = jobs.filter(function(j){ return j.date === today; });
@@ -1965,7 +1884,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   const allOpen    = (jobs||[]).filter(function(j){ return j.status !== "done"; });
   const openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
 
-  // Fleet doc status
   const getDocStatus = function(v) {
     var docs = [v.tuev,v.insurance,v.uvv,v.nextService].filter(Boolean);
     if (!docs.length) return "ok";
@@ -1975,7 +1893,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     return "ok";
   };
 
-  // Fleet by type
   var fleetTypes = [
     {k:"truck",       l:"LKW",          color:"#1e4fa0", abbr:"LKW"},
     {k:"semiTrailer", l:"Sattelzug",     color:"#1e4fa0", abbr:"SAT"},
@@ -1993,7 +1910,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   var fleetWarning = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="warning"; }).length;
   var fleetExpired = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="expired"; }).length;
 
-  // Mechanics
   var mechanics = [{id:"roman",name:"Roman"},{id:"petr",name:"Petr"}];
   var mechLoad = mechanics.map(function(m){
     var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
@@ -2002,7 +1918,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     return Object.assign({}, m, { jobs: mJobs.length, min: mMin, done: mDone });
   });
 
-  // Upcoming docs
   var upcoming = [];
   (vehicles||[]).forEach(function(v) {
     [{l:"TÜV",d:v.tuev},{l:"Versicherung",d:v.insurance},
@@ -2020,7 +1935,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     return Math.floor(m/60)+"h "+(m%60)+"min";
   };
 
-  // Nav items
   var navIcons = {
     overview:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
     inspektion:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
@@ -2040,7 +1954,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     {k:"wash",       label:"Wäsche"},
   ];
 
-  // Wash stats (mock - based on today jobs with workType wash)
   var washJobs = (jobs||[]).filter(function(j){ return j.workType==="wash" && j.date===todayStr; });
   var washCount = washJobs.length;
   var washMin   = washJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
@@ -2057,18 +1970,12 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
 
   return (
     <div style={{ display:"flex", height:"calc(100vh - 54px)", background:C.bg, overflow:"hidden" }}>
-
-      {/* LEFT SIDEBAR */}
-      <div style={{ width:180, background:"#1e4fa0", display:"flex", flexDirection:"column",
+<div style={{ width:180, background:"#1e4fa0", display:"flex", flexDirection:"column",
         flexShrink:0, borderRight:"1px solid #1a3a8a" }}>
-
-        {/* Logo area */}
-        <div style={{ padding:"22px 16px 18px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
+<div style={{ padding:"22px 16px 18px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
           <LTGLogo size={1.3} />
         </div>
-
-        {/* Nav items */}
-        <div style={{ flex:1, padding:"8px 0", overflowY:"auto" }}>
+<div style={{ flex:1, padding:"8px 0", overflowY:"auto" }}>
           {navItems.map(function(item){
             var isActive = activeSection === item.k;
             return (
@@ -2096,9 +2003,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             );
           })}
         </div>
-
-        {/* Period selector at bottom */}
-        <div style={{ padding:"12px 10px", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+<div style={{ padding:"12px 10px", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
           <div style={{ fontSize:10, color:"rgba(255,255,255,0.5)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.8px" }}>Zeitraum</div>
           {[["today","Heute"],["week","7 Tage"],["all","Gesamt"]].map(function(p){
             return (
@@ -2113,12 +2018,8 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
           })}
         </div>
       </div>
-
-      {/* MAIN CONTENT */}
-      <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
-
-        {/* Top bar */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+<div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div>
             <div style={{ fontSize:22, fontWeight:800, color:C.white }}>
               WERKSTATT <span style={{ color:"#1e4fa0", fontWeight:400 }}>HOCKENHEIM</span>
@@ -2138,9 +2039,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             </button>
           </div>
         </div>
-
-        {/* KPI Cards - 6 in a row - hide on wash + inspektion */}
-        <div style={{ display: (activeSection==="wash"||activeSection==="inspektion") ? "none" : "grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
+<div style={{ display: (activeSection==="wash"||activeSection==="inspektion") ? "none" : "grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
           {kpis.map(function(k,i){
             return (
               <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
@@ -2156,15 +2055,10 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             );
           })}
         </div>
-
-        {/* OVERVIEW SECTION */}
-        {activeSection === "overview" && (
+{activeSection === "overview" && (
           <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:16 }}>
-
-            {/* LEFT COLUMN */}
-            <div>
-              {/* Fleet overview */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border,
+<div>
+<div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                   <div style={{ fontSize:14, fontWeight:700, color:C.white }}>Fuhrpark — {fleetTotal} Fahrzeuge</div>
@@ -2192,9 +2086,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   })}
                 </div>
               </div>
-
-              {/* Open jobs table */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border,
+<div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>
                   Aktuelle Aufträge
@@ -2239,9 +2131,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   </table>
                 </div>
               </div>
-
-              {/* Mechanic load */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border,
+<div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:10, padding:"16px 20px" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Mechaniker</div>
                 {mechLoad.map(function(m){
@@ -2267,11 +2157,8 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 })}
               </div>
             </div>
-
-            {/* RIGHT COLUMN - Alerts + Docs */}
-            <div>
-              {/* Alerts */}
-              <div style={{ background: openAlerts.length > 0 ? "#ef444422" : C.surface,
+<div>
+<div style={{ background: openAlerts.length > 0 ? "#ef444422" : C.surface,
                 border:"1px solid "+(openAlerts.length>0?"#ef4444":C.border),
                 borderRadius:10, padding:"16px", marginBottom:16 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
@@ -2301,9 +2188,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   );
                 })}
               </div>
-
-              {/* Wäsche stats - simple */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border,
+<div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:10, padding:"16px", marginBottom:16 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:10 }}>🚿 Fahrzeugwäsche — heute</div>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -2317,10 +2202,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   </div>
                 </div>
               </div>
-
-
-              {/* Upcoming docs */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border,
+<div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:10, padding:"16px" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:12 }}>
                   📋 Dokumente fällig
@@ -2349,8 +2231,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
               </div>
             </div>
           </div>
-
-          {/* INSPEKTIONEN - full width under grid */}
+          </div>
           {(function(){
             var todayInsp = inspections.filter(function(i){ return i.created_at && i.created_at.slice(0,10)===todayStr; });
             var mangelInsp = todayInsp.filter(function(i){ return i.status==="mangel"; });
@@ -2360,8 +2241,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 background:mangelInsp.length>0?"#ef444408":C.surface,
                 border:"1px solid "+(mangelInsp.length>0?"#ef444455":C.border),
                 borderRadius:10, padding:"16px 20px" }}>
-                {/* Header */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+<div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                     <span style={{ fontSize:18 }}>🔍</span>
                     <span style={{ fontSize:15, fontWeight:700,
@@ -2381,8 +2261,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                     Alle Inspektionen →
                   </button>
                 </div>
-                {/*  */}
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:8 }}>
+<div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:8 }}>
                   {todayInsp.map(function(ins){
                     var isMangel = ins.status==="mangel";
                     var isOpen = inspExpanded===ins.id;
@@ -2399,8 +2278,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                         background:isMangel?"#ef444410":C.bg,
                         border:"1px solid "+(isMangel?"#ef444444":C.border),
                         borderRadius:9, overflow:"hidden" }}>
-                        {/*  */}
-                        <button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
+<button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
                           style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                             width:"100%", background:"none", border:"none",
                             cursor:"pointer", padding:"12px 14px" }}>
@@ -2426,8 +2304,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                               transition:"transform 0.2s", display:"inline-block" }}>▼</span>
                           </div>
                         </button>
-                        {/* Expanded block */}
-                        {isOpen && (
+{isOpen && (
                           <div style={{ borderTop:"1px solid "+C.border, padding:"12px 14px" }}>
                             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, marginBottom:10 }}>
                               {Object.keys(checks).concat(Object.keys(mangel).filter(function(k){return mangel[k]&&!checks[k];}))
@@ -2476,12 +2353,9 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             );
           })()}
         )}
-
-        {/* INSPEKTION SECTION */}
-        {activeSection === "inspektion" && (
+{activeSection === "inspektion" && (
           <div>
-            {/* Header + filter */}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+<div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
               <div style={{ fontSize:16, fontWeight:700, color:C.white }}>
                 🔍 Inspektionen
               </div>
@@ -2502,9 +2376,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 );
               })}
             </div>
-
-            {/* List */}
-            {(function(){
+{(function(){
               var filtered2 = inspections;
               if(inspSectionVehicle==="truck")   filtered2=filtered2.filter(function(i){return i.type==="truck";});
               if(inspSectionVehicle==="trailer") filtered2=filtered2.filter(function(i){return i.type==="trailer";});
@@ -2532,8 +2404,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   <div key={ins.id} style={{ background:C.surface,
                     border:"1px solid "+(isMangel?"#ef444455":C.border),
                     borderRadius:10, marginBottom:10, overflow:"hidden" }}>
-                    {/* Row header */}
-                    <button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
+<button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
                       style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                         width:"100%", background:"none", border:"none", cursor:"pointer",
                         padding:"14px 16px" }}>
@@ -2557,12 +2428,9 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                         <span style={{ color:C.gray500, fontSize:12 }}>{isOpen?"▲":"▼"}</span>
                       </div>
                     </button>
-
-                    {/* Expanded detail */}
-                    {isOpen && (
+{isOpen && (
                       <div style={{ borderTop:"1px solid "+C.border, padding:"16px" }}>
-                        {/* Checklist */}
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:14 }}>
+<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:14 }}>
                           {Object.keys(checks).concat(mangelKeys.filter(function(k){return !checks[k];})).filter(function(k,i,a){return a.indexOf(k)===i;}).map(function(k){
                             var isOk = checks[k] && !mangel[k];
                             var isMng = mangel[k];
@@ -2576,8 +2444,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                             );
                           })}
                         </div>
-                        {/* Defects */}
-                        {(ins.defects||ins.defects_de) && (
+{(ins.defects||ins.defects_de) && (
                           <div style={{ background:C.bg, borderRadius:8, padding:"10px 12px", marginBottom:12 }}>
                             <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                               textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>
@@ -2595,8 +2462,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                             )}
                           </div>
                         )}
-                        {/* Photos */}
-                        {photos.length>0 && (
+{photos.length>0 && (
                           <div>
                             <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                               textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>
@@ -2613,8 +2479,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                             </div>
                           </div>
                         )}
-                        {/* Print/PDF button */}
-                        <button onClick={function(){ handlePrintInspection(ins); }}
+<button onClick={function(){ handlePrintInspection(ins); }}
                           style={{ marginTop:12, background:"#1e4fa0", color:"#fff",
                             border:"none", borderRadius:8, padding:"8px 18px",
                             fontSize:13, fontWeight:700, cursor:"pointer",
@@ -2629,9 +2494,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             })()}
           </div>
         )}
-
-        {/* MECHANICS SECTION */}
-        {activeSection === "mechanics" && (
+{activeSection === "mechanics" && (
           <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
               <div style={{ fontSize:16, fontWeight:700, color:C.white }}>Mechaniker Übersicht</div>
@@ -2684,13 +2547,10 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             })}
           </div>
         )}
-
-        {/* WASH SECTION */}
-        {activeSection === "wash" && (
+{activeSection === "wash" && (
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
-              {/* By vehicle type */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+<div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Fahrzeugtypen</div>
                 {[
                   {k:"truck",       l:"LKW",        icon:"🚛", color:"#1d4ed8"},
@@ -2717,9 +2577,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   </div>
                 )}
               </div>
-
-              {/* By wash type */}
-              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+<div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Wascharten</div>
                 {[
                   {k:"basic",    l:"Einfache Wäsche",   icon:"💧", color:"#0369a1"},
@@ -2745,9 +2603,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 )}
               </div>
             </div>
-
-            {/* Wash jobs table */}
-            <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+<div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white }}>🚿 Fahrzeugwäsche — heute</div>
                 <div style={{ display:"flex", gap:16 }}>
@@ -2838,7 +2694,7 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
     if (!newItem.name) return;
     const item = { ...newItem, id:"S"+Date.now(),
       quantity: parseInt(newItem.quantity)||0, minQty: parseInt(newItem.minQty)||1 };
-    // Fire-and-forget save to Supabase (Promise, no blocking)
+
     sb.insert("stock", {
       id: item.id, name: item.name, category: item.category || "",
       quantity: item.quantity, min_qty: item.minQty,
@@ -2879,9 +2735,7 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 16 }}>{t.lagerTitle}</div>
-
-      {/* Sub-tabs */}
-      <div style={{ display:"flex", gap:8, marginBottom:18, background:C.navyMid, borderRadius:12, padding:4 }}>
+<div style={{ display:"flex", gap:8, marginBottom:18, background:C.navyMid, borderRadius:12, padding:4 }}>
         {[
           { k:"stock", icon:"📦", label:"Lagerbestand" },
           { k:"invoices", icon:"🧾", label:"Belege" },
@@ -2893,12 +2747,9 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
           </button>
         ))}
       </div>
-
-      {/* ── STOCK TAB ── */}
-      {activeTab === "stock" && (
+{activeTab === "stock" && (
         <div>
-          {/* KPIs */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:16 }}>
+<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:16 }}>
             {[
               { v: stock.length, label:"Positionen", color:C.blue, icon:"📋" },
               { v: lowItems, label:"Wenig/Leer", color: lowItems>0?C.red:C.green, icon: lowItems>0?"⚠":"✅" },
@@ -2964,9 +2815,7 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
           })}
         </div>
       )}
-
-      {/* ── INVOICES TAB ── */}
-      {activeTab === "invoices" && (
+{activeTab === "invoices" && (
         <div>
           <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderLeft:`3px solid ${C.orange}`, borderRadius:10, padding:"14px 18px", marginBottom:16 }}>
             <div style={{ fontSize:22, fontWeight:900 }}>💶 {totalInvoices.toLocaleString("de-DE",{minimumFractionDigits:2})} €</div>
@@ -2997,9 +2846,7 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
           })}
         </div>
       )}
-
-      {/* ── ADD INVOICE TAB ── */}
-      {activeTab === "addInvoice" && isMechanic && (
+{activeTab === "addInvoice" && isMechanic && (
         <div>
           {invoiceSaved && (
             <div style={{ background:C.green+"22", border:`1px solid ${C.green}44`, borderRadius:10, padding:"12px 18px", marginBottom:16, color:C.green, fontWeight:700 }}>
@@ -3043,7 +2890,6 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
   );
 }
 
-// ── Sample Vehicles ──────────────────────────────────────────────
 const SAMPLE_VEHICLES = [
   { id:"V001", type:"truck", plate:"MA-LT 441", brand:"MAN TGX", year:2019,
     tuev: "2024-08-15", insurance: "2024-12-31", uvv: "2024-06-01",
@@ -3065,8 +2911,7 @@ const SAMPLE_VEHICLES = [
     mileage: 0, nextService: "2025-01-01", notes: "" },
 ];
 
-// ── Fahrzeugverwaltung ───────────────────────────────────────────
-// ── Vehicle Brand Badge ───────────────────────────────────────────
+
 const BRAND_COLORS = {
   MAN:          { bg:"#e31e24", text:"#fff", abbr:"MAN"  },
   Mercedes:     { bg:"#1a1a1a", text:"#c0c0c0", abbr:"MB" },
@@ -3106,7 +2951,6 @@ function VehicleBrand({ brand, size=36 }) {
   );
 }
 
-// Vehicle type icon (professional)
 function VehicleTypeIcon({ type, size=28 }) {
   const icons = {
     truck:       "LKW",
@@ -3116,7 +2960,7 @@ function VehicleTypeIcon({ type, size=28 }) {
     pkw:         "PKW",
     other:       "SNG",
   };
-  // Use styled text instead of emoji for professional look
+
   const labels = {
     truck:       "LKW",
     semiTrailer: "SAT",
@@ -3152,7 +2996,6 @@ function Fahrzeuge({ user, vehicles, setVehicles, t, initialSelected, onClearSel
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // Parts state
   const [partsType, setPartsType] = useState(""); // no_parts | inspection | from_stock | buy | used
   const [partsItems, setPartsItems] = useState([]); // selected stock items
   const [partsInvoice, setPartsInvoice] = useState(""); // invoice number
@@ -3177,8 +3020,7 @@ function Fahrzeuge({ user, vehicles, setVehicles, t, initialSelected, onClearSel
     return              { color: C.green,  icon: "G", label: dateStr.slice(0,10),  bg: C.green+"22" };
   };
 
-  // vIcon replaced by VehicleBrand component
-  // vEmoji replaced by VehicleBrand component
+
 
   const filtered = vehicles.filter(v =>
     v.plate.toLowerCase().includes(search.toLowerCase()) ||
@@ -3414,7 +3256,6 @@ function Fahrzeuge({ user, vehicles, setVehicles, t, initialSelected, onClearSel
   );
 }
 
-// ── Notruf (Emergency Button) ─────────────────────────────────────
 function NotrutButton({ user, onAlert, t, vehicles }) {
   const [open, setOpen]       = useState(false);
   const [sent, setSent]       = useState(false);
@@ -3462,19 +3303,14 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
 
   return (
     <div>
-
-
-      {/* Bottom sheet */}
-      {open && (
+{open && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)",
           zIndex:300, display:"flex", alignItems:"flex-end" }}>
           <div style={{ background:C.surface, border:"1px solid "+C.border,
             borderRadius:"20px 20px 0 0", width:"100%", maxWidth:500,
             margin:"0 auto", maxHeight:"90vh", display:"flex",
             flexDirection:"column", overflow:"hidden" }}>
-
-            {/* Header */}
-            <div style={{ display:"flex", justifyContent:"space-between",
+<div style={{ display:"flex", justifyContent:"space-between",
               alignItems:"center", padding:"18px 20px 12px",
               borderBottom:"1px solid "+C.border, flexShrink:0 }}>
               <div style={{ fontWeight:900, fontSize:17, color:C.red }}>
@@ -3485,9 +3321,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                   borderRadius:8, width:34, height:34, color:C.gray300,
                   cursor:"pointer", fontSize:16, fontWeight:700 }}>✕</button>
             </div>
-
-            {/* Scrollable content */}
-            <div style={{ overflowY:"auto", padding:"16px 20px 24px", flex:1 }}>
+<div style={{ overflowY:"auto", padding:"16px 20px 24px", flex:1 }}>
 
               {sent ? (
                 <div style={{ textAlign:"center", padding:"30px 0" }}>
@@ -3499,9 +3333,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                 </div>
               ) : (
                 <div>
-
-                  {/* Vehicle */}
-                  <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                       textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
                       {t.vehicleType} *
@@ -3550,9 +3382,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                       </div>
                     )}
                   </div>
-
-                  {/* Type */}
-                  <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                       textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
                       {t.workType} *
@@ -3570,9 +3400,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                       ))}
                     </div>
                   </div>
-
-                  {/* Urgency */}
-                  <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                       textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
                       {t.urgency||"Dringlichkeit"} *
@@ -3592,9 +3420,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                       </button>
                     ))}
                   </div>
-
-                  {/* Location */}
-                  <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                       textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
                       {t.location} *
@@ -3605,9 +3431,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                       placeholder="HOC 1, HOC 3, A6 km 520..."
                     />
                   </div>
-
-                  {/* Description */}
-                  <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                       textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
                       {t.description} *
@@ -3621,9 +3445,7 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
                         resize:"vertical", minHeight:70, fontFamily:"inherit",
                         outline:"none", boxSizing:"border-box" }} />
                   </div>
-
-                  {/* Photos */}
-                  <div style={{ marginBottom:20 }}>
+<div style={{ marginBottom:20 }}>
                     <label style={{ display:"flex", alignItems:"center",
                       justifyContent:"center", gap:10,
                       border:"2px dashed "+C.border, borderRadius:10,
@@ -3671,8 +3493,6 @@ function NotrutButton({ user, onAlert, t, vehicles }) {
   );
 }
 
-
-// ── Evening Report ────────────────────────────────────────────────
 function EveningReport({ user, jobs, t }) {
   const today = new Date().toISOString().slice(0,10);
   const myJobs = user.role === "mechanic"
@@ -3781,7 +3601,6 @@ function EveningReport({ user, jobs, t }) {
   );
 }
 
-// ── Driver Inspection ─────────────────────────────────────────────
 function DriverInspection({ user, vehicles, t }) {
   const [step, setStep] = useState("select"); // select | inspect | done
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -3903,7 +3722,6 @@ function DriverInspection({ user, vehicles, t }) {
   );
 }
 
-// ── Archive ───────────────────────────────────────────────────────
 function Archive({ jobs, user, t, inspections }) {
   const [search, setSearch]   = useState("");
   const [expanded, setExpanded] = useState(null);
@@ -4080,7 +3898,6 @@ function Archive({ jobs, user, t, inspections }) {
     inspection:"📋", from_stock:"📦", buy:"🛒", used:"♻", no_parts:"🔧"
   };
 
-  // Filter inspections for search
   var filteredInsp = (inspections||[]).filter(function(i){
     return (i.plate||"").toLowerCase().includes(inspSearch.toLowerCase()) ||
            (i.driver||"").toLowerCase().includes(inspSearch.toLowerCase()) ||
@@ -4094,9 +3911,7 @@ function Archive({ jobs, user, t, inspections }) {
       <div style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 16 }}>
         {t.archive}
       </div>
-
-      {/* Tab switcher: Auftraege / Inspektion */}
-      <div style={{ display:"flex", gap:8, marginBottom:20,
+<div style={{ display:"flex", gap:8, marginBottom:20,
         background:C.surface, borderRadius:10, padding:4,
         border:"1px solid "+C.border, width:"fit-content" }}>
         {[
@@ -4123,9 +3938,7 @@ function Archive({ jobs, user, t, inspections }) {
           );
         })}
       </div>
-
-      {/* Tab AUFTRAEGE */}
-      {archTab === "auftraege" && (
+{archTab === "auftraege" && (
         <div>
           <Input placeholder={`🔍 ${t.searchArchive}`} value={search}
             onChange={e => setSearch(e.target.value)} style={{ marginBottom: 16 }} />
@@ -4145,9 +3958,7 @@ function Archive({ jobs, user, t, inspections }) {
         return (
           <Card key={j.id} style={{ marginBottom: 10, overflow:"hidden",
             border: isOpen ? "1px solid "+C.blue+"66" : "1px solid "+C.border }}>
-
-            {/* ── Collapsed header ── */}
-            <button onClick={() => setExpanded(isOpen ? null : j.id)}
+<button onClick={() => setExpanded(isOpen ? null : j.id)}
               style={{ width:"100%", background:"none", border:"none",
                 cursor:"pointer", textAlign:"left", padding:0 }}>
               <div style={{ display:"flex", justifyContent:"space-between",
@@ -4180,14 +3991,10 @@ function Archive({ jobs, user, t, inspections }) {
                 </div>
               </div>
             </button>
-
-            {/* ── Expanded detail ── */}
-            {isOpen && (
+{isOpen && (
               <div style={{ marginTop:14,
                 borderTop:"1px solid "+C.border, paddingTop:14 }}>
-
-                {/* Details grid */}
-                <div style={{ display:"grid", gridTemplateColumns:"auto 1fr",
+<div style={{ display:"grid", gridTemplateColumns:"auto 1fr",
                   gap:"6px 16px", marginBottom:14, fontSize:13 }}>
                   {[
                     ["🔧", t.workType||"Arbeitstyp", j.workType],
@@ -4210,9 +4017,7 @@ function Archive({ jobs, user, t, inspections }) {
                     </div>
                   ))}
                 </div>
-
-                {/* Action buttons */}
-                <div style={{ display:"flex", gap:8 }}>
+<div style={{ display:"flex", gap:8 }}>
                   <button onClick={() => handleShare(j)}
                     style={{ flex:1, background:C.blue, color:"#fff",
                       border:"none", borderRadius:9, padding:"10px 0",
@@ -4239,9 +4044,7 @@ function Archive({ jobs, user, t, inspections }) {
       })}
         </div>
       )}
-
-      {/* Tab INSPEKTION */}
-      {archTab === "inspektion" && (
+{archTab === "inspektion" && (
         <div>
           <input
             placeholder="🔍 Kennzeichen, Fahrer..."
@@ -4253,9 +4056,7 @@ function Archive({ jobs, user, t, inspections }) {
               outline:"none", boxSizing:"border-box",
               fontFamily:"inherit", marginBottom:14 }}
           />
-
-          {/*   */}
-          <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+<div style={{ display:"flex", gap:6, marginBottom:14 }}>
             {[
               {k:"all",    label:"Alle"},
               {k:"truck",  label:"🚛 LKW"},
@@ -4312,8 +4113,7 @@ function Archive({ jobs, user, t, inspections }) {
               <Card key={ins.id} style={{ marginBottom:10,
                 borderColor:isMangel?"#ef444444":C.border,
                 background:isMangel?"#ef444408":C.surface }}>
-                {/* Row header */}
-                <button onClick={function(){ setInspExpanded2(isOpen?null:ins.id); }}
+<button onClick={function(){ setInspExpanded2(isOpen?null:ins.id); }}
                   style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     width:"100%", background:"none", border:"none",
                     cursor:"pointer", padding:"2px 0" }}>
@@ -4339,13 +4139,9 @@ function Archive({ jobs, user, t, inspections }) {
                       transition:"transform 0.2s", display:"inline-block" }}>▼</span>
                   </div>
                 </button>
-
-                {/* Expanded block */}
-                {isOpen && (
+{isOpen && (
                   <div style={{ marginTop:14, borderTop:"1px solid "+C.border, paddingTop:14 }}>
-
-                    {/* Checklist */}
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:14 }}>
+<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:14 }}>
                       {allKeys.map(function(k){
                         var isOk  = checks[k]&&!mangel[k];
                         var isMng = mangel[k];
@@ -4360,9 +4156,7 @@ function Archive({ jobs, user, t, inspections }) {
                         );
                       })}
                     </div>
-
-                    {/* Description */}
-                    {(ins.defects||ins.defects_de) && (
+{(ins.defects||ins.defects_de) && (
                       <div style={{ background:C.bg, borderRadius:8,
                         padding:"10px 12px", marginBottom:12 }}>
                         <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
@@ -4379,9 +4173,7 @@ function Archive({ jobs, user, t, inspections }) {
                         )}
                       </div>
                     )}
-
-                    {/* Photos */}
-                    {photos.length>0 && (
+{photos.length>0 && (
                       <div style={{ marginBottom:12 }}>
                         <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
                           textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>
@@ -4396,9 +4188,7 @@ function Archive({ jobs, user, t, inspections }) {
                         </div>
                       </div>
                     )}
-
-                    {/* PDF  */}
-                    <button onClick={function(){ handlePrintInspection(ins); }}
+<button onClick={function(){ handlePrintInspection(ins); }}
                       style={{ width:"100%", background:"#1e4fa0", color:"#fff",
                         border:"none", borderRadius:9, padding:"10px 0",
                         fontWeight:700, fontSize:13, cursor:"pointer",
@@ -4418,9 +4208,7 @@ function Archive({ jobs, user, t, inspections }) {
   );
 }
 
-// ── App Shell ─────────────────────────────────────────────────────
 
-// ── GPS Location Picker ──────────────────────────────────────────
 function LocationPicker({ value, onChange, placeholder, C }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
@@ -4520,8 +4308,6 @@ function LocationPicker({ value, onChange, placeholder, C }) {
   );
 }
 
-
-// ── Jens Simple Report Form (like driver breakdown) ───────────────
 function JensMelden({ jobs, vehicles, setJobs, t }) {
   const [sent, setSent]     = useState(false);
   const [sending, setSending] = useState(false);
@@ -4598,9 +4384,7 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
       <div style={{ fontSize:20, fontWeight:800, marginBottom:20 }}>
         ⚡ {t.meldenTitle}
       </div>
-
-      {/* Vehicle */}
-      <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
         <div style={{ fontSize:12, fontWeight:700, color:"#1e4fa0",
           textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
           {t.vehicleType} *
@@ -4650,9 +4434,7 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
           </div>
         )}
       </div>
-
-      {/* Type */}
-      <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
         <div style={{ fontSize:12, fontWeight:700, color:"#1e4fa0",
           textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
           {t.meldenType} *
@@ -4674,9 +4456,7 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
           ))}
         </div>
       </div>
-
-      {/* Urgency */}
-      <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
         <div style={{ fontSize:12, fontWeight:700, color:"#1e4fa0",
           textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
           {t.urgency||"Dringlichkeit"} *
@@ -4696,9 +4476,7 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
           </button>
         ))}
       </div>
-
-      {/* Location */}
-      <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
         <div style={{ fontSize:12, fontWeight:700, color:"#1e4fa0",
           textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
           {t.meldenLocation} *
@@ -4709,9 +4487,7 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
           placeholder="HOC 1, HOC 3, John Deere, A6 km 520..."
         />
       </div>
-
-      {/* Description */}
-      <div style={{ marginBottom:14 }}>
+<div style={{ marginBottom:14 }}>
         <div style={{ fontSize:12, fontWeight:700, color:"#1e4fa0",
           textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>
           {t.description} *
@@ -4725,9 +4501,7 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
             resize:"vertical", minHeight:80, fontFamily:"inherit",
             outline:"none", boxSizing:"border-box" }} />
       </div>
-
-      {/* Photos */}
-      <div style={{ marginBottom:24 }}>
+<div style={{ marginBottom:24 }}>
         <label style={{ display:"flex", alignItems:"center",
           justifyContent:"center", gap:10,
           border:"2px dashed "+C.border, borderRadius:10,
@@ -4769,10 +4543,6 @@ function JensMelden({ jobs, vehicles, setJobs, t }) {
   );
 }
 
-
-
-
-// -- Alert Modal for mechanics --
 function AlertModal({ alert, t, C, onClose, onCreateJob }) {
   if (!alert) return null;
   var isUrgent = alert.urgency === "urgent";
@@ -4788,8 +4558,7 @@ function AlertModal({ alert, t, C, onClose, onCreateJob }) {
       <div style={{ background:C.surface, border:"2px solid "+(isUrgent?C.red:C.orange),
         borderRadius:16, padding:24, width:"100%", maxWidth:400,
         boxShadow: isUrgent ? "0 0 40px "+C.red+"44" : "0 0 40px "+C.orange+"22" }}>
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+<div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
           <div style={{ fontSize:40 }}>{isUrgent ? "🔴" : "🟡"}</div>
           <div>
             <div style={{ fontSize:18, fontWeight:900,
@@ -4799,8 +4568,7 @@ function AlertModal({ alert, t, C, onClose, onCreateJob }) {
             <div style={{ fontSize:12, color:C.gray500 }}>{time}</div>
           </div>
         </div>
-        {/* Info rows */}
-        <div style={{ background:C.bg, borderRadius:10,
+<div style={{ background:C.bg, borderRadius:10,
           padding:"14px 16px", marginBottom:16 }}>
           {[
             { icon:"👤", label:"Von", val: appName },
@@ -4821,8 +4589,7 @@ function AlertModal({ alert, t, C, onClose, onCreateJob }) {
             );
           })}
         </div>
-        {/* Description */}
-        {alert.description && (
+{alert.description && (
           <div style={{ background:C.bg, borderRadius:10,
             padding:"12px 16px", marginBottom:16 }}>
             <div style={{ fontSize:11, color:"#1e4fa0",
@@ -4834,8 +4601,7 @@ function AlertModal({ alert, t, C, onClose, onCreateJob }) {
             </div>
           </div>
         )}
-        {/* Buttons */}
-        <div style={{ display:"flex", gap:10 }}>
+<div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose}
             style={{ flex:1, background:C.surface, color:C.gray300,
               border:"1px solid "+C.border, borderRadius:10, padding:"12px 0",
@@ -4854,7 +4620,6 @@ function AlertModal({ alert, t, C, onClose, onCreateJob }) {
   );
 }
 
-// -- Meldungen Panel for Boss/Jens --
 function MeldungenPanel({ alerts, onClose, C, t }) {
   var openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
   return (
@@ -4930,7 +4695,6 @@ function MeldungenPanel({ alerts, onClose, C, t }) {
   );
 }
 
-// -- Incoming Alerts (Eingang) for mechanics --
 function IncomingAlerts({ alerts, t, onCreateJob, C }) {
   var openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
   var appLabel = function(app) {
@@ -5008,7 +4772,6 @@ function IncomingAlerts({ alerts, t, onCreateJob, C }) {
   );
 }
 
-// -- Data mappers (Supabase snake_case -> app camelCase) --
 function mapJob(r) {
   return {
     id: r.id, mechanic: r.mechanic, colleague: r.colleague,
@@ -5072,7 +4835,6 @@ function App() {
   const [dbStatus, setDbStatus] = useState("loading");
   const t = T[lang];
 
-  // Load all data from Supabase
   function loadAlerts() {
     sb.query("alerts", { select: "*", filter: "status=eq.open",
       order: "created_at.desc", limit: "50" })
@@ -5090,13 +4852,12 @@ function App() {
   }
 
   useEffect(function() {
-    // Safety timeout - if Supabase hangs, show app after 6 seconds anyway
+
     var safetyTimer = setTimeout(function() {
       setLoading(false);
       setDbStatus("error");
     }, 6000);
 
-    // Initial load
     Promise.all([
       sb.query("jobs",        { select: "*", order: "created_at.desc", limit: "200" }),
       sb.query("vehicles",    { select: "*", order: "plate.asc" }),
@@ -5120,16 +4881,13 @@ function App() {
       setLoading(false);
     });
 
-    // Load alerts immediately
     loadAlerts();
 
-    // Poll alerts every 15 seconds (reliable alternative to WebSocket)
     var alertTimer = setInterval(function() {
       loadAlerts();
-      // Also refresh jobs every 30s
+
     }, 8000);
 
-    // Poll jobs every 30 seconds
     var jobTimer = setInterval(function() {
       sb.query("jobs", { select: "*", order: "created_at.desc", limit: "200" })
         .then(function(j) {
@@ -5145,7 +4903,6 @@ function App() {
 
   const LANG_FLAGS = { de:"🇩🇪" };
 
-  // Loading screen
   if (loading) return (
     <div style={{ background: C.bg, minHeight: "100vh", display: "flex",
       flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -5185,22 +4942,18 @@ function App() {
 
   return (
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.white }}>
-      {/* Header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
+<div style={{ position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ height: 5, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 40%, #f5a623 60%, #1e4fa0 100%)" }} />
         <div style={{ background: "#1e4fa0", borderBottom: "1px solid #1a3a8a", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* Left: empty for boss/fpl on dashboard, logo for mechanics */}
-          <div>
+<div>
             {isMechanic && <LTGLogo size={0.65} />}
           </div>
-          {/* Right side */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div title={dbStatus === "ok" ? "Supabase verbunden" : dbStatus === "error" ? "Supabase Fehler" : "Verbinde..."}
               style={{ width:8, height:8, borderRadius:"50%",
                 background: dbStatus==="ok" ? C.green : dbStatus==="error" ? C.red : C.yellow,
                 flexShrink:0, cursor:"default" }} />
-            {/* Meldungen button - boss/Jens */}
-            {isViewer && (function() {
+{isViewer && (function() {
               var cnt = (alerts||[]).filter(function(a){ return a.status !== "done"; }).length;
               var hasUrgent = (alerts||[]).some(function(a){ return a.urgency === "urgent" && a.status !== "done"; });
               if (cnt === 0) return null;
@@ -5213,8 +4966,7 @@ function App() {
                 </button>
               );
             })()}
-            {/* Alert indicator for mechanics */}
-            {isMechanic && (function() {
+{isMechanic && (function() {
               var allOpen = (alerts||[]).filter(function(a){ return a.status !== "done"; });
               var hasUrgent = allOpen.some(function(a){ return a.urgency === "urgent"; });
               if (allOpen.length === 0) return null;
@@ -5226,8 +4978,7 @@ function App() {
                 </button>
               );
             })()}
-            {/* Back button */}
-            {isMechanic && (
+{isMechanic && (
               <button onClick={function(){ setPrevTab(tab); setTab(prevTab); }}
                 style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
                   borderRadius:8, padding:"8px 14px", color:"#fff", fontSize:18, cursor:"pointer" }}>
@@ -5247,9 +4998,7 @@ function App() {
           </div>
         </div>
       </div>
-
-      {/* DB connection error banner */}
-      {dbStatus === "error" && (
+{dbStatus === "error" && (
         <div style={{ background:"#1a0808", borderBottom:"1px solid "+C.red+"44",
           padding:"8px 16px", display:"flex", justifyContent:"space-between",
           alignItems:"center" }}>
@@ -5264,9 +5013,7 @@ function App() {
           </button>
         </div>
       )}
-
-      {/* Inline alert bar for logged-in mechanics */}
-      {isMechanic && (alerts||[]).filter(function(a){ return a.status !== "done"; }).length > 0 && activeTab !== "eingang" && (
+{isMechanic && (alerts||[]).filter(function(a){ return a.status !== "done"; }).length > 0 && activeTab !== "eingang" && (
         <div onClick={function(){
             setPrevTab(tab);
             setTab("eingang");
@@ -5292,9 +5039,7 @@ function App() {
           </span>
         </div>
       )}
-
-      {/* Modals */}
-      {isMechanic && alertModal && (
+{isMechanic && alertModal && (
         <AlertModal alert={alertModal} t={t} C={C}
           onClose={function(){ setAlertModal(null); }}
           onCreateJob={function(a){
@@ -5309,9 +5054,7 @@ function App() {
         <MeldungenPanel alerts={alerts} C={C} t={t}
           onClose={function(){ setMeldungenOpen(false); }} />
       )}
-
-      {/* Content */}
-      <div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: activeTab==="dashboard" ? 0 : 80,
+<div style={{ padding: activeTab==="dashboard" ? 0 : 16, paddingBottom: activeTab==="dashboard" ? 0 : 80,
         maxWidth: activeTab==="dashboard" ? "100%" : 700, margin: "0 auto" }}>
 
         {activeTab === "new"       && isMechanic && <NewJobForm key={formKey} user={user} jobs={jobs} setJobs={setJobs} t={t} stock={stock} prefill={prefillAlert} onClearPrefill={function(){ setPrefillAlert(null); }} onSaved={function(){ setTab("archive"); }} />}
@@ -5341,11 +5084,10 @@ function App() {
               senderApp:"werkstatt", status:"open",
               createdAt:new Date().toISOString() }, ...prev];
           });
-          // Immediate re-poll to get server-confirmed data
+
           setTimeout(function(){ loadAlerts(); }, 2000);
         }} t={t} vehicles={vehicles} />
-      {/* Bottom nav */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.surfaceAlt, borderTop: `1px solid ${C.border}`, display: (user.role==="boss"||user.role==="fpl") ? "none" : "flex", zIndex: 100 }}>
+<div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.surfaceAlt, borderTop: `1px solid ${C.border}`, display: (user.role==="boss"||user.role==="fpl") ? "none" : "flex", zIndex: 100 }}>
         {tabs.map(({ k, icon, label }) => (
           <button key={k} onClick={() => { setPrevTab(tab); setTab(k); }} style={{ flex: 1, padding: "10px 0", background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
             <div style={{ position:"relative", fontSize: k === "new" ? 20 : 18, background: activeTab === k && k === "new" ? C.blue : "transparent", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: activeTab === k ? (k === "new" ? "#fff" : C.orange) : C.gray500, fontWeight: 800 }}>
@@ -5368,6 +5110,4 @@ function App() {
 }
 
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-  </script>
-</body>
-</html>
+  
