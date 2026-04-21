@@ -253,6 +253,11 @@ function LTGLogo({ size = 1 }) {
 
 function App() {
   const [lang, setLang] = useState("de");
+  const [unlocked, setUnlocked] = useState(false);
+  const [sliderX, setSliderX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const sliderRef = useRef(null);
+  const SLIDER_MAX = 240;
   const [step, setStep] = useState("form"); // form | sent
   const [sending, setSending] = useState(false);
   const [form, setForm] = useState({
@@ -315,10 +320,106 @@ function App() {
     }, 10000);
   };
 
+  const startDrag = function(cx) {
+    setDragging(true);
+    var startX = cx;
+    var startLeft = sliderX;
+    var onMove = function(e) {
+      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      var dx = Math.max(0, Math.min(SLIDER_MAX, clientX - startX + startLeft));
+      setSliderX(dx);
+      if (dx >= SLIDER_MAX - 10) {
+        setUnlocked(true);
+        setSliderX(0);
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", onUp);
+      }
+    };
+    var onUp = function() {
+      setDragging(false);
+      setSliderX(function(x){ return x < SLIDER_MAX - 10 ? 0 : x; });
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onMove);
+    document.addEventListener("touchend", onUp);
+  };
+
   const reset = () => {
     setStep("form");
     setForm({ location:"", forklift:"", description:"", urgency:"", contactName:"", photos:[] });
   };
+
+  var pct = sliderX / SLIDER_MAX;
+
+  if (!unlocked) {
+    return (
+      <div style={{ minHeight:"100vh",
+        background:"linear-gradient(160deg,#0d2145 0%,#1a3a6b 60%,#1e4fa0 100%)",
+        display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", fontFamily:"'DM Sans','Segoe UI',sans-serif",
+        color:"#fff", padding:32 }}>
+
+        <div style={{ fontSize:48, fontWeight:900, color:"#fff",
+          letterSpacing:"-3px", fontFamily:"Arial Black,Arial,sans-serif",
+          marginBottom:8 }}>LTG</div>
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)",
+          marginBottom:4, letterSpacing:"1px", textTransform:"uppercase" }}>
+          Stapler App
+        </div>
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)",
+          marginBottom:48 }}>LTG Hockenheim</div>
+
+        <div style={{ width:300 }}>
+          <div ref={sliderRef}
+            style={{ position:"relative", width:300, height:60,
+              background:"#cbd5e1", borderRadius:14,
+              border:"1.5px solid #94a3b8", overflow:"hidden" }}>
+            <div style={{ position:"absolute", left:0, top:0, bottom:0,
+              width:(sliderX+60)+"px",
+              background:pct>0.9?"linear-gradient(90deg,#dcfce7,transparent)":"linear-gradient(90deg,#1e4fa025,transparent)",
+              transition:dragging?"none":"width 0.3s", pointerEvents:"none" }} />
+            <div style={{ position:"absolute", width:"100%", height:"100%",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:12, fontWeight:700, letterSpacing:"0.8px",
+              textTransform:"uppercase", userSelect:"none", pointerEvents:"none",
+              paddingLeft:20, color:pct>0.9?"#16a34a":"#64748b" }}>
+              {sliderX > 10 ? "✓  Los!" : "→ Zum Öffnen schieben"}
+            </div>
+            <div
+              onMouseDown={function(e){ e.preventDefault(); startDrag(e.clientX); }}
+              onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}
+              style={{ position:"absolute", left:(sliderX+4)+"px", top:"50%",
+                transform:"translateY(-50%)",
+                width:52, height:52, borderRadius:10,
+                background:pct>0.9?"linear-gradient(160deg,#22c55e,#16a34a)":"linear-gradient(160deg,#2563eb,#1e4fa0)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                gap:5, cursor:"grab", userSelect:"none",
+                boxShadow:pct>0.9?"0 3px 10px rgba(22,163,74,0.5)":"0 3px 10px rgba(30,79,160,0.5)",
+                transition:dragging?"none":"left 0.3s, background 0.2s" }}>
+              {[22,14,22,14,22].map(function(h,i){
+                return React.createElement("div", { key:i, style:{
+                  width:2.5, height:h,
+                  background:"rgba(0,0,0,"+(i%2===0?"0.55":"0.35")+")",
+                  borderRadius:2 }});
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop:16, fontSize:11,
+          color:"rgba(255,255,255,0.25)", letterSpacing:"0.5px" }}>
+          🏭 Stapler · LTG Werkstatt
+        </div>
+      </div>
+    );
+  }
 
   if (step === "sent") {
     const isUrgent = form.urgency === "urgent";

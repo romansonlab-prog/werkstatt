@@ -647,7 +647,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   const [dragging, setDragging] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const sliderRef = useRef(null);
-  const SLIDER_MAX = 260;
+  const SLIDER_MAX = 240;
 
   const LANGS = [
     { code: "de", flag: "🇩🇪", label: "DE" },
@@ -798,41 +798,48 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
           </div>
 
           {/* Slider */}
-          <div style={{ width:"100%", maxWidth:320 }}>
-            <div style={{ fontSize:12, color:"#1e4fa0",
-              textAlign:"center", marginBottom:12,
-              textTransform:"uppercase", letterSpacing:"1px" }}>
-              {sliderX > 10 ? "Los!" : "Zum Öffnen schieben"}
-            </div>
+          <div style={{ width:"100%", maxWidth:300 }}>
             <div ref={sliderRef}
-              style={{ position:"relative", height:56, background:"#e8eef5",
-                border:"2px solid #1a3a6b", borderRadius:4,
-                overflow:"hidden", boxShadow:"inset 0 2px 4px rgba(0,0,0,0.1)" }}>
+              style={{ position:"relative", width:300, height:60,
+                background:"#cbd5e1", borderRadius:14,
+                border:"1.5px solid #94a3b8",
+                overflow:"hidden" }}>
+              {/* fill */}
               <div style={{ position:"absolute", left:0, top:0, bottom:0,
-                width:(sliderX/SLIDER_MAX*100)+"%",
-                background:pct>0.9?"#22c55e33":"#1a3a6b22",
-                transition:dragging?"none":"width 0.3s" }} />
-              <div style={{ position:"absolute", right:16, top:"50%",
-                transform:"translateY(-50%)", fontSize:16,
-                color:"#7a90a8", opacity:1-pct, userSelect:"none",
-                fontWeight:700, letterSpacing:4 }}>
-                » »
+                width:(sliderX + 60)+"px",
+                background: pct>0.9 ? "linear-gradient(90deg,#dcfce7,transparent)" : "linear-gradient(90deg,#1e4fa025,transparent)",
+                transition:dragging?"none":"width 0.3s",
+                pointerEvents:"none" }} />
+              {/* center text */}
+              <div style={{ position:"absolute", width:"100%", height:"100%",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:12, fontWeight:700, letterSpacing:"0.8px",
+                textTransform:"uppercase", userSelect:"none", pointerEvents:"none",
+                paddingLeft:20,
+                color: pct>0.9 ? "#16a34a" : "#64748b" }}>
+                {sliderX > 10 ? "✓  Los!" : "→ Zum Öffnen schieben"}
               </div>
+              {/* thumb */}
               <div
                 onMouseDown={function(e){ e.preventDefault(); startDrag(e.clientX); }}
                 onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}
-                style={{ position:"absolute", left:sliderX+"px", top:"50%",
+                style={{ position:"absolute", left:sliderX+4+"px", top:"50%",
                   transform:"translateY(-50%)",
-                  width:60, height:48, borderRadius:3,
-                  background:pct>0.9?"#22c55e":"#1a3a6b",
-                  display:"flex", alignItems:"center",
-                  justifyContent:"center", fontSize:22,
-                  cursor:"grab", userSelect:"none",
-                  boxShadow:"2px 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                  transition:dragging?"none":"left 0.3s, background 0.2s",
-                  borderRight:"3px solid rgba(255,255,255,0.3)",
-                  borderBottom:"3px solid rgba(0,0,0,0.2)" }}>
-                <span style={{ color:"#c8a84b", fontWeight:900, fontSize:18 }}>▶</span>
+                  width:52, height:52, borderRadius:10,
+                  background: pct>0.9
+                    ? "linear-gradient(160deg,#22c55e,#16a34a)"
+                    : "linear-gradient(160deg,#2563eb,#1e4fa0)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  gap:5, cursor:"grab", userSelect:"none",
+                  boxShadow: pct>0.9
+                    ? "0 3px 10px rgba(22,163,74,0.5),0 1px 3px rgba(0,0,0,0.3)"
+                    : "0 3px 10px rgba(30,79,160,0.5),0 1px 3px rgba(0,0,0,0.3)",
+                  transition:dragging?"none":"left 0.3s, background 0.2s, box-shadow 0.2s" }}>
+                {[22,14,22,14,22].map(function(h,i){
+                  return <div key={i} style={{ width:2.5, height:h,
+                    background:"rgba(0,0,0,"+(i%2===0?"0.55":"0.35")+")",
+                    borderRadius:2 }} />;
+                })}
               </div>
             </div>
           </div>
