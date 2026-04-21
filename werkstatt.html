@@ -7,7 +7,6 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { background:#f0f4f8; min-height:100vh; }
@@ -23,73 +22,6 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-// ── Excel Export Utility ──────────────────────────────────────────
-
-function exportToExcel(rows, headers, sheetName, fileName) {
-  if (!window.XLSX) { alert("XLSX library not loaded"); return; }
-  var wsData = [headers].concat(rows.map(function(r) {
-    return headers.map(function(h) { return r[h] !== undefined ? r[h] : ""; });
-  }));
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(wsData);
-  // Ширина колонок
-  var colWidths = headers.map(function(h) { return { wch: Math.max(h.length, 16) }; });
-  ws["!cols"] = colWidths;
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  XLSX.writeFile(wb, fileName + ".xlsx");
-}
-
-function filterByPeriod(items, period, dateField) {
-  var now = new Date();
-  var today = now.toISOString().slice(0,10);
-  return items.filter(function(item) {
-    var d = (item[dateField]||"").slice(0,10);
-    if (!d) return period === "all";
-    if (period === "today")  return d === today;
-    if (period === "week")   return (now - new Date(d)) / 86400000 <= 7;
-    if (period === "month")  return (now - new Date(d)) / 86400000 <= 30;
-    return true; // "all"
-  });
-}
-
-function ExcelExportButton({ onClick, label }) {
-  return (
-    <button onClick={onClick}
-      style={{ display:"flex", alignItems:"center", gap:6,
-        background:"#16a34a", color:"#fff", border:"none",
-        borderRadius:8, padding:"7px 14px", fontSize:12,
-        fontWeight:700, cursor:"pointer",
-        boxShadow:"0 1px 4px rgba(22,163,74,0.3)" }}>
-      📊 {label || "Excel Export"}
-    </button>
-  );
-}
-
-function PeriodSelector({ value, onChange }) {
-  var periods = [
-    { k:"today", l:"Heute" },
-    { k:"week",  l:"Woche" },
-    { k:"month", l:"Monat" },
-    { k:"all",   l:"Alles" },
-  ];
-  return (
-    <div style={{ display:"flex", gap:4 }}>
-      {periods.map(function(p) {
-        var isAct = value === p.k;
-        return (
-          <button key={p.k} onClick={function(){ onChange(p.k); }}
-            style={{ background:isAct?"#1e4fa0":"transparent",
-              border:"1px solid "+(isAct?"#1e4fa0":"#334155"),
-              borderRadius:6, padding:"4px 10px", fontSize:11,
-              fontWeight:700, color:isAct?"#fff":"#64748b",
-              cursor:"pointer" }}>
-            {p.l}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // -- Supabase config --
 const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
@@ -1961,7 +1893,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   const [activeSection, setActiveSection] = useState("overview");
   const [inspExpanded, setInspExpanded] = useState(null);
   const [inspSectionVehicle, setInspSectionVehicle] = useState(null);
-  const [xlsPeriod, setXlsPeriod] = useState("month");
 
   const handlePrintInspection = function(ins) {
     var win = window.open("", "_blank");
@@ -2197,29 +2128,8 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             </div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <PeriodSelector value={xlsPeriod} onChange={setXlsPeriod} />
-            <ExcelExportButton label="Excel" onClick={function(){
-              var rows = filterByPeriod(jobs||[], xlsPeriod, "date").map(function(j){
-                var mName = (USERS.find(function(u){return u.id===j.mechanic;})||{}).name||j.mechanic||"";
-                var cName = j.colleague?(USERS.find(function(u){return u.id===j.colleague;})||{}).name||j.colleague:"";
-                return {
-                  "Datum": j.date||"",
-                  "Fahrzeug": j.plate||"",
-                  "Typ": j.vehicleType||"",
-                  "Mechaniker": mName+(cName?" + "+cName:""),
-                  "Art der Arbeit": j.workType||"",
-                  "Standort": j.location||"",
-                  "Status": j.status||"",
-                  "Arbeitszeit (min)": j.workMin||"",
-                  "Fahrzeit (min)": (j.travelToMin||0)+(j.travelBackMin||0)||"",
-                  "Kosten (€)": j.cost>0?j.cost.toFixed(2):"",
-                  "Teile": j.partsType||"",
-                  "Beschreibung": j.description||""
-                };
-              });
-              exportToExcel(rows,["Datum","Fahrzeug","Typ","Mechaniker","Art der Arbeit","Standort","Status","Arbeitszeit (min)","Fahrzeit (min)","Kosten (€)","Teile","Beschreibung"],
-                "Aufträge","LTG_Aufträge_"+new Date().toISOString().slice(0,10));
-            }} />
+            
+            
             <button onClick={function(){ exportDayReport(jobs, vehicles, lang); }}
               style={{ background:"#1e4fa0", color:"#fff", border:"none", borderRadius:8,
                 padding:"9px 18px", fontWeight:700, fontSize:13, cursor:"pointer",
@@ -2575,29 +2485,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
               <div style={{ fontSize:16, fontWeight:700, color:C.white }}>
                 🔍 Inspektionen
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <PeriodSelector value={xlsPeriod} onChange={setXlsPeriod} />
-                <ExcelExportButton label="Excel" onClick={function(){
-                  var rows = filterByPeriod(inspections, xlsPeriod, "created_at").map(function(i){
-                    var mangel={};
-                    try{mangel=JSON.parse(i.mangel||"{}");}catch(e){}
-                    var mangelList=Object.keys(mangel).filter(function(k){return mangel[k];}).join(", ");
-                    return {
-                      "Datum": i.created_at?new Date(i.created_at).toLocaleDateString("de-DE"):"",
-                      "Uhrzeit": i.created_at?new Date(i.created_at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"",
-                      "Fahrer": i.driver||"",
-                      "Fahrzeug": i.plate||"",
-                      "Marke": i.brand||"",
-                      "Typ": i.type==="truck"?"LKW":"Auflieger",
-                      "Status": i.status==="mangel"?"⚠ Mangel":"✓ OK",
-                      "Mängel": mangelList,
-                      "Beschreibung": i.defects_de||i.defects||""
-                    };
-                  });
-                  exportToExcel(rows,["Datum","Uhrzeit","Fahrer","Fahrzeug","Marke","Typ","Status","Mängel","Beschreibung"],
-                    "Inspektionen","LTG_Inspektionen_"+new Date().toISOString().slice(0,10));
-                }} />
-              </div>
+              
             </div>
             <div style={{ display:"flex", gap:6, marginBottom:14 }}>
               {["all","truck","trailer","mangel"].map(function(f){
@@ -2617,7 +2505,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
 
             {/* List */}
             {(function(){
-              var filtered2 = filterByPeriod(inspections, xlsPeriod, "created_at");
+              var filtered2 = inspections;
               if(inspSectionVehicle==="truck")   filtered2=filtered2.filter(function(i){return i.type==="truck";});
               if(inspSectionVehicle==="trailer") filtered2=filtered2.filter(function(i){return i.type==="trailer";});
               if(inspSectionVehicle==="mangel")  filtered2=filtered2.filter(function(i){return i.status==="mangel";});
@@ -2747,30 +2635,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
           <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
               <div style={{ fontSize:16, fontWeight:700, color:C.white }}>Mechaniker Übersicht</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <PeriodSelector value={xlsPeriod} onChange={setXlsPeriod} />
-                <ExcelExportButton label="Excel" onClick={function(){
-                  var rows = [];
-                  mechLoad.forEach(function(m){
-                    var mJobs = filterByPeriod(filtered, xlsPeriod, "date").filter(function(j){return j.mechanic===m.id;});
-                    mJobs.forEach(function(j){
-                      rows.push({
-                        "Mechaniker": m.name,
-                        "Datum": j.date||"",
-                        "Fahrzeug": j.plate||"",
-                        "Typ": j.workType||"",
-                        "Standort": j.location||"",
-                        "Status": j.status||"",
-                        "Arbeitszeit": j.workMin?Math.round(j.workMin)+"min":"",
-                        "Fahrzeit": ((j.travelToMin||0)+(j.travelBackMin||0))>0?(j.travelToMin||0)+(j.travelBackMin||0)+"min":"",
-                        "Kosten (€)": j.cost>0?j.cost.toFixed(2):""
-                      });
-                    });
-                  });
-                  exportToExcel(rows,["Mechaniker","Datum","Fahrzeug","Typ","Standort","Status","Arbeitszeit","Fahrzeit","Kosten (€)"],
-                    "Mechaniker","LTG_Mechaniker_"+new Date().toISOString().slice(0,10));
-                }} />
-              </div>
+              
             </div>
             {mechLoad.map(function(m){
               var pct = Math.min(m.min/480, 1);
@@ -2823,25 +2688,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         {/* WASH SECTION */}
         {activeSection === "wash" && (
           <div>
-            <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:8, marginBottom:12 }}>
-              <PeriodSelector value={xlsPeriod} onChange={setXlsPeriod} />
-              <ExcelExportButton label="Excel" onClick={function(){
-                var wJobs = filterByPeriod((jobs||[]).filter(function(j){return j.workType==="wash";}), xlsPeriod, "date");
-                var rows = wJobs.map(function(j){
-                  return {
-                    "Datum": j.date||"",
-                    "Fahrzeug": j.plate||"",
-                    "Fahrzeugtyp": j.vehicleType||"",
-                    "Mechaniker": (USERS.find(function(u){return u.id===j.mechanic;})||{}).name||j.mechanic||"",
-                    "Standort": j.location||"",
-                    "Arbeitszeit (min)": j.workMin||"",
-                    "Kosten (€)": j.cost>0?j.cost.toFixed(2):""
-                  };
-                });
-                exportToExcel(rows,["Datum","Fahrzeug","Fahrzeugtyp","Mechaniker","Standort","Arbeitszeit (min)","Kosten (€)"],
-                  "Wäsche","LTG_Wäsche_"+new Date().toISOString().slice(0,10));
-              }} />
-            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
               {/* By vehicle type */}
               <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
@@ -2965,7 +2811,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
 function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
   const [activeTab, setActiveTab] = useState("stock"); // stock | invoices | addInvoice
   const [search, setSearch] = useState("");
-  const [xlsPeriodLager, setXlsPeriodLager] = useState("all");
   const [editItem, setEditItem] = useState(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name:"", category:"", quantity:"", minQty:"", unit:"Stk", location:"" });
@@ -3033,44 +2878,7 @@ function Lager({ user, stock, setStock, invoices, setInvoices, t }) {
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: C.white }}>{t.lagerTitle}</div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {activeTab === "stock" && (
-            <ExcelExportButton label="Excel" onClick={function(){
-              var rows = stock.map(function(s){
-                var st = s.quantity===0?"Leer":s.quantity<=s.minQty?"Wenig":"OK";
-                return {
-                  "Artikel": s.name||"",
-                  "Kategorie": s.category||"",
-                  "Bestand": s.quantity,
-                  "Mindestbestand": s.minQty,
-                  "Einheit": s.unit||"",
-                  "Lagerort": s.location||"",
-                  "Status": st
-                };
-              });
-              exportToExcel(rows,["Artikel","Kategorie","Bestand","Mindestbestand","Einheit","Lagerort","Status"],
-                "Lagerbestand","LTG_Lager_"+new Date().toISOString().slice(0,10));
-            }} />
-          )}
-          {activeTab === "invoices" && (
-            <ExcelExportButton label="Excel" onClick={function(){
-              var rows = (invoices||[]).map(function(inv){
-                return {
-                  "Datum": inv.date||"",
-                  "Lieferant": inv.supplier||"",
-                  "Betrag (€)": inv.amount||"",
-                  "Artikel": inv.items||"",
-                  "Auftrag-Nr": inv.jobId||""
-                };
-              });
-              exportToExcel(rows,["Datum","Lieferant","Betrag (€)","Artikel","Auftrag-Nr"],
-                "Belege","LTG_Belege_"+new Date().toISOString().slice(0,10));
-            }} />
-          )}
-        </div>
-      </div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 16 }}>{t.lagerTitle}</div>
 
       {/* Sub-tabs */}
       <div style={{ display:"flex", gap:8, marginBottom:18, background:C.navyMid, borderRadius:12, padding:4 }}>
@@ -3474,27 +3282,7 @@ function Fahrzeuge({ user, vehicles, setVehicles, t, initialSelected, onClearSel
     <div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
         <div style={{ fontSize:20, fontWeight:800, color:C.white }}>{t.vehicles}</div>
-        <ExcelExportButton label="Excel" onClick={function(){
-          var rows = vehicles.map(function(v){
-            var today = new Date();
-            var tuevDiff = v.tuev ? Math.round((new Date(v.tuev)-today)/86400000) : null;
-            return {
-              "Kennzeichen": v.plate||"",
-              "Typ": v.type||"",
-              "Marke": v.brand||"",
-              "Baujahr": v.year||"",
-              "TÜV": v.tuev||"",
-              "TÜV Tage": tuevDiff!==null?tuevDiff:"",
-              "UVV": v.uvv||"",
-              "Versicherung": v.insurance||"",
-              "Nächster Service": v.nextService||"",
-              "KM-Stand": v.mileage||"",
-              "Notizen": v.notes||""
-            };
-          });
-          exportToExcel(rows,["Kennzeichen","Typ","Marke","Baujahr","TÜV","TÜV Tage","UVV","Versicherung","Nächster Service","KM-Stand","Notizen"],
-            "Fahrzeuge","LTG_Fahrzeuge_"+new Date().toISOString().slice(0,10));
-        }} />
+        
       </div>
 
       {urgent > 0 ? (
@@ -4125,7 +3913,6 @@ function Archive({ jobs, user, t, inspections }) {
   const [archTab, setArchTab]   = useState("auftraege"); // auftraege | inspektion
   const [inspSearch, setInspSearch] = useState("");
   const [inspExpanded2, setInspExpanded2] = useState(null);
-  const [xlsPeriodArch, setXlsPeriodArch] = useState("month");
 
   const visible = user.role === "mechanic"
     ? jobs.filter(j => j.mechanic === user.id || j.colleague === user.id)
@@ -4310,49 +4097,12 @@ function Archive({ jobs, user, t, inspections }) {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: C.white }}>{t.archive}</div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <PeriodSelector value={xlsPeriodArch} onChange={setXlsPeriodArch} />
+          
           {archTab==="auftraege" && (
-            <ExcelExportButton label="Excel" onClick={function(){
-              var rows = filterByPeriod(filtered, xlsPeriodArch, "date").map(function(j){
-                return {
-                  "Datum": j.date||"",
-                  "Fahrzeug": j.plate||"",
-                  "Mechaniker": getName(j.mechanic)+(j.colleague?" + "+getName(j.colleague):""),
-                  "Typ": j.workType||"",
-                  "Standort": j.location||"",
-                  "Status": j.status||"",
-                  "Arbeitszeit (min)": j.workMin||"",
-                  "Fahrzeit (min)": (j.travelToMin||0)+(j.travelBackMin||0)||"",
-                  "Kosten (€)": j.cost>0?j.cost.toFixed(2):"",
-                  "Teile": j.partsType||"",
-                  "Beschreibung": j.description||""
-                };
-              });
-              exportToExcel(rows,["Datum","Fahrzeug","Mechaniker","Typ","Standort","Status","Arbeitszeit (min)","Fahrzeit (min)","Kosten (€)","Teile","Beschreibung"],
-                "Aufträge","LTG_Archiv_"+new Date().toISOString().slice(0,10));
-            }} />
+            
           )}
           {archTab==="inspektion" && (
-            <ExcelExportButton label="Excel" onClick={function(){
-              var rows = filterByPeriod(inspections||[], xlsPeriodArch, "created_at").map(function(i){
-                var mangel={};
-                try{mangel=JSON.parse(i.mangel||"{}");}catch(e){}
-                var mangelList=Object.keys(mangel).filter(function(k){return mangel[k];}).join(", ");
-                return {
-                  "Datum": i.created_at?new Date(i.created_at).toLocaleDateString("de-DE"):"",
-                  "Uhrzeit": i.created_at?new Date(i.created_at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}):"",
-                  "Fahrer": i.driver||"",
-                  "Fahrzeug": i.plate||"",
-                  "Marke": i.brand||"",
-                  "Typ": i.type==="truck"?"LKW":"Auflieger",
-                  "Status": i.status==="mangel"?"⚠ Mangel":"✓ OK",
-                  "Mängel": mangelList,
-                  "Beschreibung": i.defects_de||i.defects||""
-                };
-              });
-              exportToExcel(rows,["Datum","Uhrzeit","Fahrer","Fahrzeug","Marke","Typ","Status","Mängel","Beschreibung"],
-                "Inspektionen","LTG_Archiv_Inspektionen_"+new Date().toISOString().slice(0,10));
-            }} />
+            
           )}
         </div>
       </div>
