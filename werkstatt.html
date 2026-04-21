@@ -99,37 +99,37 @@ const sb = {
 
 // ── LTG Brand Colors ──────────────────────────────────────────────
 // ── Company logo on login screen ─────────────────────────────────
-// Замените null на URL или base64 строку фото когда будет готово
-// Например: const COMPANY_LOGO = "https://example.com/logo.jpg";
-// Или:       const COMPANY_LOGO = "data:image/jpeg;base64,/9j/4AAQ...";
+// Replace null with URL or base64 photo string when ready
+// E.g.: const COMPANY_LOGO = "https://example.com/logo.jpg";
+// Or: const COMPANY_LOGO = "data:image/jpeg;base64,/9j/4AAQ...";
 const COMPANY_LOGO = null;
 
 const C = {
   // ── Base LTG Corporate ────────────────
-  bg:       "#f0f4f8",   // светло-серый фон
-  surface:  "#ffffff",   // белые карточки
-  surfaceAlt:"#1a3a6b",  // тёмно-синий хедер
-  navy:     "#1a3a6b",   // LTG синий
-  navyDark: "#122a52",   // тёмный синий
-  navyMid:  "#1e4280",   // средний синий
-  border:   "#d0dbe8",   // светлые рамки
+  bg:       "#f0f4f8",   // light grey background
+  surface:  "#ffffff",   // white cards
+  surfaceAlt:"#1a3a6b",  // dark blue header
+  navy:     "#1a3a6b",   // LTG blue
+  navyDark: "#122a52",   // dark blue
+  navyMid:  "#1e4280",   // medium blue
+  border:   "#d0dbe8",   // light borders
 
-  // ── Текст ─────────────────────────────
-  white:    "#1a2332",   // тёмный текст на светлом фоне
+  // ──  ─────────────────────────────
+  white:    "#1a2332",   // dark text on light bg
   gray50:   "#f8fafc",
   gray100:  "#e2e8f0",
-  gray300:  "#4a6080",   // вторичный текст
-  gray500:  "#7a90a8",   // плейсхолдеры
+  gray300:  "#4a6080",   // secondary text
+  gray500:  "#7a90a8",   // placeholders
   gray700:  "#334155",
 
-  // ── Акценты ───────────────────────────
-  blue:     "#1a3a6b",   // LTG синий - основное действие
+  // Accents
+  blue:     "#1a3a6b",   // LTG blue -  
   blueLt:   "#2d5fa8",   // hover
-  orange:   "#c8a84b",   // LTG золотой - акцент
+  orange:   "#c8a84b",   // LTG gold accent
   orangeDim:"#7a6020",
-  green:    "#22c55e",   // успех / OK
-  red:      "#ef4444",   // срочно / ошибка
-  yellow:   "#c8a84b",   // внимание - LTG золотой
+  green:    "#22c55e",   // success / OK
+  red:      "#ef4444",   // urgent / error
+  yellow:   "#c8a84b",   // warning - LTG gold
 };
 
 // ── Translations ──────────────────────────────────────────────────
@@ -237,106 +237,106 @@ const T = {
     roleChef:"Chef", roleFPL:"Fuhrparkleiter", roleMechanic:"Mechaniker",
   },
   ru: {
-    appName:"LTG Веркштат", login:"Войти", logout:"Выйти",
-    selectUser:"Выбрать пользователя", enterPin:"Введите PIN", welcome:"Добро пожаловать",
-    newJob:"Новый заказ", myJobs:"Мои заказы", dashboard:"Дашборд",
-    archive:"Архив", lager:"Склад", vehicles:"Техника",
-    vehicleType:"Тип техники", plateNumber:"Номер",
-    location:"Локация", workType:"Тип работы", description:"Описание",
-    photos:"Фото", addPhotos:"Добавить фото", travelTime:"Время в дороге",
-    startTravel:"Начать поездку", stopTravel:"Завершить поездку",
-    startWork:"Начать работу", stopWork:"Завершить работу",
-    saveReport:"Сохранить отчёт", reset:"Сбросить",
-    status:"Статус", date:"Дата", duration:"Длительность",
-    mechanic:"Механик", colleague:"Коллега",
-    withColleague:"С коллегой", alone:"Один",
-    repair:"Ремонт", maintenance:"ТО", inspection:"Осмотр",
-    travelToShop:"Поездка в магазин", emergency:"Аварийный вызов",
-    saved:"Сохранено", traveling:"В дороге...", working:"В работе...",
-    truck:"LKW", semiTrailer:"Полуприцеп", forklift:"Погрузчик",
-    trailer:"Прицеп", pkw:"PKW", other:"Другое", workshop:"Веркштат",
-    totalJobs:"Заказов сегодня", openJobs:"Открытых", doneJobs:"Выполнено",
-    travelTotal:"Время в дороге", workTotal:"Время работы",
-    recentActivity:"Последние действия", searchArchive:"Поиск...",
-    open:"Открыт", inProgress:"В работе", done:"Выполнен",
-    reportTitle:"Дневной отчёт", noJobs:"Нет заказов",
-    uploadPhoto:"Сфотографировать", travelTo:"Туда", travelBack:"Обратно",
-    both:"Оба механика",
-    lagerTitle:"Склад & Накладные", stockTab:"Остатки", invoicesTab:"Накладные",
-    addInvoiceTab:"Добавить накладную", positions:"Позиций",
-    lowEmpty:"Мало/Пусто", totalPcs:"Шт всего", search:"Поиск...",
-    addParts:"Добавить запчасть", newArticle:"Новая позиция",
-    name:"Название", category:"Категория", minStock:"Мин. остаток",
-    storageLocation:"Место хранения", unit:"Единица", add:"Добавить",
-    stockOk:"OK", stockLow:"Мало", stockEmpty:"Пусто", minLabel:"Мин",
-    invoicesTotal:"Накладных всего", noInvoices:"Накладных нет",
-    supplier:"Поставщик", amount:"Сумма (EU)", boughtParts:"Купленные запчасти",
-    linkedJob:"Заказ (опционально)", noJob:"без заказа",
-    invoicePhoto:"Сфотографировать накладную", saveInvoice:"Сохранить",
-    invoiceSaved:"Накладная сохранена!", newInvoice:"Новая накладная", photoOk:"Фото ок",
-    vehiclesTitle:"Управление техникой", vehiclesTotal:"Единиц техники",
-    attentionRequired:"Требует внимания!", addVehicle:"Добавить технику",
-    newVehicle:"Новая техника", plate:"Номерной знак", brand:"Марка / Модель",
-    buildYear:"Год выпуска", mileageLabel:"Пробег (км)",
-    tuev:"ТЮВ до", insurance:"Страховка до", uvv:"UVV до",
-    nextService:"Следующее ТО", docsAndDates:"Документы & Сроки",
-    vehicleAdded:"Техника добавлена!", backBtn:"Назад",
-    expiredDays:"д просрочено", emergencyBtn:"ОТПРАВИТЬ ВЫЗОВ",
-    emergencySent:"Вызов отправлен!", emergencyNotified:"Шеф и Jens уведомлены",
-    accident:"Авария", breakdown:"Поломка", fire:"Пожар", injury:"Травма",
-    whatHappened:"Что случилось?", urgentAlert:"Сроки истекают!",
-    urgentDesc:"ТЮВ, страховка или ТО менее 30 дней",
-    eveningReport:"Дневной отчёт", generateReport:"Создать отчёт",
-    reportFor:"Отчёт за", totalWork:"Время работы", totalTravel:"Время в дороге",
-    jobsDone:"Выполнено", noReportJobs:"Сегодня нет заказов",
-    reportSent:"Отчёт отправлен!", driverInspection:"Осмотр водителя",
-    startInspection:"Начать осмотр", inspectionDone:"Осмотр завершён",
-    noDefects:"Без замечаний", defectsFound:"Найдены замечания",
-    tires:"Шины", lights:"Освещение", brakes:"Тормоза",
-    body:"Кузов", documents:"Документы", inspectionNote:"Примечания",
-    today:"Сегодня", week:"7 дней", all:"Всё время",
-    emergencyAlert:"Аварии", externalReports:"внешних сообщений",
-    immediateAttention:"Требуется немедленное внимание",
-    jobsLabel:"Заказов", openLabel:"Открытых", inProgressLabel:"В работе",
-    doneLabel:"Выполнено", workTimeLabel:"Рабочее время", travelLabel:"Время в дороге",
-    weeklyTrend:"Заказы — последние 7 дней", workTypes:"Типы работ",
-    mechanicLoad:"Загрузка механиков", topProblems:"Топ проблемных машин",
-    docsExpiring:"Истекающие документы", fleetStatus:"Статус парка",
-    fleetOk:"OK", fleetSoon:"Скоро истекает", fleetExpired:"Просрочено",
-    upcomingDates:"Истекающие сроки (60 дней)",
-    openByLocation:"Открытые заказы по локациям", noOpenJobs:"Нет открытых заказов",
-    fleetByType:"Парк техники", todayActivity:"Сегодня — активность",
-    noActivityToday:"Сегодня активности нет", urgentAttention:"Срочное внимание!",
-    vehiclesExpired:"техника с просроченными документами",
-    days:"д", daysOverdue:"д!",
-    docTuev:"ТЮВ", docVers:"Стр.", docUvv:"UVV", docWartung:"ТО",
-    mgmtOverview:"Общий обзор", fleetMgmt:"Управление парком",
-    totalCost:"Общие затраты", costPerVehicle:"Затраты на технику",
-    downtimeLabel:"Простой", downtimeTotal:"Общий простой",
-    costTrend:"Динамика затрат", topCostVehicles:"Самая дорогая техника",
-    repairCost:"Стоимость ремонта", partsCost:"Запчасти",
-    laborCost:"Трудозатраты", costUnit:"€",
-    availability:"Доступность", availabilityFleet:"Доступность парка",
-    downtimePerVehicle:"Простой по технике", minutes:"мин",
-    costThisMonth:"Затраты за период", vsLastMonth:"vs. прошлый период",
-    mostExpensive:"Самые дорогие ремонты",
-    meldenTitle:"Сообщить о проблеме", meldenType:"Тип проблемы", meldenLocation:"Местоположение",
-    meldenDesc:"Описание...", meldenUrgent:"Срочно", meldenWait:"Может подождать",
-    meldenSend:"ОТПРАВИТЬ", meldenSending:"Отправляется...", meldenSent:"Отправлено!",
-    meldenNotified:"Веркштат уведомлён", meldenNew:"Новое сообщение",
-    share:"Поделиться", print:"Печать", copied:"Скопировано!",
-    translating:"Перевожу...",
-    meldenBreakdown:"Поломка", incomingTab:"Входящие", noAlerts:"Нет новых заявок", fromDriver:"от Водителя", fromStapler:"от Штаплера", fromFPL:"от Jens", createJobFrom:"Создать заказ", alertReceived:"Новая заявка!", meldenAccident:"Авария", meldenOther:"Другое",
-    partsSection:"Запчасти & Материалы", partsType:"Тип запчастей",
-    noPartsLabel:"Без запчастей", inspectionLabel:"Осмотр / ТО",
-    fromStockLabel:"Со склада", buyLabel:"Нужно купить",
-    usedLabel:"Б/У запчасть", partsDesc:"Описание",
-    invoiceNr:"Номер накладной", partsCostLabel:"Стоимость (EUR)",
-    selectParts:"Выбрать запчасти", noParts:"Нет запчастей на складе",
-    partsAdded:"Запчасти добавлены", usedDesc:"Откуда? Описание...",
-    buyDesc:"Что купить?",
-    urgency:"Срочность", enterCustom:"Ввести свой номер",
-    roleChef:"Шеф", roleFPL:"Фурпаркляйтер", roleMechanic:"Механик",
+    appName:"LTG ", login:"", logout:"",
+    selectUser:" ", enterPin:" PIN", welcome:" ",
+    newJob:" ", myJobs:" ", dashboard:"",
+    archive:"", lager:"", vehicles:"",
+    vehicleType:" ", plateNumber:"",
+    location:"", workType:" ", description:"",
+    photos:"", addPhotos:" ", travelTime:"  ",
+    startTravel:" ", stopTravel:" ",
+    startWork:" ", stopWork:" ",
+    saveReport:" ", reset:"",
+    status:"", date:"", duration:"",
+    mechanic:"", colleague:"",
+    withColleague:" ", alone:"",
+    repair:"", maintenance:"", inspection:"",
+    travelToShop:"  ", emergency:" ",
+    saved:"", traveling:" ...", working:" ...",
+    truck:"LKW", semiTrailer:"", forklift:"",
+    trailer:"", pkw:"PKW", other:"", workshop:"",
+    totalJobs:" ", openJobs:"", doneJobs:"",
+    travelTotal:"  ", workTotal:" ",
+    recentActivity:" ", searchArchive:"...",
+    open:"", inProgress:" ", done:"",
+    reportTitle:" ", noJobs:" ",
+    uploadPhoto:"", travelTo:"", travelBack:"",
+    both:" ",
+    lagerTitle:" & ", stockTab:"", invoicesTab:"",
+    addInvoiceTab:" ", positions:"",
+    lowEmpty:"/", totalPcs:" ", search:"...",
+    addParts:" ", newArticle:" ",
+    name:"", category:"", minStock:". ",
+    storageLocation:" ", unit:"", add:"",
+    stockOk:"OK", stockLow:"", stockEmpty:"", minLabel:"",
+    invoicesTotal:" ", noInvoices:" ",
+    supplier:"", amount:" (EU)", boughtParts:" ",
+    linkedJob:" ()", noJob:" ",
+    invoicePhoto:" ", saveInvoice:"",
+    invoiceSaved:" !", newInvoice:" ", photoOk:" ",
+    vehiclesTitle:" ", vehiclesTotal:" ",
+    attentionRequired:" !", addVehicle:" ",
+    newVehicle:" ", plate:" ", brand:" / ",
+    buildYear:" ", mileageLabel:" ()",
+    tuev:" ", insurance:" ", uvv:"UVV ",
+    nextService:" ", docsAndDates:" & ",
+    vehicleAdded:" !", backBtn:"",
+    expiredDays:" ", emergencyBtn:" ",
+    emergencySent:" !", emergencyNotified:"  Jens ",
+    accident:"", breakdown:"", fire:"", injury:"",
+    whatHappened:" ?", urgentAlert:" !",
+    urgentDesc:",     30 ",
+    eveningReport:" ", generateReport:" ",
+    reportFor:" ", totalWork:" ", totalTravel:"  ",
+    jobsDone:"", noReportJobs:"  ",
+    reportSent:" !", driverInspection:" ",
+    startInspection:" ", inspectionDone:" ",
+    noDefects:" ", defectsFound:" ",
+    tires:"", lights:"", brakes:"",
+    body:"", documents:"", inspectionNote:"",
+    today:"", week:"7 ", all:" ",
+    emergencyAlert:"", externalReports:" ",
+    immediateAttention:"  ",
+    jobsLabel:"", openLabel:"", inProgressLabel:" ",
+    doneLabel:"", workTimeLabel:" ", travelLabel:"  ",
+    weeklyTrend:" —  7 ", workTypes:" ",
+    mechanicLoad:" ", topProblems:"  ",
+    docsExpiring:" ", fleetStatus:" ",
+    fleetOk:"OK", fleetSoon:" ", fleetExpired:"",
+    upcomingDates:"  (60 )",
+    openByLocation:"   ", noOpenJobs:"  ",
+    fleetByType:" ", todayActivity:" — ",
+    noActivityToday:"  ", urgentAttention:" !",
+    vehiclesExpired:"   ",
+    days:"", daysOverdue:"!",
+    docTuev:"", docVers:".", docUvv:"UVV", docWartung:"",
+    mgmtOverview:" ", fleetMgmt:" ",
+    totalCost:" ", costPerVehicle:"  ",
+    downtimeLabel:"", downtimeTotal:" ",
+    costTrend:" ", topCostVehicles:"  ",
+    repairCost:" ", partsCost:"",
+    laborCost:"", costUnit:"€",
+    availability:"", availabilityFleet:" ",
+    downtimePerVehicle:"  ", minutes:"",
+    costThisMonth:"  ", vsLastMonth:"vs.  ",
+    mostExpensive:"  ",
+    meldenTitle:"  ", meldenType:" ", meldenLocation:"",
+    meldenDesc:"...", meldenUrgent:"", meldenWait:" ",
+    meldenSend:"", meldenSending:"...", meldenSent:"!",
+    meldenNotified:" ", meldenNew:" ",
+    share:"", print:"", copied:"!",
+    translating:"...",
+    meldenBreakdown:"", incomingTab:"", noAlerts:"  ", fromDriver:" ", fromStapler:" ", fromFPL:" Jens", createJobFrom:" ", alertReceived:" !", meldenAccident:"", meldenOther:"",
+    partsSection:" & ", partsType:" ",
+    noPartsLabel:" ", inspectionLabel:" / ",
+    fromStockLabel:" ", buyLabel:" ",
+    usedLabel:"/ ", partsDesc:"",
+    invoiceNr:" ", partsCostLabel:" (EUR)",
+    selectParts:" ", noParts:"   ",
+    partsAdded:" ", usedDesc:"? ...",
+    buyDesc:" ?",
+    urgency:"", enterCustom:"  ",
+    roleChef:"", roleFPL:"", roleMechanic:"",
   },
   en: {
     appName:"LTG Workshop", login:"Login", logout:"Logout",
@@ -440,106 +440,106 @@ const T = {
     roleChef:"Chef", roleFPL:"Fleet Manager", roleMechanic:"Mechanic",
   },
   uk: {
-    appName:"LTG Майстерня", login:"Увійти", logout:"Вийти",
-    selectUser:"Обрати користувача", enterPin:"Введіть PIN", welcome:"Ласкаво просимо",
-    newJob:"Нове замовлення", myJobs:"Мої замовлення", dashboard:"Дашборд",
-    archive:"Архів", lager:"Склад", vehicles:"Техніка",
-    vehicleType:"Тип техніки", plateNumber:"Номер",
-    location:"Локація", workType:"Тип роботи", description:"Опис",
-    photos:"Фото", addPhotos:"Додати фото", travelTime:"Час у дорозі",
-    startTravel:"Почати поїздку", stopTravel:"Завершити поїздку",
-    startWork:"Почати роботу", stopWork:"Завершити роботу",
-    saveReport:"Зберегти звіт", reset:"Скинути",
-    status:"Статус", date:"Дата", duration:"Тривалість",
-    mechanic:"Механік", colleague:"Колега",
-    withColleague:"З колегою", alone:"Сам",
-    repair:"Ремонт", maintenance:"ТО", inspection:"Огляд",
-    travelToShop:"Поїздка до магазину", emergency:"Аварійний виклик",
-    saved:"Збережено", traveling:"У дорозі...", working:"У роботі...",
-    truck:"Вантажівка", semiTrailer:"Напівпричіп", forklift:"Навантажувач",
-    trailer:"Причіп", pkw:"PKW", other:"Інше", workshop:"Майстерня",
-    totalJobs:"Замовлень сьогодні", openJobs:"Відкритих", doneJobs:"Виконано",
-    travelTotal:"Час у дорозі", workTotal:"Час роботи",
-    recentActivity:"Остання активність", searchArchive:"Пошук...",
-    open:"Відкрито", inProgress:"У роботі", done:"Виконано",
-    reportTitle:"Денний звіт", noJobs:"Немає замовлень",
-    uploadPhoto:"Сфотографувати", travelTo:"Туди", travelBack:"Назад",
-    both:"Обидва механіки",
-    lagerTitle:"Склад & Накладні", stockTab:"Залишки", invoicesTab:"Накладні",
-    addInvoiceTab:"Додати накладну", positions:"Позицій",
-    lowEmpty:"Мало/Порожньо", totalPcs:"Шт всього", search:"Пошук...",
-    addParts:"Додати запчастину", newArticle:"Нова позиція",
-    name:"Назва", category:"Категорія", minStock:"Мін. залишок",
-    storageLocation:"Місце зберігання", unit:"Одиниця", add:"Додати",
-    stockOk:"OK", stockLow:"Мало", stockEmpty:"Порожньо", minLabel:"Мін",
-    invoicesTotal:"Накладних всього", noInvoices:"Накладних немає",
-    supplier:"Постачальник", amount:"Сума (EU)", boughtParts:"Куплені запчастини",
-    linkedJob:"Замовлення (опційно)", noJob:"без замовлення",
-    invoicePhoto:"Сфотографувати накладну", saveInvoice:"Зберегти",
-    invoiceSaved:"Накладну збережено!", newInvoice:"Нова накладна", photoOk:"Фото ок",
-    vehiclesTitle:"Управління технікою", vehiclesTotal:"Одиниць техніки",
-    attentionRequired:"Потребує уваги!", addVehicle:"Додати техніку",
-    newVehicle:"Нова техніка", plate:"Номерний знак", brand:"Марка / Модель",
-    buildYear:"Рік випуску", mileageLabel:"Пробіг (км)",
-    tuev:"ТЮВ до", insurance:"Страховка до", uvv:"UVV до",
-    nextService:"Наступне ТО", docsAndDates:"Документи & Терміни",
-    vehicleAdded:"Техніку додано!", backBtn:"Назад",
-    expiredDays:"д прострочено", emergencyBtn:"НАДІСЛАТИ ВИКЛИК",
-    emergencySent:"Виклик надіслано!", emergencyNotified:"Шеф і Jens повідомлені",
-    accident:"Аварія", breakdown:"Поломка", fire:"Пожежа", injury:"Травма",
-    whatHappened:"Що сталося?", urgentAlert:"Терміни спливають!",
-    urgentDesc:"ТЮВ, страховка або ТО менше 30 днів",
-    eveningReport:"Денний звіт", generateReport:"Створити звіт",
-    reportFor:"Звіт за", totalWork:"Час роботи", totalTravel:"Час у дорозі",
-    jobsDone:"Виконано", noReportJobs:"Сьогодні немає замовлень",
-    reportSent:"Звіт надіслано!", driverInspection:"Огляд водія",
-    startInspection:"Почати огляд", inspectionDone:"Огляд завершено",
-    noDefects:"Без зауважень", defectsFound:"Знайдено зауваження",
-    tires:"Шини", lights:"Освітлення", brakes:"Гальма",
-    body:"Кузов", documents:"Документи", inspectionNote:"Примітки",
-    today:"Сьогодні", week:"7 днів", all:"Весь час",
-    emergencyAlert:"Аварії", externalReports:"зовнішніх повідомлень",
-    immediateAttention:"Потрібна негайна увага",
-    jobsLabel:"Замовлень", openLabel:"Відкритих", inProgressLabel:"У роботі",
-    doneLabel:"Виконано", workTimeLabel:"Робочий час", travelLabel:"Час у дорозі",
-    weeklyTrend:"Замовлення останні 7 днів", workTypes:"Типи робіт",
-    mechanicLoad:"Завантаженість механіків", topProblems:"Топ проблемних машин",
-    docsExpiring:"Документи що закінчуються", fleetStatus:"Статус парку",
-    fleetOk:"OK", fleetSoon:"Скоро закінчується", fleetExpired:"Прострочено",
-    upcomingDates:"Терміни що закінчуються (60 днів)",
-    openByLocation:"Відкриті замовлення по локаціях", noOpenJobs:"Немає відкритих замовлень",
-    fleetByType:"Парк техніки", todayActivity:"Сьогодні активність",
-    noActivityToday:"Сьогодні активності немає", urgentAttention:"Термінова увага!",
-    vehiclesExpired:"техніка з простроченими документами",
-    days:"д", daysOverdue:"д!",
-    docTuev:"ТЮВ", docVers:"Стр.", docUvv:"UVV", docWartung:"ТО",
-    mgmtOverview:"Загальний огляд", fleetMgmt:"Управління парком",
-    totalCost:"Загальні витрати", costPerVehicle:"Витрати на техніку",
-    downtimeLabel:"Простій", downtimeTotal:"Загальний простій",
-    costTrend:"Динаміка витрат", topCostVehicles:"Найдорожча техніка",
-    repairCost:"Вартість ремонту", partsCost:"Запчастини",
-    laborCost:"Трудовитрати", costUnit:"€",
-    availability:"Доступність", availabilityFleet:"Доступність парку",
-    downtimePerVehicle:"Простій по техніці", minutes:"хв",
-    costThisMonth:"Витрати за період", vsLastMonth:"vs. минулий період",
-    mostExpensive:"Найдорожчі ремонти",
-    meldenTitle:"Повідомити про проблему", meldenType:"Тип проблеми", meldenLocation:"Місцезнаходження",
-    meldenDesc:"Опис...", meldenUrgent:"Терміново", meldenWait:"Може зачекати",
-    meldenSend:"НАДІСЛАТИ", meldenSending:"Надсилається...", meldenSent:"Надіслано!",
-    meldenNotified:"Майстерня повідомлена", meldenNew:"Нове повідомлення",
-    share:"Поделиться", print:"Печать", copied:"Скопировано!",
-    translating:"Перевожу...",
-    meldenBreakdown:"Поломка", incomingTab:"Входящие", noAlerts:"Нет новых заявок", fromDriver:"от Водителя", fromStapler:"от Штаплера", fromFPL:"от Jens", createJobFrom:"Создать заказ", alertReceived:"Новая заявка!", meldenAccident:"Аварія", meldenOther:"Інше",
-    partsSection:"Запчастини & Матеріали", partsType:"Тип запчастин",
-    noPartsLabel:"Без запчастин", inspectionLabel:"Огляд / ТО",
-    fromStockLabel:"Зі складу", buyLabel:"Потрібно купити",
-    usedLabel:"Б/В запчастина", partsDesc:"Опис",
-    invoiceNr:"Номер накладної", partsCostLabel:"Вартість (EUR)",
-    selectParts:"Вибрати запчастини", noParts:"Немає запчастин на складі",
-    partsAdded:"Запчастини додано", usedDesc:"Звідки? Опис...",
-    buyDesc:"Що купити?",
-    urgency:"Терміновість", enterCustom:"Ввести свій номер",
-    roleChef:"Шеф", roleFPL:"Менеджер парку", roleMechanic:"Механік",
+    appName:"LTG ", login:"і", logout:"",
+    selectUser:" ", enterPin:"і PIN", welcome:" ",
+    newJob:" ", myJobs:"ї ", dashboard:"",
+    archive:"і", lager:"", vehicles:"і",
+    vehicleType:" і", plateNumber:"",
+    location:"і", workType:" ", description:"",
+    photos:"", addPhotos:" ", travelTime:"  і",
+    startTravel:" ї", stopTravel:" ї",
+    startWork:" ", stopWork:" ",
+    saveReport:" і", reset:"",
+    status:"", date:"", duration:"і",
+    mechanic:"і", colleague:"",
+    withColleague:" ", alone:"",
+    repair:"", maintenance:"", inspection:"",
+    travelToShop:"ї  ", emergency:"і ",
+    saved:"", traveling:" і...", working:" і...",
+    truck:"і", semiTrailer:"іі", forklift:"",
+    trailer:"і", pkw:"PKW", other:"І", workshop:"",
+    totalJobs:" і", openJobs:"і", doneJobs:"",
+    travelTotal:"  і", workTotal:" ",
+    recentActivity:" і", searchArchive:"...",
+    open:"і", inProgress:" і", done:"",
+    reportTitle:" і", noJobs:"є ",
+    uploadPhoto:"", travelTo:"", travelBack:"",
+    both:" і",
+    lagerTitle:" & і", stockTab:"", invoicesTab:"і",
+    addInvoiceTab:" ", positions:"і",
+    lowEmpty:"/", totalPcs:" ", search:"...",
+    addParts:" ", newArticle:" і",
+    name:"", category:"і", minStock:"і. ",
+    storageLocation:"і і", unit:"", add:"",
+    stockOk:"OK", stockLow:"", stockEmpty:"", minLabel:"і",
+    invoicesTotal:" ", noInvoices:" є",
+    supplier:"", amount:" (EU)", boughtParts:"і ",
+    linkedJob:" (і)", noJob:" ",
+    invoicePhoto:" ", saveInvoice:"",
+    invoiceSaved:" !", newInvoice:" ", photoOk:" ",
+    vehiclesTitle:"і і", vehiclesTotal:" і",
+    attentionRequired:"є !", addVehicle:" і",
+    newVehicle:" і", plate:" ", brand:" / ",
+    buildYear:"і ", mileageLabel:"і ()",
+    tuev:" ", insurance:" ", uvv:"UVV ",
+    nextService:" ", docsAndDates:" & і",
+    vehicleAdded:"і !", backBtn:"",
+    expiredDays:" ", emergencyBtn:"І ",
+    emergencySent:" і!", emergencyNotified:" і Jens іі",
+    accident:"і", breakdown:"", fire:"", injury:"",
+    whatHappened:" ?", urgentAlert:"і !",
+    urgentDesc:",     30 і",
+    eveningReport:" і", generateReport:" і",
+    reportFor:"і ", totalWork:" ", totalTravel:"  і",
+    jobsDone:"", noReportJobs:"і є ",
+    reportSent:"і і!", driverInspection:" і",
+    startInspection:" ", inspectionDone:" ",
+    noDefects:" ", defectsFound:" ",
+    tires:"", lights:"і", brakes:"",
+    body:"", documents:"", inspectionNote:"і",
+    today:"і", week:"7 і", all:" ",
+    emergencyAlert:"ії", externalReports:"іі і",
+    immediateAttention:"і  ",
+    jobsLabel:"", openLabel:"і", inProgressLabel:" і",
+    doneLabel:"", workTimeLabel:" ", travelLabel:"  і",
+    weeklyTrend:" і 7 і", workTypes:" і",
+    mechanicLoad:"і іі", topProblems:"  ",
+    docsExpiring:"  і", fleetStatus:" ",
+    fleetOk:"OK", fleetSoon:" іє", fleetExpired:"",
+    upcomingDates:"і  і (60 і)",
+    openByLocation:"іі   і", noOpenJobs:"є і ",
+    fleetByType:" і", todayActivity:"і і",
+    noActivityToday:"і і є", urgentAttention:"і !",
+    vehiclesExpired:"і   ",
+    days:"", daysOverdue:"!",
+    docTuev:"", docVers:".", docUvv:"UVV", docWartung:"",
+    mgmtOverview:" ", fleetMgmt:"і ",
+    totalCost:"і ", costPerVehicle:"  і",
+    downtimeLabel:"і", downtimeTotal:" і",
+    costTrend:"і ", topCostVehicles:" і",
+    repairCost:"і ", partsCost:"",
+    laborCost:"", costUnit:"€",
+    availability:"і", availabilityFleet:"і ",
+    downtimePerVehicle:"і  іі", minutes:"",
+    costThisMonth:"  і", vsLastMonth:"vs.  і",
+    mostExpensive:"і ",
+    meldenTitle:"і  ", meldenType:" ", meldenLocation:"і",
+    meldenDesc:"...", meldenUrgent:"і", meldenWait:" ",
+    meldenSend:"І", meldenSending:"є...", meldenSent:"і!",
+    meldenNotified:" і", meldenNew:" і",
+    share:"", print:"", copied:"!",
+    translating:"...",
+    meldenBreakdown:"", incomingTab:"", noAlerts:"  ", fromDriver:" ", fromStapler:" ", fromFPL:" Jens", createJobFrom:" ", alertReceived:" !", meldenAccident:"і", meldenOther:"І",
+    partsSection:" & і", partsType:" ",
+    noPartsLabel:" ", inspectionLabel:" / ",
+    fromStockLabel:"і ", buyLabel:"і ",
+    usedLabel:"/ ", partsDesc:"",
+    invoiceNr:" ї", partsCostLabel:"і (EUR)",
+    selectParts:" ", noParts:"є   і",
+    partsAdded:" ", usedDesc:"і? ...",
+    buyDesc:" ?",
+    urgency:"іі", enterCustom:" і ",
+    roleChef:"", roleFPL:" ", roleMechanic:"і",
   },
 };
 
@@ -553,7 +553,7 @@ const USERS = [
 
 const LOCATIONS = ["Werkstatt", "HOC 1", "HOC 2", "HOC 3", "HOC 4", "HOC 5", "John Deere Bruchsal"];
 
-const SAMPLE_JOBS = [ // будет загружено из Supabase
+const SAMPLE_JOBS = [ // loaded from Supabase
   // 
   { id:"J001", mechanic:"roman", colleague:null, vehicleType:"truck", plate:"MA-LT 441", location:"HOC 2", workType:"repair", description:"Bremsen vorne – Belag verschlissen", status:"done", date:"2024-04-15", travelToMin:18, travelBackMin:18, workMin:95, photos:2, cost:124.50, downtime:95 },
   { id:"J002", mechanic:"petr", colleague:"roman", vehicleType:"forklift", plate:"STG-019", location:"HOC 4", workType:"maintenance", description:"Ölwechsel + Filter", status:"done", date:"2024-04-15", travelToMin:12, travelBackMin:10, workMin:45, photos:0, cost:89.00, downtime:45 },
@@ -1139,7 +1139,7 @@ function TimerBox({ label, icon, color, active, elapsed, savedMin, onToggle, onM
 // ── Auto-translate to German via Claude API ───────────────────────
 function translateToGerman(text) {
   if (!text || !text.trim()) return Promise.resolve(text);
-  if (!/[а-яёА-ЯЁіІїЇєЄ]/.test(text)) return Promise.resolve(text);
+  if (!/[--іІїЇєЄ]/.test(text)) return Promise.resolve(text);
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1335,7 +1335,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         </div>
       )}
 
-      {/* 1. Техника */}
+      {/* 1.  */}
       <Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: C.orange, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>🚛 {t.vehicleType}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -1355,7 +1355,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         </Field>
       </Card>
 
-      {/* 2. Тип работы + Описание */}
+      {/* 2.   +  */}
       <Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: C.blueLt, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>🔧 {t.workType}</div>
         <Field label={t.workType}>
@@ -1373,7 +1373,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         </Field>
       </Card>
 
-      {/* 3. Фото */}
+      {/* 3.  */}
       <Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>📷 {t.photos}</div>
         <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, border: `2px dashed ${C.border}`, borderRadius: 10, padding: "18px 20px", cursor: "pointer", color: C.gray300, fontSize: 14, fontWeight: 600, background: C.navyDark }}>
@@ -1394,7 +1394,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         )}
       </Card>
 
-      {/* 4. Запчасти & Материалы */}
+      {/* 4.  &  */}
       <Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.orange,
           textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 14 }}>
@@ -1590,7 +1590,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         )}
       </Card>
 
-      {/* 5. Механик / Коллега */}
+      {/* 5.  /  */}
       <Card style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14 }}>👥 {t.mechanic}/{t.colleague}</div>
         <div style={{ display: "flex", gap: 10, marginBottom: form.withColleague ? 12 : 0 }}>
@@ -1611,7 +1611,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         )}
       </Card>
 
-      {/* 6. Таймеры */}
+      {/* 6.  */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 16 }}>⏱ {t.travelTime}</div>
 
@@ -1654,7 +1654,7 @@ function NewJobForm({ user, jobs, setJobs, t, stock, prefill, onClearPrefill, on
         )}
       </Card>
 
-      {/* 7. Сохранить */}
+      {/* 7.  */}
       <div style={{ display: "flex", gap: 10 }}>
         <Btn onClick={handleSave} style={{ flex: 1 }}>{translating ? "🔄 "+t.translating||"Übersetze..." : "✅ "+t.saveReport}</Btn>
         <Btn variant="secondary" onClick={() => { setForm(emptyForm); setPhotos([]);
@@ -2350,7 +2350,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             </div>
           </div>
 
-          {/* INSPEKTIONEN — полная ширина под основным гридом */}
+          {/* INSPEKTIONEN - full width under grid */}
           {(function(){
             var todayInsp = inspections.filter(function(i){ return i.created_at && i.created_at.slice(0,10)===todayStr; });
             var mangelInsp = todayInsp.filter(function(i){ return i.status==="mangel"; });
@@ -2360,7 +2360,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 background:mangelInsp.length>0?"#ef444408":C.surface,
                 border:"1px solid "+(mangelInsp.length>0?"#ef444455":C.border),
                 borderRadius:10, padding:"16px 20px" }}>
-                {/* Заголовок */}
+                {/* Header */}
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                     <span style={{ fontSize:18 }}>🔍</span>
@@ -2381,7 +2381,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                     Alle Inspektionen →
                   </button>
                 </div>
-                {/* Таблица */}
+                {/*  */}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:8 }}>
                   {todayInsp.map(function(ins){
                     var isMangel = ins.status==="mangel";
@@ -2399,7 +2399,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                         background:isMangel?"#ef444410":C.bg,
                         border:"1px solid "+(isMangel?"#ef444444":C.border),
                         borderRadius:9, overflow:"hidden" }}>
-                        {/* Строка */}
+                        {/*  */}
                         <button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
                           style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                             width:"100%", background:"none", border:"none",
@@ -2426,7 +2426,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                               transition:"transform 0.2s", display:"inline-block" }}>▼</span>
                           </div>
                         </button>
-                        {/* Развёрнутый блок */}
+                        {/* Expanded block */}
                         {isOpen && (
                           <div style={{ borderTop:"1px solid "+C.border, padding:"12px 14px" }}>
                             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, marginBottom:10 }}>
@@ -4080,7 +4080,7 @@ function Archive({ jobs, user, t, inspections }) {
     inspection:"📋", from_stock:"📦", buy:"🛒", used:"♻", no_parts:"🔧"
   };
 
-  // Фильтр инспекций для поиска
+  // Filter inspections for search
   var filteredInsp = (inspections||[]).filter(function(i){
     return (i.plate||"").toLowerCase().includes(inspSearch.toLowerCase()) ||
            (i.driver||"").toLowerCase().includes(inspSearch.toLowerCase()) ||
@@ -4095,7 +4095,7 @@ function Archive({ jobs, user, t, inspections }) {
         {t.archive}
       </div>
 
-      {/* Таб-переключатель: Aufträge / Inspektion */}
+      {/* Tab switcher: Auftraege / Inspektion */}
       <div style={{ display:"flex", gap:8, marginBottom:20,
         background:C.surface, borderRadius:10, padding:4,
         border:"1px solid "+C.border, width:"fit-content" }}>
@@ -4124,7 +4124,7 @@ function Archive({ jobs, user, t, inspections }) {
         })}
       </div>
 
-      {/* ═══ ВКЛАДКА AUFTRÄGE ═══ */}
+      {/* Tab AUFTRAEGE */}
       {archTab === "auftraege" && (
         <div>
           <Input placeholder={`🔍 ${t.searchArchive}`} value={search}
@@ -4240,7 +4240,7 @@ function Archive({ jobs, user, t, inspections }) {
         </div>
       )}
 
-      {/* ═══ ВКЛАДКА INSPEKTION ═══ */}
+      {/* Tab INSPEKTION */}
       {archTab === "inspektion" && (
         <div>
           <input
@@ -4254,7 +4254,7 @@ function Archive({ jobs, user, t, inspections }) {
               fontFamily:"inherit", marginBottom:14 }}
           />
 
-          {/* Фильтр статуса */}
+          {/*   */}
           <div style={{ display:"flex", gap:6, marginBottom:14 }}>
             {[
               {k:"all",    label:"Alle"},
@@ -4312,7 +4312,7 @@ function Archive({ jobs, user, t, inspections }) {
               <Card key={ins.id} style={{ marginBottom:10,
                 borderColor:isMangel?"#ef444444":C.border,
                 background:isMangel?"#ef444408":C.surface }}>
-                {/* Заголовок строки */}
+                {/* Row header */}
                 <button onClick={function(){ setInspExpanded2(isOpen?null:ins.id); }}
                   style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                     width:"100%", background:"none", border:"none",
@@ -4340,11 +4340,11 @@ function Archive({ jobs, user, t, inspections }) {
                   </div>
                 </button>
 
-                {/* Развёрнутый блок */}
+                {/* Expanded block */}
                 {isOpen && (
                   <div style={{ marginTop:14, borderTop:"1px solid "+C.border, paddingTop:14 }}>
 
-                    {/* Чеклист */}
+                    {/* Checklist */}
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:14 }}>
                       {allKeys.map(function(k){
                         var isOk  = checks[k]&&!mangel[k];
@@ -4361,7 +4361,7 @@ function Archive({ jobs, user, t, inspections }) {
                       })}
                     </div>
 
-                    {/* Описание */}
+                    {/* Description */}
                     {(ins.defects||ins.defects_de) && (
                       <div style={{ background:C.bg, borderRadius:8,
                         padding:"10px 12px", marginBottom:12 }}>
@@ -4380,7 +4380,7 @@ function Archive({ jobs, user, t, inspections }) {
                       </div>
                     )}
 
-                    {/* Фото */}
+                    {/* Photos */}
                     {photos.length>0 && (
                       <div style={{ marginBottom:12 }}>
                         <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
@@ -4397,7 +4397,7 @@ function Archive({ jobs, user, t, inspections }) {
                       </div>
                     )}
 
-                    {/* PDF кнопка */}
+                    {/* PDF  */}
                     <button onClick={function(){ handlePrintInspection(ins); }}
                       style={{ width:"100%", background:"#1e4fa0", color:"#fff",
                         border:"none", borderRadius:9, padding:"10px 0",
