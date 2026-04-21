@@ -6,32 +6,29 @@
   <title>LTG Login</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
       background: #071225;
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      padding: 20px;
     }
     .box {
-      width: 360px;
-      max-width: calc(100vw - 32px);
+      width: 380px;
+      max-width: 100%;
       background: #0f1d3a;
       padding: 32px;
       border-radius: 24px;
       box-shadow: 0 18px 50px rgba(0,0,0,.35);
     }
-    h1 {
-      margin: 0 0 24px;
-      font-size: 28px;
-      font-weight: 800;
-    }
+    h1 { margin: 0 0 22px; font-size: 28px; font-weight: 800; }
     input {
       width: 100%;
-      box-sizing: border-box;
       margin: 0 0 16px;
       padding: 16px 18px;
       border: none;
@@ -49,62 +46,56 @@
       padding: 16px;
       cursor: pointer;
     }
+    button:disabled { opacity:.65; cursor:not-allowed; }
     .msg {
-      margin-top: 14px;
       min-height: 22px;
+      margin-top: 14px;
       color: #ffb4b4;
       font-size: 14px;
+      line-height: 1.35;
     }
   </style>
 </head>
 <body>
   <div class="box">
     <h1>Авторизоваться</h1>
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Пароль" />
+    <input id="email" type="email" placeholder="Email" autocomplete="username" />
+    <input id="password" type="password" placeholder="Пароль" autocomplete="current-password" />
     <button id="loginBtn">Авторизоваться</button>
     <div id="msg" class="msg"></div>
   </div>
 
   <script>
-    const supabase = window.supabase.createClient(
-      "https://vtswzvrflqoueowylidy.supabase.co",
-      "sb_publishable_8z54aRy2nVSWkT4n87ACjw_6StWhUxz"
-    );
-
+    const supabase = window.supabase.createClient("https://vtswzvrflqoueowylidy.supabase.co", "sb_publishable_8z54aRy2nVSWkT4n87ACjw_6StWhUxz");
     const msg = document.getElementById("msg");
     const btn = document.getElementById("loginBtn");
+
+    async function goDashboard() {
+      window.location.href = "/dashboard.html";
+    }
 
     async function login() {
       msg.textContent = "";
       btn.disabled = true;
       btn.textContent = "Вход...";
-
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         msg.textContent = "Ошибка входа: " + error.message;
         btn.disabled = false;
         btn.textContent = "Авторизоваться";
         return;
       }
-
-      window.location.href = "/dashboard.html";
+      goDashboard();
     }
 
     document.getElementById("loginBtn").addEventListener("click", login);
-
     document.getElementById("password").addEventListener("keydown", function(e) {
       if (e.key === "Enter") login();
     });
 
-    // обработка ссылки из письма восстановления
     async function handleRecovery() {
       const hash = window.location.hash || "";
       if (!hash.includes("access_token")) return;
@@ -112,7 +103,6 @@
       const params = new URLSearchParams(hash.substring(1));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
-
       if (!accessToken || !refreshToken) return;
 
       const { error: sessionError } = await supabase.auth.setSession({
@@ -141,7 +131,11 @@
       window.location.href = "/login.html";
     }
 
-    handleRecovery();
+    (async function boot() {
+      await handleRecovery();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) goDashboard();
+    })();
   </script>
 </body>
 </html>
