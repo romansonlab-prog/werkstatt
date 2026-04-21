@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>LTG Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing:border-box; }
+    body {
+      margin:0; min-height:100vh; background:#0f1623; color:#f8fafc;
+      font-family: Arial, Helvetica, sans-serif;
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .card {
+      width:100%; max-width:420px; background:#111c2e;
+      border:1px solid rgba(148,163,184,.22); border-radius:24px;
+      padding:28px; box-shadow:0 20px 60px rgba(0,0,0,.35);
+    }
+    .logo { text-align:center; margin-bottom:28px; }
+    .ltg { font-size:58px; font-weight:900; letter-spacing:-2px; line-height:1; }
+    .line { width:100px; height:7px; background:#e11d48; border-radius:99px; margin:18px auto 0; }
+    h1 { margin:0 0 8px; font-size:24px; text-align:center; }
+    .sub { color:#94a3b8; text-align:center; margin-bottom:26px; font-size:15px; }
+    label { display:block; font-size:12px; font-weight:900; letter-spacing:.5px; color:#94a3b8; text-transform:uppercase; margin:16px 0 8px; }
+    input {
+      width:100%; height:52px; border-radius:14px; border:1px solid rgba(148,163,184,.35);
+      background:#0b1220; color:#f8fafc; padding:0 14px; font-size:16px; outline:none;
+    }
+    input:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+    button {
+      width:100%; height:56px; border:0; border-radius:16px; margin-top:22px;
+      background:#16a34a; color:white; font-weight:900; font-size:16px; letter-spacing:.4px;
+      cursor:pointer;
+    }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .msg { min-height:22px; margin-top:16px; color:#fca5a5; text-align:center; font-size:14px; line-height:1.35; }
+    .hint { margin-top:24px; color:#64748b; text-align:center; font-size:13px; line-height:1.45; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">
+      <div class="ltg">LTG</div>
+      <div class="line"></div>
+    </div>
+
+    <h1>Login</h1>
+    <div class="sub">Bitte anmelden. Danach öffnet sich automatisch Ihre App.</div>
+
+    <form id="loginForm">
+      <label>E-Mail</label>
+      <input id="email" type="email" autocomplete="username" required placeholder="name@ltg.local" />
+
+      <label>Passwort</label>
+      <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+
+      <button id="btn" type="submit">Einloggen</button>
+      <div id="msg" class="msg"></div>
+    </form>
+
+    <div class="hint">Fahrer, Stapler, Mechaniker und Management bekommen automatisch nur den passenden Bereich.</div>
+  </main>
+
+  <script>
+    const SB_URL = 'https://vtswzvrflqoueowylidy.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI';
+    const supa = window.supabase.createClient(SB_URL, SB_KEY);
+
+    const roleTarget = {
+      driver: "fahrer.html",
+      forklift: "stapler.html",
+      mechanic: "mechanic.html",
+      manager: "dashboard.html",
+      admin: "index.html"
+    };
+
+    async function getProfile() {
+      const { data: { session } } = await supa.auth.getSession();
+      if (!session) return null;
+
+      const { data, error } = await supa
+        .from("user_profiles")
+        .select("role, display_name, active")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    }
+
+    async function redirectByRole() {
+      const profile = await getProfile();
+      if (!profile || !profile.active) {
+        document.getElementById("msg").textContent = "Kein aktives Benutzerprofil gefunden.";
+        return;
+      }
+      const target = roleTarget[profile.role] || "index.html";
+      window.location.href = target;
+    }
+
+    (async function boot() {
+      const { data: { session } } = await supa.auth.getSession();
+      if (session) {
+        try { await redirectByRole(); } catch(e) {}
+      }
+    })();
+
+    document.getElementById("loginForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btn");
+      const msg = document.getElementById("msg");
+      btn.disabled = true;
+      msg.textContent = "";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      const { error } = await supa.auth.signInWithPassword({ email, password });
+      if (error) {
+        msg.textContent = "Login fehlgeschlagen. E-Mail oder Passwort prüfen.";
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        await redirectByRole();
+      } catch (err) {
+        msg.textContent = "Login ok, aber Rolle nicht gefunden.";
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
