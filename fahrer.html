@@ -720,6 +720,7 @@ function App() {
 
   const [truckVehicle, setTruckVehicle] = useState(null);
   const [truckChecks, setTruckChecks] = useState({});
+  const [truckMangel, setTruckMangel] = useState({});
   const [truckDefects, setTruckDefects] = useState("");
   const [truckPhotos, setTruckPhotos] = useState([]);
   const [truckTranslated, setTruckTranslated] = useState("");
@@ -727,6 +728,7 @@ function App() {
 
   const [trailerVehicle, setTrailerVehicle] = useState(null);
   const [trailerChecks, setTrailerChecks] = useState({});
+  const [trailerMangel, setTrailerMangel] = useState({});
   const [trailerDefects, setTrailerDefects] = useState("");
   const [trailerPhotos, setTrailerPhotos] = useState([]);
   const [trailerTranslated, setTrailerTranslated] = useState("");
@@ -777,6 +779,24 @@ function App() {
     translateToGerman(lang !== "de" && truckDefects.trim() ? truckDefects : "")
       .then(function(tr) {
         if (tr && tr !== "") setTruckTranslated(tr);
+        var mangelItems = Object.keys(truckMangel).filter(function(k){ return truckMangel[k]; });
+        var inspId = "INS" + Date.now();
+        sbInsert("inspections", {
+          id: inspId,
+          type: "truck",
+          vehicle_id: truckVehicle ? truckVehicle.id : null,
+          plate: truckVehicle ? truckVehicle.plate : null,
+          brand: truckVehicle ? truckVehicle.brand : null,
+          driver: driverName || "",
+          checks: JSON.stringify(truckChecks),
+          mangel: JSON.stringify(truckMangel),
+          mangel_items: mangelItems.join(","),
+          defects: truckDefects || "",
+          defects_de: tr || "",
+          photos: JSON.stringify(truckPhotos),
+          status: mangelItems.length > 0 ? "mangel" : "ok",
+          created_at: new Date().toISOString(),
+        }).catch(function(e){ console.error("inspection save:", e); });
         setTruckLoading(false);
         setScreen("truckDone");
       });
@@ -787,6 +807,24 @@ function App() {
     translateToGerman(lang !== "de" && trailerDefects.trim() ? trailerDefects : "")
       .then(function(tr) {
         if (tr && tr !== "") setTrailerTranslated(tr);
+        var mangelItems = Object.keys(trailerMangel).filter(function(k){ return trailerMangel[k]; });
+        var inspId = "INS" + Date.now();
+        sbInsert("inspections", {
+          id: inspId,
+          type: "trailer",
+          vehicle_id: trailerVehicle ? trailerVehicle.id : null,
+          plate: trailerVehicle ? trailerVehicle.plate : null,
+          brand: trailerVehicle ? trailerVehicle.brand : null,
+          driver: driverName || "",
+          checks: JSON.stringify(trailerChecks),
+          mangel: JSON.stringify(trailerMangel),
+          mangel_items: mangelItems.join(","),
+          defects: trailerDefects || "",
+          defects_de: tr || "",
+          photos: JSON.stringify(trailerPhotos),
+          status: mangelItems.length > 0 ? "mangel" : "ok",
+          created_at: new Date().toISOString(),
+        }).catch(function(e){ console.error("inspection save:", e); });
         setTrailerLoading(false);
         setScreen("trailerDone");
       });
@@ -1034,22 +1072,46 @@ function App() {
                   </div>
                 </div>
               </div>
+              {/* Column headers */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
+                gap:6, marginBottom:8, paddingRight:4 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
+                  textTransform:"uppercase", letterSpacing:"0.5px" }}>Prüfpunkt</div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.green,
+                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>✓ OK</div>
+                <div style={{ fontSize:11, fontWeight:700, color:"#ef4444",
+                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>⚠ Mangel</div>
+              </div>
               {t.truckChecks.map(item => (
-                <button key={item.k}
-                  onClick={() => setTruckChecks(c => ({...c,[item.k]:!c[item.k]}))}
-                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    width:"100%", background:truckChecks[item.k] ? C.green+"18" : C.surface,
-                    border:"1px solid "+(truckChecks[item.k] ? C.green : C.border),
-                    borderRadius:12, padding:"14px 16px", marginBottom:10,
-                    cursor:"pointer", transition:"all 0.15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <span style={{ fontSize:22 }}>{item.emoji}</span>
-                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
-                      {item.label}
-                    </span>
+                <div key={item.k}
+                  style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
+                    gap:6, marginBottom:8, alignItems:"center",
+                    background: truckMangel[item.k] ? "#ef444412" : truckChecks[item.k] ? C.green+"12" : C.surface,
+                    border:"1px solid "+(truckMangel[item.k]?"#ef444444":truckChecks[item.k]?C.green+"44":C.border),
+                    borderRadius:12, padding:"12px 14px", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:20 }}>{item.emoji}</span>
+                    <span style={{ fontWeight:600, fontSize:13, color:C.white }}>{item.label}</span>
                   </div>
-                  <span style={{ fontSize:22 }}>{truckChecks[item.k] ? "✅" : "⬜"}</span>
-                </button>
+                  {/* OK button */}
+                  <button onClick={() => { setTruckChecks(c=>({...c,[item.k]:true})); setTruckMangel(c=>({...c,[item.k]:false})); }}
+                    style={{ background:truckChecks[item.k]&&!truckMangel[item.k] ? C.green : "transparent",
+                      border:"2px solid "+(truckChecks[item.k]&&!truckMangel[item.k]?C.green:C.border),
+                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      transition:"all 0.15s" }}>
+                    {truckChecks[item.k]&&!truckMangel[item.k] ? "✅" : "⬜"}
+                  </button>
+                  {/* Mangel button */}
+                  <button onClick={() => { setTruckMangel(c=>({...c,[item.k]:true})); setTruckChecks(c=>({...c,[item.k]:false})); }}
+                    style={{ background:truckMangel[item.k] ? "#ef4444" : "transparent",
+                      border:"2px solid "+(truckMangel[item.k]?"#ef4444":C.border),
+                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      transition:"all 0.15s" }}>
+                    {truckMangel[item.k] ? "⚠️" : "⬜"}
+                  </button>
+                </div>
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
@@ -1067,20 +1129,22 @@ function App() {
                 onRemove={i => setTruckPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allOk = t.truckChecks.every(item => truckChecks[item.k]);
+                const allAnswered = t.truckChecks.every(item => truckChecks[item.k] || truckMangel[item.k]);
+                const hasMangel = t.truckChecks.some(item => truckMangel[item.k]);
                 return (
                   <div>
-                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
-                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
+                    <div style={{ background:!allAnswered?"#64748b18":hasMangel?"#ef444418":C.green+"18",
+                      border:"1px solid "+(!allAnswered?"#64748b":hasMangel?"#ef4444":C.green)+"44",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
-                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                      fontSize:13, fontWeight:600,
+                      color:!allAnswered?C.gray3:hasMangel?"#ef4444":C.green }}>
+                      {!allAnswered ? "⬜ "+t.notAllChecked : hasMangel ? "⚠️ "+t.defectsFound : "✅ "+t.allChecked}
                     </div>
-                    <button onClick={submitTruck} disabled={!allOk}
-                      style={{ width:"100%", background:allOk?C.green:C.border,
-                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
+                    <button onClick={submitTruck} disabled={!allAnswered}
+                      style={{ width:"100%", background:allAnswered?hasMangel?"#ef4444":C.green:C.border,
+                        color:allAnswered?"#fff":C.gray5, border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
-                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
+                        cursor:allAnswered?"pointer":"not-allowed", opacity:allAnswered?1:0.6 }}>
                       {t.submit}
                     </button>
                   </div>
@@ -1106,7 +1170,7 @@ function App() {
           </div>
           <DoneCard label={t.defects} original={truckDefects} translated={truckTranslated} />
           <button onClick={() => {
-            setTruckChecks({}); setTruckDefects(""); setTruckPhotos([]);
+            setTruckChecks({}); setTruckMangel({}); setTruckDefects(""); setTruckPhotos([]);
             setTruckTranslated(""); setScreen("home");
           }} style={{ width:"100%", background:C.orange, color:"#000",
             border:"none", borderRadius:12, padding:"14px 0",
@@ -1161,22 +1225,44 @@ function App() {
                   </div>
                 </div>
               </div>
+              {/* Column headers */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
+                gap:6, marginBottom:8, paddingRight:4 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
+                  textTransform:"uppercase", letterSpacing:"0.5px" }}>Prüfpunkt</div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.green,
+                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>✓ OK</div>
+                <div style={{ fontSize:11, fontWeight:700, color:"#ef4444",
+                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>⚠ Mangel</div>
+              </div>
               {t.trailerChecks.map(item => (
-                <button key={item.k}
-                  onClick={() => setTrailerChecks(c => ({...c,[item.k]:!c[item.k]}))}
-                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                    width:"100%", background:trailerChecks[item.k]?C.green+"18":C.surface,
-                    border:"1px solid "+(trailerChecks[item.k]?C.green:C.border),
-                    borderRadius:12, padding:"14px 16px", marginBottom:10,
-                    cursor:"pointer", transition:"all 0.15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <span style={{ fontSize:22 }}>{item.emoji}</span>
-                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
-                      {item.label}
-                    </span>
+                <div key={item.k}
+                  style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
+                    gap:6, marginBottom:8, alignItems:"center",
+                    background: trailerMangel[item.k] ? "#ef444412" : trailerChecks[item.k] ? C.green+"12" : C.surface,
+                    border:"1px solid "+(trailerMangel[item.k]?"#ef444444":trailerChecks[item.k]?C.green+"44":C.border),
+                    borderRadius:12, padding:"12px 14px", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:20 }}>{item.emoji}</span>
+                    <span style={{ fontWeight:600, fontSize:13, color:C.white }}>{item.label}</span>
                   </div>
-                  <span style={{ fontSize:22 }}>{trailerChecks[item.k]?"✅":"⬜"}</span>
-                </button>
+                  <button onClick={() => { setTrailerChecks(c=>({...c,[item.k]:true})); setTrailerMangel(c=>({...c,[item.k]:false})); }}
+                    style={{ background:trailerChecks[item.k]&&!trailerMangel[item.k]?C.green:"transparent",
+                      border:"2px solid "+(trailerChecks[item.k]&&!trailerMangel[item.k]?C.green:C.border),
+                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      transition:"all 0.15s" }}>
+                    {trailerChecks[item.k]&&!trailerMangel[item.k] ? "✅" : "⬜"}
+                  </button>
+                  <button onClick={() => { setTrailerMangel(c=>({...c,[item.k]:true})); setTrailerChecks(c=>({...c,[item.k]:false})); }}
+                    style={{ background:trailerMangel[item.k]?"#ef4444":"transparent",
+                      border:"2px solid "+(trailerMangel[item.k]?"#ef4444":C.border),
+                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      transition:"all 0.15s" }}>
+                    {trailerMangel[item.k] ? "⚠️" : "⬜"}
+                  </button>
+                </div>
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
@@ -1194,20 +1280,22 @@ function App() {
                 onRemove={i => setTrailerPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allOk = t.trailerChecks.every(item => trailerChecks[item.k]);
+                const allAnswered = t.trailerChecks.every(item => trailerChecks[item.k] || trailerMangel[item.k]);
+                const hasMangel = t.trailerChecks.some(item => trailerMangel[item.k]);
                 return (
                   <div>
-                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
-                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
+                    <div style={{ background:!allAnswered?"#64748b18":hasMangel?"#ef444418":C.green+"18",
+                      border:"1px solid "+(!allAnswered?"#64748b":hasMangel?"#ef4444":C.green)+"44",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
-                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                      fontSize:13, fontWeight:600,
+                      color:!allAnswered?C.gray3:hasMangel?"#ef4444":C.green }}>
+                      {!allAnswered ? "⬜ "+t.notAllChecked : hasMangel ? "⚠️ "+t.defectsFound : "✅ "+t.allChecked}
                     </div>
-                    <button onClick={submitTrailer} disabled={!allOk}
-                      style={{ width:"100%", background:allOk?C.green:C.border,
-                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
+                    <button onClick={submitTrailer} disabled={!allAnswered}
+                      style={{ width:"100%", background:allAnswered?hasMangel?"#ef4444":C.green:C.border,
+                        color:allAnswered?"#fff":C.gray5, border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
-                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
+                        cursor:allAnswered?"pointer":"not-allowed", opacity:allAnswered?1:0.6 }}>
                       {t.submit}
                     </button>
                   </div>
@@ -1233,7 +1321,7 @@ function App() {
           </div>
           <DoneCard label={t.defects} original={trailerDefects} translated={trailerTranslated} />
           <button onClick={() => {
-            setTrailerChecks({}); setTrailerDefects(""); setTrailerPhotos([]);
+            setTrailerChecks({}); setTrailerMangel({}); setTrailerDefects(""); setTrailerPhotos([]);
             setTrailerTranslated(""); setScreen("home");
           }} style={{ width:"100%", background:C.orange, color:"#000",
             border:"none", borderRadius:12, padding:"14px 0",
