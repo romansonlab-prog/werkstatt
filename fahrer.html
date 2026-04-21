@@ -31,39 +31,26 @@ const sbInsert = async (table, data) => {
   } catch(e) { console.error("sb:", e); }
 };
 
-const createJob = async (payload) => {
+
+const createJob = async (data) => {
   try {
     const res = await fetch(SB_URL + "/rest/v1/jobs", {
       method: "POST",
-      headers: {
-        "apikey": SB_KEY,
-        "Authorization": "Bearer " + SB_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-      },
-      body: JSON.stringify(payload)
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json", "Prefer": "return=representation" },
+      body: JSON.stringify(data)
     });
     if (!res.ok) {
       const txt = await res.text();
-      throw new Error(txt || "Failed to create job");
+      throw new Error(txt || "createJob failed");
     }
-    const data = await res.json();
-    return data && data[0] ? data[0] : null;
-  } catch(e) {
-    console.error("createJob:", e);
-    throw e;
-  }
+    return await res.json();
+  } catch(e) { console.error("job:", e); throw e; }
 };
 
-const buildAssetLabel = (vehicle) => {
-  if (!vehicle) return "";
-  if (vehicle.brand) return vehicle.plate + " / " + vehicle.brand;
-  return vehicle.plate || "";
-};
+const toJobUrgency = (v) => v === "urgent" ? "critical" : "medium";
+const safeTrim = (v) => (v || "").trim();
 
-const mapUrgencyToJob = (value) => {
-  return value === "urgent" ? "critical" : "medium";
-};
 
 const C = {
   bg:"#f0f4f8", surface:"#ffffff", border:"#d0dbe8",
@@ -109,27 +96,27 @@ const T = {
     sentDesc:"Werkstatt und Schef benachrichtigt", newReport:"Neue Meldung",
     required:"Pflichtfeld", truck:"LKW", trailer:"Auflieger",
     truckChecks:[
-      {k:"tires",   emoji:"🔄", label:"Reifen und Luftdruck"},
-      {k:"lights",  emoji:"💡", label:"Beleuchtung"},
-      {k:"brakes",  emoji:"🛑", label:"Bremsen"},
-      {k:"mirrors", emoji:"🔍", label:"Spiegel und Scheiben"},
-      {k:"engine",  emoji:"⚙️", label:"Motor / Ol / Wasser"},
-      {k:"fuel",    emoji:"⛽", label:"Kraftstoff und AdBlue"},
-      {k:"docs",    emoji:"📋", label:"Fahrzeugpapiere"},
+      {k:"tires",   emoji:"TYR", label:"Reifen und Luftdruck"},
+      {k:"lights",  emoji:"LGT", label:"Beleuchtung"},
+      {k:"brakes",  emoji:"BRK", label:"Bremsen"},
+      {k:"mirrors", emoji:"VIS", label:"Spiegel und Scheiben"},
+      {k:"engine",  emoji:"ENG", label:"Motor / Ol / Wasser"},
+      {k:"fuel",    emoji:"FUEL", label:"Kraftstoff und AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Fahrzeugpapiere"},
     ],
     trailerChecks:[
-      {k:"tires",    emoji:"🔄", label:"Reifen und Luftdruck"},
-      {k:"lights",   emoji:"💡", label:"Beleuchtung und Blinker"},
-      {k:"body",     emoji:"🚛", label:"Karosserie / Plane"},
-      {k:"coupling", emoji:"🔗", label:"Kupplung und Sattel"},
-      {k:"doors",    emoji:"🚪", label:"Turen und Verschlusse"},
-      {k:"floor",    emoji:"📐", label:"Ladeboden"},
+      {k:"tires",    emoji:"TYR", label:"Reifen und Luftdruck"},
+      {k:"lights",   emoji:"LGT", label:"Beleuchtung und Blinker"},
+      {k:"body",     emoji:"BOX", label:"Karosserie / Plane"},
+      {k:"coupling", emoji:"CPL", label:"Kupplung und Sattel"},
+      {k:"doors",    emoji:"DR", label:"Turen und Verschlusse"},
+      {k:"floor",    emoji:"FLR", label:"Ladeboden"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Panne / Defekt"},
-      {k:"accident", emoji:"🚨",label:"Unfall"},
-      {k:"tire",     emoji:"🔄",label:"Reifenpanne"},
-      {k:"other",    emoji:"⚠️",label:"Sonstiges"},
+      {k:"breakdown",emoji:"DEF",label:"Panne / Defekt"},
+      {k:"accident", emoji:"SOS",label:"Unfall"},
+      {k:"tire",     emoji:"TYR",label:"Reifenpanne"},
+      {k:"other",    emoji:"!",label:"Sonstiges"},
     ],
   },
   ru:{
@@ -153,27 +140,27 @@ const T = {
     sentDesc:"Механики и шеф уведомлены", newReport:"Новое сообщение",
     required:"обязательное поле", truck:"LKW", trailer:"Полуприцеп",
     truckChecks:[
-      {k:"tires",   emoji:"🔄", label:"Шины и давление"},
-      {k:"lights",  emoji:"💡", label:"Освещение"},
-      {k:"brakes",  emoji:"🛑", label:"Тормоза"},
-      {k:"mirrors", emoji:"🔍", label:"Зеркала и стёкла"},
-      {k:"engine",  emoji:"⚙️", label:"Двигатель / масло / вода"},
-      {k:"fuel",    emoji:"⛽", label:"Топливо и AdBlue"},
-      {k:"docs",    emoji:"📋", label:"Документы"},
+      {k:"tires",   emoji:"TYR", label:"Шины и давление"},
+      {k:"lights",  emoji:"LGT", label:"Освещение"},
+      {k:"brakes",  emoji:"BRK", label:"Тормоза"},
+      {k:"mirrors", emoji:"VIS", label:"Зеркала и стёкла"},
+      {k:"engine",  emoji:"ENG", label:"Двигатель / масло / вода"},
+      {k:"fuel",    emoji:"FUEL", label:"Топливо и AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Документы"},
     ],
     trailerChecks:[
-      {k:"tires",    emoji:"🔄", label:"Шины и давление"},
-      {k:"lights",   emoji:"💡", label:"Освещение и поворотники"},
-      {k:"body",     emoji:"🚛", label:"Кузов / тент"},
-      {k:"coupling", emoji:"🔗", label:"Сцепка / седло"},
-      {k:"doors",    emoji:"🚪", label:"Двери и замки"},
-      {k:"floor",    emoji:"📐", label:"Пол кузова"},
+      {k:"tires",    emoji:"TYR", label:"Шины и давление"},
+      {k:"lights",   emoji:"LGT", label:"Освещение и поворотники"},
+      {k:"body",     emoji:"BOX", label:"Кузов / тент"},
+      {k:"coupling", emoji:"CPL", label:"Сцепка / седло"},
+      {k:"doors",    emoji:"DR", label:"Двери и замки"},
+      {k:"floor",    emoji:"FLR", label:"Пол кузова"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Поломка / неисправность"},
-      {k:"accident", emoji:"🚨",label:"Авария"},
-      {k:"tire",     emoji:"🔄",label:"Прокол шины"},
-      {k:"other",    emoji:"⚠️",label:"Другое"},
+      {k:"breakdown",emoji:"DEF",label:"Поломка / неисправность"},
+      {k:"accident", emoji:"SOS",label:"Авария"},
+      {k:"tire",     emoji:"TYR",label:"Прокол шины"},
+      {k:"other",    emoji:"!",label:"Другое"},
     ],
   },
   en:{
@@ -197,27 +184,27 @@ const T = {
     sentDesc:"Workshop and Chef notified", newReport:"New report",
     required:"required field", truck:"Truck", trailer:"Trailer",
     truckChecks:[
-      {k:"tires",   emoji:"🔄", label:"Tires and pressure"},
-      {k:"lights",  emoji:"💡", label:"Lights"},
-      {k:"brakes",  emoji:"🛑", label:"Brakes"},
-      {k:"mirrors", emoji:"🔍", label:"Mirrors and windows"},
-      {k:"engine",  emoji:"⚙️", label:"Engine / oil / water"},
-      {k:"fuel",    emoji:"⛽", label:"Fuel and AdBlue"},
-      {k:"docs",    emoji:"📋", label:"Documents"},
+      {k:"tires",   emoji:"TYR", label:"Tires and pressure"},
+      {k:"lights",  emoji:"LGT", label:"Lights"},
+      {k:"brakes",  emoji:"BRK", label:"Brakes"},
+      {k:"mirrors", emoji:"VIS", label:"Mirrors and windows"},
+      {k:"engine",  emoji:"ENG", label:"Engine / oil / water"},
+      {k:"fuel",    emoji:"FUEL", label:"Fuel and AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Documents"},
     ],
     trailerChecks:[
-      {k:"tires",    emoji:"🔄", label:"Tires and pressure"},
-      {k:"lights",   emoji:"💡", label:"Lights and indicators"},
-      {k:"body",     emoji:"🚛", label:"Body / tarpaulin"},
-      {k:"coupling", emoji:"🔗", label:"Coupling and saddle"},
-      {k:"doors",    emoji:"🚪", label:"Doors and locks"},
-      {k:"floor",    emoji:"📐", label:"Load floor"},
+      {k:"tires",    emoji:"TYR", label:"Tires and pressure"},
+      {k:"lights",   emoji:"LGT", label:"Lights and indicators"},
+      {k:"body",     emoji:"BOX", label:"Body / tarpaulin"},
+      {k:"coupling", emoji:"CPL", label:"Coupling and saddle"},
+      {k:"doors",    emoji:"DR", label:"Doors and locks"},
+      {k:"floor",    emoji:"FLR", label:"Load floor"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Breakdown / defect"},
-      {k:"accident", emoji:"🚨",label:"Accident"},
-      {k:"tire",     emoji:"🔄",label:"Flat tire"},
-      {k:"other",    emoji:"⚠️",label:"Other"},
+      {k:"breakdown",emoji:"DEF",label:"Breakdown / defect"},
+      {k:"accident", emoji:"SOS",label:"Accident"},
+      {k:"tire",     emoji:"TYR",label:"Flat tire"},
+      {k:"other",    emoji:"!",label:"Other"},
     ],
   },
   uk:{
@@ -241,27 +228,27 @@ const T = {
     sentDesc:"Механіки та шеф повідомлені", newReport:"Нове повідомлення",
     required:"обов'язкове поле", truck:"Вантажівка", trailer:"Напівпричіп",
     truckChecks:[
-      {k:"tires",   emoji:"🔄", label:"Шини та тиск"},
-      {k:"lights",  emoji:"💡", label:"Освітлення"},
-      {k:"brakes",  emoji:"🛑", label:"Гальма"},
-      {k:"mirrors", emoji:"🔍", label:"Дзеркала та скло"},
-      {k:"engine",  emoji:"⚙️", label:"Двигун / масло / вода"},
-      {k:"fuel",    emoji:"⛽", label:"Пальне та AdBlue"},
-      {k:"docs",    emoji:"📋", label:"Документи"},
+      {k:"tires",   emoji:"TYR", label:"Шини та тиск"},
+      {k:"lights",  emoji:"LGT", label:"Освітлення"},
+      {k:"brakes",  emoji:"BRK", label:"Гальма"},
+      {k:"mirrors", emoji:"VIS", label:"Дзеркала та скло"},
+      {k:"engine",  emoji:"ENG", label:"Двигун / масло / вода"},
+      {k:"fuel",    emoji:"FUEL", label:"Пальне та AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Документи"},
     ],
     trailerChecks:[
-      {k:"tires",    emoji:"🔄", label:"Шини та тиск"},
-      {k:"lights",   emoji:"💡", label:"Освітлення та поворотники"},
-      {k:"body",     emoji:"🚛", label:"Кузов / тент"},
-      {k:"coupling", emoji:"🔗", label:"Зчіпка / сідло"},
-      {k:"doors",    emoji:"🚪", label:"Двері та замки"},
-      {k:"floor",    emoji:"📐", label:"Підлога кузова"},
+      {k:"tires",    emoji:"TYR", label:"Шини та тиск"},
+      {k:"lights",   emoji:"LGT", label:"Освітлення та поворотники"},
+      {k:"body",     emoji:"BOX", label:"Кузов / тент"},
+      {k:"coupling", emoji:"CPL", label:"Зчіпка / сідло"},
+      {k:"doors",    emoji:"DR", label:"Двері та замки"},
+      {k:"floor",    emoji:"FLR", label:"Підлога кузова"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Поломка / несправність"},
-      {k:"accident", emoji:"🚨",label:"Аварія"},
-      {k:"tire",     emoji:"🔄",label:"Прокол шини"},
-      {k:"other",    emoji:"⚠️",label:"Інше"},
+      {k:"breakdown",emoji:"DEF",label:"Поломка / несправність"},
+      {k:"accident", emoji:"SOS",label:"Аварія"},
+      {k:"tire",     emoji:"TYR",label:"Прокол шини"},
+      {k:"other",    emoji:"!",label:"Інше"},
     ],
   },
   ro:{
@@ -285,19 +272,19 @@ const T = {
     sentDesc:"Atelierul si Seful notificati", newReport:"Raport nou",
     required:"obligatoriu", truck:"Camion", trailer:"Semiremorca",
     truckChecks:[
-      {k:"tires",emoji:"🔄",label:"Anvelope"},{k:"lights",emoji:"💡",label:"Iluminat"},
-      {k:"brakes",emoji:"🛑",label:"Frane"},{k:"mirrors",emoji:"🔍",label:"Oglinzi"},
-      {k:"engine",emoji:"⚙️",label:"Motor"},{k:"fuel",emoji:"⛽",label:"Combustibil"},
-      {k:"docs",emoji:"📋",label:"Documente"},
+      {k:"tires",emoji:"TYR",label:"Anvelope"},{k:"lights",emoji:"LGT",label:"Iluminat"},
+      {k:"brakes",emoji:"BRK",label:"Frane"},{k:"mirrors",emoji:"VIS",label:"Oglinzi"},
+      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Combustibil"},
+      {k:"docs",emoji:"DOC",label:"Documente"},
     ],
     trailerChecks:[
-      {k:"tires",emoji:"🔄",label:"Anvelope"},{k:"lights",emoji:"💡",label:"Iluminat"},
-      {k:"body",emoji:"🚛",label:"Caroserie"},{k:"coupling",emoji:"🔗",label:"Cuplaj"},
-      {k:"doors",emoji:"🚪",label:"Usi"},{k:"floor",emoji:"📐",label:"Podea"},
+      {k:"tires",emoji:"TYR",label:"Anvelope"},{k:"lights",emoji:"LGT",label:"Iluminat"},
+      {k:"body",emoji:"BOX",label:"Caroserie"},{k:"coupling",emoji:"CPL",label:"Cuplaj"},
+      {k:"doors",emoji:"DR",label:"Usi"},{k:"floor",emoji:"FLR",label:"Podea"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Pana"},{k:"accident",emoji:"🚨",label:"Accident"},
-      {k:"tire",emoji:"🔄",label:"Cauciuc"},{k:"other",emoji:"⚠️",label:"Altele"},
+      {k:"breakdown",emoji:"DEF",label:"Pana"},{k:"accident",emoji:"SOS",label:"Accident"},
+      {k:"tire",emoji:"TYR",label:"Cauciuc"},{k:"other",emoji:"!",label:"Altele"},
     ],
   },
   hu:{
@@ -321,19 +308,19 @@ const T = {
     sentDesc:"Muhely es Fonok ertesitve", newReport:"Uj jelentes",
     required:"kotelezo", truck:"Teherauto", trailer:"Potkocsi",
     truckChecks:[
-      {k:"tires",emoji:"🔄",label:"Gumik"},{k:"lights",emoji:"💡",label:"Vilagitas"},
-      {k:"brakes",emoji:"🛑",label:"Fekek"},{k:"mirrors",emoji:"🔍",label:"Tukrok"},
-      {k:"engine",emoji:"⚙️",label:"Motor"},{k:"fuel",emoji:"⛽",label:"Uzemanyag"},
-      {k:"docs",emoji:"📋",label:"Okmanyok"},
+      {k:"tires",emoji:"TYR",label:"Gumik"},{k:"lights",emoji:"LGT",label:"Vilagitas"},
+      {k:"brakes",emoji:"BRK",label:"Fekek"},{k:"mirrors",emoji:"VIS",label:"Tukrok"},
+      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Uzemanyag"},
+      {k:"docs",emoji:"DOC",label:"Okmanyok"},
     ],
     trailerChecks:[
-      {k:"tires",emoji:"🔄",label:"Gumik"},{k:"lights",emoji:"💡",label:"Vilagitas"},
-      {k:"body",emoji:"🚛",label:"Karosszeria"},{k:"coupling",emoji:"🔗",label:"Kapcsolo"},
-      {k:"doors",emoji:"🚪",label:"Ajtok"},{k:"floor",emoji:"📐",label:"Padlo"},
+      {k:"tires",emoji:"TYR",label:"Gumik"},{k:"lights",emoji:"LGT",label:"Vilagitas"},
+      {k:"body",emoji:"BOX",label:"Karosszeria"},{k:"coupling",emoji:"CPL",label:"Kapcsolo"},
+      {k:"doors",emoji:"DR",label:"Ajtok"},{k:"floor",emoji:"FLR",label:"Padlo"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Meghibasodas"},{k:"accident",emoji:"🚨",label:"Baleset"},
-      {k:"tire",emoji:"🔄",label:"Defekt"},{k:"other",emoji:"⚠️",label:"Egyeb"},
+      {k:"breakdown",emoji:"DEF",label:"Meghibasodas"},{k:"accident",emoji:"SOS",label:"Baleset"},
+      {k:"tire",emoji:"TYR",label:"Defekt"},{k:"other",emoji:"!",label:"Egyeb"},
     ],
   },
   cs:{
@@ -357,19 +344,19 @@ const T = {
     sentDesc:"Dilna a Sef informovani", newReport:"Nova zprava",
     required:"povinne", truck:"Nakladak", trailer:"Prives",
     truckChecks:[
-      {k:"tires",emoji:"🔄",label:"Pneumatiky"},{k:"lights",emoji:"💡",label:"Osvetleni"},
-      {k:"brakes",emoji:"🛑",label:"Brzdy"},{k:"mirrors",emoji:"🔍",label:"Zrcatka"},
-      {k:"engine",emoji:"⚙️",label:"Motor"},{k:"fuel",emoji:"⛽",label:"Palivo"},
-      {k:"docs",emoji:"📋",label:"Doklady"},
+      {k:"tires",emoji:"TYR",label:"Pneumatiky"},{k:"lights",emoji:"LGT",label:"Osvetleni"},
+      {k:"brakes",emoji:"BRK",label:"Brzdy"},{k:"mirrors",emoji:"VIS",label:"Zrcatka"},
+      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Palivo"},
+      {k:"docs",emoji:"DOC",label:"Doklady"},
     ],
     trailerChecks:[
-      {k:"tires",emoji:"🔄",label:"Pneumatiky"},{k:"lights",emoji:"💡",label:"Osvetleni"},
-      {k:"body",emoji:"🚛",label:"Karoserie"},{k:"coupling",emoji:"🔗",label:"Spojka"},
-      {k:"doors",emoji:"🚪",label:"Dvere"},{k:"floor",emoji:"📐",label:"Podlaha"},
+      {k:"tires",emoji:"TYR",label:"Pneumatiky"},{k:"lights",emoji:"LGT",label:"Osvetleni"},
+      {k:"body",emoji:"BOX",label:"Karoserie"},{k:"coupling",emoji:"CPL",label:"Spojka"},
+      {k:"doors",emoji:"DR",label:"Dvere"},{k:"floor",emoji:"FLR",label:"Podlaha"},
     ],
     types:[
-      {k:"breakdown",emoji:"🔴",label:"Porucha"},{k:"accident",emoji:"🚨",label:"Nehoda"},
-      {k:"tire",emoji:"🔄",label:"Defekt"},{k:"other",emoji:"⚠️",label:"Jine"},
+      {k:"breakdown",emoji:"DEF",label:"Porucha"},{k:"accident",emoji:"SOS",label:"Nehoda"},
+      {k:"tire",emoji:"TYR",label:"Defekt"},{k:"other",emoji:"!",label:"Jine"},
     ],
   },
 };
@@ -751,6 +738,7 @@ function App() {
   const [truckPhotos, setTruckPhotos] = useState([]);
   const [truckTranslated, setTruckTranslated] = useState("");
   const [truckLoading, setTruckLoading] = useState(false);
+  const [truckResult, setTruckResult] = useState("ok");
 
   const [trailerVehicle, setTrailerVehicle] = useState(null);
   const [trailerChecks, setTrailerChecks] = useState({});
@@ -758,6 +746,7 @@ function App() {
   const [trailerPhotos, setTrailerPhotos] = useState([]);
   const [trailerTranslated, setTrailerTranslated] = useState("");
   const [trailerLoading, setTrailerLoading] = useState(false);
+  const [trailerResult, setTrailerResult] = useState("ok");
 
   const [bd, setBd] = useState({vehicle:"",type:"",location:"",description:"",urgency:"",photos:[]});
   const [bdSent, setBdSent] = useState(false);
@@ -769,75 +758,59 @@ function App() {
   const t = T[lang];
 
   const submitTruck = function() {
-    if (!truckVehicle || !driverName) return;
     setTruckLoading(true);
-    translateToGerman(lang !== "de" && truckDefects.trim() ? truckDefects : "")
-      .then(function(tr) {
+    translateToGerman(lang !== "de" && safeTrim(truckDefects) ? truckDefects : "")
+      .then(async function(tr) {
         if (tr && tr !== "") setTruckTranslated(tr);
-        return createJob({
-          source_app: "driver",
-          source_type: "inspection_truck",
-          asset_type: "truck",
-          asset_label: buildAssetLabel(truckVehicle),
-          reporter_name: driverName || "",
-          reporter_contact: driverName || "",
-          language: lang || "de",
-          urgency: "low",
-          status: "new",
-          description_raw: truckDefects && truckDefects.trim() ? truckDefects.trim() : "Truck inspection completed",
-          description_de: tr && tr.trim() ? tr.trim() : (truckDefects && truckDefects.trim() ? truckDefects.trim() : "LKW-Inspektion abgeschlossen"),
-          checklist_json: {
-            inspection_type: "truck",
-            checks: truckChecks,
-            all_checked: T[lang].truckChecks.every(function(c){ return !!truckChecks[c.k]; })
-          },
-          defects_json: {
-            defects_text: truckDefects || "",
-            result: truckDefects && truckDefects.trim() ? "defects_found" : "ok",
-            photos: truckPhotos || []
-          }
-        }).catch(function(e){ console.error("truck job:", e); });
-      })
-      .finally(function() {
+        try {
+          await createJob({
+            source_app: "driver",
+            source_type: "inspection_truck",
+            asset_type: "truck",
+            asset_label: truckVehicle ? ((truckVehicle.plate || "") + (truckVehicle.brand ? " - " + truckVehicle.brand : "")) : "",
+            reporter_name: driverName || "",
+            reporter_contact: driverName || "",
+            language: lang || "de",
+            urgency: "low",
+            status: "new",
+            description_raw: safeTrim(truckDefects) || (truckResult === "ok" ? "Truck inspection OK" : "Truck inspection not OK"),
+            description_de: (tr && tr !== "") ? tr : (safeTrim(truckDefects) || (truckResult === "ok" ? "LKW-Inspektion OK" : "LKW-Inspektion nicht OK")),
+            checklist_json: { inspection_type: "truck", checks: truckChecks },
+            defects_json: { result: truckResult, defects_text: truckDefects || "", photos: truckPhotos || [] }
+          });
+        } catch(e) {}
         setTruckLoading(false);
         setScreen("truckDone");
-      });
+      })
+      .catch(function(){ setTruckLoading(false); setScreen("truckDone"); });
   };
 
   const submitTrailer = function() {
-    if (!trailerVehicle || !driverName) return;
     setTrailerLoading(true);
-    translateToGerman(lang !== "de" && trailerDefects.trim() ? trailerDefects : "")
-      .then(function(tr) {
+    translateToGerman(lang !== "de" && safeTrim(trailerDefects) ? trailerDefects : "")
+      .then(async function(tr) {
         if (tr && tr !== "") setTrailerTranslated(tr);
-        return createJob({
-          source_app: "driver",
-          source_type: "inspection_trailer",
-          asset_type: "trailer",
-          asset_label: buildAssetLabel(trailerVehicle),
-          reporter_name: driverName || "",
-          reporter_contact: driverName || "",
-          language: lang || "de",
-          urgency: "low",
-          status: "new",
-          description_raw: trailerDefects && trailerDefects.trim() ? trailerDefects.trim() : "Trailer inspection completed",
-          description_de: tr && tr.trim() ? tr.trim() : (trailerDefects && trailerDefects.trim() ? trailerDefects.trim() : "Auflieger-Inspektion abgeschlossen"),
-          checklist_json: {
-            inspection_type: "trailer",
-            checks: trailerChecks,
-            all_checked: T[lang].trailerChecks.every(function(c){ return !!trailerChecks[c.k]; })
-          },
-          defects_json: {
-            defects_text: trailerDefects || "",
-            result: trailerDefects && trailerDefects.trim() ? "defects_found" : "ok",
-            photos: trailerPhotos || []
-          }
-        }).catch(function(e){ console.error("trailer job:", e); });
-      })
-      .finally(function() {
+        try {
+          await createJob({
+            source_app: "driver",
+            source_type: "inspection_trailer",
+            asset_type: "trailer",
+            asset_label: trailerVehicle ? ((trailerVehicle.plate || "") + (trailerVehicle.brand ? " - " + trailerVehicle.brand : "")) : "",
+            reporter_name: driverName || "",
+            reporter_contact: driverName || "",
+            language: lang || "de",
+            urgency: "low",
+            status: "new",
+            description_raw: safeTrim(trailerDefects) || (trailerResult === "ok" ? "Trailer inspection OK" : "Trailer inspection not OK"),
+            description_de: (tr && tr !== "") ? tr : (safeTrim(trailerDefects) || (trailerResult === "ok" ? "Auflieger-Inspektion OK" : "Auflieger-Inspektion nicht OK")),
+            checklist_json: { inspection_type: "trailer", checks: trailerChecks },
+            defects_json: { result: trailerResult, defects_text: trailerDefects || "", photos: trailerPhotos || [] }
+          });
+        } catch(e) {}
         setTrailerLoading(false);
         setScreen("trailerDone");
-      });
+      })
+      .catch(function(){ setTrailerLoading(false); setScreen("trailerDone"); });
   };
 
   const submitBreakdown = function() {
@@ -846,43 +819,34 @@ function App() {
     setBdSending(true);
     var alertId = "A" + Date.now();
     translateToGerman(lang !== "de" && bd.description.trim() ? bd.description : "")
-      .then(function(tr) {
+      .then(async function(tr) {
         if (tr && tr !== "") setBdTranslated(tr);
-        var vehicleType = bd.vehicle && bd.vehicle.vtype === "trailer" ? "trailer" : "truck";
-        return Promise.all([
-          createJob({
+        try {
+          await createJob({
             source_app: "driver",
-            source_type: vehicleType === "trailer" ? "breakdown_trailer" : "breakdown_truck",
-            asset_type: vehicleType,
-            asset_label: buildAssetLabel(bd.vehicle),
+            source_type: bd.vehicle === "trailer" ? "breakdown_trailer" : "breakdown_truck",
+            asset_type: bd.vehicle === "trailer" ? "trailer" : "truck",
+            asset_label: bd.plate || bd.vehicle || "",
             reporter_name: driverName || "",
             reporter_contact: driverName || "",
             language: lang || "de",
-            urgency: mapUrgencyToJob(bd.urgency),
+            urgency: toJobUrgency(bd.urgency),
             status: "new",
             location_label: bd.location || "",
             description_raw: bd.description || "",
-            description_de: tr && tr.trim() ? tr.trim() : (bd.description || ""),
-            checklist_json: null,
-            defects_json: {
-              issue_type: bd.type || "breakdown",
-              location: bd.location || "",
-              urgent: bd.urgency === "urgent",
-              photos: bd.photos || []
-            }
-          }).catch(function(e){ console.error("breakdown job:", e); }),
-          sbInsert("alerts", {
-            id: alertId, type: bd.type || "breakdown",
-            plate: bd.vehicle ? bd.vehicle.plate : null, location: bd.location || "",
-            description: bd.description || "", urgency: bd.urgency || "urgent",
-            sender: driverName || "driver", sender_app: "fahrer", status: "open",
-          }).catch(function(e){ console.error("bd alert:", e); })
-        ]);
-      })
-      .finally(function() {
+            description_de: (tr && tr !== "") ? tr : (bd.description || ""),
+            defects_json: { issue_type: bd.type || "breakdown", urgent: bd.urgency === "urgent", photos: bd.photos || [] }
+          });
+        } catch(e) {}
         setBdSending(false);
         setBdAlertId(alertId);
         setBdAlertStatus("open");
+        sbInsert("alerts", {
+          id: alertId, type: bd.type || "breakdown",
+          plate: bd.plate || null, location: bd.location || "",
+          description: bd.description || "", urgency: bd.urgency || "urgent",
+          sender: driverName || "driver", sender_app: "fahrer", status: "open",
+        }).catch(function(e){ console.error("bd alert:", e); });
         setBdSent(true);
         var pollInterval = setInterval(function() {
           fetch(SB_URL + "/rest/v1/alerts?id=eq." + alertId + "&select=status", {
@@ -895,7 +859,8 @@ function App() {
               }
             }).catch(function(){});
         }, 10000);
-      });
+      })
+      .catch(function(){ setBdSending(false); });
   };
 
   const DoneCard = ({ label, original, translated, color }) => (
@@ -959,7 +924,13 @@ function App() {
       {screen === "home" && (
         <div style={{ padding:"24px 16px", maxWidth:460, margin:"0 auto" }}>
           <div style={{ textAlign:"center", marginBottom:28 }}>
-            <div style={{ fontSize:44, marginBottom:8 }}>🚛</div>
+            <div style={{ display:"inline-flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+              width:96, height:58, borderRadius:14, marginBottom:10,
+              background:"linear-gradient(135deg, #1a3a6b, #0f2445)",
+              border:"1px solid rgba(200,168,75,0.65)", boxShadow:"0 10px 24px rgba(26,58,107,0.22)" }}>
+              <div style={{ color:C.orange, fontSize:20, fontWeight:900, letterSpacing:"1.5px", lineHeight:1 }}>LTG</div>
+              <div style={{ color:"#fff", fontSize:9, fontWeight:800, letterSpacing:"1.2px", marginTop:5 }}>FLEET CHECK</div>
+            </div>
             <div style={{ fontSize:20, fontWeight:900 }}>{t.title}</div>
             <div style={{ fontSize:13, color:C.gray5, marginTop:3 }}>{t.subtitle}</div>
           </div>
@@ -976,18 +947,21 @@ function App() {
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             {[
-              { screen:"truckSetup", emoji:"🚛", label:t.inspectTruck,
+              { screen:"truckSetup", emoji:"LKW", label:t.inspectTruck,
                 sub:t.truckChecks.length+" "+(t.points||"Punkte"), color:C.green, bg:"#16a34a" },
-              { screen:"trailerSetup", emoji:"🚜", label:t.inspectTrailer,
+              { screen:"trailerSetup", emoji:"TRL", label:t.inspectTrailer,
                 sub:t.trailerChecks.length+" "+(t.points||"Punkte"), color:C.blue, bg:"#3b82f6" },
-              { screen:"breakdown", emoji:"🚨", label:t.reportBreakdown,
+              { screen:"breakdown", emoji:"SOS", label:t.reportBreakdown,
                 sub:t.breakdownTitle, color:C.red, bg:"#dc2626" },
             ].map(btn => (
               <button key={btn.screen} onClick={() => setScreen(btn.screen)}
                 style={{ background:"linear-gradient(135deg,"+btn.bg+"22,"+btn.bg+"11)",
                   border:"2px solid "+btn.color, borderRadius:16,
                   padding:"20px 18px", cursor:"pointer", textAlign:"left" }}>
-                <div style={{ fontSize:32, marginBottom:6 }}>{btn.emoji}</div>
+                <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+                    minWidth:54, height:34, padding:"0 12px", borderRadius:10, marginBottom:8,
+                    background:btn.color+"18", border:"1px solid "+btn.color,
+                    color:btn.color, fontSize:13, fontWeight:900, letterSpacing:"0.8px" }}>{btn.emoji}</div>
                 <div style={{ fontSize:17, fontWeight:900, color:C.white, marginBottom:3 }}>
                   {btn.label}
                 </div>
@@ -1024,7 +998,7 @@ function App() {
         <div style={{ padding:"16px", maxWidth:460, margin:"0 auto" }}>
           {truckLoading ? (
             <div style={{ textAlign:"center", padding:60 }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>🔄</div>
+              <div style={{ fontSize:22, fontWeight:900, letterSpacing:"1px", marginBottom:12 }}>...</div>
               <div style={{ color:C.orange, fontWeight:700 }}>{t.translating}</div>
             </div>
           ) : (
@@ -1035,7 +1009,7 @@ function App() {
                 {t.back}
               </button>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
-                <span style={{ fontSize:28 }}>🚛</span>
+                <span style={{ minWidth:46, height:30, borderRadius:8, display:"inline-flex", alignItems:"center", justifyContent:"center", background:C.blue+"18", border:"1px solid "+C.blue, color:C.blue, fontSize:12, fontWeight:900, letterSpacing:"0.8px" }}>LKW</span>
                 <div>
                   <div style={{ fontSize:17, fontWeight:800 }}>{t.inspectTruck}</div>
                   <div style={{ fontSize:13, color:C.gray5 }}>
@@ -1052,7 +1026,7 @@ function App() {
                     borderRadius:12, padding:"14px 16px", marginBottom:10,
                     cursor:"pointer", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <span style={{ fontSize:22 }}>{item.emoji}</span>
+                    <span style={{ minWidth:42, height:26, borderRadius:7, display:"inline-flex", alignItems:"center", justifyContent:"center", background:"rgba(26,58,107,0.08)", border:"1px solid rgba(26,58,107,0.18)", color:C.navy, fontSize:10, fontWeight:900, letterSpacing:"0.4px" }}>{item.emoji}</span>
                     <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
                       {item.label}
                     </span>
@@ -1062,6 +1036,19 @@ function App() {
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", marginBottom:8 }}>Status</div>
+                <div onClick={() => setTruckResult(truckResult === "ok" ? "not_ok" : "ok")}
+                  style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:999,
+                    padding:4, marginBottom:12, cursor:"pointer", position:"relative", height:42 }}>
+                  <div style={{ position:"absolute", top:4, left:truckResult === "ok" ? 4 : "calc(50% + 0px)",
+                    width:"calc(50% - 4px)", height:34, borderRadius:999,
+                    background:truckResult === "ok" ? C.green : C.red, transition:"all 0.2s" }} />
+                  <div style={{ position:"relative", zIndex:1, display:"grid", gridTemplateColumns:"1fr 1fr", height:"100%", alignItems:"center", textAlign:"center", fontWeight:800, fontSize:13 }}>
+                    <div style={{ color:truckResult === "ok" ? "#fff" : C.gray3 }}>OK</div>
+                    <div style={{ color:truckResult === "not_ok" ? "#fff" : C.gray3 }}>NICHT OK</div>
+                  </div>
+                </div>
                 <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
                   textTransform:"uppercase", marginBottom:8 }}>{t.defects}</div>
                 <textarea value={truckDefects} onChange={e => setTruckDefects(e.target.value)}
@@ -1076,21 +1063,22 @@ function App() {
                 onRemove={i => setTruckPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allOk = t.truckChecks.every(item => truckChecks[item.k]);
+                const allChecked = t.truckChecks.every(item => truckChecks[item.k]);
+                const okState = truckResult === "ok";
                 return (
                   <div>
-                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
-                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
+                    <div style={{ background:okState?C.green+"18":C.yellow+"18",
+                      border:"1px solid "+(okState?C.green:C.yellow)+"44",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
-                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                      fontSize:13, color:okState?C.green:C.yellow, fontWeight:600 }}>
+                      {okState ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
                     </div>
-                    <button onClick={submitTruck} disabled={!allOk}
-                      style={{ width:"100%", background:allOk?C.green:C.border,
-                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
+                    <button onClick={submitTruck}
+                      style={{ width:"100%", background:okState?C.green:C.orange,
+                        color:okState?"#fff":"#000", border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
-                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
-                      {t.submit}
+                        cursor:"pointer", opacity:1 }}>
+                      {t.submit}{!allChecked ? " (partial)" : ""}
                     </button>
                   </div>
                 );
@@ -1104,19 +1092,19 @@ function App() {
       {screen === "truckDone" && (
         <div style={{ padding:"40px 16px", maxWidth:460, margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:64, marginBottom:12 }}>
-            {truckDefects.trim() ? "⚠️" : "✅"}
+            {truckResult === "not_ok" ? "⚠️" : "✅"}
           </div>
           <div style={{ fontSize:22, fontWeight:900, marginBottom:6,
-            color:truckDefects.trim()?C.yellow:C.green }}>
+            color:truckResult === "not_ok" ? C.yellow : C.green }}>
             {t.done}
           </div>
           <div style={{ fontSize:14, color:C.gray3, marginBottom:24 }}>
-            {truckDefects.trim() ? t.defectsFound : t.ok}
+            {truckResult === "not_ok" ? t.defectsFound : t.ok}
           </div>
           <DoneCard label={t.defects} original={truckDefects} translated={truckTranslated} />
           <button onClick={() => {
             setTruckChecks({}); setTruckDefects(""); setTruckPhotos([]);
-            setTruckTranslated(""); setScreen("home");
+            setTruckTranslated(""); setTruckResult("ok"); setScreen("home");
           }} style={{ width:"100%", background:C.orange, color:"#000",
             border:"none", borderRadius:12, padding:"14px 0",
             fontWeight:900, fontSize:15, cursor:"pointer" }}>
@@ -1151,7 +1139,7 @@ function App() {
         <div style={{ padding:"16px", maxWidth:460, margin:"0 auto" }}>
           {trailerLoading ? (
             <div style={{ textAlign:"center", padding:60 }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>🔄</div>
+              <div style={{ fontSize:22, fontWeight:900, letterSpacing:"1px", marginBottom:12 }}>...</div>
               <div style={{ color:C.orange, fontWeight:700 }}>{t.translating}</div>
             </div>
           ) : (
@@ -1162,7 +1150,7 @@ function App() {
                 {t.back}
               </button>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
-                <span style={{ fontSize:28 }}>🚜</span>
+                <span style={{ minWidth:46, height:30, borderRadius:8, display:"inline-flex", alignItems:"center", justifyContent:"center", background:C.blue+"18", border:"1px solid "+C.blue, color:C.blue, fontSize:12, fontWeight:900, letterSpacing:"0.8px" }}>TRL</span>
                 <div>
                   <div style={{ fontSize:17, fontWeight:800 }}>{t.inspectTrailer}</div>
                   <div style={{ fontSize:13, color:C.gray5 }}>
@@ -1179,7 +1167,7 @@ function App() {
                     borderRadius:12, padding:"14px 16px", marginBottom:10,
                     cursor:"pointer", transition:"all 0.15s" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <span style={{ fontSize:22 }}>{item.emoji}</span>
+                    <span style={{ minWidth:42, height:26, borderRadius:7, display:"inline-flex", alignItems:"center", justifyContent:"center", background:"rgba(26,58,107,0.08)", border:"1px solid rgba(26,58,107,0.18)", color:C.navy, fontSize:10, fontWeight:900, letterSpacing:"0.4px" }}>{item.emoji}</span>
                     <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
                       {item.label}
                     </span>
@@ -1189,6 +1177,19 @@ function App() {
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
+                  textTransform:"uppercase", marginBottom:8 }}>Status</div>
+                <div onClick={() => setTrailerResult(trailerResult === "ok" ? "not_ok" : "ok")}
+                  style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:999,
+                    padding:4, marginBottom:12, cursor:"pointer", position:"relative", height:42 }}>
+                  <div style={{ position:"absolute", top:4, left:trailerResult === "ok" ? 4 : "calc(50% + 0px)",
+                    width:"calc(50% - 4px)", height:34, borderRadius:999,
+                    background:trailerResult === "ok" ? C.green : C.red, transition:"all 0.2s" }} />
+                  <div style={{ position:"relative", zIndex:1, display:"grid", gridTemplateColumns:"1fr 1fr", height:"100%", alignItems:"center", textAlign:"center", fontWeight:800, fontSize:13 }}>
+                    <div style={{ color:trailerResult === "ok" ? "#fff" : C.gray3 }}>OK</div>
+                    <div style={{ color:trailerResult === "not_ok" ? "#fff" : C.gray3 }}>NICHT OK</div>
+                  </div>
+                </div>
                 <div style={{ fontSize:12, fontWeight:700, color:C.gray3,
                   textTransform:"uppercase", marginBottom:8 }}>{t.defects}</div>
                 <textarea value={trailerDefects} onChange={e => setTrailerDefects(e.target.value)}
@@ -1203,21 +1204,22 @@ function App() {
                 onRemove={i => setTrailerPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allOk = t.trailerChecks.every(item => trailerChecks[item.k]);
+                const allChecked = t.trailerChecks.every(item => trailerChecks[item.k]);
+                const okState = trailerResult === "ok";
                 return (
                   <div>
-                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
-                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
+                    <div style={{ background:okState?C.green+"18":C.yellow+"18",
+                      border:"1px solid "+(okState?C.green:C.yellow)+"44",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
-                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
+                      fontSize:13, color:okState?C.green:C.yellow, fontWeight:600 }}>
+                      {okState ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
                     </div>
-                    <button onClick={submitTrailer} disabled={!allOk}
-                      style={{ width:"100%", background:allOk?C.green:C.border,
-                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
+                    <button onClick={submitTrailer}
+                      style={{ width:"100%", background:okState?C.green:C.orange,
+                        color:okState?"#fff":"#000", border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
-                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
-                      {t.submit}
+                        cursor:"pointer", opacity:1 }}>
+                      {t.submit}{!allChecked ? " (partial)" : ""}
                     </button>
                   </div>
                 );
@@ -1231,19 +1233,19 @@ function App() {
       {screen === "trailerDone" && (
         <div style={{ padding:"40px 16px", maxWidth:460, margin:"0 auto", textAlign:"center" }}>
           <div style={{ fontSize:64, marginBottom:12 }}>
-            {trailerDefects.trim() ? "⚠️" : "✅"}
+            {trailerResult === "not_ok" ? "⚠️" : "✅"}
           </div>
           <div style={{ fontSize:22, fontWeight:900, marginBottom:6,
-            color:trailerDefects.trim()?C.yellow:C.green }}>
+            color:trailerResult === "not_ok" ? C.yellow : C.green }}>
             {t.done}
           </div>
           <div style={{ fontSize:14, color:C.gray3, marginBottom:24 }}>
-            {trailerDefects.trim() ? t.defectsFound : t.ok}
+            {trailerResult === "not_ok" ? t.defectsFound : t.ok}
           </div>
           <DoneCard label={t.defects} original={trailerDefects} translated={trailerTranslated} />
           <button onClick={() => {
             setTrailerChecks({}); setTrailerDefects(""); setTrailerPhotos([]);
-            setTrailerTranslated(""); setScreen("home");
+            setTrailerTranslated(""); setTrailerResult("ok"); setScreen("home");
           }} style={{ width:"100%", background:C.orange, color:"#000",
             border:"none", borderRadius:12, padding:"14px 0",
             fontWeight:900, fontSize:15, cursor:"pointer" }}>
@@ -1257,8 +1259,8 @@ function App() {
         <div style={{ padding:"16px", maxWidth:460, margin:"0 auto", paddingBottom:40 }}>
           {bdSent ? (
             <div style={{ textAlign:"center", padding:"40px 0" }}>
-              <div style={{ fontSize:64, marginBottom:12 }}>
-                {bd.urgency==="urgent" ? "🚨" : "✅"}
+              <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", minWidth:96, height:64, borderRadius:16, marginBottom:12, background:bd.urgency==="urgent"?C.red+"18":C.green+"18", border:"2px solid "+(bd.urgency==="urgent"?C.red:C.green), color:bd.urgency==="urgent"?C.red:C.green, fontSize:22, fontWeight:900, letterSpacing:"1.2px" }}>
+                {bd.urgency==="urgent" ? "SOS" : "OK"}
               </div>
               <div style={{ fontSize:22, fontWeight:900, marginBottom:8,
                 color:bd.urgency==="urgent"?C.red:C.green }}>
