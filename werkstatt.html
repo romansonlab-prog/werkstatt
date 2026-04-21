@@ -3280,10 +3280,7 @@ function Fahrzeuge({ user, vehicles, setVehicles, t, initialSelected, onClearSel
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-        <div style={{ fontSize:20, fontWeight:800, color:C.white }}>{t.vehicles}</div>
-        
-      </div>
+      <div style={{ fontSize:20, fontWeight:800, color:C.white, marginBottom:16 }}>{t.vehicles}</div>
 
       {urgent > 0 ? (
         <div style={{ background:C.red+"18", border:"1px solid "+C.red+"44",
@@ -4094,17 +4091,8 @@ function Archive({ jobs, user, t, inspections }) {
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: C.white }}>{t.archive}</div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          
-          {archTab==="auftraege" && (
-            
-          )}
-          {archTab==="inspektion" && (
-            
-          )}
-        </div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 16 }}>
+        {t.archive}
       </div>
 
       {/* Таб-переключатель: Aufträge / Inspektion */}
