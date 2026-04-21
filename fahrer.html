@@ -31,7 +31,39 @@ const sbInsert = async (table, data) => {
   } catch(e) { console.error("sb:", e); }
 };
 
+const createJob = async (payload) => {
+  try {
+    const res = await fetch(SB_URL + "/rest/v1/jobs", {
+      method: "POST",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Failed to create job");
+    }
+    const data = await res.json();
+    return data && data[0] ? data[0] : null;
+  } catch(e) {
+    console.error("createJob:", e);
+    throw e;
+  }
+};
 
+const buildAssetLabel = (vehicle) => {
+  if (!vehicle) return "";
+  if (vehicle.brand) return vehicle.plate + " / " + vehicle.brand;
+  return vehicle.plate || "";
+};
+
+const mapUrgencyToJob = (value) => {
+  return value === "urgent" ? "critical" : "medium";
+};
 
 const C = {
   bg:"#f0f4f8", surface:"#ffffff", border:"#d0dbe8",
@@ -709,18 +741,12 @@ function LocationPicker({ value, onChange, placeholder, C }) {
 
 function App() {
   const [lang, setLang] = useState("de");
-  const [unlocked, setUnlocked] = useState(false);
-  const [sliderX, setSliderX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const sliderRef = useRef(null);
-  const SLIDER_MAX = 240;
   const [screen, setScreen] = useState("home");
   const [prevScreen, setPrevScreen] = useState("home");
   const [driverName, setDriverName] = useState("");
 
   const [truckVehicle, setTruckVehicle] = useState(null);
   const [truckChecks, setTruckChecks] = useState({});
-  const [truckMangel, setTruckMangel] = useState({});
   const [truckDefects, setTruckDefects] = useState("");
   const [truckPhotos, setTruckPhotos] = useState([]);
   const [truckTranslated, setTruckTranslated] = useState("");
@@ -728,7 +754,6 @@ function App() {
 
   const [trailerVehicle, setTrailerVehicle] = useState(null);
   const [trailerChecks, setTrailerChecks] = useState({});
-  const [trailerMangel, setTrailerMangel] = useState({});
   const [trailerDefects, setTrailerDefects] = useState("");
   const [trailerPhotos, setTrailerPhotos] = useState([]);
   const [trailerTranslated, setTrailerTranslated] = useState("");
@@ -743,88 +768,73 @@ function App() {
 
   const t = T[lang];
 
-  const startDrag = function(cx) {
-    setDragging(true);
-    var startX = cx;
-    var startLeft = sliderX;
-    var onMove = function(e) {
-      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      var dx = Math.max(0, Math.min(SLIDER_MAX, clientX - startX + startLeft));
-      setSliderX(dx);
-      if (dx >= SLIDER_MAX - 10) {
-        setUnlocked(true);
-        setSliderX(0);
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-        document.removeEventListener("touchmove", onMove);
-        document.removeEventListener("touchend", onUp);
-      }
-    };
-    var onUp = function() {
-      setDragging(false);
-      setSliderX(function(x){ return x < SLIDER_MAX - 10 ? 0 : x; });
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      document.removeEventListener("touchmove", onMove);
-      document.removeEventListener("touchend", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    document.addEventListener("touchmove", onMove);
-    document.addEventListener("touchend", onUp);
-  };
-
   const submitTruck = function() {
+    if (!truckVehicle || !driverName) return;
     setTruckLoading(true);
     translateToGerman(lang !== "de" && truckDefects.trim() ? truckDefects : "")
       .then(function(tr) {
         if (tr && tr !== "") setTruckTranslated(tr);
-        var mangelItems = Object.keys(truckMangel).filter(function(k){ return truckMangel[k]; });
-        var inspId = "INS" + Date.now();
-        sbInsert("inspections", {
-          id: inspId,
-          type: "truck",
-          vehicle_id: truckVehicle ? truckVehicle.id : null,
-          plate: truckVehicle ? truckVehicle.plate : null,
-          brand: truckVehicle ? truckVehicle.brand : null,
-          driver: driverName || "",
-          checks: JSON.stringify(truckChecks),
-          mangel: JSON.stringify(truckMangel),
-          mangel_items: mangelItems.join(","),
-          defects: truckDefects || "",
-          defects_de: tr || "",
-          photos: JSON.stringify(truckPhotos),
-          status: mangelItems.length > 0 ? "mangel" : "ok",
-          created_at: new Date().toISOString(),
-        }).catch(function(e){ console.error("inspection save:", e); });
+        return createJob({
+          source_app: "driver",
+          source_type: "inspection_truck",
+          asset_type: "truck",
+          asset_label: buildAssetLabel(truckVehicle),
+          reporter_name: driverName || "",
+          reporter_contact: driverName || "",
+          language: lang || "de",
+          urgency: "low",
+          status: "new",
+          description_raw: truckDefects && truckDefects.trim() ? truckDefects.trim() : "Truck inspection completed",
+          description_de: tr && tr.trim() ? tr.trim() : (truckDefects && truckDefects.trim() ? truckDefects.trim() : "LKW-Inspektion abgeschlossen"),
+          checklist_json: {
+            inspection_type: "truck",
+            checks: truckChecks,
+            all_checked: T[lang].truckChecks.every(function(c){ return !!truckChecks[c.k]; })
+          },
+          defects_json: {
+            defects_text: truckDefects || "",
+            result: truckDefects && truckDefects.trim() ? "defects_found" : "ok",
+            photos: truckPhotos || []
+          }
+        }).catch(function(e){ console.error("truck job:", e); });
+      })
+      .finally(function() {
         setTruckLoading(false);
         setScreen("truckDone");
       });
   };
 
   const submitTrailer = function() {
+    if (!trailerVehicle || !driverName) return;
     setTrailerLoading(true);
     translateToGerman(lang !== "de" && trailerDefects.trim() ? trailerDefects : "")
       .then(function(tr) {
         if (tr && tr !== "") setTrailerTranslated(tr);
-        var mangelItems = Object.keys(trailerMangel).filter(function(k){ return trailerMangel[k]; });
-        var inspId = "INS" + Date.now();
-        sbInsert("inspections", {
-          id: inspId,
-          type: "trailer",
-          vehicle_id: trailerVehicle ? trailerVehicle.id : null,
-          plate: trailerVehicle ? trailerVehicle.plate : null,
-          brand: trailerVehicle ? trailerVehicle.brand : null,
-          driver: driverName || "",
-          checks: JSON.stringify(trailerChecks),
-          mangel: JSON.stringify(trailerMangel),
-          mangel_items: mangelItems.join(","),
-          defects: trailerDefects || "",
-          defects_de: tr || "",
-          photos: JSON.stringify(trailerPhotos),
-          status: mangelItems.length > 0 ? "mangel" : "ok",
-          created_at: new Date().toISOString(),
-        }).catch(function(e){ console.error("inspection save:", e); });
+        return createJob({
+          source_app: "driver",
+          source_type: "inspection_trailer",
+          asset_type: "trailer",
+          asset_label: buildAssetLabel(trailerVehicle),
+          reporter_name: driverName || "",
+          reporter_contact: driverName || "",
+          language: lang || "de",
+          urgency: "low",
+          status: "new",
+          description_raw: trailerDefects && trailerDefects.trim() ? trailerDefects.trim() : "Trailer inspection completed",
+          description_de: tr && tr.trim() ? tr.trim() : (trailerDefects && trailerDefects.trim() ? trailerDefects.trim() : "Auflieger-Inspektion abgeschlossen"),
+          checklist_json: {
+            inspection_type: "trailer",
+            checks: trailerChecks,
+            all_checked: T[lang].trailerChecks.every(function(c){ return !!trailerChecks[c.k]; })
+          },
+          defects_json: {
+            defects_text: trailerDefects || "",
+            result: trailerDefects && trailerDefects.trim() ? "defects_found" : "ok",
+            photos: trailerPhotos || []
+          }
+        }).catch(function(e){ console.error("trailer job:", e); });
+      })
+      .finally(function() {
         setTrailerLoading(false);
         setScreen("trailerDone");
       });
@@ -838,15 +848,41 @@ function App() {
     translateToGerman(lang !== "de" && bd.description.trim() ? bd.description : "")
       .then(function(tr) {
         if (tr && tr !== "") setBdTranslated(tr);
+        var vehicleType = bd.vehicle && bd.vehicle.vtype === "trailer" ? "trailer" : "truck";
+        return Promise.all([
+          createJob({
+            source_app: "driver",
+            source_type: vehicleType === "trailer" ? "breakdown_trailer" : "breakdown_truck",
+            asset_type: vehicleType,
+            asset_label: buildAssetLabel(bd.vehicle),
+            reporter_name: driverName || "",
+            reporter_contact: driverName || "",
+            language: lang || "de",
+            urgency: mapUrgencyToJob(bd.urgency),
+            status: "new",
+            location_label: bd.location || "",
+            description_raw: bd.description || "",
+            description_de: tr && tr.trim() ? tr.trim() : (bd.description || ""),
+            checklist_json: null,
+            defects_json: {
+              issue_type: bd.type || "breakdown",
+              location: bd.location || "",
+              urgent: bd.urgency === "urgent",
+              photos: bd.photos || []
+            }
+          }).catch(function(e){ console.error("breakdown job:", e); }),
+          sbInsert("alerts", {
+            id: alertId, type: bd.type || "breakdown",
+            plate: bd.vehicle ? bd.vehicle.plate : null, location: bd.location || "",
+            description: bd.description || "", urgency: bd.urgency || "urgent",
+            sender: driverName || "driver", sender_app: "fahrer", status: "open",
+          }).catch(function(e){ console.error("bd alert:", e); })
+        ]);
+      })
+      .finally(function() {
         setBdSending(false);
         setBdAlertId(alertId);
         setBdAlertStatus("open");
-        sbInsert("alerts", {
-          id: alertId, type: bd.type || "breakdown",
-          plate: bd.plate || null, location: bd.location || "",
-          description: bd.description || "", urgency: bd.urgency || "urgent",
-          sender: driverName || "driver", sender_app: "fahrer", status: "open",
-        }).catch(function(e){ console.error("bd alert:", e); });
         setBdSent(true);
         var pollInterval = setInterval(function() {
           fetch(SB_URL + "/rest/v1/alerts?id=eq." + alertId + "&select=status", {
@@ -884,71 +920,6 @@ function App() {
       </div>
     ) : null
   );
-
-  var pct = sliderX / SLIDER_MAX;
-
-  if (!unlocked) {
-    return (
-      <div style={{ minHeight:"100vh",
-        background:"linear-gradient(160deg,#0d2145 0%,#1a3a6b 60%,#1e4fa0 100%)",
-        display:"flex", flexDirection:"column", alignItems:"center",
-        justifyContent:"center", fontFamily:"'DM Sans','Segoe UI',sans-serif",
-        color:"#fff", padding:32 }}>
-
-        {/* Logo */}
-        <div style={{ marginBottom:8 }}><LTGLogo size={1} /></div>
-        <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)",
-          marginBottom:4, letterSpacing:"1px", textTransform:"uppercase" }}>
-          Fahrer App
-        </div>
-        <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)",
-          marginBottom:48 }}>LTG Hockenheim</div>
-
-        {/* Slider */}
-        <div style={{ width:300 }}>
-          <div ref={sliderRef}
-            style={{ position:"relative", width:300, height:60,
-              background:"#cbd5e1", borderRadius:14,
-              border:"1.5px solid #94a3b8", overflow:"hidden" }}>
-            <div style={{ position:"absolute", left:0, top:0, bottom:0,
-              width:(sliderX+60)+"px",
-              background:pct>0.9?"linear-gradient(90deg,#ef444422,transparent)":"linear-gradient(90deg,#f5a62322,transparent)",
-              transition:dragging?"none":"width 0.3s", pointerEvents:"none" }} />
-            <div style={{ position:"absolute", width:"100%", height:"100%",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:12, fontWeight:700, letterSpacing:"0.8px",
-              textTransform:"uppercase", userSelect:"none", pointerEvents:"none",
-              paddingLeft:20, color:pct>0.9?"#ef4444":"#64748b" }}>
-              {sliderX > 10 ? "✓  Los!" : "→ Zum Öffnen schieben"}
-            </div>
-            <div
-              onMouseDown={function(e){ e.preventDefault(); startDrag(e.clientX); }}
-              onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}
-              style={{ position:"absolute", left:(sliderX+4)+"px", top:"50%",
-                transform:"translateY(-50%)",
-                width:52, height:52, borderRadius:10,
-                background:pct>0.9?"linear-gradient(160deg,#ef4444,#dc2626)":"linear-gradient(160deg,#f5a623,#e09010)",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                gap:5, cursor:"grab", userSelect:"none",
-                boxShadow:pct>0.9?"0 3px 10px rgba(239,68,68,0.6)":"0 3px 10px rgba(245,166,35,0.6)",
-                transition:dragging?"none":"left 0.3s, background 0.2s" }}>
-              {[22,14,22,14,22].map(function(h,i){
-                return React.createElement("div", { key:i, style:{
-                  width:2.5, height:h,
-                  background:"rgba(0,0,0,"+(i%2===0?"0.55":"0.35")+")",
-                  borderRadius:2 }});
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop:16, fontSize:11,
-          color:"rgba(255,255,255,0.25)", letterSpacing:"0.5px" }}>
-          🚛 Fahrer · LTG Werkstatt
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg,
@@ -1072,46 +1043,22 @@ function App() {
                   </div>
                 </div>
               </div>
-              {/* Column headers */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
-                gap:6, marginBottom:8, paddingRight:4 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
-                  textTransform:"uppercase", letterSpacing:"0.5px" }}>Prüfpunkt</div>
-                <div style={{ fontSize:11, fontWeight:700, color:C.green,
-                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>✓ OK</div>
-                <div style={{ fontSize:11, fontWeight:700, color:"#ef4444",
-                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>⚠ Mangel</div>
-              </div>
               {t.truckChecks.map(item => (
-                <div key={item.k}
-                  style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
-                    gap:6, marginBottom:8, alignItems:"center",
-                    background: truckMangel[item.k] ? "#ef444412" : truckChecks[item.k] ? C.green+"12" : C.surface,
-                    border:"1px solid "+(truckMangel[item.k]?"#ef444444":truckChecks[item.k]?C.green+"44":C.border),
-                    borderRadius:12, padding:"12px 14px", transition:"all 0.15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <span style={{ fontSize:20 }}>{item.emoji}</span>
-                    <span style={{ fontWeight:600, fontSize:13, color:C.white }}>{item.label}</span>
+                <button key={item.k}
+                  onClick={() => setTruckChecks(c => ({...c,[item.k]:!c[item.k]}))}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                    width:"100%", background:truckChecks[item.k] ? C.green+"18" : C.surface,
+                    border:"1px solid "+(truckChecks[item.k] ? C.green : C.border),
+                    borderRadius:12, padding:"14px 16px", marginBottom:10,
+                    cursor:"pointer", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:22 }}>{item.emoji}</span>
+                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
+                      {item.label}
+                    </span>
                   </div>
-                  {/* OK button */}
-                  <button onClick={() => { setTruckChecks(c=>({...c,[item.k]:true})); setTruckMangel(c=>({...c,[item.k]:false})); }}
-                    style={{ background:truckChecks[item.k]&&!truckMangel[item.k] ? C.green : "transparent",
-                      border:"2px solid "+(truckChecks[item.k]&&!truckMangel[item.k]?C.green:C.border),
-                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      transition:"all 0.15s" }}>
-                    {truckChecks[item.k]&&!truckMangel[item.k] ? "✅" : "⬜"}
-                  </button>
-                  {/* Mangel button */}
-                  <button onClick={() => { setTruckMangel(c=>({...c,[item.k]:true})); setTruckChecks(c=>({...c,[item.k]:false})); }}
-                    style={{ background:truckMangel[item.k] ? "#ef4444" : "transparent",
-                      border:"2px solid "+(truckMangel[item.k]?"#ef4444":C.border),
-                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      transition:"all 0.15s" }}>
-                    {truckMangel[item.k] ? "⚠️" : "⬜"}
-                  </button>
-                </div>
+                  <span style={{ fontSize:22 }}>{truckChecks[item.k] ? "✅" : "⬜"}</span>
+                </button>
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
@@ -1129,22 +1076,20 @@ function App() {
                 onRemove={i => setTruckPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allAnswered = t.truckChecks.every(item => truckChecks[item.k] || truckMangel[item.k]);
-                const hasMangel = t.truckChecks.some(item => truckMangel[item.k]);
+                const allOk = t.truckChecks.every(item => truckChecks[item.k]);
                 return (
                   <div>
-                    <div style={{ background:!allAnswered?"#64748b18":hasMangel?"#ef444418":C.green+"18",
-                      border:"1px solid "+(!allAnswered?"#64748b":hasMangel?"#ef4444":C.green)+"44",
+                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
+                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, fontWeight:600,
-                      color:!allAnswered?C.gray3:hasMangel?"#ef4444":C.green }}>
-                      {!allAnswered ? "⬜ "+t.notAllChecked : hasMangel ? "⚠️ "+t.defectsFound : "✅ "+t.allChecked}
+                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
+                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
                     </div>
-                    <button onClick={submitTruck} disabled={!allAnswered}
-                      style={{ width:"100%", background:allAnswered?hasMangel?"#ef4444":C.green:C.border,
-                        color:allAnswered?"#fff":C.gray5, border:"none", borderRadius:12,
+                    <button onClick={submitTruck} disabled={!allOk}
+                      style={{ width:"100%", background:allOk?C.green:C.border,
+                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
-                        cursor:allAnswered?"pointer":"not-allowed", opacity:allAnswered?1:0.6 }}>
+                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
                       {t.submit}
                     </button>
                   </div>
@@ -1170,7 +1115,7 @@ function App() {
           </div>
           <DoneCard label={t.defects} original={truckDefects} translated={truckTranslated} />
           <button onClick={() => {
-            setTruckChecks({}); setTruckMangel({}); setTruckDefects(""); setTruckPhotos([]);
+            setTruckChecks({}); setTruckDefects(""); setTruckPhotos([]);
             setTruckTranslated(""); setScreen("home");
           }} style={{ width:"100%", background:C.orange, color:"#000",
             border:"none", borderRadius:12, padding:"14px 0",
@@ -1225,44 +1170,22 @@ function App() {
                   </div>
                 </div>
               </div>
-              {/* Column headers */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
-                gap:6, marginBottom:8, paddingRight:4 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
-                  textTransform:"uppercase", letterSpacing:"0.5px" }}>Prüfpunkt</div>
-                <div style={{ fontSize:11, fontWeight:700, color:C.green,
-                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>✓ OK</div>
-                <div style={{ fontSize:11, fontWeight:700, color:"#ef4444",
-                  textTransform:"uppercase", letterSpacing:"0.5px", textAlign:"center" }}>⚠ Mangel</div>
-              </div>
               {t.trailerChecks.map(item => (
-                <div key={item.k}
-                  style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px",
-                    gap:6, marginBottom:8, alignItems:"center",
-                    background: trailerMangel[item.k] ? "#ef444412" : trailerChecks[item.k] ? C.green+"12" : C.surface,
-                    border:"1px solid "+(trailerMangel[item.k]?"#ef444444":trailerChecks[item.k]?C.green+"44":C.border),
-                    borderRadius:12, padding:"12px 14px", transition:"all 0.15s" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <span style={{ fontSize:20 }}>{item.emoji}</span>
-                    <span style={{ fontWeight:600, fontSize:13, color:C.white }}>{item.label}</span>
+                <button key={item.k}
+                  onClick={() => setTrailerChecks(c => ({...c,[item.k]:!c[item.k]}))}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                    width:"100%", background:trailerChecks[item.k]?C.green+"18":C.surface,
+                    border:"1px solid "+(trailerChecks[item.k]?C.green:C.border),
+                    borderRadius:12, padding:"14px 16px", marginBottom:10,
+                    cursor:"pointer", transition:"all 0.15s" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ fontSize:22 }}>{item.emoji}</span>
+                    <span style={{ fontWeight:600, fontSize:14, color:C.white }}>
+                      {item.label}
+                    </span>
                   </div>
-                  <button onClick={() => { setTrailerChecks(c=>({...c,[item.k]:true})); setTrailerMangel(c=>({...c,[item.k]:false})); }}
-                    style={{ background:trailerChecks[item.k]&&!trailerMangel[item.k]?C.green:"transparent",
-                      border:"2px solid "+(trailerChecks[item.k]&&!trailerMangel[item.k]?C.green:C.border),
-                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      transition:"all 0.15s" }}>
-                    {trailerChecks[item.k]&&!trailerMangel[item.k] ? "✅" : "⬜"}
-                  </button>
-                  <button onClick={() => { setTrailerMangel(c=>({...c,[item.k]:true})); setTrailerChecks(c=>({...c,[item.k]:false})); }}
-                    style={{ background:trailerMangel[item.k]?"#ef4444":"transparent",
-                      border:"2px solid "+(trailerMangel[item.k]?"#ef4444":C.border),
-                      borderRadius:8, height:38, cursor:"pointer", fontSize:18,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      transition:"all 0.15s" }}>
-                    {trailerMangel[item.k] ? "⚠️" : "⬜"}
-                  </button>
-                </div>
+                  <span style={{ fontSize:22 }}>{trailerChecks[item.k]?"✅":"⬜"}</span>
+                </button>
               ))}
               <div style={{ background:C.surface, border:"1px solid "+C.border,
                 borderRadius:12, padding:14, marginBottom:12 }}>
@@ -1280,22 +1203,20 @@ function App() {
                 onRemove={i => setTrailerPhotos(p => p.filter((_,j)=>j!==i))}
                 label={t.photo} />
               {(() => {
-                const allAnswered = t.trailerChecks.every(item => trailerChecks[item.k] || trailerMangel[item.k]);
-                const hasMangel = t.trailerChecks.some(item => trailerMangel[item.k]);
+                const allOk = t.trailerChecks.every(item => trailerChecks[item.k]);
                 return (
                   <div>
-                    <div style={{ background:!allAnswered?"#64748b18":hasMangel?"#ef444418":C.green+"18",
-                      border:"1px solid "+(!allAnswered?"#64748b":hasMangel?"#ef4444":C.green)+"44",
+                    <div style={{ background:allOk?C.green+"18":C.yellow+"18",
+                      border:"1px solid "+(allOk?C.green:C.yellow)+"44",
                       borderRadius:10, padding:"10px 14px", marginBottom:14,
-                      fontSize:13, fontWeight:600,
-                      color:!allAnswered?C.gray3:hasMangel?"#ef4444":C.green }}>
-                      {!allAnswered ? "⬜ "+t.notAllChecked : hasMangel ? "⚠️ "+t.defectsFound : "✅ "+t.allChecked}
+                      fontSize:13, color:allOk?C.green:C.yellow, fontWeight:600 }}>
+                      {allOk ? "✅ "+t.allChecked : "⚠️ "+t.notAllChecked}
                     </div>
-                    <button onClick={submitTrailer} disabled={!allAnswered}
-                      style={{ width:"100%", background:allAnswered?hasMangel?"#ef4444":C.green:C.border,
-                        color:allAnswered?"#fff":C.gray5, border:"none", borderRadius:12,
+                    <button onClick={submitTrailer} disabled={!allOk}
+                      style={{ width:"100%", background:allOk?C.green:C.border,
+                        color:allOk?"#fff":C.gray5, border:"none", borderRadius:12,
                         padding:"14px 0", fontWeight:900, fontSize:15,
-                        cursor:allAnswered?"pointer":"not-allowed", opacity:allAnswered?1:0.6 }}>
+                        cursor:allOk?"pointer":"not-allowed", opacity:allOk?1:0.6 }}>
                       {t.submit}
                     </button>
                   </div>
@@ -1321,7 +1242,7 @@ function App() {
           </div>
           <DoneCard label={t.defects} original={trailerDefects} translated={trailerTranslated} />
           <button onClick={() => {
-            setTrailerChecks({}); setTrailerMangel({}); setTrailerDefects(""); setTrailerPhotos([]);
+            setTrailerChecks({}); setTrailerDefects(""); setTrailerPhotos([]);
             setTrailerTranslated(""); setScreen("home");
           }} style={{ width:"100%", background:C.orange, color:"#000",
             border:"none", borderRadius:12, padding:"14px 0",
