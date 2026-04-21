@@ -2231,6 +2231,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 })}
               </div>
             </div>
+          </div>
           {(function(){
             var todayInsp = inspections.filter(function(i){ return i.created_at && i.created_at.slice(0,10)===todayStr; });
             var mangelInsp = todayInsp.filter(function(i){ return i.status==="mangel"; });
