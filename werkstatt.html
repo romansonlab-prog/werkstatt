@@ -790,6 +790,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
         <div style={{ flex:1, display:"flex", flexDirection:"column",
           alignItems:"center", justifyContent:"center",
           padding:"20px 20px 40px" }}>
+          <div style={{ marginBottom:16 }}><LTGLogo size={1} /></div>
           <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>
             {mechUser.name.split(" ")[0]}
           </div>
@@ -807,7 +808,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
               {/* fill */}
               <div style={{ position:"absolute", left:0, top:0, bottom:0,
                 width:(sliderX + 60)+"px",
-                background: pct>0.9 ? "linear-gradient(90deg,#dcfce7,transparent)" : "linear-gradient(90deg,#1e4fa025,transparent)",
+                background: pct>0.9 ? "linear-gradient(90deg,#ef444422,transparent)" : "linear-gradient(90deg,#f5a62322,transparent)",
                 transition:dragging?"none":"width 0.3s",
                 pointerEvents:"none" }} />
               {/* center text */}
@@ -816,7 +817,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                 fontSize:12, fontWeight:700, letterSpacing:"0.8px",
                 textTransform:"uppercase", userSelect:"none", pointerEvents:"none",
                 paddingLeft:20,
-                color: pct>0.9 ? "#16a34a" : "#64748b" }}>
+                color: pct>0.9 ? "#ef4444" : "#64748b" }}>
                 {sliderX > 10 ? "✓  Los!" : "→ Zum Öffnen schieben"}
               </div>
               {/* thumb */}
@@ -827,13 +828,13 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
                   transform:"translateY(-50%)",
                   width:52, height:52, borderRadius:10,
                   background: pct>0.9
-                    ? "linear-gradient(160deg,#22c55e,#16a34a)"
-                    : "linear-gradient(160deg,#2563eb,#1e4fa0)",
+                    ? "linear-gradient(160deg,#ef4444,#dc2626)"
+                    : "linear-gradient(160deg,#f5a623,#e09010)",
                   display:"flex", alignItems:"center", justifyContent:"center",
                   gap:5, cursor:"grab", userSelect:"none",
                   boxShadow: pct>0.9
-                    ? "0 3px 10px rgba(22,163,74,0.5),0 1px 3px rgba(0,0,0,0.3)"
-                    : "0 3px 10px rgba(30,79,160,0.5),0 1px 3px rgba(0,0,0,0.3)",
+                    ? "0 3px 10px rgba(239,68,68,0.6),0 1px 3px rgba(0,0,0,0.3)"
+                    : "0 3px 10px rgba(245,166,35,0.6),0 1px 3px rgba(0,0,0,0.3)",
                   transition:dragging?"none":"left 0.3s, background 0.2s, box-shadow 0.2s" }}>
                 {[22,14,22,14,22].map(function(h,i){
                   return <div key={i} style={{ width:2.5, height:h,
