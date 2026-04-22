@@ -820,6 +820,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   };
   var navItems = [
     {k:"overview",   label:"Overview"},
+    {k:"management", label:"Management"},
     {k:"fahrzeuge",  label:"Technik"},
     {k:"inspektion", label:"Inspektion"},
     {k:"lager",      label:"Lager"},
@@ -833,6 +834,31 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   var washMin   = washJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
   var washCost  = washJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
 
+  var totalDowntime = filtered.reduce(function(s,j){ return s + (j.downtime||0); }, 0);
+  var availabilityPct = fleetTotal ? Math.max(0, Math.min(100, ((fleetTotal - fleetExpired) / fleetTotal) * 100)) : 100;
+  var vehicleCostMap = {};
+  filtered.forEach(function(j){
+    var key = j.plate || j.plateNumber || "—";
+    if(!vehicleCostMap[key]) vehicleCostMap[key] = { plate:key, cost:0, downtime:0, jobs:0 };
+    vehicleCostMap[key].cost += (j.cost||0);
+    vehicleCostMap[key].downtime += (j.downtime||0);
+    vehicleCostMap[key].jobs += 1;
+  });
+  var topCostVehicles = Object.values(vehicleCostMap).sort(function(a,b){ return b.cost-a.cost; }).slice(0,8);
+  var topDowntimeVehicles = Object.values(vehicleCostMap).sort(function(a,b){ return b.downtime-a.downtime; }).slice(0,8);
+  var workTypeCosts = [
+    {k:"repair", l:"Reparatur", cost: filtered.filter(function(j){return j.workType==="repair";}).reduce(function(s,j){return s+(j.cost||0);},0), c:"#ef4444"},
+    {k:"maintenance", l:"Wartung / TO", cost: filtered.filter(function(j){return j.workType==="maintenance";}).reduce(function(s,j){return s+(j.cost||0);},0), c:"#d97706"},
+    {k:"inspection", l:"Inspektion", cost: filtered.filter(function(j){return j.workType==="inspection";}).reduce(function(s,j){return s+(j.cost||0);},0), c:"#1e4fa0"},
+    {k:"wash", l:"Wäsche", cost: filtered.filter(function(j){return j.workType==="wash";}).reduce(function(s,j){return s+(j.cost||0);},0), c:"#0ea5e9"},
+  ].filter(function(x){ return x.cost>0; });
+  var last7Mgmt = Array.from({length:7}).map(function(_,idx){
+    var d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-(6-idx));
+    var ds = d.toISOString().slice(0,10);
+    var dayJobs = (jobs||[]).filter(function(j){ return j.date===ds; });
+    return { label: ds.slice(5), cost: dayJobs.reduce(function(s,j){return s+(j.cost||0);},0), downtime: dayJobs.reduce(function(s,j){return s+(j.downtime||0);},0) };
+  });
+  var maxTrendCost = Math.max(1, ...last7Mgmt.map(function(x){return x.cost;}));
   var kpis = [
     {v:total,                    l:"Aufträge",      c:"#1e4fa0", icon:"📋"},
     {v:openJobs.length+inProgJobs.length, l:"Offen",c:"#ef4444", icon:"⚠"},
@@ -1225,6 +1251,96 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
               </div>
             );
           })()}
+          </div>
+        )}
+{activeSection === "management" && (
+          <div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:16, marginBottom:16 }}>
+              {[
+                {l:"Gesamtkosten", v: totalCost.toFixed(2)+" €", c:"#d97706", s:"aktuell gefiltert"},
+                {l:"Ausfallzeit", v: formatMin(totalDowntime), c:"#ef4444", s:"gesamt"},
+                {l:"Verfügbarkeit", v: availabilityPct.toFixed(0)+" %", c:"#16a34a", s:"Flotte"},
+                {l:"Kosten / Auftrag", v: (total ? (totalCost/total).toFixed(2)+" €" : "0.00 €"), c:"#1e4fa0", s:"Durchschnitt"}
+              ].map(function(k){
+                return (
+                  <div key={k.l} style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"18px" }}>
+                    <div style={{ fontSize:12, color:C.gray500, marginBottom:8, fontWeight:700 }}>{k.l}</div>
+                    <div style={{ fontSize:28, fontWeight:800, color:k.c, marginBottom:6 }}>{k.v}</div>
+                    <div style={{ fontSize:11, color:C.gray500 }}>{k.s}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1fr", gap:16, marginBottom:16 }}>
+              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:15, fontWeight:700, color:C.white, marginBottom:14 }}>📈 Kostenentwicklung 7 Tage</div>
+                <div style={{ display:"flex", alignItems:"end", gap:10, height:220 }}>
+                  {last7Mgmt.map(function(x){
+                    var h = Math.max(8, (x.cost/maxTrendCost)*180);
+                    return (
+                      <div key={x.label} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"end", height:"100%" }}>
+                        <div style={{ fontSize:11, color:C.gray300, marginBottom:6 }}>{x.cost.toFixed(0)}€</div>
+                        <div style={{ width:"100%", maxWidth:46, height:h, borderRadius:"8px 8px 0 0", background:"linear-gradient(180deg,#3b82f6,#1e4fa0)" }} />
+                        <div style={{ fontSize:11, color:C.gray500, marginTop:8 }}>{x.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:15, fontWeight:700, color:C.white, marginBottom:14 }}>🧾 Kosten nach работам</div>
+                {workTypeCosts.length ? workTypeCosts.map(function(x){
+                  var pct = totalCost ? (x.cost/totalCost)*100 : 0;
+                  return (
+                    <div key={x.k} style={{ marginBottom:14 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:13, color:C.white }}>{x.l}</span>
+                        <span style={{ fontSize:12, color:C.gray300 }}>{x.cost.toFixed(2)} €</span>
+                      </div>
+                      <div style={{ height:10, background:C.bg, borderRadius:999, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:pct+"%", background:x.c, borderRadius:999 }} />
+                      </div>
+                    </div>
+                  );
+                }) : <div style={{ color:C.gray500, fontSize:13 }}>Нет данных по стоимости</div>}
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:15, fontWeight:700, color:C.white, marginBottom:14 }}>💸 Самые дорогие машины</div>
+                {topCostVehicles.length ? topCostVehicles.map(function(v){
+                  var pct = topCostVehicles[0] ? (v.cost/topCostVehicles[0].cost)*100 : 0;
+                  return (
+                    <div key={v.plate} style={{ marginBottom:12 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:13, color:C.white, fontWeight:700 }}>{v.plate}</span>
+                        <span style={{ fontSize:12, color:C.gray300 }}>{v.cost.toFixed(2)} €</span>
+                      </div>
+                      <div style={{ height:8, background:C.bg, borderRadius:999, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:pct+"%", background:"#d97706", borderRadius:999 }} />
+                      </div>
+                    </div>
+                  );
+                }) : <div style={{ color:C.gray500, fontSize:13 }}>Нет данных</div>}
+              </div>
+              <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:15, fontWeight:700, color:C.white, marginBottom:14 }}>⏳ Простої по машинам</div>
+                {topDowntimeVehicles.length ? topDowntimeVehicles.map(function(v){
+                  var pct = topDowntimeVehicles[0] ? (v.downtime/topDowntimeVehicles[0].downtime)*100 : 0;
+                  return (
+                    <div key={v.plate} style={{ marginBottom:12 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:13, color:C.white, fontWeight:700 }}>{v.plate}</span>
+                        <span style={{ fontSize:12, color:C.gray300 }}>{formatMin(v.downtime)}</span>
+                      </div>
+                      <div style={{ height:8, background:C.bg, borderRadius:999, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:pct+"%", background:"#ef4444", borderRadius:999 }} />
+                      </div>
+                    </div>
+                  );
+                }) : <div style={{ color:C.gray500, fontSize:13 }}>Нет данных</div>}
+              </div>
+            </div>
           </div>
         )}
 {activeSection === "fahrzeuge" && (
