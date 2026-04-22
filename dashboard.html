@@ -10,36 +10,19 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:#f0f4f8; min-height:100vh; font-family: Arial, Helvetica, sans-serif; }
+    body { background:#f0f4f8; min-height:100vh; font-family:Arial,Helvetica,sans-serif; }
     #root { min-height:100vh; }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
 
     const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
     const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const ALLOWED = ['doll@ltg.de', 'jens@ltg.de'];
 
     const sb = {
-      query: function(table, opts) {
-        var url = SUPABASE_URL + "/rest/v1/" + table + "?";
-        if (opts && opts.select) url += "select=" + opts.select;
-        if (opts && opts.filter) url += "&" + opts.filter;
-        if (opts && opts.order) url += "&order=" + opts.order;
-        if (opts && opts.limit) url += "&limit=" + opts.limit;
-        return fetch(url, { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } })
-          .then(r => r.ok ? r.json() : [])
-          .then(d => Array.isArray(d) ? d : [])
-          .catch(() => []);
-      }
-    };
-
-    
-
   query: function(table, opts) {
     var url = SUPABASE_URL + "/rest/v1/" + table + "?";
     if (opts && opts.select)  url += "select=" + opts.select + "&";
@@ -50,70 +33,30 @@
       setTimeout(function(){ rej(new Error("timeout")); }, 5000);
     });
     return Promise.race([
-      fetch(url, {
-        headers: {
-          "apikey": SUPABASE_KEY,
-          "Authorization": "Bearer " + SUPABASE_KEY,
-          "Content-Type": "application/json"
-        }
-      }).then(function(r){
-        if (!r.ok) return [];
-        return r.json().then(function(d){ return Array.isArray(d) ? d : []; });
-      }),
+      fetch(url, { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } })
+        .then(function(r){ return r.ok ? r.json().then(function(d){ return Array.isArray(d)?d:[]; }) : []; }),
       timeout
     ]).catch(function(){ return []; });
   },
   insert: function(table, data) {
     return fetch(SUPABASE_URL + "/rest/v1/" + table, {
       method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": "Bearer " + SUPABASE_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-      },
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
+                 "Content-Type": "application/json", "Prefer": "return=minimal" },
       body: JSON.stringify(data)
     }).then(function(r){ return r.status < 400 ? true : r.json(); });
   },
   update: function(table, id, data) {
     return fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, {
       method: "PATCH",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": "Bearer " + SUPABASE_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-      },
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
+                 "Content-Type": "application/json", "Prefer": "return=minimal" },
       body: JSON.stringify(data)
     }).then(function(r){ return r.status < 400 ? true : r.json(); });
-  },
-  subscribe(table, callback) {
-    const ws = new WebSocket(
-      SUPABASE_URL.replace("https","wss") + "/realtime/v1/websocket?apikey=" + SUPABASE_KEY + "&vsn=1.0.0"
-    );
-    ws.onopen = () => {
-      ws.send(JSON.stringify({
-        topic: "realtime:public:" + table,
-        event: "phx_join",
-        payload: { config: { broadcast: { self: true }, presence: { key: "" } } },
-        ref: null
-      }));
-    };
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.event === "INSERT" || msg.event === "UPDATE") {
-        callback(msg.payload.record);
-      }
-    };
-    return ws;
   }
 };
 
-
-
-
-
-const COMPANY_LOGO = null;
+    const COMPANY_LOGO = null;
 
 const C = {
 
@@ -141,7 +84,6 @@ const C = {
   yellow:   "#c8a84b",   // warning - LTG gold
 };
 
-const T = {
 const T = {
   de: {
     appName:"LTG Werkstatt", login:"Anmelden", logout:"Abmelden",
@@ -553,7 +495,6 @@ const T = {
 };
 
 const USERS = [
-const USERS = [
   { id: "roman", name: "Roman Anokhin", role: "mechanic",  pin: "1234", avatar: "RA", isAdmin: true },
   { id: "petr",  name: "Petr Lorenz",   role: "mechanic",  pin: "5678", avatar: "PL", isAdmin: false },
   { id: "doll",  name: "Herr Doll",     role: "boss",      pin: "0001", avatar: "HD" },
@@ -575,8 +516,8 @@ const SAMPLE_JOBS = [ // loaded from Supabase
   { id:"J008", mechanic:"petr", colleague:null, vehicleType:"forklift", plate:"STG-044", location:"HOC 2", workType:"repair", description:"Hydraulikleitung defekt", status:"done", date:"2024-04-03", travelToMin:10, travelBackMin:10, workMin:90, photos:2, cost:285.00, downtime:90 },
 ];
 
-function formatTime(seconds) {
-function formatTime(seconds) {
+
+    function formatTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
@@ -652,34 +593,30 @@ function LTGLogo({ size = 1 }) {
   );
 }
 
-function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
-  const t = T[lang];
-  const [selected, setSelected] = useState(null);
 
-
-    function mapJob(r) {
-      return {
-        id: r.id, mechanic: r.assigned_mechanic_id, colleague: r.colleague_id,
-        vehicleType: r.vehicle_type, plate: r.asset_label, location: r.location,
-        workType: r.work_type, description: r.description_de || r.description_raw,
-        status: r.status, date: (r.created_at||"").slice(0,10),
-        travelToMin: r.travel_to_minutes||0, travelBackMin: r.travel_back_minutes||0,
-        workMin: r.work_duration_minutes||0, photos: r.photos_count||0,
-        cost: r.cost_eur||0, downtime: r.work_duration_minutes||0,
-        urgency: r.urgency, closedAt: r.closed_at, workFinishedAt: r.work_finished_at,
-        source: r.source_app || "unknown"
-      };
-    }
-
-    function mapVehicle(r) {
-      return {
-        id: r.id, plate: r.plate_number, brand: r.vehicle_brand,
-        model: r.vehicle_model, type: r.vehicle_type,
-        mileage: r.mileage_km, tuev: r.tuev_date,
-        insurance: r.insurance_date, uvv: r.uvv_date,
-        nextService: r.next_service_date, status: r.status || "ok"
-      };
-    }
+    
+function mapJob(r) {
+  return {
+    id: r.id, mechanic: r.assigned_mechanic_id, colleague: r.colleague_id,
+    vehicleType: r.vehicle_type, plate: r.asset_label, location: r.location,
+    workType: r.work_type, description: r.description_de || r.description_raw,
+    status: r.status, date: (r.created_at||"").slice(0,10),
+    travelToMin: r.travel_to_minutes||0, travelBackMin: r.travel_back_minutes||0,
+    workMin: r.work_duration_minutes||0, photos: r.photos_count||0,
+    cost: r.cost_eur||0, downtime: r.work_duration_minutes||0,
+    urgency: r.urgency, closedAt: r.closed_at, workFinishedAt: r.work_finished_at,
+    source: r.source_app || "unknown"
+  };
+}
+function mapVehicle(r) {
+  return {
+    id: r.id, plate: r.plate_number, brand: r.vehicle_brand,
+    model: r.vehicle_model, type: r.vehicle_type,
+    mileage: r.mileage_km, tuev: r.tuev_date,
+    insurance: r.insurance_date, uvv: r.uvv_date,
+    nextService: r.next_service_date, status: r.status || "ok"
+  };
+}
 
     function KPI({ value, label, color, icon }) {
   return (
@@ -1602,68 +1539,75 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
 }
 
 
+    
+function App() {
+  const [authState, setAuthState] = React.useState("checking");
+  const [currentUser, setCurrentUser] = React.useState(null);
+  const [jobs, setJobs] = React.useState([]);
+  const [vehicles, setVehicles] = React.useState([]);
+  const lang = "de";
 
-    function App() {
-      const [authState, setAuthState] = useState("checking");
-      const [currentUser, setCurrentUser] = useState(null);
-      const [jobs, setJobs] = useState([]);
-      const [vehicles, setVehicles] = useState([]);
-      const [lang] = useState("de");
+  React.useEffect(function() {
+    supa.auth.getSession().then(function(res) {
+      var session = res.data.session;
+      if (!session) { window.location.href = "werkstatt.html"; return; }
+      var email = session.user.email;
+      var ALLOWED = ["doll@ltg.de", "jens@ltg.de"];
+      if (!ALLOWED.includes(email)) {
+        alert("Zugriff verweigert!");
+        supa.auth.signOut().then(function(){ window.location.href = "werkstatt.html"; });
+        return;
+      }
+      var found = USERS.find(function(u){ return u.id === email.split("@")[0]; });
+      if (!found) found = { id: email, name: email, role: "boss", avatar: "??" };
+      setCurrentUser(found);
+      setAuthState("ok");
+      Promise.all([
+        sb.query("jobs",     { select: "*", order: "created_at.desc", limit: "200" }),
+        sb.query("vehicles", { select: "*", order: "plate_number.asc" })
+      ]).then(function(results) {
+        setJobs(results[0].map(mapJob));
+        setVehicles(results[1].map(mapVehicle));
+      });
+    });
+  }, []);
 
-      useEffect(() => {
-        supa.auth.getSession().then(async ({ data: { session } }) => {
-          if (!session) { window.location.href = "werkstatt.html"; return; }
-          const email = session.user.email;
-          if (!ALLOWED.includes(email)) {
-            alert("Zugriff verweigert! Kein Zugang zum Dashboard.");
-            await supa.auth.signOut();
-            window.location.href = "werkstatt.html";
-            return;
-          }
-          const userMap = {
-            "doll@ltg.de": { id:"doll", name:"Herr Doll", role:"boss", avatar:"HD", isAdmin:true },
-            "jens@ltg.de": { id:"jens", name:"Jens", role:"fpl", avatar:"JE", isAdmin:true }
-          };
-          setCurrentUser(userMap[email] || { id:email, name:email, role:"boss", avatar:"??" });
-          setAuthState("ok");
-          const [j, v] = await Promise.all([
-            sb.query("jobs", { select:"*", order:"created_at.desc", limit:"200" }),
-            sb.query("vehicles", { select:"*", order:"plate_number.asc" })
-          ]);
-          setJobs(j.map(mapJob));
-          setVehicles(v.map(mapVehicle));
-        });
-      }, []);
+  var t = T[lang] || T["de"];
 
-      const t = T[lang] || T["de"];
+  if (authState === "checking") {
+    return React.createElement("div", {
+      style: { display:"flex", alignItems:"center", justifyContent:"center",
+               minHeight:"100vh", background:"#f0f4f8", fontSize:18, color:"#1a3a6b" }
+    }, "Login wird geprüft...");
+  }
+  if (!currentUser) return null;
 
-      if (authState === "checking") return (
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#f0f4f8",fontSize:18,color:"#1a3a6b" }}>
-          Login wird geprüft...
+  return (
+    <div style={{ minHeight:"100vh", background:"#f0f4f8" }}>
+      <div style={{ background:"#1a3a6b", color:"white", padding:"10px 20px",
+                    display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ fontSize:28, fontWeight:900, letterSpacing:-1 }}>LTG</div>
+        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+          <span style={{ fontSize:13, color:"#dbeafe" }}>{currentUser.name} · DASHBOARD</span>
+          <button onClick={function(){ supa.auth.signOut().then(function(){ window.location.href="werkstatt.html"; }); }}
+            style={{ background:"transparent", color:"#dbeafe", border:"1px solid rgba(255,255,255,.25)",
+                     padding:"6px 14px", borderRadius:8, cursor:"pointer", fontWeight:700 }}>
+            Abmelden
+          </button>
         </div>
-      );
-      if (!currentUser) return null;
+      </div>
+      <DashboardShared
+        jobs={jobs} vehicles={vehicles} alerts={[]} inspections={[]}
+        t={t} lang={lang} user={currentUser}
+        onNavigate={function(){}} onCreateJob={function(){}} onTabChange={function(){}}
+      />
+    </div>
+  );
+}
 
-      return (
-        <div style={{ minHeight:"100vh", background:"#f0f4f8" }}>
-          <div style={{ background:"#1a3a6b",color:"white",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-            <div style={{ fontSize:28, fontWeight:900, letterSpacing:-1 }}>LTG</div>
-            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <span style={{ fontSize:13, color:"#dbeafe" }}>{currentUser.name} · DASHBOARD</span>
-              <button onClick={async()=>{await supa.auth.signOut();window.location.href="werkstatt.html";}}
-                style={{ background:"transparent",color:"#dbeafe",border:"1px solid rgba(255,255,255,.25)",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontWeight:700 }}>
-                Abmelden
-              </button>
-            </div>
-          </div>
-          <DashboardShared jobs={jobs} vehicles={vehicles} alerts={[]} inspections={[]}
-            t={t} lang={lang} user={currentUser}
-            onNavigate={()=>{}} onCreateJob={()=>{}} onTabChange={()=>{}} />
-        </div>
-      );
-    }
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
   </script>
 </body>
 </html>
