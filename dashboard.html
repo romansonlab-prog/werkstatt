@@ -18,10 +18,15 @@
   <div id="root"></div>
   <script type="text/babel">
 
+    /* ── React hooks ── MUST be first so all components can use them */
+    const { useState, useEffect, useRef } = React;
+
+    /* ── Supabase ── */
     const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
     const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    /* ── REST helper ── */
     const sb = {
   query: function(table, opts) {
     var url = SUPABASE_URL + "/rest/v1/" + table + "?";
@@ -56,6 +61,7 @@
   }
 };
 
+    /* ── App constants: C, T, USERS, LOCATIONS ── */
     const COMPANY_LOGO = null;
 
 const C = {
@@ -517,6 +523,8 @@ const SAMPLE_JOBS = [ // loaded from Supabase
 ];
 
 
+
+    /* ── Helper UI functions ── */
     function formatTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -594,6 +602,8 @@ function LTGLogo({ size = 1 }) {
 }
 
 
+
+    /* ── Data mappers ── */
     
 function mapJob(r) {
   return {
@@ -618,6 +628,8 @@ function mapVehicle(r) {
   };
 }
 
+
+    /* ── KPI + DashboardShared ── */
     function KPI({ value, label, color, icon }) {
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `3px solid ${color}`, borderRadius: 12, padding: "16px 18px" }}>
@@ -1539,15 +1551,17 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
 }
 
 
+
+    /* ── App root ── */
     
 function App() {
-  const [authState, setAuthState] = React.useState("checking");
-  const [currentUser, setCurrentUser] = React.useState(null);
-  const [jobs, setJobs] = React.useState([]);
-  const [vehicles, setVehicles] = React.useState([]);
+  const [authState, setAuthState] = useState("checking");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [jobs, setJobs] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const lang = "de";
 
-  React.useEffect(function() {
+  useEffect(function() {
     supa.auth.getSession().then(function(res) {
       var session = res.data.session;
       if (!session) { window.location.href = "werkstatt.html"; return; }
@@ -1575,10 +1589,12 @@ function App() {
   var t = T[lang] || T["de"];
 
   if (authState === "checking") {
-    return React.createElement("div", {
-      style: { display:"flex", alignItems:"center", justifyContent:"center",
-               minHeight:"100vh", background:"#f0f4f8", fontSize:18, color:"#1a3a6b" }
-    }, "Login wird geprüft...");
+    return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                   minHeight:"100vh", background:"#f0f4f8", fontSize:18, color:"#1a3a6b" }}>
+        Login wird geprüft...
+      </div>
+    );
   }
   if (!currentUser) return null;
 
