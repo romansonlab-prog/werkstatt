@@ -109,7 +109,7 @@
         return false;
       }
       // Whitelist: nur Chef und Ens haben Zugang
-      const ALLOWED = ['chef@ltg.de', 'ens@ltg.de'];
+      const ALLOWED = ['doll@ltg.de', 'jens@ltg.de'];
       if (!ALLOWED.includes(session.user.email)) {
         alert('Zugriff verweigert! Kein Zugang zum Dashboard.');
         await supa.auth.signOut();
