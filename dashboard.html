@@ -24,10 +24,22 @@
     const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const ALLOWED = ['doll@ltg.de', 'jens@ltg.de'];
 
-    const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+    const sb = {
+      query: function(table, opts) {
+        var url = SUPABASE_URL + "/rest/v1/" + table + "?";
+        if (opts && opts.select) url += "select=" + opts.select;
+        if (opts && opts.filter) url += "&" + opts.filter;
+        if (opts && opts.order) url += "&order=" + opts.order;
+        if (opts && opts.limit) url += "&limit=" + opts.limit;
+        return fetch(url, { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } })
+          .then(r => r.ok ? r.json() : [])
+          .then(d => Array.isArray(d) ? d : [])
+          .catch(() => []);
+      }
+    };
 
-const sb = {
+    
+
   query: function(table, opts) {
     var url = SUPABASE_URL + "/rest/v1/" + table + "?";
     if (opts && opts.select)  url += "select=" + opts.select + "&";
@@ -644,20 +656,6 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   const t = T[lang];
   const [selected, setSelected] = useState(null);
 
-
-    const sb = {
-      query: function(table, opts) {
-        var url = SUPABASE_URL + "/rest/v1/" + table + "?";
-        if (opts && opts.select) url += "select=" + opts.select;
-        if (opts && opts.filter) url += "&" + opts.filter;
-        if (opts && opts.order) url += "&order=" + opts.order;
-        if (opts && opts.limit) url += "&limit=" + opts.limit;
-        return fetch(url, { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } })
-          .then(r => r.ok ? r.json() : [])
-          .then(d => Array.isArray(d) ? d : [])
-          .catch(() => []);
-      }
-    };
 
     function mapJob(r) {
       return {
