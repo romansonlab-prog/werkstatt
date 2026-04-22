@@ -855,10 +855,9 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             return (
               <div key={item.k}
                 onClick={function(){
-                  if (item.k === "fahrzeuge" || item.k === "lager" || item.k === "archive") {
-                    if (onTabChange) onTabChange(item.k);
-                  } else {
-                    setActiveSection(item.k);
+                  setActiveSection(item.k);
+                  if (onTabChange && (item.k === "fahrzeuge" || item.k === "lager" || item.k === "archive")) {
+                    onTabChange(item.k);
                   }
                 }}
                 style={{ display:"flex", alignItems:"center", gap:10,
@@ -1226,6 +1225,64 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
               </div>
             );
           })()}
+          </div>
+        )}
+{activeSection === "fahrzeuge" && (
+          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:8 }}>🚛 Technik / Fahrzeuge</div>
+            <div style={{ fontSize:13, color:C.gray500, marginBottom:16 }}>Dieser Bereich ist im Dashboard jetzt anklickbar. Für die Detailpflege kannst du weiter in die Fahrzeugverwaltung wechseln.</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:12 }}>
+              {(vehicles||[]).slice(0,24).map(function(v,idx){
+                var plate = v.plate || v.plate_number || v.kennzeichen || ("Fahrzeug " + (idx+1));
+                var brand = v.brand || v.make_model || v.brand_model || "—";
+                var loc = v.location || "—";
+                return (
+                  <div key={plate+idx} style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:10, padding:"14px" }}>
+                    <div style={{ fontSize:15, fontWeight:800, color:C.white, marginBottom:4 }}>{plate}</div>
+                    <div style={{ fontSize:12, color:C.gray500, marginBottom:6 }}>{brand}</div>
+                    <div style={{ fontSize:12, color:C.gray300 }}>{loc}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+{activeSection === "lager" && (
+          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:8 }}>📦 Lager</div>
+            <div style={{ fontSize:13, color:C.gray500 }}>Die Seitenleiste funktioniert jetzt auch für Lager. Wenn du willst, mache ich im nächsten Schritt hier einen echten Lager-Block mit Bestand, Minimum und Belegen.</div>
+          </div>
+        )}
+{activeSection === "archive" && (
+          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:8 }}>🗂 Archiv</div>
+            <div style={{ fontSize:13, color:C.gray500, marginBottom:16 }}>Archiv ist jetzt anklickbar. Unten siehst du die letzten Aufträge aus den geladenen Daten.</div>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                <thead>
+                  <tr style={{ color:C.gray500, textAlign:"left", borderBottom:"1px solid "+C.border }}>
+                    <th style={{ padding:"10px 8px" }}>Fahrzeug</th>
+                    <th style={{ padding:"10px 8px" }}>Typ</th>
+                    <th style={{ padding:"10px 8px" }}>Mechaniker</th>
+                    <th style={{ padding:"10px 8px" }}>Status</th>
+                    <th style={{ padding:"10px 8px" }}>Datum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(jobs||[]).slice(0,20).map(function(j){
+                    return (
+                      <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"55" }}>
+                        <td style={{ padding:"10px 8px", color:C.white }}>{j.plate || j.plateNumber || "—"}</td>
+                        <td style={{ padding:"10px 8px", color:C.gray300 }}>{j.vehicleType || "—"}</td>
+                        <td style={{ padding:"10px 8px", color:C.gray300 }}>{j.mechanic || "—"}</td>
+                        <td style={{ padding:"10px 8px", color:C.gray300 }}>{j.status || "—"}</td>
+                        <td style={{ padding:"10px 8px", color:C.gray300 }}>{j.date || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 {activeSection === "inspektion" && (
