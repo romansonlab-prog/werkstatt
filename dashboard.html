@@ -1,212 +1,1671 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>LTG Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing:border-box; }
-    body { margin:0; background:#f0f4f8; color:#1a2332; font-family:Arial, Helvetica, sans-serif; }
-    .top { background:#1a3a6b; color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; }
-    .logo { font-size:30px; font-weight:900; letter-spacing:-1px; }
-    .user { font-size:13px; color:#dbeafe; text-align:right; }
-    .logout { background:transparent; color:#dbeafe; border:1px solid rgba(255,255,255,.25); padding:8px 10px; border-radius:10px; font-weight:800; cursor:pointer; }
-    .wrap { max-width:1120px; margin:0 auto; padding:20px; }
-    h1 { margin:8px 0 18px; font-size:26px; }
-    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-    .kpi { background:white; border:1px solid #d0dbe8; border-radius:18px; padding:18px; box-shadow:0 8px 20px rgba(26,58,107,.07); }
-    .kpi .label { color:#4a6080; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.5px; }
-    .kpi .value { font-size:34px; font-weight:900; margin-top:8px; }
-    .grid { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-top:16px; }
-    .panel { background:white; border:1px solid #d0dbe8; border-radius:18px; padding:16px; box-shadow:0 8px 20px rgba(26,58,107,.07); }
-    .panel h2 { font-size:18px; margin:0 0 12px; }
-    table { width:100%; border-collapse:collapse; }
-    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:14px; vertical-align:top; }
-    th { color:#4a6080; font-size:12px; text-transform:uppercase; }
-    .badge { display:inline-block; padding:5px 8px; border-radius:999px; font-weight:900; font-size:11px; background:#e2e8f0; }
-    .urgent { background:#fee2e2; color:#b91c1c; }
-    .ok { background:#dcfce7; color:#15803d; }
-    .warn { background:#fef3c7; color:#92400e; }
-    .empty { color:#7a90a8; padding:20px; text-align:center; }
-    @media (max-width: 920px) {
-      .kpis { grid-template-columns:1fr 1fr; }
-      .grid { grid-template-columns:1fr; }
-    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#f0f4f8; min-height:100vh; font-family: Arial, Helvetica, sans-serif; }
+    #root { min-height:100vh; }
   </style>
 </head>
 <body>
-  <header class="top">
-    <div class="logo">LTG</div>
-    <div>
-      <div id="user" class="user">Login wird geprüft...</div>
-      <button id="logout" class="logout" style="display:none">Abmelden</button>
-    </div>
-  </header>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
 
-  <main class="wrap">
-    <h1>Dashboard</h1>
+    const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+    const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const ALLOWED = ['doll@ltg.de', 'jens@ltg.de'];
 
-    <section class="kpis">
-      <div class="kpi"><div class="label">Open Jobs</div><div id="kOpen" class="value">—</div></div>
-      <div class="kpi"><div class="label">Critical</div><div id="kCritical" class="value">—</div></div>
-      <div class="kpi"><div class="label">Waiting Parts</div><div id="kParts" class="value">—</div></div>
-      <div class="kpi"><div class="label">Done Today</div><div id="kDone" class="value">—</div></div>
-    </section>
+    const SUPABASE_URL = "https://vtswzvrflqoueowylidy.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 
-    <section class="grid">
-      <div class="panel">
-        <h2>Aktuelle Aufträge</h2>
-        <div id="jobsTable"></div>
-      </div>
-      <div class="panel">
-        <h2>Nach Quelle</h2>
-        <div id="sourceBox"></div>
-      </div>
-    </section>
-
-    <section class="grid">
-      <div class="panel">
-        <h2>Waschhalle — heutige Aufträge</h2>
-        <div id="washTable"></div>
-      </div>
-      <div class="panel">
-        <h2>Waschhalle — letzte Tage</h2>
-        <div id="washSummary"></div>
-      </div>
-    </section>
-  </main>
-
-  <script>
-    const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
-    const SB_KEY = "sb_publishable_8z54aRy2nVSWkT4n87ACjw_6StWhUxz";
-    const supa = window.supabase.createClient(SB_URL, SB_KEY);
-
-    let session = null;
-    let jobs = [];
-    let washOrders = [];
-    let washSummary = [];
-
-    async function authHeaders() {
-      const r = await supa.auth.getSession();
-      session = r.data.session;
-      if (!session) {
-        window.location.href = "login.html";
-        throw new Error("not logged in");
+const sb = {
+  query: function(table, opts) {
+    var url = SUPABASE_URL + "/rest/v1/" + table + "?";
+    if (opts && opts.select)  url += "select=" + opts.select + "&";
+    if (opts && opts.filter)  url += opts.filter + "&";
+    if (opts && opts.order)   url += "order=" + opts.order + "&";
+    if (opts && opts.limit)   url += "limit=" + opts.limit + "&";
+    var timeout = new Promise(function(_, rej){
+      setTimeout(function(){ rej(new Error("timeout")); }, 5000);
+    });
+    return Promise.race([
+      fetch(url, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": "Bearer " + SUPABASE_KEY,
+          "Content-Type": "application/json"
+        }
+      }).then(function(r){
+        if (!r.ok) return [];
+        return r.json().then(function(d){ return Array.isArray(d) ? d : []; });
+      }),
+      timeout
+    ]).catch(function(){ return []; });
+  },
+  insert: function(table, data) {
+    return fetch(SUPABASE_URL + "/rest/v1/" + table, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(data)
+    }).then(function(r){ return r.status < 400 ? true : r.json(); });
+  },
+  update: function(table, id, data) {
+    return fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, {
+      method: "PATCH",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(data)
+    }).then(function(r){ return r.status < 400 ? true : r.json(); });
+  },
+  subscribe(table, callback) {
+    const ws = new WebSocket(
+      SUPABASE_URL.replace("https","wss") + "/realtime/v1/websocket?apikey=" + SUPABASE_KEY + "&vsn=1.0.0"
+    );
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        topic: "realtime:public:" + table,
+        event: "phx_join",
+        payload: { config: { broadcast: { self: true }, presence: { key: "" } } },
+        ref: null
+      }));
+    };
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.event === "INSERT" || msg.event === "UPDATE") {
+        callback(msg.payload.record);
       }
+    };
+    return ws;
+  }
+};
+
+
+
+
+
+const COMPANY_LOGO = null;
+
+const C = {
+
+  bg:       "#f0f4f8",   // light grey background
+  surface:  "#ffffff",   // white cards
+  surfaceAlt:"#1a3a6b",  // dark blue header
+  navy:     "#1a3a6b",   // LTG blue
+  navyDark: "#122a52",   // dark blue
+  navyMid:  "#1e4280",   // medium blue
+  border:   "#d0dbe8",   // light borders
+
+  white:    "#1a2332",   // dark text on light bg
+  gray50:   "#f8fafc",
+  gray100:  "#e2e8f0",
+  gray300:  "#4a6080",   // secondary text
+  gray500:  "#7a90a8",   // placeholders
+  gray700:  "#334155",
+
+  blue:     "#1a3a6b",   // LTG blue -  
+  blueLt:   "#2d5fa8",   // hover
+  orange:   "#c8a84b",   // LTG gold accent
+  orangeDim:"#7a6020",
+  green:    "#22c55e",   // success / OK
+  red:      "#ef4444",   // urgent / error
+  yellow:   "#c8a84b",   // warning - LTG gold
+};
+
+const T = {
+const T = {
+  de: {
+    appName:"LTG Werkstatt", login:"Anmelden", logout:"Abmelden",
+    selectUser:"Benutzer wahlen", enterPin:"PIN eingeben", welcome:"Willkommen",
+    newJob:"Neuer Auftrag", myJobs:"Meine Aufträge", dashboard:"Dashboard",
+    archive:"Archiv", lager:"Lager", vehicles:"Fahrzeuge",
+    vehicleType:"Fahrzeugtyp", plateNumber:"Kennzeichen / Nr.",
+    location:"Standort", workType:"Arbeitstyp", description:"Fehlerbeschreibung",
+    photos:"Fotos", addPhotos:"Fotos hinzufügen", travelTime:"Fahrzeit",
+    startTravel:"Fahrt starten", stopTravel:"Fahrt beenden",
+    startWork:"Arbeit starten", stopWork:"Arbeit beenden",
+    saveReport:"Bericht speichern", reset:"Zurücksetzen",
+    status:"Status", date:"Datum", duration:"Dauer",
+    mechanic:"Mechaniker", colleague:"Kollege",
+    withColleague:"Mit Kollegen", alone:"Allein",
+    repair:"Reparatur", maintenance:"Wartung / TO", inspection:"Inspektion",
+    travelToShop:"Fahrt Ersatzteilladen", emergency:"Notruf",
+    saved:"Gespeichert", traveling:"Unterwegs...", working:"In Arbeit...",
+    truck:"LKW", semiTrailer:"Sattelauflieger", forklift:"Stapler",
+    trailer:"Anhänger", pkw:"PKW", other:"Sonstiges", workshop:"Werkstatt",
+    totalJobs:"Aufträge heute", openJobs:"Offen", doneJobs:"Erledigt",
+    travelTotal:"Fahrzeit gesamt", workTotal:"Arbeitszeit gesamt",
+    recentActivity:"Letzte Aktivitäten", searchArchive:"Suchen...",
+    open:"Offen", inProgress:"In Arbeit", done:"Erledigt",
+    reportTitle:"Tagesbericht", noJobs:"Keine Aufträge",
+    uploadPhoto:"Foto aufnehmen", travelTo:"Hinfahrt", travelBack:"Rückfahrt",
+    both:"Beide Mechaniker",
+    lagerTitle:"Lager & Belege", stockTab:"Lagerbestand", invoicesTab:"Belege",
+    addInvoiceTab:"Beleg erfassen", positions:"Positionen",
+    lowEmpty:"Wenig/Leer", totalPcs:"Stk gesamt", search:"Suchen...",
+    addParts:"Neue Teile", newArticle:"Neuer Artikel",
+    name:"Bezeichnung", category:"Kategorie", minStock:"Mindestbestand",
+    storageLocation:"Lagerort", unit:"Einheit", add:"Hinzufügen",
+    stockOk:"OK", stockLow:"Wenig", stockEmpty:"Leer", minLabel:"Min",
+    invoicesTotal:"Belege gesamt", noInvoices:"Keine Belege",
+    supplier:"Lieferant", amount:"Betrag (EU)", boughtParts:"Gekaufte Teile",
+    linkedJob:"Auftrag (optional)", noJob:"kein Auftrag",
+    invoicePhoto:"Beleg fotografieren", saveInvoice:"Beleg speichern",
+    invoiceSaved:"Beleg gespeichert!", newInvoice:"Neuer Beleg", photoOk:"Foto ok",
+    vehiclesTitle:"Fahrzeugverwaltung", vehiclesTotal:"Fahrzeuge gesamt",
+    attentionRequired:"Achtung!", addVehicle:"Fahrzeug hinzufügen",
+    newVehicle:"Neues Fahrzeug", plate:"Kennzeichen", brand:"Marke / Modell",
+    buildYear:"Baujahr", mileageLabel:"Kilometerstand",
+    tuev:"TÜV bis", insurance:"Versicherung bis", uvv:"UVV bis",
+    nextService:"Nächste Wartung", docsAndDates:"Dokumente & Fristen",
+    vehicleAdded:"Fahrzeug hinzugefügt!", backBtn:"Zurück",
+    expiredDays:"d überfällig", emergencyBtn:"NOTRUF ABSENDEN",
+    emergencySent:"Notruf gesendet!", emergencyNotified:"Schef und Jens benachrichtigt",
+    accident:"Unfall", breakdown:"Panne", fire:"Brand", injury:"Verletzung",
+    whatHappened:"Was ist passiert?", urgentAlert:"Fristen ablaufend!",
+    urgentDesc:"TÜV, Versicherung oder Wartung in weniger als 30 Tagen",
+    eveningReport:"Tagesbericht", generateReport:"Bericht erstellen",
+    reportFor:"Bericht für", totalWork:"Arbeitszeit", totalTravel:"Fahrzeit",
+    jobsDone:"Erledigt", noReportJobs:"Keine Aufträge heute",
+    reportSent:"Bericht gesendet!", driverInspection:"Fahrer Inspektion",
+    startInspection:"Inspektion starten", inspectionDone:"Inspektion abgeschlossen",
+    noDefects:"Keine Mängel", defectsFound:"Mängel festgestellt",
+    tires:"Reifen", lights:"Beleuchtung", brakes:"Bremsen",
+    body:"Karosserie", documents:"Fahrzeugpapiere", inspectionNote:"Bemerkungen",
+    today:"Heute", week:"7 Tage", all:"Gesamt",
+    emergencyAlert:"Notfälle", externalReports:"externe Meldungen",
+    immediateAttention:"Sofortige Aufmerksamkeit erforderlich",
+    jobsLabel:"Aufträge", openLabel:"Offen", inProgressLabel:"In Arbeit",
+    doneLabel:"Erledigt", workTimeLabel:"Arbeitszeit", travelLabel:"Fahrzeit",
+    weeklyTrend:"Aufträge letzte 7 Tage", workTypes:"Arbeitsarten",
+    mechanicLoad:"Auslastung Mechaniker", topProblems:"Top Problemfahrzeuge",
+    docsExpiring:"Dokumente ablaufend", fleetStatus:"Fuhrpark Status",
+    fleetOk:"OK", fleetSoon:"Bald fällig", fleetExpired:"Abgelaufen",
+    upcomingDates:"Ablaufende Fristen 60 Tage",
+    openByLocation:"Offene Aufträge je Standort", noOpenJobs:"Keine offenen Aufträge",
+    fleetByType:"Fahrzeugpark", todayActivity:"Heute Aktivitäten",
+    noActivityToday:"Noch keine Aktivitäten", urgentAttention:"Sofortige Aufmerksamkeit!",
+    vehiclesExpired:"Fahrzeuge mit abgelaufenen Dokumenten",
+    days:"d", daysOverdue:"d!",
+    docTuev:"TÜV", docVers:"Vers.", docUvv:"UVV", docWartung:"Wartung",
+    mgmtOverview:"Management Overview", fleetMgmt:"Fleet Management",
+    totalCost:"Gesamtkosten", costPerVehicle:"Kosten je Fahrzeug",
+    downtimeLabel:"Ausfallzeit", downtimeTotal:"Ausfallzeit gesamt",
+    costTrend:"Kostenentwicklung", topCostVehicles:"Kostenintensivste Fahrzeuge",
+    repairCost:"Reparaturkosten", partsCost:"Ersatzteile",
+    laborCost:"Lohnkosten", costUnit:"€",
+    availability:"Verfügbarkeit", availabilityFleet:"Flottenverfügbarkeit",
+    downtimePerVehicle:"Ausfallzeit je Fahrzeug", minutes:"min",
+    costThisMonth:"Kosten diesen Monat", vsLastMonth:"vs. Vormonat",
+    mostExpensive:"Teuerste Reparaturen",
+    meldenTitle:"Störung melden", meldenType:"Art der Störung", meldenLocation:"Standort",
+    meldenDesc:"Beschreibung...", meldenUrgent:"Sofortige Hilfe", meldenWait:"Kann warten",
+    meldenSend:"MELDEN", meldenSending:"Wird gesendet...", meldenSent:"Gemeldet!",
+    meldenNotified:"Werkstatt benachrichtigt", meldenNew:"Neue Meldung",
+    share:"Teilen", print:"Drucken", copied:"Kopiert!",
+    translating:"Übersetze...",
+    meldenBreakdown:"Panne", incomingTab:"Eingang", noAlerts:"Keine neuen Meldungen", fromDriver:"von Fahrer", fromStapler:"von Stapler", fromFPL:"von Jens", createJobFrom:"Auftrag erstellen", alertReceived:"Neue Meldung!", meldenAccident:"Unfall", meldenOther:"Sonstiges",
+    partsSection:"Teile & Material", partsType:"Teiletyp",
+    noPartsLabel:"Ohne Teile", inspectionLabel:"Inspektion / TO",
+    fromStockLabel:"Aus Lager", buyLabel:"Einkauf notwendig",
+    usedLabel:"Gebrauchtteil", partsDesc:"Beschreibung",
+    invoiceNr:"Belegnummer", partsCostLabel:"Kosten (EUR)",
+    selectParts:"Teile auswählen", noParts:"Keine Teile auf Lager",
+    partsAdded:"Teile hinzugefügt", usedDesc:"Woher? Beschreibung...",
+    buyDesc:"Was kaufen?",
+    urgency:"Dringlichkeit", enterCustom:"Eigenes Kennzeichen",
+    roleChef:"Chef", roleFPL:"Fuhrparkleiter", roleMechanic:"Mechaniker",
+  },
+  ru: {
+    appName:"LTG ", login:"", logout:"",
+    selectUser:" ", enterPin:" PIN", welcome:" ",
+    newJob:" ", myJobs:" ", dashboard:"",
+    archive:"", lager:"", vehicles:"",
+    vehicleType:" ", plateNumber:"",
+    location:"", workType:" ", description:"",
+    photos:"", addPhotos:" ", travelTime:"  ",
+    startTravel:" ", stopTravel:" ",
+    startWork:" ", stopWork:" ",
+    saveReport:" ", reset:"",
+    status:"", date:"", duration:"",
+    mechanic:"", colleague:"",
+    withColleague:" ", alone:"",
+    repair:"", maintenance:"", inspection:"",
+    travelToShop:"  ", emergency:" ",
+    saved:"", traveling:" ...", working:" ...",
+    truck:"LKW", semiTrailer:"", forklift:"",
+    trailer:"", pkw:"PKW", other:"", workshop:"",
+    totalJobs:" ", openJobs:"", doneJobs:"",
+    travelTotal:"  ", workTotal:" ",
+    recentActivity:" ", searchArchive:"...",
+    open:"", inProgress:" ", done:"",
+    reportTitle:" ", noJobs:" ",
+    uploadPhoto:"", travelTo:"", travelBack:"",
+    both:" ",
+    lagerTitle:" & ", stockTab:"", invoicesTab:"",
+    addInvoiceTab:" ", positions:"",
+    lowEmpty:"/", totalPcs:" ", search:"...",
+    addParts:" ", newArticle:" ",
+    name:"", category:"", minStock:". ",
+    storageLocation:" ", unit:"", add:"",
+    stockOk:"OK", stockLow:"", stockEmpty:"", minLabel:"",
+    invoicesTotal:" ", noInvoices:" ",
+    supplier:"", amount:" (EU)", boughtParts:" ",
+    linkedJob:" ()", noJob:" ",
+    invoicePhoto:" ", saveInvoice:"",
+    invoiceSaved:" !", newInvoice:" ", photoOk:" ",
+    vehiclesTitle:" ", vehiclesTotal:" ",
+    attentionRequired:" !", addVehicle:" ",
+    newVehicle:" ", plate:" ", brand:" / ",
+    buildYear:" ", mileageLabel:" ()",
+    tuev:" ", insurance:" ", uvv:"UVV ",
+    nextService:" ", docsAndDates:" & ",
+    vehicleAdded:" !", backBtn:"",
+    expiredDays:" ", emergencyBtn:" ",
+    emergencySent:" !", emergencyNotified:"  Jens ",
+    accident:"", breakdown:"", fire:"", injury:"",
+    whatHappened:" ?", urgentAlert:" !",
+    urgentDesc:",     30 ",
+    eveningReport:" ", generateReport:" ",
+    reportFor:" ", totalWork:" ", totalTravel:"  ",
+    jobsDone:"", noReportJobs:"  ",
+    reportSent:" !", driverInspection:" ",
+    startInspection:" ", inspectionDone:" ",
+    noDefects:" ", defectsFound:" ",
+    tires:"", lights:"", brakes:"",
+    body:"", documents:"", inspectionNote:"",
+    today:"", week:"7 ", all:" ",
+    emergencyAlert:"", externalReports:" ",
+    immediateAttention:"  ",
+    jobsLabel:"", openLabel:"", inProgressLabel:" ",
+    doneLabel:"", workTimeLabel:" ", travelLabel:"  ",
+    weeklyTrend:" —  7 ", workTypes:" ",
+    mechanicLoad:" ", topProblems:"  ",
+    docsExpiring:" ", fleetStatus:" ",
+    fleetOk:"OK", fleetSoon:" ", fleetExpired:"",
+    upcomingDates:"  (60 )",
+    openByLocation:"   ", noOpenJobs:"  ",
+    fleetByType:" ", todayActivity:" — ",
+    noActivityToday:"  ", urgentAttention:" !",
+    vehiclesExpired:"   ",
+    days:"", daysOverdue:"!",
+    docTuev:"", docVers:".", docUvv:"UVV", docWartung:"",
+    mgmtOverview:" ", fleetMgmt:" ",
+    totalCost:" ", costPerVehicle:"  ",
+    downtimeLabel:"", downtimeTotal:" ",
+    costTrend:" ", topCostVehicles:"  ",
+    repairCost:" ", partsCost:"",
+    laborCost:"", costUnit:"€",
+    availability:"", availabilityFleet:" ",
+    downtimePerVehicle:"  ", minutes:"",
+    costThisMonth:"  ", vsLastMonth:"vs.  ",
+    mostExpensive:"  ",
+    meldenTitle:"  ", meldenType:" ", meldenLocation:"",
+    meldenDesc:"...", meldenUrgent:"", meldenWait:" ",
+    meldenSend:"", meldenSending:"...", meldenSent:"!",
+    meldenNotified:" ", meldenNew:" ",
+    share:"", print:"", copied:"!",
+    translating:"...",
+    meldenBreakdown:"", incomingTab:"", noAlerts:"  ", fromDriver:" ", fromStapler:" ", fromFPL:" Jens", createJobFrom:" ", alertReceived:" !", meldenAccident:"", meldenOther:"",
+    partsSection:" & ", partsType:" ",
+    noPartsLabel:" ", inspectionLabel:" / ",
+    fromStockLabel:" ", buyLabel:" ",
+    usedLabel:"/ ", partsDesc:"",
+    invoiceNr:" ", partsCostLabel:" (EUR)",
+    selectParts:" ", noParts:"   ",
+    partsAdded:" ", usedDesc:"? ...",
+    buyDesc:" ?",
+    urgency:"", enterCustom:"  ",
+    roleChef:"", roleFPL:"", roleMechanic:"",
+  },
+  en: {
+    appName:"LTG Workshop", login:"Login", logout:"Logout",
+    selectUser:"Select user", enterPin:"Enter PIN", welcome:"Welcome",
+    newJob:"New Job", myJobs:"My Jobs", dashboard:"Dashboard",
+    archive:"Archive", lager:"Stock", vehicles:"Vehicles",
+    vehicleType:"Vehicle Type", plateNumber:"Plate / Nr.",
+    location:"Location", workType:"Work Type", description:"Description",
+    photos:"Photos", addPhotos:"Add Photos", travelTime:"Travel Time",
+    startTravel:"Start Travel", stopTravel:"Stop Travel",
+    startWork:"Start Work", stopWork:"Stop Work",
+    saveReport:"Save Report", reset:"Reset",
+    status:"Status", date:"Date", duration:"Duration",
+    mechanic:"Mechanic", colleague:"Colleague",
+    withColleague:"With Colleague", alone:"Alone",
+    repair:"Repair", maintenance:"Maintenance", inspection:"Inspection",
+    travelToShop:"Trip to Shop", emergency:"Emergency",
+    saved:"Saved", traveling:"Traveling...", working:"Working...",
+    truck:"Truck", semiTrailer:"Semi-Trailer", forklift:"Forklift",
+    trailer:"Trailer", pkw:"PKW", other:"Other", workshop:"Workshop",
+    totalJobs:"Jobs Today", openJobs:"Open", doneJobs:"Done",
+    travelTotal:"Total Travel", workTotal:"Total Work",
+    recentActivity:"Recent Activity", searchArchive:"Search...",
+    open:"Open", inProgress:"In Progress", done:"Done",
+    reportTitle:"Daily Report", noJobs:"No jobs",
+    uploadPhoto:"Take photo", travelTo:"There", travelBack:"Back",
+    both:"Both Mechanics",
+    lagerTitle:"Stock & Invoices", stockTab:"Inventory", invoicesTab:"Invoices",
+    addInvoiceTab:"Add Invoice", positions:"Positions",
+    lowEmpty:"Low/Empty", totalPcs:"Total pcs", search:"Search...",
+    addParts:"Add parts", newArticle:"New item",
+    name:"Name", category:"Category", minStock:"Min. stock",
+    storageLocation:"Storage location", unit:"Unit", add:"Add",
+    stockOk:"OK", stockLow:"Low", stockEmpty:"Empty", minLabel:"Min",
+    invoicesTotal:"Invoices total", noInvoices:"No invoices",
+    supplier:"Supplier", amount:"Amount (EU)", boughtParts:"Parts bought",
+    linkedJob:"Job (optional)", noJob:"no job",
+    invoicePhoto:"Photograph invoice", saveInvoice:"Save invoice",
+    invoiceSaved:"Invoice saved!", newInvoice:"New invoice", photoOk:"Photo ok",
+    vehiclesTitle:"Fleet Management", vehiclesTotal:"Total vehicles",
+    attentionRequired:"Attention!", addVehicle:"Add vehicle",
+    newVehicle:"New vehicle", plate:"Plate", brand:"Make / Model",
+    buildYear:"Year", mileageLabel:"Mileage",
+    tuev:"TÜV until", insurance:"Insurance until", uvv:"UVV until",
+    nextService:"Next service", docsAndDates:"Documents & Dates",
+    vehicleAdded:"Vehicle added!", backBtn:"Back",
+    expiredDays:"d overdue", emergencyBtn:"SEND EMERGENCY",
+    emergencySent:"Emergency sent!", emergencyNotified:"Chef and Jens notified",
+    accident:"Accident", breakdown:"Breakdown", fire:"Fire", injury:"Injury",
+    whatHappened:"What happened?", urgentAlert:"Deadlines expiring!",
+    urgentDesc:"TÜV, insurance or service in less than 30 days",
+    eveningReport:"Daily Report", generateReport:"Generate Report",
+    reportFor:"Report for", totalWork:"Total work", totalTravel:"Total travel",
+    jobsDone:"Done", noReportJobs:"No jobs today",
+    reportSent:"Report sent!", driverInspection:"Driver inspection",
+    startInspection:"Start inspection", inspectionDone:"Inspection done",
+    noDefects:"No defects", defectsFound:"Defects found",
+    tires:"Tires", lights:"Lights", brakes:"Brakes",
+    body:"Body", documents:"Documents", inspectionNote:"Notes",
+    today:"Today", week:"7 Days", all:"All time",
+    emergencyAlert:"Emergencies", externalReports:"external reports",
+    immediateAttention:"Immediate attention required",
+    jobsLabel:"Jobs", openLabel:"Open", inProgressLabel:"In Progress",
+    doneLabel:"Done", workTimeLabel:"Work time", travelLabel:"Travel time",
+    weeklyTrend:"Jobs last 7 days", workTypes:"Work types",
+    mechanicLoad:"Mechanic workload", topProblems:"Top problem vehicles",
+    docsExpiring:"Expiring documents", fleetStatus:"Fleet status",
+    fleetOk:"OK", fleetSoon:"Expiring soon", fleetExpired:"Expired",
+    upcomingDates:"Upcoming expirations (60 days)",
+    openByLocation:"Open jobs by location", noOpenJobs:"No open jobs",
+    fleetByType:"Fleet breakdown", todayActivity:"Today activity",
+    noActivityToday:"No activity today", urgentAttention:"Urgent attention!",
+    vehiclesExpired:"vehicles with expired documents",
+    days:"d", daysOverdue:"d!",
+    docTuev:"TÜV", docVers:"Ins.", docUvv:"UVV", docWartung:"Service",
+    mgmtOverview:"Management Overview", fleetMgmt:"Fleet Management",
+    totalCost:"Total costs", costPerVehicle:"Cost per vehicle",
+    downtimeLabel:"Downtime", downtimeTotal:"Total downtime",
+    costTrend:"Cost trend", topCostVehicles:"Most expensive vehicles",
+    repairCost:"Repair cost", partsCost:"Parts",
+    laborCost:"Labor cost", costUnit:"€",
+    availability:"Availability", availabilityFleet:"Fleet availability",
+    downtimePerVehicle:"Downtime per vehicle", minutes:"min",
+    costThisMonth:"Costs this period", vsLastMonth:"vs. last period",
+    mostExpensive:"Most expensive repairs",
+    meldenTitle:"Report issue", meldenType:"Type of issue", meldenLocation:"Location",
+    meldenDesc:"Description...", meldenUrgent:"Urgent", meldenWait:"Can wait",
+    meldenSend:"REPORT", meldenSending:"Sending...", meldenSent:"Reported!",
+    meldenNotified:"Workshop notified", meldenNew:"New report",
+    share:"Share", print:"Print", copied:"Copied!",
+    meldenBreakdown:"Breakdown", meldenAccident:"Accident", meldenOther:"Other",
+    partsSection:"Parts & Materials", partsType:"Parts type",
+    noPartsLabel:"No parts needed", inspectionLabel:"Inspection / Service",
+    fromStockLabel:"From stock", buyLabel:"Need to buy",
+    usedLabel:"Used part", partsDesc:"Description",
+    invoiceNr:"Invoice number", partsCostLabel:"Cost (EUR)",
+    selectParts:"Select parts", noParts:"No parts in stock",
+    partsAdded:"Parts added", usedDesc:"Where from? Description...",
+    buyDesc:"What to buy?",
+    urgency:"Urgency", enterCustom:"Enter custom plate",
+    roleChef:"Chef", roleFPL:"Fleet Manager", roleMechanic:"Mechanic",
+  },
+  uk: {
+    appName:"LTG ", login:"і", logout:"",
+    selectUser:" ", enterPin:"і PIN", welcome:" ",
+    newJob:" ", myJobs:"ї ", dashboard:"",
+    archive:"і", lager:"", vehicles:"і",
+    vehicleType:" і", plateNumber:"",
+    location:"і", workType:" ", description:"",
+    photos:"", addPhotos:" ", travelTime:"  і",
+    startTravel:" ї", stopTravel:" ї",
+    startWork:" ", stopWork:" ",
+    saveReport:" і", reset:"",
+    status:"", date:"", duration:"і",
+    mechanic:"і", colleague:"",
+    withColleague:" ", alone:"",
+    repair:"", maintenance:"", inspection:"",
+    travelToShop:"ї  ", emergency:"і ",
+    saved:"", traveling:" і...", working:" і...",
+    truck:"і", semiTrailer:"іі", forklift:"",
+    trailer:"і", pkw:"PKW", other:"І", workshop:"",
+    totalJobs:" і", openJobs:"і", doneJobs:"",
+    travelTotal:"  і", workTotal:" ",
+    recentActivity:" і", searchArchive:"...",
+    open:"і", inProgress:" і", done:"",
+    reportTitle:" і", noJobs:"є ",
+    uploadPhoto:"", travelTo:"", travelBack:"",
+    both:" і",
+    lagerTitle:" & і", stockTab:"", invoicesTab:"і",
+    addInvoiceTab:" ", positions:"і",
+    lowEmpty:"/", totalPcs:" ", search:"...",
+    addParts:" ", newArticle:" і",
+    name:"", category:"і", minStock:"і. ",
+    storageLocation:"і і", unit:"", add:"",
+    stockOk:"OK", stockLow:"", stockEmpty:"", minLabel:"і",
+    invoicesTotal:" ", noInvoices:" є",
+    supplier:"", amount:" (EU)", boughtParts:"і ",
+    linkedJob:" (і)", noJob:" ",
+    invoicePhoto:" ", saveInvoice:"",
+    invoiceSaved:" !", newInvoice:" ", photoOk:" ",
+    vehiclesTitle:"і і", vehiclesTotal:" і",
+    attentionRequired:"є !", addVehicle:" і",
+    newVehicle:" і", plate:" ", brand:" / ",
+    buildYear:"і ", mileageLabel:"і ()",
+    tuev:" ", insurance:" ", uvv:"UVV ",
+    nextService:" ", docsAndDates:" & і",
+    vehicleAdded:"і !", backBtn:"",
+    expiredDays:" ", emergencyBtn:"І ",
+    emergencySent:" і!", emergencyNotified:" і Jens іі",
+    accident:"і", breakdown:"", fire:"", injury:"",
+    whatHappened:" ?", urgentAlert:"і !",
+    urgentDesc:",     30 і",
+    eveningReport:" і", generateReport:" і",
+    reportFor:"і ", totalWork:" ", totalTravel:"  і",
+    jobsDone:"", noReportJobs:"і є ",
+    reportSent:"і і!", driverInspection:" і",
+    startInspection:" ", inspectionDone:" ",
+    noDefects:" ", defectsFound:" ",
+    tires:"", lights:"і", brakes:"",
+    body:"", documents:"", inspectionNote:"і",
+    today:"і", week:"7 і", all:" ",
+    emergencyAlert:"ії", externalReports:"іі і",
+    immediateAttention:"і  ",
+    jobsLabel:"", openLabel:"і", inProgressLabel:" і",
+    doneLabel:"", workTimeLabel:" ", travelLabel:"  і",
+    weeklyTrend:" і 7 і", workTypes:" і",
+    mechanicLoad:"і іі", topProblems:"  ",
+    docsExpiring:"  і", fleetStatus:" ",
+    fleetOk:"OK", fleetSoon:" іє", fleetExpired:"",
+    upcomingDates:"і  і (60 і)",
+    openByLocation:"іі   і", noOpenJobs:"є і ",
+    fleetByType:" і", todayActivity:"і і",
+    noActivityToday:"і і є", urgentAttention:"і !",
+    vehiclesExpired:"і   ",
+    days:"", daysOverdue:"!",
+    docTuev:"", docVers:".", docUvv:"UVV", docWartung:"",
+    mgmtOverview:" ", fleetMgmt:"і ",
+    totalCost:"і ", costPerVehicle:"  і",
+    downtimeLabel:"і", downtimeTotal:" і",
+    costTrend:"і ", topCostVehicles:" і",
+    repairCost:"і ", partsCost:"",
+    laborCost:"", costUnit:"€",
+    availability:"і", availabilityFleet:"і ",
+    downtimePerVehicle:"і  іі", minutes:"",
+    costThisMonth:"  і", vsLastMonth:"vs.  і",
+    mostExpensive:"і ",
+    meldenTitle:"і  ", meldenType:" ", meldenLocation:"і",
+    meldenDesc:"...", meldenUrgent:"і", meldenWait:" ",
+    meldenSend:"І", meldenSending:"є...", meldenSent:"і!",
+    meldenNotified:" і", meldenNew:" і",
+    share:"", print:"", copied:"!",
+    translating:"...",
+    meldenBreakdown:"", incomingTab:"", noAlerts:"  ", fromDriver:" ", fromStapler:" ", fromFPL:" Jens", createJobFrom:" ", alertReceived:" !", meldenAccident:"і", meldenOther:"І",
+    partsSection:" & і", partsType:" ",
+    noPartsLabel:" ", inspectionLabel:" / ",
+    fromStockLabel:"і ", buyLabel:"і ",
+    usedLabel:"/ ", partsDesc:"",
+    invoiceNr:" ї", partsCostLabel:"і (EUR)",
+    selectParts:" ", noParts:"є   і",
+    partsAdded:" ", usedDesc:"і? ...",
+    buyDesc:" ?",
+    urgency:"іі", enterCustom:" і ",
+    roleChef:"", roleFPL:" ", roleMechanic:"і",
+  },
+};
+
+const USERS = [
+const USERS = [
+  { id: "roman", name: "Roman Anokhin", role: "mechanic",  pin: "1234", avatar: "RA", isAdmin: true },
+  { id: "petr",  name: "Petr Lorenz",   role: "mechanic",  pin: "5678", avatar: "PL", isAdmin: false },
+  { id: "doll",  name: "Herr Doll",     role: "boss",      pin: "0001", avatar: "HD" },
+  { id: "jens",  name: "Jens",          role: "fpl",       pin: "0002", avatar: "JE" },
+];
+
+
+const LOCATIONS = ["Werkstatt", "HOC 1", "HOC 2", "HOC 3", "HOC 4", "HOC 5", "John Deere Bruchsal"];
+
+const SAMPLE_JOBS = [ // loaded from Supabase
+
+  { id:"J001", mechanic:"roman", colleague:null, vehicleType:"truck", plate:"MA-LT 441", location:"HOC 2", workType:"repair", description:"Bremsen vorne – Belag verschlissen", status:"done", date:"2024-04-15", travelToMin:18, travelBackMin:18, workMin:95, photos:2, cost:124.50, downtime:95 },
+  { id:"J002", mechanic:"petr", colleague:"roman", vehicleType:"forklift", plate:"STG-019", location:"HOC 4", workType:"maintenance", description:"Ölwechsel + Filter", status:"done", date:"2024-04-15", travelToMin:12, travelBackMin:10, workMin:45, photos:0, cost:89.00, downtime:45 },
+  { id:"J003", mechanic:"roman", colleague:null, vehicleType:"semiTrailer", plate:"MA-TA 877", location:"Werkstatt", workType:"repair", description:"Beleuchtung hinten – Kabel defekt", status:"inProgress", date:"2024-04-15", travelToMin:0, travelBackMin:0, workMin:30, photos:3, cost:45.00, downtime:30 },
+  { id:"J004", mechanic:"petr", colleague:null, vehicleType:"truck", plate:"HD-LG 221", location:"John Deere Bruchsal", workType:"inspection", description:"TÜV-Vorbereitung", status:"open", date:"2024-04-15", travelToMin:0, travelBackMin:0, workMin:0, photos:0, cost:0, downtime:0 },
+  { id:"J005", mechanic:"roman", colleague:null, vehicleType:"truck", plate:"MA-LT 441", location:"Werkstatt", workType:"repair", description:"Getriebeöl wechsel", status:"done", date:"2024-04-10", travelToMin:0, travelBackMin:0, workMin:120, photos:1, cost:210.00, downtime:120 },
+  { id:"J006", mechanic:"petr", colleague:null, vehicleType:"semiTrailer", plate:"MA-SA 112", location:"HOC 2", workType:"maintenance", description:"Jahresinspektion", status:"done", date:"2024-04-08", travelToMin:15, travelBackMin:15, workMin:180, photos:0, cost:320.00, downtime:180 },
+  { id:"J007", mechanic:"roman", colleague:"petr", vehicleType:"truck", plate:"HD-LG 221", location:"Werkstatt", workType:"repair", description:"Motorschaden – Diagnose", status:"done", date:"2024-04-05", travelToMin:0, travelBackMin:0, workMin:240, photos:5, cost:1850.00, downtime:480 },
+  { id:"J008", mechanic:"petr", colleague:null, vehicleType:"forklift", plate:"STG-044", location:"HOC 2", workType:"repair", description:"Hydraulikleitung defekt", status:"done", date:"2024-04-03", travelToMin:10, travelBackMin:10, workMin:90, photos:2, cost:285.00, downtime:90 },
+];
+
+function formatTime(seconds) {
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function formatMin(min) {
+  if (!min) return "—";
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#1e4fa0", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function Input({ ...props }) {
+  return <input {...props} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 13px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit", ...props.style }} />;
+}
+
+function Select({ children, ...props }) {
+  return <select {...props} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 13px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box", ...props.style }}>{children}</select>;
+}
+
+function Textarea({ ...props }) {
+  return <textarea {...props} style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 13px", color: C.white, fontSize: 14, outline: "none", boxSizing: "border-box", resize: "vertical", minHeight: 80, fontFamily: "inherit", ...props.style }} />;
+}
+
+function Btn({ variant = "primary", children, ...props }) {
+  const variants = {
+    primary: { background: C.blue, color: "#fff", border: "none" },
+    secondary: { background: "transparent", color: C.gray300, border: `1px solid ${C.border}` },
+    danger: { background: C.red, color: "#fff", border: "none" },
+    green: { background: C.green, color: "#fff", border: "none" },
+    navy: { background: C.navyMid, color: C.white, border: `1px solid ${C.border}` },
+  };
+  return (
+    <button {...props} style={{ ...variants[variant], borderRadius: 9, padding: "10px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s", ...props.style }}>
+      {children}
+    </button>
+  );
+}
+
+function Badge({ status, t }) {
+  const map = {
+    open:       { label: t.open,       bg: C.blue + "22",  color: C.blueLt },
+    inProgress: { label: t.inProgress, bg: C.orange + "22",color: C.orange },
+    done:       { label: t.done,       bg: C.green + "22", color: C.green },
+  };
+  const s = map[status] || map.open;
+  return <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: s.bg, color: s.color }}>● {s.label}</span>;
+}
+
+function Card({ children, style }) {
+  return <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 20, ...style }}>{children}</div>;
+}
+
+function LTGLogo({ size = 1 }) {
+  var h = Math.round(40 * size);
+  var w = Math.round(100 * size);
+  return (
+    <img src={GLOBAL_LOGO}
+      style={{ height: h, width: "auto", objectFit: "contain" }}
+      alt="LTG" />
+  );
+}
+
+function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
+  const t = T[lang];
+  const [selected, setSelected] = useState(null);
+
+
+    const sb = {
+      query: function(table, opts) {
+        var url = SUPABASE_URL + "/rest/v1/" + table + "?";
+        if (opts && opts.select) url += "select=" + opts.select;
+        if (opts && opts.filter) url += "&" + opts.filter;
+        if (opts && opts.order) url += "&order=" + opts.order;
+        if (opts && opts.limit) url += "&limit=" + opts.limit;
+        return fetch(url, { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } })
+          .then(r => r.ok ? r.json() : [])
+          .then(d => Array.isArray(d) ? d : [])
+          .catch(() => []);
+      }
+    };
+
+    function mapJob(r) {
       return {
-        "apikey": SB_KEY,
-        "Authorization": "Bearer " + session.access_token,
-        "Content-Type": "application/json"
+        id: r.id, mechanic: r.assigned_mechanic_id, colleague: r.colleague_id,
+        vehicleType: r.vehicle_type, plate: r.asset_label, location: r.location,
+        workType: r.work_type, description: r.description_de || r.description_raw,
+        status: r.status, date: (r.created_at||"").slice(0,10),
+        travelToMin: r.travel_to_minutes||0, travelBackMin: r.travel_back_minutes||0,
+        workMin: r.work_duration_minutes||0, photos: r.photos_count||0,
+        cost: r.cost_eur||0, downtime: r.work_duration_minutes||0,
+        urgency: r.urgency, closedAt: r.closed_at, workFinishedAt: r.work_finished_at,
+        source: r.source_app || "unknown"
       };
     }
 
-    async function checkAuth() {
-      const r = await supa.auth.getSession();
-      session = r.data.session;
-      if (!session) {
-        window.location.href = "login.html";
-        return false;
-      }
-      // Whitelist: nur Chef und Ens haben Zugang
-      const ALLOWED = ['doll@ltg.de', 'jens@ltg.de'];
-      if (!ALLOWED.includes(session.user.email)) {
-        alert('Zugriff verweigert! Kein Zugang zum Dashboard.');
-        await supa.auth.signOut();
-        window.location.href = 'werkstatt.html';
-        return false;
-      }
-      document.getElementById("user").textContent = (session.user.email || "Dashboard") + " · DASHBOARD";
-      document.getElementById("logout").style.display = "inline-block";
-      return true;
+    function mapVehicle(r) {
+      return {
+        id: r.id, plate: r.plate_number, brand: r.vehicle_brand,
+        model: r.vehicle_model, type: r.vehicle_type,
+        mileage: r.mileage_km, tuev: r.tuev_date,
+        insurance: r.insurance_date, uvv: r.uvv_date,
+        nextService: r.next_service_date, status: r.status || "ok"
+      };
     }
 
-    function escapeHtml(s) {
-      return String(s || "").replace(/[&<>"']/g, function(c) {
-        return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"})[c];
-      });
+    function KPI({ value, label, color, icon }) {
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `3px solid ${color}`, borderRadius: 12, padding: "16px 18px" }}>
+      <div style={{ fontSize: 26, fontWeight: 900, color: C.white }}>{icon} {value}</div>
+      <div style={{ fontSize: 12, color: C.gray500, marginTop: 4 }}>{label}</div>
+    </div>
+  );
+}
+
+
+
+function exportDayReport(jobs, vehicles, lang) {
+  var today = new Date().toISOString().slice(0,10);
+  var todayJobs = jobs.filter(function(j){ return j.date === today; });
+  var dateStr = new Date().toLocaleDateString("de-DE");
+
+  var vLabel = {truck:"LKW",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"};
+  var rows = todayJobs.map(function(j) {
+    return "<tr style='border-bottom:1px solid #eee'>" +
+      "<td style='padding:8px'>" + (vLabel[j.vehicleType]||"") + " " + (j.plate||"") + "</td>" +
+      "<td style='padding:8px'>" + (j.mechanic||"") + "</td>" +
+      "<td style='padding:8px'>" + (j.workType||"") + "</td>" +
+      "<td style='padding:8px'>" + (j.description||"").slice(0,60) + "</td>" +
+      "<td style='padding:8px'>" + (j.workMin||0) + " min</td>" +
+      "<td style='padding:8px'>" + (j.cost||0).toFixed(2) + " €</td>" +
+      "<td style='padding:8px'>" + (j.location||"") + "</td>" +
+    "</tr>";
+  }).join("");
+
+  var totalCost = todayJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+  var totalMin = todayJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+
+  var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+    "<style>body{font-family:Arial,sans-serif;padding:20px;color:#222}" +
+    "h1{color:#1a3a6b}table{width:100%;border-collapse:collapse;margin-top:20px}" +
+    "th{background:#1a3a6b;color:#fff;padding:10px;text-align:left}" +
+    "tr:nth-child(even){background:#f5f5f5}" +
+    ".summary{margin-top:20px;padding:15px;background:#f0f4ff;border-radius:8px}" +
+    "</style></head><body>" +
+    "<h1>LTG Werkstatt — Tagesbericht</h1>" +
+    "<p><b>Datum:</b> " + dateStr + " | <b>Aufträge:</b> " + todayJobs.length + "</p>" +
+    "<table><thead><tr>" +
+    "<th>Fahrzeug</th><th>Mechaniker</th><th>Art</th><th>Beschreibung</th>" +
+    "<th>Zeit</th><th>Kosten</th><th>Standort</th>" +
+    "</tr></thead><tbody>" + rows + "</tbody></table>" +
+    "<div class='summary'>" +
+    "<b>Gesamt:</b> " + todayJobs.length + " Aufträge | " +
+    Math.floor(totalMin/60) + "h " + (totalMin%60) + "min | " +
+    totalCost.toFixed(2) + " €" +
+    "</div></body></html>";
+
+  var blob = new Blob([html], {type: "text/html"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "LTG_Bericht_" + today + ".html";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, onNavigate, onCreateJob, onTabChange }) {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const [period, setPeriod] = useState("today");
+  const [activeSection, setActiveSection] = useState("overview");
+  const [inspExpanded, setInspExpanded] = useState(null);
+  const [inspSectionVehicle, setInspSectionVehicle] = useState(null);
+
+  const handlePrintInspection = function(ins) {
+    var win = window.open("", "_blank");
+    if (!win) return;
+    var checks={}, mangel={}, photos=[];
+    try{checks=JSON.parse(ins.checks||"{}");}catch(e){}
+    try{mangel=JSON.parse(ins.mangel||"{}");}catch(e){}
+    try{photos=JSON.parse(ins.photos||"[]");}catch(e){}
+    var mangelKeys=Object.keys(mangel).filter(function(k){return mangel[k];});
+    var isMangel=ins.status==="mangel";
+    var allKeys=Object.keys(checks).concat(mangelKeys.filter(function(k){return !checks[k];}))
+      .filter(function(k,i,a){return a.indexOf(k)===i;});
+    var dateStr=ins.created_at
+      ?new Date(ins.created_at).toLocaleDateString("de-DE",{weekday:"long",year:"numeric",month:"long",day:"numeric"})
+        +" "+new Date(ins.created_at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})+" Uhr"
+      :"—";
+    var LOGO_B64=GLOBAL_LOGO;
+    var rowsHtml=allKeys.map(function(k){
+      var isOk=checks[k]&&!mangel[k]; var isMng=mangel[k];
+      return "<div style=\"display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #e8eef4\">"
+        +"<span style=\"font-size:16px\">"+(isMng?"⚠️":isOk?"✅":"⬜")+"</span>"
+        +"<span style=\"font-size:13px;font-weight:600;color:"+(isMng?"#ef4444":isOk?"#16a34a":"#64748b")+"\">"
+        +k+"</span></div>";
+    }).join("");
+    var photosHtml=photos.length?"<div style=\"margin-top:14px\"><div style=\"font-size:11px;font-weight:700;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px\">Fotos ("+photos.length+")</div><div style=\"display:flex;gap:6px;flex-wrap:wrap\">"
+      +photos.map(function(p){return "<img src=\""+p+"\" style=\"width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0\">";}).join("")
+      +"</div></div>":"";
+    var css="*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;padding:0;margin:0;color:#1a2332}.header{background:#1e4fa0;padding:16px 32px;display:flex;align-items:center}.header img{height:44px}.stripe{height:5px;background:linear-gradient(90deg,#1e4fa0 0%,#f5a623 40%,#f5a623 60%,#1e4fa0 100%)}.body{padding:28px 32px;max-width:680px;margin:0 auto}.title{font-size:22px;font-weight:800;color:#1e4fa0;margin-bottom:4px}.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;margin-bottom:16px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px}.meta-row{padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:12px}.meta-label{color:#64748b;margin-bottom:2px}.meta-val{font-weight:700}.section-title{font-size:11px;font-weight:800;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px}.defect-box{background:#fff5f5;border:1px solid #ef444433;border-radius:8px;padding:12px;margin-top:14px}.foot{margin-top:28px;font-size:11px;color:#94a3b8;text-align:center;padding-top:12px;border-top:1px solid #e8eef4}@media print{.noprint{display:none}}";
+    var html="<!DOCTYPE html><html><head><meta charset='utf-8'><title>Inspektion "+(ins.plate||"")+"</title><style>"+css+"</style></head><body>"
+      +"<div class='header'><img src='"+LOGO_B64+"'/></div>"
+      +"<div class='stripe'></div>"
+      +"<div class='body'>"
+      +"<div class='title'>Inspektion — "+(ins.plate||"—")+"</div>"
+      +"<div class='badge' style='background:"+(isMangel?"#ef4444":"#16a34a")+"'>"+(isMangel?"⚠ Mängel festgestellt":"✓ Fahrzeug in Ordnung")+"</div>"
+      +"<div class='meta'>"
+      +"<div class='meta-row'><div class='meta-label'>Datum</div><div class='meta-val'>"+dateStr+"</div></div>"
+      +"<div class='meta-row'><div class='meta-label'>Fahrer</div><div class='meta-val'>"+(ins.driver||"—")+"</div></div>"
+      +"<div class='meta-row'><div class='meta-label'>Fahrzeug</div><div class='meta-val'>"+(ins.plate||"—")+(ins.brand?" · "+ins.brand:"")+"</div></div>"
+      +"<div class='meta-row'><div class='meta-label'>Typ</div><div class='meta-val'>"+(ins.type==="truck"?"🚛 LKW":"🚜 Auflieger")+"</div></div>"
+      +"</div>"
+      +"<div class='section-title'>Prüfpunkte</div>"
+      +rowsHtml
+      +(ins.defects_de?"<div class='section-title'>Bemerkungen</div><div class='defect-box'>"+ins.defects_de+"</div>":"")
+      +photosHtml
+      +"<div class='foot'>LTG Landauer Transportgesellschaft Doll KG · Hockenheim · "+new Date().toLocaleDateString("de-DE")+"</div>"
+      +"</div>"
+      +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
+      +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
+      +"</div></body></html>";
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(function(){win.print();},400);
+  };
+
+  const filtered = period === "today"
+    ? (jobs||[]).filter(function(j){ return j.date === todayStr; })
+    : period === "week"
+    ? (jobs||[]).filter(function(j){ return (new Date() - new Date(j.date)) / 86400000 <= 7; })
+    : (jobs||[]);
+
+  const total      = filtered.length;
+  const openJobs   = filtered.filter(function(j){ return j.status === "open"; });
+  const inProgJobs = filtered.filter(function(j){ return j.status === "inProgress"; });
+  const doneJobs   = filtered.filter(function(j){ return j.status === "done"; });
+  const totalCost  = filtered.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+  const totalMin   = filtered.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+  const travelMin  = filtered.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
+
+  const allOpen    = (jobs||[]).filter(function(j){ return j.status !== "done"; });
+  const openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
+
+  const getDocStatus = function(v) {
+    var docs = [v.tuev,v.insurance,v.uvv,v.nextService].filter(Boolean);
+    if (!docs.length) return "ok";
+    var min = Math.min.apply(null, docs.map(function(d){ return Math.round((new Date(d)-today)/86400000); }));
+    if (min < 0) return "expired";
+    if (min < 30) return "warning";
+    return "ok";
+  };
+
+  var fleetTypes = [
+    {k:"truck",       l:"LKW",          color:"#1e4fa0", abbr:"LKW"},
+    {k:"semiTrailer", l:"Sattelzug",     color:"#1e4fa0", abbr:"SAT"},
+    {k:"forklift",    l:"Stapler",       color:"#1e4fa0", abbr:"STG"},
+    {k:"trailer",     l:"Anhänger",      color:"#1e4fa0", abbr:"ANH"},
+    {k:"pkw",         l:"PKW",           color:"#1e4fa0", abbr:"PKW"},
+    {k:"other",       l:"Sonstiges",     color:"#1e4fa0", abbr:"SNG"},
+  ].map(function(x){ return Object.assign({}, x, {
+    count: (vehicles||[]).filter(function(v){ return v.type===x.k; }).length,
+    open:  allOpen.filter(function(j){ return j.vehicleType===x.k; }).length,
+  }); });
+
+  var fleetTotal   = (vehicles||[]).length;
+  var fleetOk      = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="ok"; }).length;
+  var fleetWarning = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="warning"; }).length;
+  var fleetExpired = (vehicles||[]).filter(function(v){ return getDocStatus(v)==="expired"; }).length;
+
+  var mechanics = [{id:"roman",name:"Roman"},{id:"petr",name:"Petr"}];
+  var mechLoad = mechanics.map(function(m){
+    var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+    var mMin  = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+    var mDone = mJobs.filter(function(j){ return j.status==="done"; }).length;
+    return Object.assign({}, m, { jobs: mJobs.length, min: mMin, done: mDone });
+  });
+
+  var upcoming = [];
+  (vehicles||[]).forEach(function(v) {
+    [{l:"TÜV",d:v.tuev},{l:"Versicherung",d:v.insurance},
+     {l:"UVV",d:v.uvv},{l:"Service",d:v.nextService}
+    ].forEach(function(doc) {
+      if (!doc.d) return;
+      var diff = Math.round((new Date(doc.d)-today)/86400000);
+      if (diff < 60) upcoming.push({plate:v.plate, doc:doc.l, diff:diff});
+    });
+  });
+  upcoming.sort(function(a,b){ return a.diff-b.diff; });
+
+  var formatMin = function(m) {
+    if (!m) return "—";
+    return Math.floor(m/60)+"h "+(m%60)+"min";
+  };
+
+  var navIcons = {
+    overview:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+    inspektion:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+    fahrzeuge: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="11" width="22" height="9" rx="1"/><path d="M3 11V8a2 2 0 012-2h14a2 2 0 012 2v3"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/></svg>',
+    lager:     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>',
+    archive:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+    mechanics: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>',
+    wash:      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"/></svg>',
+  };
+  var navItems = [
+    {k:"overview",   label:"Overview"},
+    {k:"fahrzeuge",  label:"Technik"},
+    {k:"inspektion", label:"Inspektion"},
+    {k:"lager",      label:"Lager"},
+    {k:"archive",    label:"Archiv"},
+    {k:"mechanics",  label:"Mechaniker"},
+    {k:"wash",       label:"Wäsche"},
+  ];
+
+  var washJobs = (jobs||[]).filter(function(j){ return j.workType==="wash" && j.date===todayStr; });
+  var washCount = washJobs.length;
+  var washMin   = washJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+  var washCost  = washJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+
+  var kpis = [
+    {v:total,                    l:"Aufträge",      c:"#1e4fa0", icon:"📋"},
+    {v:openJobs.length+inProgJobs.length, l:"Offen",c:"#ef4444", icon:"⚠"},
+    {v:doneJobs.length,          l:"Erledigt",      c:"#16a34a", icon:"✓"},
+    {v:formatMin(totalMin),      l:"Arbeitszeit",   c:"#0369a1", icon:"⏱"},
+    {v:formatMin(travelMin),     l:"Fahrzeit",      c:"#7c3aed", icon:"🚗"},
+    {v:totalCost.toFixed(0)+" €",l:"Kosten",        c:"#d97706", icon:"€"},
+  ];
+
+  return (
+    <div style={{ display:"flex", height:"calc(100vh - 54px)", background:C.bg, overflow:"hidden" }}>
+<div style={{ width:180, background:"#1e4fa0", display:"flex", flexDirection:"column",
+        flexShrink:0, borderRight:"1px solid #1a3a8a" }}>
+<div style={{ padding:"22px 16px 18px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
+          <LTGLogo size={1.3} />
+        </div>
+<div style={{ flex:1, padding:"8px 0", overflowY:"auto" }}>
+          {navItems.map(function(item){
+            var isActive = activeSection === item.k;
+            return (
+              <div key={item.k}
+                onClick={function(){
+                  if (item.k === "fahrzeuge" || item.k === "lager" || item.k === "archive") {
+                    if (onTabChange) onTabChange(item.k);
+                  } else {
+                    setActiveSection(item.k);
+                  }
+                }}
+                style={{ display:"flex", alignItems:"center", gap:10,
+                  padding:"11px 16px", cursor:"pointer",
+                  background: isActive ? "rgba(255,255,255,0.15)" : "transparent",
+                  borderLeft: isActive ? "3px solid #f5a623" : "3px solid transparent",
+                  borderRadius:"0 8px 8px 0", margin:"1px 8px 1px 0",
+                  transition:"all 0.15s" }}>
+                <span style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.7)", display:"flex" }}
+                  dangerouslySetInnerHTML={{ __html: navIcons[item.k]||"" }} />
+                <span style={{ fontSize:13, fontWeight: isActive ? 700 : 400,
+                  color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }}>
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+<div style={{ padding:"12px 10px", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.5)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.8px" }}>Zeitraum</div>
+          {[["today","Heute"],["week","7 Tage"],["all","Gesamt"]].map(function(p){
+            return (
+              <div key={p[0]} onClick={function(){ setPeriod(p[0]); }}
+                style={{ padding:"6px 10px", borderRadius:6, cursor:"pointer", marginBottom:3,
+                  background: period===p[0] ? "rgba(255,255,255,0.2)" : "transparent",
+                  color: period===p[0] ? "#fff" : "rgba(255,255,255,0.6)",
+                  fontSize:12, fontWeight: period===p[0] ? 700 : 400 }}>
+                {p[1]}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+<div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:22, fontWeight:800, color:C.white }}>
+              WERKSTATT <span style={{ color:"#1e4fa0", fontWeight:400 }}>HOCKENHEIM</span>
+            </div>
+            <div style={{ fontSize:18, fontWeight:700, color:C.white, marginTop:6 }}>
+              {today.toLocaleDateString("de-DE", {weekday:"long", year:"numeric", month:"long", day:"numeric"})}
+            </div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            
+            
+            <button onClick={function(){ exportDayReport(jobs, vehicles, lang); }}
+              style={{ background:"#1e4fa0", color:"#fff", border:"none", borderRadius:8,
+                padding:"9px 18px", fontWeight:700, fontSize:13, cursor:"pointer",
+                display:"flex", alignItems:"center", gap:6 }}>
+              📄 PDF Export
+            </button>
+          </div>
+        </div>
+<div style={{ display: (activeSection==="wash"||activeSection==="inspektion") ? "none" : "grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
+          {kpis.map(function(k,i){
+            return (
+              <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
+                borderTop:"3px solid "+k.c, borderRadius:10, padding:"14px 16px",
+                boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
+                <div style={{ fontSize:11, color:"#1e4fa0", marginBottom:6,
+                  textTransform:"uppercase", letterSpacing:"0.8px", display:"flex",
+                  alignItems:"center", gap:4 }}>
+                  <span>{k.icon}</span> {k.l}
+                </div>
+                <div style={{ fontSize:22, fontWeight:800, color:C.white }}>{k.v}</div>
+              </div>
+            );
+          })}
+        </div>
+{activeSection === "overview" && (
+          <div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:16 }}>
+<div>
+<div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:C.white }}>Fuhrpark — {fleetTotal} Fahrzeuge</div>
+                  <div style={{ display:"flex", gap:12 }}>
+                    <span style={{ fontSize:12, color:"#16a34a", fontWeight:600 }}>✓ {fleetOk} OK</span>
+                    <span style={{ fontSize:12, color:"#d97706", fontWeight:600 }}>⚠ {fleetWarning}</span>
+                    <span style={{ fontSize:12, color:"#ef4444", fontWeight:600 }}>✗ {fleetExpired}</span>
+                  </div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:8 }}>
+                  {fleetTypes.map(function(x){
+                    return (
+                      <div key={x.k} style={{ background:C.bg, borderRadius:8, padding:"10px 12px",
+                        border:"1px solid "+C.border, borderLeft:"3px solid "+x.color }}>
+                        <div style={{ fontSize:10, fontWeight:800, color:x.color,
+                          background:x.color+"18", borderRadius:4, padding:"2px 6px",
+                          display:"inline-block", marginBottom:6, letterSpacing:"1px" }}>{x.abbr}</div>
+                        <div style={{ fontSize:12, color:C.gray500, marginBottom:2 }}>{x.l}</div>
+                        <div style={{ fontSize:22, fontWeight:900, color:C.white }}>{x.count}</div>
+                        {x.open > 0 && (
+                          <div style={{ fontSize:10, color:"#ef4444", marginTop:2 }}>▲ {x.open} offen</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+<div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>
+                  Aktuelle Aufträge
+                  {allOpen.length > 0 && (
+                    <span style={{ marginLeft:8, background:"#ef4444", color:"#fff",
+                      borderRadius:20, padding:"2px 8px", fontSize:11 }}>
+                      {allOpen.length} offen
+                    </span>
+                  )}
+                </div>
+                <div style={{ overflowX:"auto" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                    <thead>
+                      <tr style={{ borderBottom:"2px solid "+C.border }}>
+                        {["Fahrzeug","Typ","Mechaniker","Lokation","Status","Datum"].map(function(h){
+                          return <th key={h} style={{ padding:"8px 10px", textAlign:"left",
+                            fontSize:11, color:"#1e4fa0", fontWeight:600,
+                            textTransform:"uppercase", letterSpacing:"0.5px" }}>{h}</th>;
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.slice(0,8).map(function(j){
+                        var sc = j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
+                        var sl = j.status==="done"?"Erledigt":j.status==="inProgress"?"In Arbeit":"Offen";
+                        var vIcon = {truck:"🚛",semiTrailer:"🚚",forklift:"🏗",trailer:"🔗",pkw:"🚗",other:"🔩"}[j.vehicleType]||"🔩";
+                        return (
+                          <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
+                            <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>{vIcon} {j.plate}</td>
+                            <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.workType}</td>
+                            <td style={{ padding:"9px 10px", color:C.gray300 }}>{j.mechanic}</td>
+                            <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.location}</td>
+                            <td style={{ padding:"9px 10px" }}>
+                              <span style={{ background:sc+"22", color:sc, borderRadius:20,
+                                padding:"2px 10px", fontSize:11, fontWeight:700 }}>{sl}</span>
+                            </td>
+                            <td style={{ padding:"9px 10px", color:C.gray500, fontSize:12 }}>{j.date}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+<div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px 20px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Mechaniker</div>
+                {mechLoad.map(function(m){
+                  var pct = Math.min(m.min/480, 1);
+                  return (
+                    <div key={m.id} style={{ marginBottom:14 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                        <span style={{ fontSize:14, fontWeight:700, color:C.white }}>🔧 {m.name}</span>
+                        <div style={{ textAlign:"right" }}>
+                          <span style={{ fontSize:12, color:C.gray500 }}>{m.done} erledigt · {formatMin(m.min)}</span>
+                        </div>
+                      </div>
+                      <div style={{ background:C.bg, borderRadius:4, height:8, overflow:"hidden" }}>
+                        <div style={{ height:"100%", borderRadius:4, transition:"width 0.5s",
+                          background:pct>0.8?"#ef4444":pct>0.5?"#d97706":"#1e4fa0",
+                          width:(pct*100)+"%" }} />
+                      </div>
+                      <div style={{ fontSize:11, color:C.gray500, marginTop:3 }}>
+                        {Math.round(pct*100)}% Auslastung
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+<div>
+<div style={{ background: openAlerts.length > 0 ? "#ef444422" : C.surface,
+                border:"1px solid "+(openAlerts.length>0?"#ef4444":C.border),
+                borderRadius:10, padding:"16px", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                  <span style={{ fontSize:16, color:"#ef4444" }}>⚠</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:"#ef4444" }}>
+                    Alerts {openAlerts.length > 0 && "("+openAlerts.length+")"}
+                  </span>
+                </div>
+                {openAlerts.length === 0 ? (
+                  <div style={{ fontSize:13, color:"#ef4444", textAlign:"center", padding:"12px 0" }}>
+                    ✓ Keine neuen Meldungen
+                  </div>
+                ) : openAlerts.map(function(a){
+                  var isUrgent = a.urgency === "urgent";
+                  return (
+                    <div key={a.id} style={{ background:isUrgent?"#ef444433":"#d9770633",
+                      border:"1px solid "+(isUrgent?"#ef4444":"#d97706"),
+                      borderRadius:8, padding:"10px 12px", marginBottom:8 }}>
+                      <div style={{ fontWeight:700, fontSize:12,
+                        color:isUrgent?"#ef4444":"#d97706" }}>
+                        {isUrgent?"🔴 NOTRUF":"🟡 Meldung"}
+                        {a.plate?" · "+a.plate:""}
+                      </div>
+                      {a.location && <div style={{ fontSize:11, color:C.gray300, marginTop:3 }}>📍 {a.location}</div>}
+                      {a.description && <div style={{ fontSize:11, color:C.gray300, marginTop:2 }}>{(a.description||"").slice(0,60)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+<div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px", marginBottom:16 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:10 }}>🚿 Fahrzeugwäsche — heute</div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontSize:22, fontWeight:900, color:"#1e4fa0" }}>{washCount}</div>
+                    <div style={{ fontSize:11, color:C.gray500 }}>Fahrzeuge</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:C.white }}>{washCost.toFixed(2)} €</div>
+                    <div style={{ fontSize:11, color:C.gray500 }}>{formatMin(washMin)}</div>
+                  </div>
+                </div>
+              </div>
+<div style={{ background:C.surface, border:"1px solid "+C.border,
+                borderRadius:10, padding:"16px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:12 }}>
+                  📋 Dokumente fällig
+                </div>
+                {upcoming.length === 0 ? (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"8px 0" }}>
+                    ✓ Alles aktuell
+                  </div>
+                ) : upcoming.slice(0,6).map(function(u, i){
+                  var c = u.diff < 0 ? "#ef4444" : u.diff < 14 ? "#d97706" : "#f5a623";
+                  return (
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"7px 0",
+                      borderBottom:"1px solid "+C.border+"44" }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:C.white }}>{u.plate}</div>
+                        <div style={{ fontSize:11, color:C.gray500 }}>{u.doc}</div>
+                      </div>
+                      <div style={{ fontSize:12, fontWeight:700, color:c,
+                        background:c+"22", borderRadius:6, padding:"2px 8px" }}>
+                        {u.diff < 0 ? Math.abs(u.diff)+"d!" : u.diff+"d"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          {(function(){
+            var todayInsp = inspections.filter(function(i){ return i.created_at && i.created_at.slice(0,10)===todayStr; });
+            var mangelInsp = todayInsp.filter(function(i){ return i.status==="mangel"; });
+            if(todayInsp.length===0) return null;
+            return (
+              <div style={{ marginTop:16,
+                background:mangelInsp.length>0?"#ef444408":C.surface,
+                border:"1px solid "+(mangelInsp.length>0?"#ef444455":C.border),
+                borderRadius:10, padding:"16px 20px" }}>
+<div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:18 }}>🔍</span>
+                    <span style={{ fontSize:15, fontWeight:700,
+                      color:mangelInsp.length>0?"#ef4444":C.white }}>
+                      Inspektionen heute
+                    </span>
+                    <span style={{ fontSize:12, fontWeight:700, padding:"2px 10px",
+                      borderRadius:20, background:mangelInsp.length>0?"#ef444422":"#1e4fa022",
+                      color:mangelInsp.length>0?"#ef4444":"#1e4fa0" }}>
+                      {todayInsp.length} gesamt · {mangelInsp.length} mit Mängeln
+                    </span>
+                  </div>
+                  <button onClick={function(){ setActiveSection("inspektion"); }}
+                    style={{ background:"#1e4fa0", border:"none", borderRadius:8,
+                      padding:"6px 14px", fontSize:12, fontWeight:700,
+                      color:"#fff", cursor:"pointer" }}>
+                    Alle Inspektionen →
+                  </button>
+                </div>
+<div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:8 }}>
+                  {todayInsp.map(function(ins){
+                    var isMangel = ins.status==="mangel";
+                    var isOpen = inspExpanded===ins.id;
+                    var checks={}, mangel={}, photos=[];
+                    try{checks=JSON.parse(ins.checks||"{}");}catch(e){}
+                    try{mangel=JSON.parse(ins.mangel||"{}");}catch(e){}
+                    try{photos=JSON.parse(ins.photos||"[]");}catch(e){}
+                    var mangelKeys = Object.keys(mangel).filter(function(k){return mangel[k];});
+                    var timeStr = ins.created_at
+                      ? new Date(ins.created_at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})
+                      : "";
+                    return (
+                      <div key={ins.id} style={{
+                        background:isMangel?"#ef444410":C.bg,
+                        border:"1px solid "+(isMangel?"#ef444444":C.border),
+                        borderRadius:9, overflow:"hidden" }}>
+<button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
+                          style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                            width:"100%", background:"none", border:"none",
+                            cursor:"pointer", padding:"12px 14px" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <span style={{ fontSize:20 }}>{ins.type==="truck"?"🚛":"🚜"}</span>
+                            <div style={{ textAlign:"left" }}>
+                              <div style={{ fontWeight:700, fontSize:13, color:C.white }}>
+                                {ins.plate||"—"}{ins.brand?" · "+ins.brand:""}
+                              </div>
+                              <div style={{ fontSize:11, color:C.gray500 }}>
+                                {ins.driver||"—"} · {timeStr} Uhr
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px",
+                              borderRadius:20, color:"#fff",
+                              background:isMangel?"#ef4444":"#16a34a" }}>
+                              {isMangel?"⚠ "+mangelKeys.length+" Mängel":"✓ OK"}
+                            </span>
+                            <span style={{ color:C.gray500, fontSize:11,
+                              transform:isOpen?"rotate(180deg)":"none",
+                              transition:"transform 0.2s", display:"inline-block" }}>▼</span>
+                          </div>
+                        </button>
+{isOpen && (
+                          <div style={{ borderTop:"1px solid "+C.border, padding:"12px 14px" }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, marginBottom:10 }}>
+                              {Object.keys(checks).concat(Object.keys(mangel).filter(function(k){return mangel[k]&&!checks[k];}))
+                                .filter(function(k,i,a){return a.indexOf(k)===i;})
+                                .map(function(k){
+                                  var isOk=checks[k]&&!mangel[k]; var isMng=mangel[k];
+                                  return (
+                                    <div key={k} style={{ display:"flex", alignItems:"center", gap:5,
+                                      background:isMng?"#ef444415":isOk?"#16a34a15":"transparent",
+                                      borderRadius:5, padding:"4px 7px" }}>
+                                      <span style={{ fontSize:12 }}>{isMng?"⚠️":isOk?"✅":"⬜"}</span>
+                                      <span style={{ fontSize:11, color:isMng?"#ef4444":isOk?"#22c55e":C.gray300 }}>{k}</span>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                            {ins.defects_de && (
+                              <div style={{ fontSize:12, color:C.gray300, marginBottom:8,
+                                background:C.surface, borderRadius:6, padding:"6px 10px" }}>
+                                📝 {ins.defects_de}
+                              </div>
+                            )}
+                            {photos.length>0 && (
+                              <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:8 }}>
+                                {photos.map(function(p,i){
+                                  return <img key={i} src={p} alt="" style={{ width:52, height:52,
+                                    objectFit:"cover", borderRadius:5,
+                                    border:"1px solid "+C.border }} />;
+                                })}
+                              </div>
+                            )}
+                            <button onClick={function(){ handlePrintInspection(ins); }}
+                              style={{ background:"#1e4fa0", color:"#fff", border:"none",
+                                borderRadius:7, padding:"7px 16px", fontSize:12,
+                                fontWeight:700, cursor:"pointer",
+                                display:"flex", alignItems:"center", gap:5 }}>
+                              🖨 PDF / Drucken
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+          </div>
+        )}
+{activeSection === "inspektion" && (
+          <div>
+<div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:C.white }}>
+                🔍 Inspektionen
+              </div>
+              
+            </div>
+            <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+              {["all","truck","trailer","mangel"].map(function(f){
+                var labels={all:"Alle",truck:"LKW",trailer:"Auflieger",mangel:"⚠ Mängel"};
+                var isAct = inspSectionVehicle===f||(f==="all"&&!inspSectionVehicle);
+                return (
+                  <button key={f} onClick={function(){setInspSectionVehicle(f==="all"?null:f);}}
+                    style={{ background:isAct?"#1e4fa0":"transparent",
+                      border:"1px solid "+(isAct?"#1e4fa0":C.border),
+                      borderRadius:8, padding:"5px 12px", fontSize:12,
+                      fontWeight:700, color:isAct?"#fff":C.gray300, cursor:"pointer" }}>
+                    {labels[f]}
+                  </button>
+                );
+              })}
+            </div>
+{(function(){
+              var filtered2 = inspections;
+              if(inspSectionVehicle==="truck")   filtered2=filtered2.filter(function(i){return i.type==="truck";});
+              if(inspSectionVehicle==="trailer") filtered2=filtered2.filter(function(i){return i.type==="trailer";});
+              if(inspSectionVehicle==="mangel")  filtered2=filtered2.filter(function(i){return i.status==="mangel";});
+              if(filtered2.length===0) return (
+                <div style={{ textAlign:"center", padding:"40px 0", color:C.gray500, fontSize:14 }}>
+                  — Keine Einträge gefunden
+                </div>
+              );
+              return filtered2.map(function(ins){
+                var isMangel = ins.status==="mangel";
+                var isOpen   = inspExpanded===ins.id;
+                var checks   = {};
+                var mangel   = {};
+                try{ checks=JSON.parse(ins.checks||"{}"); }catch(e){}
+                try{ mangel=JSON.parse(ins.mangel||"{}"); }catch(e){}
+                var mangelKeys = Object.keys(mangel).filter(function(k){ return mangel[k]; });
+                var photos = [];
+                try{ photos=JSON.parse(ins.photos||"[]"); }catch(e){}
+                var dateStr = ins.created_at
+                  ? new Date(ins.created_at).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})
+                    +" "+new Date(ins.created_at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})
+                  : "—";
+                return (
+                  <div key={ins.id} style={{ background:C.surface,
+                    border:"1px solid "+(isMangel?"#ef444455":C.border),
+                    borderRadius:10, marginBottom:10, overflow:"hidden" }}>
+<button onClick={function(){ setInspExpanded(isOpen?null:ins.id); }}
+                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                        width:"100%", background:"none", border:"none", cursor:"pointer",
+                        padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <span style={{ fontSize:22 }}>{ins.type==="truck"?"🚛":"🚜"}</span>
+                        <div style={{ textAlign:"left" }}>
+                          <div style={{ fontWeight:700, fontSize:14, color:C.white }}>
+                            {ins.plate||"—"} {ins.brand?("· "+ins.brand):""}
+                          </div>
+                          <div style={{ fontSize:12, color:C.gray500 }}>
+                            {ins.driver||"—"} · {dateStr}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:12, fontWeight:700, padding:"3px 10px",
+                          borderRadius:20, color:"#fff",
+                          background:isMangel?"#ef4444":"#16a34a" }}>
+                          {isMangel?"⚠ "+mangelKeys.length+" Mängel":"✓ OK"}
+                        </span>
+                        <span style={{ color:C.gray500, fontSize:12 }}>{isOpen?"▲":"▼"}</span>
+                      </div>
+                    </button>
+{isOpen && (
+                      <div style={{ borderTop:"1px solid "+C.border, padding:"16px" }}>
+<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:14 }}>
+                          {Object.keys(checks).concat(mangelKeys.filter(function(k){return !checks[k];})).filter(function(k,i,a){return a.indexOf(k)===i;}).map(function(k){
+                            var isOk = checks[k] && !mangel[k];
+                            var isMng = mangel[k];
+                            return (
+                              <div key={k} style={{ display:"flex", alignItems:"center", gap:6,
+                                background:isMng?"#ef444415":isOk?"#16a34a15":"transparent",
+                                borderRadius:6, padding:"5px 8px" }}>
+                                <span style={{ fontSize:13 }}>{isMng?"⚠️":isOk?"✅":"⬜"}</span>
+                                <span style={{ fontSize:12, color:isMng?"#ef4444":isOk?C.green:C.gray300 }}>{k}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+{(ins.defects||ins.defects_de) && (
+                          <div style={{ background:C.bg, borderRadius:8, padding:"10px 12px", marginBottom:12 }}>
+                            <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
+                              textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>
+                              Bemerkungen
+                            </div>
+                            {ins.defects && ins.defects !== ins.defects_de && (
+                              <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                Original: {ins.defects}
+                              </div>
+                            )}
+                            {ins.defects_de && (
+                              <div style={{ fontSize:13, color:C.white }}>
+                                🇩🇪 {ins.defects_de}
+                              </div>
+                            )}
+                          </div>
+                        )}
+{photos.length>0 && (
+                          <div>
+                            <div style={{ fontSize:11, fontWeight:700, color:"#1e4fa0",
+                              textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>
+                              Fotos ({photos.length})
+                            </div>
+                            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                              {photos.map(function(p,i){
+                                return (
+                                  <img key={i} src={p} alt="" style={{ width:60, height:60,
+                                    objectFit:"cover", borderRadius:6,
+                                    border:"1px solid "+C.border }} />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+<button onClick={function(){ handlePrintInspection(ins); }}
+                          style={{ marginTop:12, background:"#1e4fa0", color:"#fff",
+                            border:"none", borderRadius:8, padding:"8px 18px",
+                            fontSize:13, fontWeight:700, cursor:"pointer",
+                            display:"flex", alignItems:"center", gap:6 }}>
+                          🖨 PDF / Drucken
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
+{activeSection === "mechanics" && (
+          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:C.white }}>Mechaniker Übersicht</div>
+              
+            </div>
+            {mechLoad.map(function(m){
+              var pct = Math.min(m.min/480, 1);
+              var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+              return (
+                <div key={m.id} style={{ marginBottom:24, padding:"16px", background:C.bg,
+                  borderRadius:10, border:"1px solid "+C.border }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+                    <span style={{ fontSize:16, fontWeight:800, color:C.white }}>🔧 {m.name}</span>
+                    <span style={{ fontSize:13, color:C.gray500 }}>{m.jobs} Aufträge · {formatMin(m.min)} · {m.done} erledigt</span>
+                  </div>
+                  <div style={{ background:C.surface, borderRadius:4, height:10, overflow:"hidden", marginBottom:16 }}>
+                    <div style={{ height:"100%", borderRadius:4,
+                      background:pct>0.8?"#ef4444":pct>0.5?"#d97706":"#1e4fa0",
+                      width:(pct*100)+"%" }} />
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                    <thead>
+                      <tr style={{ borderBottom:"1px solid "+C.border }}>
+                        {["Fahrzeug","Arbeit","Zeit","Kosten","Status"].map(function(h){
+                          return <th key={h} style={{ padding:"6px 8px", textAlign:"left",
+                            fontSize:11, color:C.gray500, fontWeight:600 }}>{h}</th>;
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mJobs.map(function(j){
+                        var sc = j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
+                        var sl = j.status==="done"?"✓":j.status==="inProgress"?"⚙":"○";
+                        return (
+                          <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"33" }}>
+                            <td style={{ padding:"7px 8px", fontWeight:700, color:C.white }}>{j.plate}</td>
+                            <td style={{ padding:"7px 8px", color:C.gray300, fontSize:12 }}>{j.workType}</td>
+                            <td style={{ padding:"7px 8px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
+                            <td style={{ padding:"7px 8px", color:C.gray300 }}>{(j.cost||0).toFixed(0)}€</td>
+                            <td style={{ padding:"7px 8px" }}>
+                              <span style={{ color:sc, fontWeight:700 }}>{sl}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
+{activeSection === "wash" && (
+          <div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+<div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Fahrzeugtypen</div>
+                {[
+                  {k:"truck",       l:"LKW",        icon:"🚛", color:"#1d4ed8"},
+                  {k:"semiTrailer", l:"Sattelzug",   icon:"🚚", color:"#0369a1"},
+                  {k:"forklift",    l:"Stapler",     icon:"🏗",  color:"#d97706"},
+                  {k:"trailer",     l:"Anhänger",    icon:"🔗", color:"#059669"},
+                  {k:"pkw",         l:"PKW",         icon:"🚗", color:"#7c3aed"},
+                  {k:"other",       l:"Sonstiges",   icon:"🔩", color:"#64748b"},
+                ].map(function(x){
+                  var cnt = washJobs.filter(function(j){ return j.vehicleType===x.k; }).length;
+                  if (cnt === 0) return null;
+                  return (
+                    <div key={x.k} style={{ display:"flex", alignItems:"center",
+                      padding:"7px 0", borderBottom:"1px solid "+C.border+"44" }}>
+                      <span style={{ fontSize:16, marginRight:10 }}>{x.icon}</span>
+                      <span style={{ flex:1, fontSize:13, color:C.white }}>{x.l}</span>
+                      <span style={{ fontWeight:800, fontSize:16, color:x.color }}>{cnt}</span>
+                    </div>
+                  );
+                })}
+                {washJobs.length === 0 && (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"16px 0" }}>
+                    Heute noch keine Einträge
+                  </div>
+                )}
+              </div>
+<div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Wascharten</div>
+                {[
+                  {k:"basic",    l:"Einfache Wäsche",   icon:"💧", color:"#0369a1"},
+                  {k:"full",     l:"Vollwäsche",         icon:"🚿", color:"#1e4fa0"},
+                  {k:"chemical", l:"Chemische Reinigung",icon:"🧴", color:"#7c3aed"},
+                  {k:"other",    l:"Sonstiges",          icon:"⚙",  color:"#64748b"},
+                ].map(function(x){
+                  var cnt = washJobs.filter(function(j){ return (j.washType||"basic")===x.k; }).length;
+                  if (cnt === 0) return null;
+                  return (
+                    <div key={x.k} style={{ display:"flex", alignItems:"center",
+                      padding:"7px 0", borderBottom:"1px solid "+C.border+"44" }}>
+                      <span style={{ fontSize:16, marginRight:10 }}>{x.icon}</span>
+                      <span style={{ flex:1, fontSize:13, color:C.white }}>{x.l}</span>
+                      <span style={{ fontWeight:800, fontSize:16, color:x.color }}>{cnt}</span>
+                    </div>
+                  );
+                })}
+                {washJobs.length === 0 && (
+                  <div style={{ fontSize:13, color:C.gray500, textAlign:"center", padding:"16px 0" }}>
+                    Heute noch keine Einträge
+                  </div>
+                )}
+              </div>
+            </div>
+<div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:C.white }}>🚿 Fahrzeugwäsche — heute</div>
+                <div style={{ display:"flex", gap:16 }}>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#1e4fa0" }}>{washCount}</div>
+                    <div style={{ fontSize:10, color:C.gray500 }}>Fahrzeuge</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:"#d97706" }}>{washCost.toFixed(2)} €</div>
+                    <div style={{ fontSize:10, color:C.gray500 }}>Gesamt</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:C.white }}>{formatMin(washMin)}</div>
+                    <div style={{ fontSize:10, color:C.gray500 }}>Zeit</div>
+                  </div>
+                </div>
+              </div>
+              {washJobs.length === 0 ? (
+                <div style={{ textAlign:"center", color:C.gray500, padding:"24px 0", fontSize:14 }}>
+                  Heute noch keine Wasch-Aufträge
+                </div>
+              ) : (
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                  <thead>
+                    <tr style={{ borderBottom:"2px solid "+C.border }}>
+                      {["Fahrzeug","Typ","Waschart","Zeit","Kosten"].map(function(h){
+                        return <th key={h} style={{ padding:"8px 10px", textAlign:"left",
+                          fontSize:11, color:C.gray500, fontWeight:600 }}>{h}</th>;
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {washJobs.map(function(j){
+                      var washTypeLabel = {basic:"Einfach", full:"Vollwäsche", chemical:"Chemisch", other:"Sonstiges"}[j.washType||"basic"]||"Einfach";
+                      var vAbbr3 = {truck:"LKW",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"}[j.vehicleType]||"SNG";
+                      return (
+                        <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
+                          <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>
+                            <span style={{ fontSize:9, fontWeight:800, color:"#1e4fa0", background:"#1e4fa018", borderRadius:3, padding:"1px 4px", marginRight:6, letterSpacing:"0.5px" }}>{vAbbr3}</span>
+                            {j.plate}
+                          </td>
+                          <td style={{ padding:"9px 10px", color:C.gray300, fontSize:12 }}>{j.vehicleType}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{washTypeLabel}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
+                          <td style={{ padding:"9px 10px", color:C.gray300 }}>{(j.cost||0).toFixed(2)}€</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+
+
+    function App() {
+      const [authState, setAuthState] = useState("checking");
+      const [currentUser, setCurrentUser] = useState(null);
+      const [jobs, setJobs] = useState([]);
+      const [vehicles, setVehicles] = useState([]);
+      const [lang] = useState("de");
+
+      useEffect(() => {
+        supa.auth.getSession().then(async ({ data: { session } }) => {
+          if (!session) { window.location.href = "werkstatt.html"; return; }
+          const email = session.user.email;
+          if (!ALLOWED.includes(email)) {
+            alert("Zugriff verweigert! Kein Zugang zum Dashboard.");
+            await supa.auth.signOut();
+            window.location.href = "werkstatt.html";
+            return;
+          }
+          const userMap = {
+            "doll@ltg.de": { id:"doll", name:"Herr Doll", role:"boss", avatar:"HD", isAdmin:true },
+            "jens@ltg.de": { id:"jens", name:"Jens", role:"fpl", avatar:"JE", isAdmin:true }
+          };
+          setCurrentUser(userMap[email] || { id:email, name:email, role:"boss", avatar:"??" });
+          setAuthState("ok");
+          const [j, v] = await Promise.all([
+            sb.query("jobs", { select:"*", order:"created_at.desc", limit:"200" }),
+            sb.query("vehicles", { select:"*", order:"plate_number.asc" })
+          ]);
+          setJobs(j.map(mapJob));
+          setVehicles(v.map(mapVehicle));
+        });
+      }, []);
+
+      const t = T[lang] || T["de"];
+
+      if (authState === "checking") return (
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#f0f4f8",fontSize:18,color:"#1a3a6b" }}>
+          Login wird geprüft...
+        </div>
+      );
+      if (!currentUser) return null;
+
+      return (
+        <div style={{ minHeight:"100vh", background:"#f0f4f8" }}>
+          <div style={{ background:"#1a3a6b",color:"white",padding:"10px 20px",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+            <div style={{ fontSize:28, fontWeight:900, letterSpacing:-1 }}>LTG</div>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              <span style={{ fontSize:13, color:"#dbeafe" }}>{currentUser.name} · DASHBOARD</span>
+              <button onClick={async()=>{await supa.auth.signOut();window.location.href="werkstatt.html";}}
+                style={{ background:"transparent",color:"#dbeafe",border:"1px solid rgba(255,255,255,.25)",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontWeight:700 }}>
+                Abmelden
+              </button>
+            </div>
+          </div>
+          <DashboardShared jobs={jobs} vehicles={vehicles} alerts={[]} inspections={[]}
+            t={t} lang={lang} user={currentUser}
+            onNavigate={()=>{}} onCreateJob={()=>{}} onTabChange={()=>{}} />
+        </div>
+      );
     }
 
-    function todayIso() {
-      return new Date().toISOString().slice(0,10);
-    }
-
-    function isOpen(j) {
-      return !["done","closed","cancelled"].includes(j.status);
-    }
-
-    async function loadData() {
-      const headers = await authHeaders();
-
-      const j = await fetch(SB_URL + "/rest/v1/jobs?select=*&order=created_at.desc&limit=200", { headers });
-      jobs = j.ok ? await j.json() : [];
-
-      try {
-        const w = await fetch(SB_URL + "/rest/v1/v_wash_orders_dashboard?select=*&order=created_at.desc&limit=100", { headers });
-        washOrders = w.ok ? await w.json() : [];
-      } catch(e) {
-        washOrders = [];
-      }
-
-      try {
-        const s = await fetch(SB_URL + "/rest/v1/v_wash_daily_summary?select=*&limit=14", { headers });
-        washSummary = s.ok ? await s.json() : [];
-      } catch(e) {
-        washSummary = [];
-      }
-
-      render();
-    }
-
-    function render() {
-      const open = jobs.filter(isOpen);
-      document.getElementById("kOpen").textContent = open.length;
-      document.getElementById("kCritical").textContent = open.filter(j => j.urgency === "critical").length;
-      document.getElementById("kParts").textContent = open.filter(j => j.status === "waiting_parts").length;
-      document.getElementById("kDone").textContent = jobs.filter(j => (j.work_finished_at || j.closed_at || "").slice(0,10) === todayIso()).length;
-
-      const rows = open.slice(0,50);
-      document.getElementById("jobsTable").innerHTML = !rows.length
-        ? '<div class="empty">Keine offenen Aufträge.</div>'
-        : '<table><thead><tr><th>Asset</th><th>Quelle</th><th>Status</th><th>Mechaniker</th></tr></thead><tbody>' +
-          rows.map(j => '<tr><td><b>'+escapeHtml(j.asset_label || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml(j.description_de || j.description_raw || "")+'</span></td><td>'+escapeHtml(j.source_app || "")+'</td><td><span class="badge '+(j.urgency==="critical"?"urgent":j.status==="waiting_parts"?"warn":"")+'">'+escapeHtml(j.status || "new")+'</span></td><td>'+escapeHtml(j.assigned_mechanic_name || "-")+'</td></tr>').join("") +
-          '</tbody></table>';
-
-      const bySource = {};
-      open.forEach(j => bySource[j.source_app || "unknown"] = (bySource[j.source_app || "unknown"] || 0) + 1);
-      document.getElementById("sourceBox").innerHTML = Object.keys(bySource).map(k =>
-        '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0"><b>'+escapeHtml(k)+'</b><span class="badge">'+bySource[k]+'</span></div>'
-      ).join("") || '<div class="empty">Keine Daten.</div>';
-
-      const todayWash = washOrders.filter(w => (w.work_date || "").slice(0,10) === todayIso());
-      if (!todayWash.length) {
-        document.getElementById("washTable").innerHTML = '<div class="empty">Keine Waschhalle-Daten heute.</div>';
-      } else {
-        document.getElementById("washTable").innerHTML =
-          '<table><thead><tr><th>Fahrzeug</th><th>Waschtyp</th><th>Preis</th><th>Status</th></tr></thead><tbody>' +
-          todayWash.slice(0,50).map(w =>
-            '<tr><td><b>'+escapeHtml(w.plate_number || w.fleet_number || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml((w.vehicle_brand || "") + " " + (w.vehicle_model || ""))+'</span></td><td>'+escapeHtml(w.wash_type_name || "-")+'<br><span style="color:#7a90a8">'+escapeHtml(String(w.duration_minutes || 0))+' min</span></td><td><b>'+Number(w.price_eur || 0).toFixed(2)+' €</b></td><td><span class="badge '+(w.status==="archived"?"ok":w.status==="done"?"warn":"")+'">'+escapeHtml(w.status || "")+'</span></td></tr>'
-          ).join("") + '</tbody></table>';
-      }
-
-      document.getElementById("washSummary").innerHTML = !washSummary.length
-        ? '<div class="empty">Keine Zusammenfassung.</div>'
-        : washSummary.slice(0,10).map(s =>
-            '<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #e2e8f0"><div><b>'+escapeHtml(s.work_date || "-")+'</b><br><span style="color:#7a90a8">'+escapeHtml(String(s.duration_minutes || 0))+' min</span></div><div style="text-align:right"><b>'+Number(s.revenue_eur || 0).toFixed(2)+' €</b><br><span class="badge">'+escapeHtml(String(s.completed_orders || 0))+' Aufträge</span></div></div>'
-          ).join("");
-    }
-
-    document.getElementById("logout").onclick = async function() {
-      await supa.auth.signOut();
-      window.location.href = "login.html";
-    };
-
-    (async function boot() {
-      if (await checkAuth()) {
-        await loadData();
-        setInterval(loadData, 30000);
-      }
-    })();
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
