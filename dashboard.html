@@ -108,6 +108,14 @@
         window.location.href = "login.html";
         return false;
       }
+      // Whitelist: nur Chef und Ens haben Zugang
+      const ALLOWED = ['chef@ltg.de', 'ens@ltg.de'];
+      if (!ALLOWED.includes(session.user.email)) {
+        alert('Zugriff verweigert! Kein Zugang zum Dashboard.');
+        await supa.auth.signOut();
+        window.location.href = 'werkstatt.html';
+        return false;
+      }
       document.getElementById("user").textContent = (session.user.email || "Dashboard") + " · DASHBOARD";
       document.getElementById("logout").style.display = "inline-block";
       return true;
