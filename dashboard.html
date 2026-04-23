@@ -602,7 +602,7 @@ function mapJob(r) {
     workType: r.work_type, description: r.description_de || r.description_raw,
     status: r.status, date: (r.created_at||"").slice(0,10),
     travelToMin: r.travel_to_minutes||0, travelBackMin: r.travel_back_minutes||0,
-    workMin: r.work_duration_minutes||0, photos: r.photos_count||0,
+    workMin: r.work_duration_minutes||0, photos: (function(){ try{ return JSON.parse(r.photos||'[]'); }catch(e){ return []; } })(),
     cost: r.cost_eur||0, downtime: r.work_duration_minutes||0,
     urgency: r.urgency, closedAt: r.closed_at, workFinishedAt: r.work_finished_at,
     source: r.source_app || "unknown"
@@ -686,6 +686,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   const [activeSection, setActiveSection] = useState("overview");
   const [inspExpanded, setInspExpanded] = useState(null);
   const [inspSectionVehicle, setInspSectionVehicle] = useState(null);
+  const [expandedMechJob, setExpandedMechJob] = useState(null);
 
   const handlePrintInspection = function(ins) {
     var win = window.open("", "_blank");
@@ -1567,53 +1568,230 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
           </div>
         )}
 {activeSection === "mechanics" && (
-          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-              <div style={{ fontSize:16, fontWeight:700, color:C.white }}>Mechaniker Übersicht</div>
-              
+          <div>
+            {/* Schieft-KPIs */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:18 }}>
+              {mechanics.map(function(m){
+                var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+                var mMin  = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+                var mTrav = mJobs.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
+                var mDone = mJobs.filter(function(j){ return j.status==="done"; }).length;
+                var mCost = mJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+                return [
+                  {l:m.name+": Aufträge", v:mJobs.length, c:"#1e4fa0", icon:"📋"},
+                  {l:m.name+": Arbeitszeit", v:formatMin(mMin), c:"#0369a1", icon:"⏱"},
+                  {l:m.name+": Fahrzeit", v:formatMin(mTrav), c:"#7c3aed", icon:"🚗"},
+                  {l:m.name+": Erledigt", v:mDone+" / "+mJobs.length, c:"#16a34a", icon:"✓"},
+                ];
+              }).reduce(function(a,b){ return a.concat(b); },[]).map(function(k,i){
+                return (
+                  <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
+                    borderTop:"3px solid "+k.c, borderRadius:10, padding:"14px 16px" }}>
+                    <div style={{ fontSize:11, color:"#1e4fa0", marginBottom:5, fontWeight:700,
+                      textTransform:"uppercase", letterSpacing:"0.7px", display:"flex", alignItems:"center", gap:4 }}>
+                      <span>{k.icon}</span>{k.l}
+                    </div>
+                    <div style={{ fontSize:22, fontWeight:800, color:k.c }}>{k.v}</div>
+                  </div>
+                );
+              })}
             </div>
-            {mechLoad.map(function(m){
-              var pct = Math.min(m.min/480, 1);
+
+            {/* Per-mechanic detail */}
+            {mechanics.map(function(m){
               var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+              var mMin  = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+              var mTrav = mJobs.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
+              var mDone = mJobs.filter(function(j){ return j.status==="done"; }).length;
+              var mCost = mJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+              var pct   = Math.min(mMin/480, 1);
               return (
-                <div key={m.id} style={{ marginBottom:24, padding:"16px", background:C.bg,
-                  borderRadius:10, border:"1px solid "+C.border }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-                    <span style={{ fontSize:16, fontWeight:800, color:C.white }}>🔧 {m.name}</span>
-                    <span style={{ fontSize:13, color:C.gray500 }}>{m.jobs} Aufträge · {formatMin(m.min)} · {m.done} erledigt</span>
+                <div key={m.id} style={{ marginBottom:20, background:C.surface,
+                  border:"1px solid "+C.border, borderRadius:12, overflow:"hidden" }}>
+                  {/* Mechanic header */}
+                  <div style={{ background:"#1e4fa0", padding:"14px 20px",
+                    display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <div style={{ width:38, height:38, borderRadius:"50%", background:"rgba(255,255,255,0.2)",
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        fontSize:16, fontWeight:800, color:"#fff" }}>
+                        {m.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>🔧 {m.name}</div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)", marginTop:2 }}>
+                          {mJobs.length} Aufträge · {formatMin(mMin)} Arbeit · {formatMin(mTrav)} Fahrzeit · {mCost.toFixed(0)} €
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)", marginBottom:4 }}>
+                        Auslastung {(pct*100).toFixed(0)}%
+                      </div>
+                      <div style={{ width:120, background:"rgba(255,255,255,0.2)", borderRadius:4, height:8 }}>
+                        <div style={{ height:"100%", borderRadius:4, width:(pct*100)+"%",
+                          background: pct>0.8?"#ef4444":pct>0.5?"#f5a623":"#16a34a" }} />
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ background:C.surface, borderRadius:4, height:10, overflow:"hidden", marginBottom:16 }}>
-                    <div style={{ height:"100%", borderRadius:4,
-                      background:pct>0.8?"#ef4444":pct>0.5?"#d97706":"#1e4fa0",
-                      width:(pct*100)+"%" }} />
+
+                  {/* Jobs list */}
+                  <div style={{ padding:"0" }}>
+                    {mJobs.length === 0 ? (
+                      <div style={{ padding:"24px", textAlign:"center", color:C.gray500, fontSize:13 }}>
+                        Keine Aufträge im gewählten Zeitraum
+                      </div>
+                    ) : mJobs.map(function(j){
+                      var isExpanded = expandedMechJob === j.id;
+                      var sc = j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
+                      var sl = j.status==="done"?"✓ Erledigt":j.status==="inProgress"?"⚙ In Arbeit":"○ Offen";
+                      var photos = Array.isArray(j.photos) ? j.photos : [];
+                      return (
+                        <div key={j.id} style={{ borderBottom:"1px solid "+C.border+"55" }}>
+                          {/* Job row - always visible */}
+                          <div onClick={function(){ setExpandedMechJob(isExpanded ? null : j.id); }}
+                            style={{ padding:"12px 20px", cursor:"pointer", display:"flex",
+                              alignItems:"center", gap:16,
+                              background: isExpanded ? C.bg : "transparent",
+                              transition:"background 0.15s" }}>
+                            <div style={{ fontSize:18, minWidth:28 }}>
+                              {j.vehicleType==="forklift"?"🏗":j.vehicleType==="truck"?"🚛":j.vehicleType==="pkw"?"🚗":"🔧"}
+                            </div>
+                            <div style={{ flex:1 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:3 }}>
+                                <span style={{ fontSize:14, fontWeight:800, color:C.white }}>{j.plate||"—"}</span>
+                                <span style={{ fontSize:12, color:C.gray500 }}>{j.workType||"—"}</span>
+                                <span style={{ fontSize:11, color:C.gray500 }}>{j.location||""}</span>
+                              </div>
+                              <div style={{ display:"flex", gap:16, fontSize:12, color:C.gray500 }}>
+                                <span>⏱ {formatMin(j.workMin)}</span>
+                                <span>🚗 {formatMin((j.travelToMin||0)+(j.travelBackMin||0))}</span>
+                                <span>💰 {(j.cost||0).toFixed(0)} €</span>
+                                {photos.length>0 && <span>📷 {photos.length} Foto{photos.length>1?"s":""}</span>}
+                              </div>
+                            </div>
+                            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                              <span style={{ fontSize:12, fontWeight:700, color:sc,
+                                background:sc+"18", borderRadius:20, padding:"3px 10px" }}>{sl}</span>
+                              <span style={{ color:C.gray500, fontSize:14 }}>{isExpanded?"▲":"▼"}</span>
+                            </div>
+                          </div>
+
+                          {/* Expanded job detail */}
+                          {isExpanded && (
+                            <div style={{ padding:"16px 20px 20px", background:C.bg,
+                              borderTop:"1px solid "+C.border+"44" }}>
+                              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:16 }}>
+                                <div style={{ background:C.surface, borderRadius:8, padding:"12px 14px" }}>
+                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700, textTransform:"uppercase",
+                                    letterSpacing:"0.7px", marginBottom:6 }}>📋 Auftrag</div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Fahrzeug:</b> {j.plate||"—"}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Typ:</b> {j.vehicleType||"—"}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Arbeit:</b> {j.workType||"—"}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Standort:</b> {j.location||"—"}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300 }}>
+                                    <b style={{color:C.white}}>Datum:</b> {j.date||"—"}
+                                  </div>
+                                </div>
+                                <div style={{ background:C.surface, borderRadius:8, padding:"12px 14px" }}>
+                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700, textTransform:"uppercase",
+                                    letterSpacing:"0.7px", marginBottom:6 }}>⏱ Zeiten</div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Arbeitszeit:</b> {formatMin(j.workMin)}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Hinfahrt:</b> {formatMin(j.travelToMin||0)}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Rückfahrt:</b> {formatMin(j.travelBackMin||0)}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
+                                    <b style={{color:C.white}}>Gesamt:</b> {formatMin((j.workMin||0)+(j.travelToMin||0)+(j.travelBackMin||0))}
+                                  </div>
+                                  <div style={{ fontSize:12, color:C.gray300 }}>
+                                    <b style={{color:C.white}}>Kosten:</b> <span style={{color:"#d97706",fontWeight:700}}>{(j.cost||0).toFixed(2)} €</span>
+                                  </div>
+                                </div>
+                                <div style={{ background:C.surface, borderRadius:8, padding:"12px 14px" }}>
+                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700, textTransform:"uppercase",
+                                    letterSpacing:"0.7px", marginBottom:6 }}>📝 Beschreibung</div>
+                                  <div style={{ fontSize:12, color:C.gray300, lineHeight:1.6 }}>
+                                    {j.description || <span style={{color:C.gray500,fontStyle:"italic"}}>Keine Beschreibung</span>}
+                                  </div>
+                                  <div style={{ marginTop:10, fontSize:11, color:C.gray500 }}>
+                                    Status: <span style={{color:sc,fontWeight:700}}>{sl}</span>
+                                  </div>
+                                  {j.closedAt && (
+                                    <div style={{ marginTop:4, fontSize:11, color:C.gray500 }}>
+                                      Abgeschlossen: {new Date(j.closedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} Uhr
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Photos */}
+                              {photos.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize:11, color:"#1e4fa0", fontWeight:700,
+                                    textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:10 }}>
+                                    📷 Fotos ({photos.length})
+                                  </div>
+                                  <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                                    {photos.map(function(url, pi){
+                                      return (
+                                        <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                                          <img src={url} alt={"Foto "+(pi+1)}
+                                            style={{ width:100, height:100, objectFit:"cover",
+                                              borderRadius:8, border:"2px solid "+C.border,
+                                              cursor:"pointer", transition:"transform 0.15s" }}
+                                            onMouseOver={function(e){ e.target.style.transform="scale(1.05)"; }}
+                                            onMouseOut={function(e){ e.target.style.transform="scale(1)"; }}
+                                          />
+                                        </a>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              {photos.length === 0 && (
+                                <div style={{ fontSize:12, color:C.gray500, fontStyle:"italic" }}>
+                                  📷 Keine Fotos zu diesem Auftrag
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-                    <thead>
-                      <tr style={{ borderBottom:"1px solid "+C.border }}>
-                        {["Fahrzeug","Arbeit","Zeit","Kosten","Status"].map(function(h){
-                          return <th key={h} style={{ padding:"6px 8px", textAlign:"left",
-                            fontSize:11, color:C.gray500, fontWeight:600 }}>{h}</th>;
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mJobs.map(function(j){
-                        var sc = j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
-                        var sl = j.status==="done"?"✓":j.status==="inProgress"?"⚙":"○";
-                        return (
-                          <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"33" }}>
-                            <td style={{ padding:"7px 8px", fontWeight:700, color:C.white }}>{j.plate}</td>
-                            <td style={{ padding:"7px 8px", color:C.gray300, fontSize:12 }}>{j.workType}</td>
-                            <td style={{ padding:"7px 8px", color:C.gray300 }}>{formatMin(j.workMin)}</td>
-                            <td style={{ padding:"7px 8px", color:C.gray300 }}>{(j.cost||0).toFixed(0)}€</td>
-                            <td style={{ padding:"7px 8px" }}>
-                              <span style={{ color:sc, fontWeight:700 }}>{sl}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+
+                  {/* Mechanic footer summary */}
+                  <div style={{ padding:"12px 20px", background:C.bg,
+                    borderTop:"1px solid "+C.border, display:"flex", gap:24 }}>
+                    <span style={{ fontSize:12, color:C.gray500 }}>
+                      Gesamt: <b style={{color:C.white}}>{mJobs.length} Aufträge</b>
+                    </span>
+                    <span style={{ fontSize:12, color:C.gray500 }}>
+                      Arbeit: <b style={{color:"#0369a1"}}>{formatMin(mMin)}</b>
+                    </span>
+                    <span style={{ fontSize:12, color:C.gray500 }}>
+                      Fahrzeit: <b style={{color:"#7c3aed"}}>{formatMin(mTrav)}</b>
+                    </span>
+                    <span style={{ fontSize:12, color:C.gray500 }}>
+                      Erledigt: <b style={{color:"#16a34a"}}>{mDone}</b>
+                    </span>
+                    <span style={{ fontSize:12, color:C.gray500 }}>
+                      Kosten: <b style={{color:"#d97706"}}>{mCost.toFixed(2)} €</b>
+                    </span>
+                  </div>
                 </div>
               );
             })}
