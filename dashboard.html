@@ -598,7 +598,7 @@ function LTGLogo({ size = 1 }) {
 function mapJob(r) {
   return {
     id: r.id, mechanic: r.assigned_mechanic_id, colleague: r.colleague_id,
-    vehicleType: r.vehicle_type, plate: r.asset_label, location: r.location,
+    vehicleType: r.vehicle_type || r.type, plate: r.asset_label, location: r.location,
     workType: r.work_type, description: r.description_de || r.description_raw,
     status: r.status, date: (r.created_at||"").slice(0,10),
     travelToMin: r.travel_to_minutes||0, travelBackMin: r.travel_back_minutes||0,
@@ -610,11 +610,11 @@ function mapJob(r) {
 }
 function mapVehicle(r) {
   return {
-    id: r.id, plate: r.plate_number, brand: r.vehicle_brand,
-    model: r.vehicle_model, type: r.vehicle_type,
-    mileage: r.mileage_km, tuev: r.tuev_date,
-    insurance: r.insurance_date, uvv: r.uvv_date,
-    nextService: r.next_service_date, status: r.status || "ok"
+    id: r.id, plate: r.plate_number || r.plate, brand: r.vehicle_brand || r.brand,
+    model: r.vehicle_model || r.model, type: r.vehicle_type || r.type,
+    mileage: r.mileage_km || r.mileage, tuev: r.tuev_date || r.tuev,
+    insurance: r.insurance_date || r.insurance, uvv: r.uvv_date || r.uvv,
+    nextService: r.next_service_date || r.next_service, status: r.status || "ok"
   };
 }
 
@@ -2725,7 +2725,7 @@ function App() {
       setAuthState("ok");
       Promise.all([
         sb.query("jobs",     { select: "*", order: "created_at.desc", limit: "200" }),
-        sb.query("vehicles", { select: "*", order: "plate_number.asc", limit: "200" })
+        sb.query("vehicles", { select: "*", order: "plate.asc", limit: "200" })
       ]).then(function(results) {
         setJobs(results[0].map(mapJob));
         setVehicles(results[1].map(mapVehicle));
