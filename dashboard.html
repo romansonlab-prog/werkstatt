@@ -1805,7 +1805,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             })()}
           </div>
         )}
-        {{activeSection === "lager" && (
+        {activeSection === "lager" && (
           <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
             <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:8 }}>📦 Lager</div>
             <div style={{ fontSize:13, color:C.gray500 }}>Die Seitenleiste funktioniert jetzt auch für Lager. Wenn du willst, mache ich im nächsten Schritt hier einen echten Lager-Block mit Bestand, Minimum und Belegen.</div>
