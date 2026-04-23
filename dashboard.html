@@ -782,6 +782,209 @@ function exportMechanicShiftReport(mechName, mechId, jobs, filterDate) {
 }
 
 
+// ── Generic Fleet Section (LKW / Sattelzug / Anhänger) ──
+function FleetSection({ vehicles, jobs, vehicleType, label, C, fleetSearch, setFleetSearch, fleetDateFilter, setFleetDateFilter, expandedVehicle, setExpandedVehicle }) {
+  var fmt = function(m){ if(!m) return "—"; return Math.floor(m/60)+"h "+(m%60)+"min"; };
+  var search = (fleetSearch||"").toLowerCase();
+  var typeVehicles = (vehicles||[]).filter(function(v){ return v.type===vehicleType; });
+  var filtered = typeVehicles.filter(function(v){
+    if(!search) return true;
+    return (v.plate||"").toLowerCase().includes(search) ||
+           (v.brand||"").toLowerCase().includes(search) ||
+           (v.location||"").toLowerCase().includes(search);
+  });
+
+  var getVehicleJobs = function(plate){
+    return (jobs||[]).filter(function(j){
+      var ok = j.plate===plate;
+      if(fleetDateFilter) ok = ok && j.date===fleetDateFilter;
+      return ok;
+    });
+  };
+
+  var totalVehicles = typeVehicles.length;
+  var totalOpen = typeVehicles.reduce(function(s,v){ return s+(jobs||[]).filter(function(j){ return j.plate===v.plate && j.status!=="done"; }).length; }, 0);
+  var totalCost  = typeVehicles.reduce(function(s,v){ return s+(jobs||[]).filter(function(j){ return j.plate===v.plate; }).reduce(function(s2,j){ return s2+(j.cost||0); },0); }, 0);
+  var docWarn    = typeVehicles.filter(function(v){
+    var today = new Date();
+    return [{d:v.tuev},{d:v.insurance},{d:v.uvv},{d:v.nextService}].some(function(x){
+      if(!x.d) return false;
+      var diff = Math.round((new Date(x.d)-today)/86400000);
+      return diff < 60;
+    });
+  }).length;
+
+  var docStatus = function(v){
+    var today = new Date();
+    var diffs = [{d:v.tuev},{d:v.insurance},{d:v.uvv},{d:v.nextService}]
+      .filter(function(x){ return x.d; })
+      .map(function(x){ return Math.round((new Date(x.d)-today)/86400000); });
+    if(!diffs.length) return "ok";
+    var mn = Math.min.apply(null,diffs);
+    if(mn<0) return "expired"; if(mn<30) return "urgent"; if(mn<60) return "warning"; return "ok";
+  };
+  var dsColor = function(s){ return s==="expired"?"#ef4444":s==="urgent"?"#d97706":s==="warning"?"#c8a84b":"#16a34a"; };
+  var dsLabel = function(s){ return s==="expired"?"Abgelaufen":s==="urgent"?"Dringend":s==="warning"?"Bald fällig":"OK"; };
+
+  return (
+    React.createElement('div', null,
+      // KPI row
+      React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:18}},
+        [
+          {l:"Fahrzeuge gesamt", v:totalVehicles, c:"#1e4fa0", i:"▣"},
+          {l:"Offene Aufträge",  v:totalOpen,     c:"#ef4444", i:"!"},
+          {l:"Dokumente fällig", v:docWarn,        c:"#d97706", i:"⚠"},
+          {l:"Gesamtkosten",     v:totalCost.toFixed(0)+" €", c:"#16a34a", i:"€"},
+        ].map(function(k){
+          return React.createElement('div', {key:k.l, style:{background:C.surface,border:"1px solid "+C.border,
+            borderTop:"3px solid "+k.c,borderRadius:10,padding:"14px 16px"}},
+            React.createElement('div', {style:{fontSize:11,color:k.c,marginBottom:5,fontWeight:700,
+              textTransform:"uppercase",letterSpacing:"0.7px"}}, k.i+" "+k.l),
+            React.createElement('div', {style:{fontSize:24,fontWeight:800,color:k.c}}, k.v)
+          );
+        })
+      ),
+      // Search toolbar
+      React.createElement('div', {style:{display:"flex",gap:10,marginBottom:16,
+        background:C.surface,border:"1px solid "+C.border,borderRadius:10,padding:"12px 16px",flexWrap:"wrap",alignItems:"center"}},
+        React.createElement('input', {type:"text", placeholder:"Suche: Kennzeichen, Marke, Standort…",
+          value:fleetSearch, onChange:function(e){setFleetSearch(e.target.value);},
+          style:{flex:1,minWidth:180,background:C.bg,border:"1px solid "+C.border,borderRadius:6,
+            padding:"7px 12px",color:C.white,fontSize:13,outline:"none"}}),
+        React.createElement('input', {type:"date", value:fleetDateFilter,
+          onChange:function(e){setFleetDateFilter(e.target.value);},
+          style:{background:C.bg,border:"1px solid "+C.border,borderRadius:6,
+            padding:"7px 10px",color:C.white,fontSize:13,outline:"none"}}),
+        fleetDateFilter && React.createElement('button', {onClick:function(){setFleetDateFilter("");},
+          style:{fontSize:12,color:C.gray500,background:"none",border:"1px solid "+C.border,
+            borderRadius:6,padding:"6px 10px",cursor:"pointer"}}, "✕ Datum"),
+        fleetSearch && React.createElement('button', {onClick:function(){setFleetSearch("");},
+          style:{fontSize:12,color:C.gray500,background:"none",border:"1px solid "+C.border,
+            borderRadius:6,padding:"6px 10px",cursor:"pointer"}}, "✕ Suche"),
+        React.createElement('span', {style:{fontSize:12,color:C.gray500,marginLeft:"auto"}},
+          filtered.length+" / "+typeVehicles.length+" Fahrzeuge")
+      ),
+      // Vehicle list
+      filtered.length===0
+        ? React.createElement('div', {style:{background:C.surface,border:"1px solid "+C.border,borderRadius:10,
+            padding:"32px",textAlign:"center",color:C.gray500,fontSize:13}},
+            search ? "Keine Fahrzeuge für \""+fleetSearch+"\" gefunden" : "Keine "+label+" im Fuhrpark")
+        : React.createElement('div', {style:{background:C.surface,border:"1px solid "+C.border,borderRadius:10,overflow:"hidden"}},
+            // Table header
+            React.createElement('div', {style:{display:"grid",gridTemplateColumns:"1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 40px",
+              gap:8,padding:"10px 16px",borderBottom:"2px solid "+C.border,
+              background:C.bg}},
+              ["Kennzeichen","Marke / Modell","Standort","TÜV","UVV","Service","Status",""].map(function(h){
+                return React.createElement('div', {key:h, style:{fontSize:11,color:C.gray500,fontWeight:700,
+                  textTransform:"uppercase",letterSpacing:"0.6px"}}, h);
+              })
+            ),
+            filtered.map(function(v){
+              var ds = docStatus(v);
+              var dc = dsColor(ds);
+              var dl = dsLabel(ds);
+              var vJobs = getVehicleJobs(v.plate);
+              var vCost = vJobs.reduce(function(s,j){return s+(j.cost||0);},0);
+              var vOpen = vJobs.filter(function(j){return j.status!=="done";}).length;
+              var isExp = expandedVehicle===v.plate;
+              var today = new Date();
+              var dateDiff = function(d){ return d?Math.round((new Date(d)-today)/86400000):null; };
+              var dateColor = function(d){
+                var diff=dateDiff(d); if(diff===null) return C.gray500;
+                return diff<0?"#ef4444":diff<30?"#d97706":diff<60?"#c8a84b":"#16a34a";
+              };
+              return React.createElement('div', {key:v.plate+v.id},
+                // Row
+                React.createElement('div', {
+                  onClick:function(){setExpandedVehicle(isExp?null:v.plate);},
+                  style:{display:"grid",gridTemplateColumns:"1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 40px",
+                    gap:8,padding:"11px 16px",cursor:"pointer",alignItems:"center",
+                    borderBottom:"1px solid "+C.border+"55",
+                    background:isExp?C.bg:"transparent",
+                    transition:"background 0.15s"}},
+                  React.createElement('div', {style:{fontWeight:800,color:C.white,fontSize:14}}, v.plate||"—"),
+                  React.createElement('div', {style:{color:C.gray300,fontSize:13}}, (v.brand||"—")+(v.model?" "+v.model:"")),
+                  React.createElement('div', {style:{color:C.gray500,fontSize:12}}, v.location||"—"),
+                  React.createElement('div', {style:{color:dateColor(v.tuev),fontSize:12,fontWeight:700}},
+                    v.tuev || "—"),
+                  React.createElement('div', {style:{color:dateColor(v.uvv),fontSize:12,fontWeight:700}},
+                    v.uvv || "—"),
+                  React.createElement('div', {style:{color:dateColor(v.nextService),fontSize:12}},
+                    v.nextService || "—"),
+                  React.createElement('div', null,
+                    React.createElement('span', {style:{fontSize:11,fontWeight:700,color:dc,
+                      background:dc+"18",borderRadius:20,padding:"3px 8px"}}, dl)
+                  ),
+                  React.createElement('div', {style:{textAlign:"center",color:C.gray500,fontSize:11}},
+                    isExp?"▲":"▼")
+                ),
+                // Expanded detail
+                isExp && React.createElement('div', {style:{padding:"18px 16px 20px",
+                  background:C.bg,borderBottom:"1px solid "+C.border}},
+                  // Stats row
+                  React.createElement('div', {style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}},
+                    [
+                      {l:"Aufträge gesamt", v:vJobs.length, c:"#1e4fa0"},
+                      {l:"Offene Aufträge", v:vOpen, c:"#ef4444"},
+                      {l:"Gesamtkosten", v:vCost.toFixed(0)+" €", c:"#d97706"},
+                      {l:"Letzter Service", v:v.nextService||"—", c:"#16a34a"},
+                    ].map(function(k){
+                      return React.createElement('div', {key:k.l, style:{background:C.surface,borderRadius:8,
+                        padding:"10px 14px",borderLeft:"3px solid "+k.c}},
+                        React.createElement('div', {style:{fontSize:10,color:k.c,fontWeight:700,
+                          textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:4}}, k.l),
+                        React.createElement('div', {style:{fontSize:18,fontWeight:800,color:k.c}}, k.v)
+                      );
+                    })
+                  ),
+                  // Repair history table
+                  React.createElement('div', {style:{fontSize:12,fontWeight:700,color:C.white,marginBottom:10}},
+                    "Reparaturhistorie ("+vJobs.length+" Aufträge)"),
+                  vJobs.length===0
+                    ? React.createElement('div', {style:{fontSize:12,color:C.gray500,fontStyle:"italic",padding:"8px 0"}},
+                        fleetDateFilter?"Keine Aufträge am "+new Date(fleetDateFilter).toLocaleDateString("de-DE"):"Keine Aufträge vorhanden")
+                    : React.createElement('div', {style:{overflowX:"auto"}},
+                        React.createElement('table', {style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
+                          React.createElement('thead', null,
+                            React.createElement('tr', {style:{borderBottom:"1px solid "+C.border}},
+                              ["Datum","Mechaniker","Arbeitstyp","Beschreibung","Arbeitszeit","Fahrzeit","Kosten","Status"].map(function(h){
+                                return React.createElement('th', {key:h, style:{padding:"6px 8px",textAlign:"left",
+                                  fontSize:10,color:C.gray500,fontWeight:700,textTransform:"uppercase"}}, h);
+                              })
+                            )
+                          ),
+                          React.createElement('tbody', null,
+                            vJobs.map(function(j){
+                              var sc=j.status==="done"?"#16a34a":j.status==="inProgress"?"#d97706":"#ef4444";
+                              var sl=j.status==="done"?"Erledigt":j.status==="inProgress"?"In Arbeit":"Offen";
+                              return React.createElement('tr', {key:j.id,
+                                style:{borderBottom:"1px solid "+C.border+"44"}},
+                                React.createElement('td',{style:{padding:"7px 8px",color:C.gray300}},j.date||"—"),
+                                React.createElement('td',{style:{padding:"7px 8px",color:C.gray300}},j.mechanic||"—"),
+                                React.createElement('td',{style:{padding:"7px 8px",color:C.white,fontWeight:600}},j.workType||"—"),
+                                React.createElement('td',{style:{padding:"7px 8px",color:C.gray500,maxWidth:180,overflow:"hidden",
+                                  textOverflow:"ellipsis",whiteSpace:"nowrap"}},j.description||"—"),
+                                React.createElement('td',{style:{padding:"7px 8px",color:C.gray300}},fmt(j.workMin)),
+                                React.createElement('td',{style:{padding:"7px 8px",color:C.gray300}},fmt((j.travelToMin||0)+(j.travelBackMin||0))),
+                                React.createElement('td',{style:{padding:"7px 8px",color:"#d97706",fontWeight:700}},(j.cost||0).toFixed(0)+"€"),
+                                React.createElement('td',{style:{padding:"7px 8px"}},
+                                  React.createElement('span',{style:{color:sc,fontWeight:700,fontSize:11,
+                                    background:sc+"18",borderRadius:20,padding:"2px 8px"}},sl)
+                                )
+                              );
+                            })
+                          )
+                        )
+                      )
+                )
+              );
+            })
+          )
+    )
+  );
+}
+
+
 function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, onNavigate, onCreateJob, onTabChange }) {
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
@@ -793,6 +996,10 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   const [mechDateFilter, setMechDateFilter] = useState("");
   const [mechNotes, setMechNotes] = useState({});
   const [mechNoteInput, setMechNoteInput] = useState({});
+  const [fleetSearch, setFleetSearch] = useState("");
+  const [fleetDateFilter, setFleetDateFilter] = useState("");
+  const [expandedVehicle, setExpandedVehicle] = useState(null);
+  const [technikTab, setTechnikTab] = useState("all");
 
   const handlePrintInspection = function(ins) {
     var win = window.open("", "_blank");
@@ -942,6 +1149,9 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     archive:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
     mechanics: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>',
     wash:      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 007 7z"/></svg>',
+    lkw:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 8h14v10H1z"/><path d="M15 12h5l3 4v2h-8V12z"/><circle cx="5.5" cy="18.5" r="1.5"/><circle cx="18.5" cy="18.5" r="1.5"/></svg>',
+    sattelzug: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 5h11v13H1z"/><path d="M12 11h5l4 4v3h-9V11z"/><circle cx="5" cy="19" r="1.5"/><circle cx="18" cy="19" r="1.5"/><line x1="1" y1="9" x2="12" y2="9"/></svg>',
+    anhaenger: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="7" width="18" height="10" rx="1"/><circle cx="7" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/><line x1="1" y1="11" x2="3" y2="11"/></svg>',
     stapler:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="14" width="20" height="6" rx="1"/><path d="M6 14V8a2 2 0 012-2h4l4 4v4"/><path d="M12 6v6"/></svg>',
     pkwservice:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M4.93 4.93a10 10 0 000 14.14"/></svg>',
     fristen:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h4v4H8z"/></svg>',
@@ -950,10 +1160,16 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     {k:"overview",   label:"Overview"},
     {k:"management", label:"Management"},
     {k:"mechanics",  label:"Mechaniker"},
+    {k:"__sep1__",   label:"FUHRPARK", sep:true},
+    {k:"lkw",        label:"LKW"},
+    {k:"sattelzug",  label:"Sattelzug"},
+    {k:"anhaenger",  label:"Anhänger"},
     {k:"stapler",    label:"Stapler"},
     {k:"pkwservice", label:"PKW-Service"},
-    {k:"fristen",    label:"Fristen"},
+    {k:"__sep2__",   label:"DOKUMENTE", sep:true},
     {k:"fahrzeuge",  label:"Technik"},
+    {k:"fristen",    label:"Fristen"},
+    {k:"__sep3__",   label:"SONSTIGES", sep:true},
     {k:"inspektion", label:"Inspektion"},
     {k:"lager",      label:"Lager"},
     {k:"archive",    label:"Archiv"},
@@ -1012,23 +1228,31 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             return (
               <div key={item.k}
                 onClick={function(){
+                  if(item.sep) return;
                   setActiveSection(item.k);
                   if (onTabChange && (item.k === "fahrzeuge" || item.k === "lager" || item.k === "archive")) {
                     onTabChange(item.k);
                   }
                 }}
                 style={{ display:"flex", alignItems:"center", gap:10,
-                  padding:"11px 16px", cursor:"pointer",
-                  background: isActive ? "rgba(255,255,255,0.15)" : "transparent",
-                  borderLeft: isActive ? "3px solid #f5a623" : "3px solid transparent",
+                  padding: item.sep ? "10px 16px 2px" : "11px 16px",
+                  cursor: item.sep ? "default" : "pointer",
+                  background: item.sep ? "transparent" : (isActive ? "rgba(255,255,255,0.15)" : "transparent"),
+                  borderLeft: item.sep ? "none" : (isActive ? "3px solid #f5a623" : "3px solid transparent"),
                   borderRadius:"0 8px 8px 0", margin:"1px 8px 1px 0",
                   transition:"all 0.15s" }}>
-                <span style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.7)", display:"flex" }}
-                  dangerouslySetInnerHTML={{ __html: navIcons[item.k]||"" }} />
-                <span style={{ fontSize:13, fontWeight: isActive ? 700 : 400,
+                {item.sep ? (
+                  <span style={{ fontSize:9, fontWeight:800, color:"rgba(255,255,255,0.35)",
+                    letterSpacing:"1.5px", padding:"4px 0 2px", pointerEvents:"none",
+                    textTransform:"uppercase" }}>{item.label}</span>
+                ) : (
+                  <span style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.7)", display:"flex" }}
+                    dangerouslySetInnerHTML={{ __html: navIcons[item.k]||"" }} />
+                )}
+                {!item.sep && <span style={{ fontSize:13, fontWeight: isActive ? 700 : 400,
                   color: isActive ? "#fff" : "rgba(255,255,255,0.7)" }}>
                   {item.label}
-                </span>
+                </span>}
               </div>
             );
           })}
@@ -1475,26 +1699,113 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
           </div>
         )}
 {activeSection === "fahrzeuge" && (
-          <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
-            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:8 }}>🚛 Technik / Fahrzeuge</div>
-            <div style={{ fontSize:13, color:C.gray500, marginBottom:16 }}>Dieser Bereich ist im Dashboard jetzt anklickbar. Für die Detailpflege kannst du weiter in die Fahrzeugverwaltung wechseln.</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:12 }}>
-              {(vehicles||[]).slice(0,24).map(function(v,idx){
-                var plate = v.plate || v.plate_number || v.kennzeichen || ("Fahrzeug " + (idx+1));
-                var brand = v.brand || v.make_model || v.brand_model || "—";
-                var loc = v.location || "—";
+          <div>
+            <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:4 }}>
+              Technik — Dokumentenstatus
+            </div>
+            <div style={{ fontSize:13, color:C.gray500, marginBottom:16 }}>
+              Übersicht TÜV · UVV · Versicherung · Service — nach Fahrzeugtyp
+            </div>
+            {/* Type tabs */}
+            <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+              {[
+                {k:"all",        l:"Alle"},
+                {k:"truck",      l:"LKW"},
+                {k:"semiTrailer",l:"Sattelzug"},
+                {k:"forklift",   l:"Stapler"},
+                {k:"trailer",    l:"Anhänger"},
+                {k:"pkw",        l:"PKW"},
+                {k:"other",      l:"Sonstiges"},
+              ].map(function(t){
+                var cnt = t.k==="all" ? (vehicles||[]).length : (vehicles||[]).filter(function(v){ return v.type===t.k; }).length;
                 return (
-                  <div key={plate+idx} style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:10, padding:"14px" }}>
-                    <div style={{ fontSize:15, fontWeight:800, color:C.white, marginBottom:4 }}>{plate}</div>
-                    <div style={{ fontSize:12, color:C.gray500, marginBottom:6 }}>{brand}</div>
-                    <div style={{ fontSize:12, color:C.gray300 }}>{loc}</div>
-                  </div>
+                  <button key={t.k} onClick={function(){ setTechnikTab(t.k); }}
+                    style={{ padding:"7px 16px", borderRadius:20, fontSize:12, fontWeight:700,
+                      cursor:"pointer", border:"1px solid "+C.border,
+                      background: technikTab===t.k ? "#1e4fa0" : C.surface,
+                      color: technikTab===t.k ? "#fff" : C.gray300 }}>
+                    {t.l} ({cnt})
+                  </button>
                 );
               })}
             </div>
+            {/* Search */}
+            <div style={{ marginBottom:14 }}>
+              <input type="text" placeholder="Kennzeichen suchen…"
+                value={fleetSearch}
+                onChange={function(e){ setFleetSearch(e.target.value); }}
+                style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:7,
+                  padding:"8px 14px", color:C.white, fontSize:13, outline:"none", width:280 }} />
+            </div>
+            {/* Docs table */}
+            {(function(){
+              var today = new Date();
+              var typeVeh = (vehicles||[]).filter(function(v){
+                var matchType = technikTab==="all" || v.type===technikTab;
+                var matchSearch = !fleetSearch || (v.plate||"").toLowerCase().includes(fleetSearch.toLowerCase());
+                return matchType && matchSearch;
+              });
+              var docColor = function(d){
+                if(!d) return C.gray500;
+                var diff=Math.round((new Date(d)-today)/86400000);
+                return diff<0?"#ef4444":diff<30?"#d97706":diff<60?"#c8a84b":"#16a34a";
+              };
+              var typeLabel = {truck:"LKW",semiTrailer:"Sattelzug",forklift:"Stapler",trailer:"Anhänger",pkw:"PKW",other:"Sonstiges"};
+              return (
+                <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, overflow:"hidden" }}>
+                  <div style={{ overflowX:"auto" }}>
+                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                      <thead>
+                        <tr style={{ borderBottom:"2px solid "+C.border, background:C.bg }}>
+                          {["Kennzeichen","Typ","Marke","Standort","TÜV","UVV","Versicherung","Service","Status"].map(function(h){
+                            return <th key={h} style={{ padding:"10px 12px", textAlign:"left",
+                              fontSize:10, color:C.gray500, fontWeight:700, textTransform:"uppercase",
+                              letterSpacing:"0.6px", whiteSpace:"nowrap" }}>{h}</th>;
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {typeVeh.length===0
+                          ? <tr><td colSpan={9} style={{ padding:"24px", textAlign:"center",
+                              color:C.gray500, fontSize:13, fontStyle:"italic" }}>
+                              Keine Fahrzeuge gefunden
+                            </td></tr>
+                          : typeVeh.map(function(v,i){
+                            var diffs = [v.tuev,v.uvv,v.insurance,v.nextService]
+                              .filter(Boolean)
+                              .map(function(d){ return Math.round((new Date(d)-today)/86400000); });
+                            var mn = diffs.length ? Math.min.apply(null,diffs) : 999;
+                            var overallColor = mn<0?"#ef4444":mn<30?"#d97706":mn<60?"#c8a84b":"#16a34a";
+                            var overallLabel = mn<0?"Abgelaufen":mn<30?"Dringend":mn<60?"Bald fällig":"OK";
+                            return (
+                              <tr key={v.plate+i} style={{ borderBottom:"1px solid "+C.border+"44" }}>
+                                <td style={{ padding:"9px 12px", fontWeight:800, color:C.white, whiteSpace:"nowrap" }}>{v.plate||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:C.gray500, fontSize:11 }}>{typeLabel[v.type]||v.type||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:C.gray300 }}>{v.brand||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:C.gray500, fontSize:12 }}>{v.location||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:docColor(v.tuev), fontWeight:700 }}>{v.tuev||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:docColor(v.uvv), fontWeight:700 }}>{v.uvv||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:docColor(v.insurance) }}>{v.insurance||"—"}</td>
+                                <td style={{ padding:"9px 12px", color:docColor(v.nextService) }}>{v.nextService||"—"}</td>
+                                <td style={{ padding:"9px 12px" }}>
+                                  <span style={{ color:overallColor, fontWeight:700, fontSize:11,
+                                    background:overallColor+"18", borderRadius:20, padding:"3px 9px" }}>
+                                    {overallLabel}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
-{activeSection === "lager" && (
+        {{activeSection === "lager" && (
           <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
             <div style={{ fontSize:16, fontWeight:700, color:C.white, marginBottom:8 }}>📦 Lager</div>
             <div style={{ fontSize:13, color:C.gray500 }}>Die Seitenleiste funktioniert jetzt auch für Lager. Wenn du willst, mache ich im nächsten Schritt hier einen echten Lager-Block mit Bestand, Minimum und Belegen.</div>
@@ -2041,7 +2352,38 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
           </div>
         )}
 
-        {activeSection === "stapler" && (
+        
+        {activeSection === "lkw" && (
+          <FleetSection
+            vehicles={vehicles} jobs={jobs}
+            vehicleType="truck" label="LKW"
+            C={C}
+            fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
+            fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
+            expandedVehicle={expandedVehicle} setExpandedVehicle={setExpandedVehicle}
+          />
+        )}
+        {activeSection === "sattelzug" && (
+          <FleetSection
+            vehicles={vehicles} jobs={jobs}
+            vehicleType="semiTrailer" label="Sattelzug"
+            C={C}
+            fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
+            fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
+            expandedVehicle={expandedVehicle} setExpandedVehicle={setExpandedVehicle}
+          />
+        )}
+        {activeSection === "anhaenger" && (
+          <FleetSection
+            vehicles={vehicles} jobs={jobs}
+            vehicleType="trailer" label="Anhänger"
+            C={C}
+            fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
+            fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
+            expandedVehicle={expandedVehicle} setExpandedVehicle={setExpandedVehicle}
+          />
+        )}
+{activeSection === "stapler" && (
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, marginBottom:16 }}>
               {[
