@@ -1738,7 +1738,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 var label=d.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit"});
                 var row={label:label, date:ds};
                 mechanics.forEach(function(m){
-                  row[m.id]=allJobs.filter(function(j){ return j.mechanic===m.id&&j.date===ds; }).length;
+                  row[m.id]=jobs.filter(function(j){ return j.mechanic===m.id&&j.date===ds; }).length;
                 });
                 last7.push(row);
               }
@@ -1834,7 +1834,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                         </div>
                       </div>
                       <button
-                        onClick={function(){ exportMechanicShiftReport(m.name, m.id, allJobs, mechDateFilter||new Date().toISOString().slice(0,10)); }}
+                        onClick={function(){ exportMechanicShiftReport(m.name, m.id, jobs, mechDateFilter||new Date().toISOString().slice(0,10)); }}
                         style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
                           borderRadius:8, padding:"7px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer",
                           display:"flex", alignItems:"center", gap:5 }}>
