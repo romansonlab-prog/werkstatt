@@ -679,6 +679,109 @@ function exportDayReport(jobs, vehicles, lang) {
   URL.revokeObjectURL(url);
 }
 
+function exportMechanicShiftReport(mechName, mechId, jobs, filterDate) {
+  var targetDate = filterDate || new Date().toISOString().slice(0,10);
+  var mJobs = jobs.filter(function(j){ return j.mechanic===mechId && j.date===targetDate; });
+  var totalWork = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
+  var totalTravel = mJobs.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
+  var totalCost = mJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
+  var done = mJobs.filter(function(j){ return j.status==="done"; }).length;
+
+  var fmt = function(m){ if(!m) return "—"; return Math.floor(m/60)+"h "+(m%60)+"min"; };
+  var dateStr = new Date(targetDate).toLocaleDateString("de-DE",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+  var statusLabel = function(s){ return s==="done"?"✓ Erledigt":s==="inProgress"?"⚙ In Arbeit":"○ Offen"; };
+  var statusColor = function(s){ return s==="done"?"#16a34a":s==="inProgress"?"#d97706":"#ef4444"; };
+
+  var jobsHtml = mJobs.length === 0
+    ? '<p style="color:#64748b;font-style:italic;text-align:center;padding:20px 0">Keine Aufträge für diesen Tag</p>'
+    : mJobs.map(function(j, idx){
+        var photos = Array.isArray(j.photos) ? j.photos : [];
+        var photosHtml = photos.length > 0
+          ? '<div style="margin-top:10px"><div style="font-size:10px;font-weight:700;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Fotos ('+photos.length+')</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+            photos.map(function(url){ return '<img src="'+url+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #d0dbe8"/>'; }).join('')+
+            '</div></div>'
+          : '<p style="font-size:11px;color:#94a3b8;font-style:italic;margin-top:6px">📷 Keine Fotos</p>';
+        return '<div style="border:1px solid #d0dbe8;border-radius:10px;padding:16px;margin-bottom:12px;page-break-inside:avoid">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+            '<div>'+
+              '<span style="font-size:16px;font-weight:800;color:#1a2332">'+j.plate+'</span>'+
+              '<span style="font-size:12px;color:#64748b;margin-left:10px">'+( j.workType||"—")+'</span>'+
+              '<span style="font-size:11px;color:#94a3b8;margin-left:8px">'+( j.location||"")+'</span>'+
+            '</div>'+
+            '<span style="font-size:12px;font-weight:700;color:'+statusColor(j.status)+';background:'+statusColor(j.status)+'18;border-radius:20px;padding:3px 10px">'+statusLabel(j.status)+'</span>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">'+
+            '<div style="background:#f8fafc;border-radius:6px;padding:8px 10px">'+
+              '<div style="font-size:9px;font-weight:700;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">⏱ Zeiten</div>'+
+              '<div style="font-size:11px;color:#334155">Arbeit: <b>'+fmt(j.workMin)+'</b></div>'+
+              '<div style="font-size:11px;color:#334155">Hinfahrt: <b>'+fmt(j.travelToMin||0)+'</b></div>'+
+              '<div style="font-size:11px;color:#334155">Rückfahrt: <b>'+fmt(j.travelBackMin||0)+'</b></div>'+
+            '</div>'+
+            '<div style="background:#f8fafc;border-radius:6px;padding:8px 10px">'+
+              '<div style="font-size:9px;font-weight:700;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">📋 Details</div>'+
+              '<div style="font-size:11px;color:#334155">Typ: <b>'+(j.vehicleType||"—")+'</b></div>'+
+              '<div style="font-size:11px;color:#334155">Datum: <b>'+(j.date||"—")+'</b></div>'+
+              '<div style="font-size:11px;color:#334155">Kosten: <b style="color:#d97706">'+(j.cost||0).toFixed(2)+' €</b></div>'+
+            '</div>'+
+            '<div style="background:#f8fafc;border-radius:6px;padding:8px 10px">'+
+              '<div style="font-size:9px;font-weight:700;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">📝 Beschreibung</div>'+
+              '<div style="font-size:11px;color:#334155;line-height:1.5">'+(j.description||'<i style="color:#94a3b8">Keine Beschreibung</i>')+'</div>'+
+            '</div>'+
+          '</div>'+
+          photosHtml+
+        '</div>';
+      }).join('');
+
+  var html = '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">'+
+    '<title>Schichtbericht – '+mechName+' – '+targetDate+'</title>'+
+    '<style>body{font-family:Arial,sans-serif;color:#1a2332;margin:0;padding:24px;background:#fff}'+
+    '@media print{body{padding:12px}button{display:none!important}}'+
+    '.header{background:#1e4fa0;color:#fff;padding:20px 24px;border-radius:10px;margin-bottom:20px}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+      '<div style="font-size:22px;font-weight:800;margin-bottom:4px">🔧 Schichtbericht</div>'+
+      '<div style="font-size:16px;font-weight:700;margin-bottom:2px">'+mechName+'</div>'+
+      '<div style="font-size:13px;opacity:0.85">'+dateStr+'</div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+
+      '<div style="border:1px solid #d0dbe8;border-top:3px solid #1e4fa0;border-radius:8px;padding:12px">'+
+        '<div style="font-size:10px;font-weight:700;color:#1e4fa0;text-transform:uppercase;margin-bottom:4px">📋 Aufträge</div>'+
+        '<div style="font-size:24px;font-weight:800;color:#1e4fa0">'+mJobs.length+'</div>'+
+      '</div>'+
+      '<div style="border:1px solid #d0dbe8;border-top:3px solid #0369a1;border-radius:8px;padding:12px">'+
+        '<div style="font-size:10px;font-weight:700;color:#0369a1;text-transform:uppercase;margin-bottom:4px">⏱ Arbeitszeit</div>'+
+        '<div style="font-size:24px;font-weight:800;color:#0369a1">'+fmt(totalWork)+'</div>'+
+      '</div>'+
+      '<div style="border:1px solid #d0dbe8;border-top:3px solid #7c3aed;border-radius:8px;padding:12px">'+
+        '<div style="font-size:10px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">🚗 Fahrzeit</div>'+
+        '<div style="font-size:24px;font-weight:800;color:#7c3aed">'+fmt(totalTravel)+'</div>'+
+      '</div>'+
+      '<div style="border:1px solid #d0dbe8;border-top:3px solid #d97706;border-radius:8px;padding:12px">'+
+        '<div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;margin-bottom:4px">💰 Kosten</div>'+
+        '<div style="font-size:24px;font-weight:800;color:#d97706">'+totalCost.toFixed(2)+' €</div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="font-size:15px;font-weight:700;color:#1a2332;margin-bottom:14px">Aufträge ('+mJobs.length+')</div>'+
+    jobsHtml+
+    '<div style="margin-top:20px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid #d0dbe8">'+
+      '<div style="font-size:10px;font-weight:700;color:#1e4fa0;text-transform:uppercase;margin-bottom:4px">Zusammenfassung</div>'+
+      '<div style="font-size:13px;color:#334155">'+
+        'Erledigt: <b>'+done+' / '+mJobs.length+'</b> · '+
+        'Gesamt Arbeitszeit: <b>'+fmt(totalWork)+'</b> · '+
+        'Gesamt Fahrzeit: <b>'+fmt(totalTravel)+'</b> · '+
+        'Gesamtkosten: <b style="color:#d97706">'+totalCost.toFixed(2)+' €</b>'+
+      '</div>'+
+    '</div>'+
+    '<div style="margin-top:16px;text-align:center"><button onclick="window.print()" '+
+      'style="background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer">'+
+      '🖨 Drucken / PDF speichern</button></div>'+
+    '</body></html>';
+
+  var win = window.open("","_blank");
+  if(win){ win.document.write(html); win.document.close(); }
+}
+
+
 function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, onNavigate, onCreateJob, onTabChange }) {
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
@@ -687,6 +790,9 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   const [inspExpanded, setInspExpanded] = useState(null);
   const [inspSectionVehicle, setInspSectionVehicle] = useState(null);
   const [expandedMechJob, setExpandedMechJob] = useState(null);
+  const [mechDateFilter, setMechDateFilter] = useState("");
+  const [mechNotes, setMechNotes] = useState({});
+  const [mechNoteInput, setMechNoteInput] = useState({});
 
   const handlePrintInspection = function(ins) {
     var win = window.open("", "_blank");
@@ -1569,14 +1675,40 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         )}
 {activeSection === "mechanics" && (
           <div>
-            {/* Schieft-KPIs */}
+            {/* ── Toolbar: date filter ── */}
+            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:18,
+              background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"12px 18px" }}>
+              <span style={{ fontSize:13, fontWeight:700, color:C.white }}>📅 Schicht-Datum:</span>
+              <input type="date"
+                value={mechDateFilter}
+                onChange={function(e){ setMechDateFilter(e.target.value); }}
+                style={{ background:C.bg, border:"1px solid "+C.border, borderRadius:6, padding:"6px 10px",
+                  color:C.white, fontSize:13, outline:"none" }}
+              />
+              {mechDateFilter && (
+                <button onClick={function(){ setMechDateFilter(""); }}
+                  style={{ fontSize:12, color:C.gray500, background:"none", border:"1px solid "+C.border,
+                    borderRadius:6, padding:"5px 10px", cursor:"pointer" }}>
+                  ✕ Heute
+                </button>
+              )}
+              <span style={{ fontSize:12, color:C.gray500, marginLeft:"auto" }}>
+                {mechDateFilter
+                  ? new Date(mechDateFilter).toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})
+                  : "Aktueller Filterzeitraum"}
+              </span>
+            </div>
+
+            {/* ── KPI cards ── */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:18 }}>
               {mechanics.map(function(m){
-                var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+                var mJobs = filtered.filter(function(j){
+                  if(mechDateFilter) return j.mechanic===m.id && j.date===mechDateFilter;
+                  return j.mechanic===m.id;
+                });
                 var mMin  = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
                 var mTrav = mJobs.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
                 var mDone = mJobs.filter(function(j){ return j.status==="done"; }).length;
-                var mCost = mJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
                 return [
                   {l:m.name+": Aufträge", v:mJobs.length, c:"#1e4fa0", icon:"📋"},
                   {l:m.name+": Arbeitszeit", v:formatMin(mMin), c:"#0369a1", icon:"⏱"},
@@ -1597,18 +1729,85 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
               })}
             </div>
 
-            {/* Per-mechanic detail */}
+            {/* ── Chart: last 7 days per mechanic ── */}
+            {!mechDateFilter && (function(){
+              var last7 = [];
+              for(var i=6;i>=0;i--){
+                var d=new Date(); d.setDate(d.getDate()-i);
+                var ds=d.toISOString().slice(0,10);
+                var label=d.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit"});
+                var row={label:label, date:ds};
+                mechanics.forEach(function(m){
+                  row[m.id]=allJobs.filter(function(j){ return j.mechanic===m.id&&j.date===ds; }).length;
+                });
+                last7.push(row);
+              }
+              var maxVal=Math.max(1, last7.reduce(function(mx,r){
+                return Math.max(mx, mechanics.reduce(function(m2,m){ return Math.max(m2,r[m.id]||0); },0));
+              },0));
+              var colors=["#1e4fa0","#d97706"];
+              return (
+                <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10,
+                  padding:"20px", marginBottom:18 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:16 }}>
+                    📊 Aufträge letzte 7 Tage — Mechaniker Vergleich
+                  </div>
+                  <div style={{ display:"flex", gap:16, marginBottom:10 }}>
+                    {mechanics.map(function(m,mi){
+                      return (
+                        <div key={m.id} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:C.gray300 }}>
+                          <div style={{ width:12, height:12, borderRadius:3, background:colors[mi] }} />
+                          {m.name}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:180 }}>
+                    {last7.map(function(day){
+                      return (
+                        <div key={day.date} style={{ flex:1, display:"flex", flexDirection:"column",
+                          alignItems:"center", justifyContent:"flex-end", height:"100%" }}>
+                          <div style={{ display:"flex", gap:3, alignItems:"flex-end", width:"100%" }}>
+                            {mechanics.map(function(m,mi){
+                              var val=day[m.id]||0;
+                              var h=Math.max(4,(val/maxVal)*140);
+                              return (
+                                <div key={m.id} style={{ flex:1, display:"flex", flexDirection:"column",
+                                  alignItems:"center" }}>
+                                  {val>0 && <div style={{ fontSize:10, color:C.gray500, marginBottom:3 }}>{val}</div>}
+                                  <div style={{ width:"100%", height:h, borderRadius:"4px 4px 0 0",
+                                    background:colors[mi], opacity:0.9 }} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div style={{ fontSize:10, color:C.gray500, marginTop:6, textAlign:"center" }}>{day.label}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Per-mechanic cards ── */}
             {mechanics.map(function(m){
-              var mJobs = filtered.filter(function(j){ return j.mechanic===m.id; });
+              var mJobs = filtered.filter(function(j){
+                if(mechDateFilter) return j.mechanic===m.id && j.date===mechDateFilter;
+                return j.mechanic===m.id;
+              });
               var mMin  = mJobs.reduce(function(s,j){ return s+(j.workMin||0); }, 0);
               var mTrav = mJobs.reduce(function(s,j){ return s+(j.travelToMin||0)+(j.travelBackMin||0); }, 0);
               var mDone = mJobs.filter(function(j){ return j.status==="done"; }).length;
               var mCost = mJobs.reduce(function(s,j){ return s+(j.cost||0); }, 0);
               var pct   = Math.min(mMin/480, 1);
+              var notes = mechNotes[m.id] || [];
+              var noteVal = mechNoteInput[m.id] || "";
+
               return (
                 <div key={m.id} style={{ marginBottom:20, background:C.surface,
                   border:"1px solid "+C.border, borderRadius:12, overflow:"hidden" }}>
-                  {/* Mechanic header */}
+                  {/* Blue header */}
                   <div style={{ background:"#1e4fa0", padding:"14px 20px",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -1619,27 +1818,36 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                       </div>
                       <div>
                         <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>🔧 {m.name}</div>
-                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)", marginTop:2 }}>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.75)", marginTop:2 }}>
                           {mJobs.length} Aufträge · {formatMin(mMin)} Arbeit · {formatMin(mTrav)} Fahrzeit · {mCost.toFixed(0)} €
                         </div>
                       </div>
                     </div>
-                    <div style={{ textAlign:"right" }}>
-                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)", marginBottom:4 }}>
-                        Auslastung {(pct*100).toFixed(0)}%
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.7)", marginBottom:4 }}>
+                          Auslastung {(pct*100).toFixed(0)}%
+                        </div>
+                        <div style={{ width:100, background:"rgba(255,255,255,0.2)", borderRadius:4, height:7 }}>
+                          <div style={{ height:"100%", borderRadius:4, width:(pct*100)+"%",
+                            background:pct>0.8?"#ef4444":pct>0.5?"#f5a623":"#4ade80" }} />
+                        </div>
                       </div>
-                      <div style={{ width:120, background:"rgba(255,255,255,0.2)", borderRadius:4, height:8 }}>
-                        <div style={{ height:"100%", borderRadius:4, width:(pct*100)+"%",
-                          background: pct>0.8?"#ef4444":pct>0.5?"#f5a623":"#16a34a" }} />
-                      </div>
+                      <button
+                        onClick={function(){ exportMechanicShiftReport(m.name, m.id, allJobs, mechDateFilter||new Date().toISOString().slice(0,10)); }}
+                        style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)",
+                          borderRadius:8, padding:"7px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer",
+                          display:"flex", alignItems:"center", gap:5 }}>
+                        🖨 PDF
+                      </button>
                     </div>
                   </div>
 
                   {/* Jobs list */}
-                  <div style={{ padding:"0" }}>
+                  <div>
                     {mJobs.length === 0 ? (
                       <div style={{ padding:"24px", textAlign:"center", color:C.gray500, fontSize:13 }}>
-                        Keine Aufträge im gewählten Zeitraum
+                        Keine Aufträge {mechDateFilter ? "am "+new Date(mechDateFilter).toLocaleDateString("de-DE") : "im gewählten Zeitraum"}
                       </div>
                     ) : mJobs.map(function(j){
                       var isExpanded = expandedMechJob === j.id;
@@ -1648,12 +1856,10 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                       var photos = Array.isArray(j.photos) ? j.photos : [];
                       return (
                         <div key={j.id} style={{ borderBottom:"1px solid "+C.border+"55" }}>
-                          {/* Job row - always visible */}
-                          <div onClick={function(){ setExpandedMechJob(isExpanded ? null : j.id); }}
+                          <div onClick={function(){ setExpandedMechJob(isExpanded?null:j.id); }}
                             style={{ padding:"12px 20px", cursor:"pointer", display:"flex",
                               alignItems:"center", gap:16,
-                              background: isExpanded ? C.bg : "transparent",
-                              transition:"background 0.15s" }}>
+                              background:isExpanded?C.bg:"transparent" }}>
                             <div style={{ fontSize:18, minWidth:28 }}>
                               {j.vehicleType==="forklift"?"🏗":j.vehicleType==="truck"?"🚛":j.vehicleType==="pkw"?"🚗":"🔧"}
                             </div>
@@ -1667,103 +1873,74 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                                 <span>⏱ {formatMin(j.workMin)}</span>
                                 <span>🚗 {formatMin((j.travelToMin||0)+(j.travelBackMin||0))}</span>
                                 <span>💰 {(j.cost||0).toFixed(0)} €</span>
-                                {photos.length>0 && <span>📷 {photos.length} Foto{photos.length>1?"s":""}</span>}
+                                {photos.length>0&&<span>📷 {photos.length}</span>}
                               </div>
                             </div>
-                            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                               <span style={{ fontSize:12, fontWeight:700, color:sc,
                                 background:sc+"18", borderRadius:20, padding:"3px 10px" }}>{sl}</span>
-                              <span style={{ color:C.gray500, fontSize:14 }}>{isExpanded?"▲":"▼"}</span>
+                              <span style={{ color:C.gray500, fontSize:12 }}>{isExpanded?"▲":"▼"}</span>
                             </div>
                           </div>
 
-                          {/* Expanded job detail */}
                           {isExpanded && (
                             <div style={{ padding:"16px 20px 20px", background:C.bg,
                               borderTop:"1px solid "+C.border+"44" }}>
-                              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:16 }}>
+                              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:14 }}>
                                 <div style={{ background:C.surface, borderRadius:8, padding:"12px 14px" }}>
-                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700, textTransform:"uppercase",
-                                    letterSpacing:"0.7px", marginBottom:6 }}>📋 Auftrag</div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Fahrzeug:</b> {j.plate||"—"}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Typ:</b> {j.vehicleType||"—"}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Arbeit:</b> {j.workType||"—"}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Standort:</b> {j.location||"—"}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300 }}>
-                                    <b style={{color:C.white}}>Datum:</b> {j.date||"—"}
-                                  </div>
+                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700,
+                                    textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:6 }}>📋 Auftrag</div>
+                                  {[["Fahrzeug",j.plate],["Typ",j.vehicleType],["Arbeit",j.workType],["Standort",j.location],["Datum",j.date]].map(function(r){
+                                    return <div key={r[0]} style={{fontSize:12,color:C.gray300,marginBottom:4}}>
+                                      <b style={{color:C.white}}>{r[0]}:</b> {r[1]||"—"}
+                                    </div>;
+                                  })}
                                 </div>
                                 <div style={{ background:C.surface, borderRadius:8, padding:"12px 14px" }}>
-                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700, textTransform:"uppercase",
-                                    letterSpacing:"0.7px", marginBottom:6 }}>⏱ Zeiten</div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Arbeitszeit:</b> {formatMin(j.workMin)}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Hinfahrt:</b> {formatMin(j.travelToMin||0)}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Rückfahrt:</b> {formatMin(j.travelBackMin||0)}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300, marginBottom:4 }}>
-                                    <b style={{color:C.white}}>Gesamt:</b> {formatMin((j.workMin||0)+(j.travelToMin||0)+(j.travelBackMin||0))}
-                                  </div>
-                                  <div style={{ fontSize:12, color:C.gray300 }}>
+                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700,
+                                    textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:6 }}>⏱ Zeiten</div>
+                                  {[
+                                    ["Arbeitszeit",formatMin(j.workMin)],
+                                    ["Hinfahrt",formatMin(j.travelToMin||0)],
+                                    ["Rückfahrt",formatMin(j.travelBackMin||0)],
+                                    ["Gesamt",formatMin((j.workMin||0)+(j.travelToMin||0)+(j.travelBackMin||0))],
+                                  ].map(function(r){
+                                    return <div key={r[0]} style={{fontSize:12,color:C.gray300,marginBottom:4}}>
+                                      <b style={{color:C.white}}>{r[0]}:</b> {r[1]}
+                                    </div>;
+                                  })}
+                                  <div style={{fontSize:12,color:C.gray300}}>
                                     <b style={{color:C.white}}>Kosten:</b> <span style={{color:"#d97706",fontWeight:700}}>{(j.cost||0).toFixed(2)} €</span>
                                   </div>
                                 </div>
                                 <div style={{ background:C.surface, borderRadius:8, padding:"12px 14px" }}>
-                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700, textTransform:"uppercase",
-                                    letterSpacing:"0.7px", marginBottom:6 }}>📝 Beschreibung</div>
+                                  <div style={{ fontSize:10, color:"#1e4fa0", fontWeight:700,
+                                    textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:6 }}>📝 Beschreibung</div>
                                   <div style={{ fontSize:12, color:C.gray300, lineHeight:1.6 }}>
-                                    {j.description || <span style={{color:C.gray500,fontStyle:"italic"}}>Keine Beschreibung</span>}
+                                    {j.description||<span style={{color:C.gray500,fontStyle:"italic"}}>Keine Beschreibung</span>}
                                   </div>
-                                  <div style={{ marginTop:10, fontSize:11, color:C.gray500 }}>
+                                  <div style={{marginTop:8,fontSize:11,color:C.gray500}}>
                                     Status: <span style={{color:sc,fontWeight:700}}>{sl}</span>
                                   </div>
-                                  {j.closedAt && (
-                                    <div style={{ marginTop:4, fontSize:11, color:C.gray500 }}>
-                                      Abgeschlossen: {new Date(j.closedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} Uhr
-                                    </div>
-                                  )}
+                                  {j.closedAt&&<div style={{marginTop:4,fontSize:11,color:C.gray500}}>
+                                    Abgeschlossen: {new Date(j.closedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} Uhr
+                                  </div>}
                                 </div>
                               </div>
-
-                              {/* Photos */}
-                              {photos.length > 0 && (
-                                <div>
-                                  <div style={{ fontSize:11, color:"#1e4fa0", fontWeight:700,
-                                    textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:10 }}>
+                              {photos.length>0&&(
+                                <div style={{marginBottom:14}}>
+                                  <div style={{fontSize:11,color:"#1e4fa0",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:8}}>
                                     📷 Fotos ({photos.length})
                                   </div>
-                                  <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                                    {photos.map(function(url, pi){
-                                      return (
-                                        <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
-                                          <img src={url} alt={"Foto "+(pi+1)}
-                                            style={{ width:100, height:100, objectFit:"cover",
-                                              borderRadius:8, border:"2px solid "+C.border,
-                                              cursor:"pointer", transition:"transform 0.15s" }}
-                                            onMouseOver={function(e){ e.target.style.transform="scale(1.05)"; }}
-                                            onMouseOut={function(e){ e.target.style.transform="scale(1)"; }}
-                                          />
-                                        </a>
-                                      );
+                                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                                    {photos.map(function(url,pi){
+                                      return <a key={pi} href={url} target="_blank" rel="noopener noreferrer">
+                                        <img src={url} alt={"Foto "+(pi+1)}
+                                          style={{width:90,height:90,objectFit:"cover",borderRadius:8,
+                                            border:"2px solid "+C.border,cursor:"pointer"}} />
+                                      </a>;
                                     })}
                                   </div>
-                                </div>
-                              )}
-                              {photos.length === 0 && (
-                                <div style={{ fontSize:12, color:C.gray500, fontStyle:"italic" }}>
-                                  📷 Keine Fotos zu diesem Auftrag
                                 </div>
                               )}
                             </div>
@@ -1773,24 +1950,90 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                     })}
                   </div>
 
-                  {/* Mechanic footer summary */}
-                  <div style={{ padding:"12px 20px", background:C.bg,
-                    borderTop:"1px solid "+C.border, display:"flex", gap:24 }}>
-                    <span style={{ fontSize:12, color:C.gray500 }}>
-                      Gesamt: <b style={{color:C.white}}>{mJobs.length} Aufträge</b>
-                    </span>
-                    <span style={{ fontSize:12, color:C.gray500 }}>
-                      Arbeit: <b style={{color:"#0369a1"}}>{formatMin(mMin)}</b>
-                    </span>
-                    <span style={{ fontSize:12, color:C.gray500 }}>
-                      Fahrzeit: <b style={{color:"#7c3aed"}}>{formatMin(mTrav)}</b>
-                    </span>
-                    <span style={{ fontSize:12, color:C.gray500 }}>
-                      Erledigt: <b style={{color:"#16a34a"}}>{mDone}</b>
-                    </span>
-                    <span style={{ fontSize:12, color:C.gray500 }}>
-                      Kosten: <b style={{color:"#d97706"}}>{mCost.toFixed(2)} €</b>
-                    </span>
+                  {/* Footer summary */}
+                  <div style={{ padding:"10px 20px", background:C.bg, borderTop:"1px solid "+C.border,
+                    display:"flex", gap:20, flexWrap:"wrap" }}>
+                    {[
+                      ["Aufträge", mJobs.length, C.white],
+                      ["Arbeit", formatMin(mMin), "#0369a1"],
+                      ["Fahrzeit", formatMin(mTrav), "#7c3aed"],
+                      ["Erledigt", mDone, "#16a34a"],
+                      ["Kosten", mCost.toFixed(2)+" €", "#d97706"],
+                    ].map(function(r){
+                      return <span key={r[0]} style={{fontSize:12,color:C.gray500}}>
+                        {r[0]}: <b style={{color:r[2]}}>{r[1]}</b>
+                      </span>;
+                    })}
+                  </div>
+
+                  {/* ── Chef-Notizen ── */}
+                  <div style={{ padding:"14px 20px", borderTop:"2px dashed "+C.border+"66",
+                    background:C.surface }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#d97706", marginBottom:10,
+                      display:"flex", alignItems:"center", gap:6 }}>
+                      ✍️ Chef-Notizen zu {m.name}
+                    </div>
+                    {notes.length>0&&(
+                      <div style={{ marginBottom:10 }}>
+                        {notes.map(function(n,ni){
+                          return (
+                            <div key={ni} style={{ display:"flex", justifyContent:"space-between",
+                              alignItems:"flex-start", padding:"8px 12px", marginBottom:6,
+                              background:C.bg, borderRadius:8, border:"1px solid "+C.border+"88" }}>
+                              <div>
+                                <div style={{fontSize:12,color:C.white}}>{n.text}</div>
+                                <div style={{fontSize:10,color:C.gray500,marginTop:3}}>{n.time}</div>
+                              </div>
+                              <button onClick={function(){
+                                  var updated=Object.assign({},mechNotes);
+                                  updated[m.id]=notes.filter(function(_,i){ return i!==ni; });
+                                  setMechNotes(updated);
+                                }}
+                                style={{fontSize:11,color:"#ef4444",background:"none",border:"none",cursor:"pointer",padding:"0 4px"}}>
+                                ✕
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div style={{ display:"flex", gap:8 }}>
+                      <input
+                        type="text"
+                        placeholder={"Notiz zu "+m.name+" eingeben..."}
+                        value={noteVal}
+                        onChange={function(e){
+                          var upd=Object.assign({},mechNoteInput);
+                          upd[m.id]=e.target.value;
+                          setMechNoteInput(upd);
+                        }}
+                        onKeyDown={function(e){
+                          if(e.key==="Enter"&&noteVal.trim()){
+                            var upd=Object.assign({},mechNotes);
+                            upd[m.id]=[{text:noteVal.trim(),time:new Date().toLocaleString("de-DE")}].concat(notes);
+                            setMechNotes(upd);
+                            var upd2=Object.assign({},mechNoteInput);
+                            upd2[m.id]="";
+                            setMechNoteInput(upd2);
+                          }
+                        }}
+                        style={{ flex:1, background:C.bg, border:"1px solid "+C.border, borderRadius:7,
+                          padding:"7px 12px", color:C.white, fontSize:13, outline:"none" }}
+                      />
+                      <button onClick={function(){
+                          if(!noteVal.trim()) return;
+                          var upd=Object.assign({},mechNotes);
+                          upd[m.id]=[{text:noteVal.trim(),time:new Date().toLocaleString("de-DE")}].concat(notes);
+                          setMechNotes(upd);
+                          var upd2=Object.assign({},mechNoteInput);
+                          upd2[m.id]="";
+                          setMechNoteInput(upd2);
+                        }}
+                        style={{ background:"#d97706", border:"none", borderRadius:7, padding:"7px 16px",
+                          color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                        + Notiz
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
