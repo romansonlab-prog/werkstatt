@@ -101,7 +101,7 @@ const T = {
     travelToShop:"Fahrt Ersatzteilladen", emergency:"Notruf",
     saved:"Gespeichert", traveling:"Unterwegs...", working:"In Arbeit...",
     truck:"LKW", semiTrailer:"Sattelauflieger", forklift:"Stapler",
-    trailer:"Anhänger", pkw:"PKW", other:"Sonstiges", workshop:"Werkstatt",
+    anhaenger:"Anhänger", pkw:"PKW", other:"Sonstiges", workshop:"Werkstatt",
     totalJobs:"Aufträge heute", openJobs:"Offen", doneJobs:"Erledigt",
     travelTotal:"Fahrzeit gesamt", workTotal:"Arbeitszeit gesamt",
     recentActivity:"Letzte Aktivitäten", searchArchive:"Suchen...",
@@ -786,7 +786,8 @@ function exportMechanicShiftReport(mechName, mechId, jobs, filterDate) {
 function FleetSection({ vehicles, jobs, vehicleType, label, C, fleetSearch, setFleetSearch, fleetDateFilter, setFleetDateFilter, expandedVehicle, setExpandedVehicle }) {
   var fmt = function(m){ if(!m) return "—"; return Math.floor(m/60)+"h "+(m%60)+"min"; };
   var search = (fleetSearch||"").toLowerCase();
-  var typeVehicles = (vehicles||[]).filter(function(v){ return v.type===vehicleType; });
+  var typeArr = vehicleType.split(",");
+  var typeVehicles = (vehicles||[]).filter(function(v){ return typeArr.indexOf(v.type)!==-1; });
   var filtered = typeVehicles.filter(function(v){
     if(!search) return true;
     return (v.plate||"").toLowerCase().includes(search) ||
@@ -1711,7 +1712,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
               {[
                 {k:"all",        l:"Alle"},
                 {k:"truck",      l:"LKW"},
-                {k:"semiTrailer",l:"Sattelzug"},
+                {k:"trailer,semiTrailer",l:"Sattelzug"},
                 {k:"forklift",   l:"Stapler"},
                 {k:"trailer",    l:"Anhänger"},
                 {k:"pkw",        l:"PKW"},
@@ -1741,7 +1742,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             {(function(){
               var today = new Date();
               var typeVeh = (vehicles||[]).filter(function(v){
-                var matchType = technikTab==="all" || v.type===technikTab;
+                var techTabArr = technikTab.split(','); var matchType = technikTab==="all" || techTabArr.indexOf(v.type)!==-1;
                 var matchSearch = !fleetSearch || (v.plate||"").toLowerCase().includes(fleetSearch.toLowerCase());
                 return matchType && matchSearch;
               });
@@ -1750,7 +1751,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 var diff=Math.round((new Date(d)-today)/86400000);
                 return diff<0?"#ef4444":diff<30?"#d97706":diff<60?"#c8a84b":"#16a34a";
               };
-              var typeLabel = {truck:"LKW",semiTrailer:"Sattelzug",forklift:"Stapler",trailer:"Anhänger",pkw:"PKW",other:"Sonstiges"};
+              var typeLabel = {truck:"LKW",trailer:"Sattelzug",forklift:"Stapler",anhaenger:"Anhänger",pkw:"PKW",other:"Sonstiges"};
               return (
                 <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, overflow:"hidden" }}>
                   <div style={{ overflowX:"auto" }}>
@@ -2366,7 +2367,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         {activeSection === "sattelzug" && (
           <FleetSection
             vehicles={vehicles} jobs={jobs}
-            vehicleType="semiTrailer" label="Sattelzug"
+            vehicleType="trailer,semiTrailer" label="Sattelzug"
             C={C}
             fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
             fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
@@ -2376,7 +2377,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         {activeSection === "anhaenger" && (
           <FleetSection
             vehicles={vehicles} jobs={jobs}
-            vehicleType="trailer" label="Anhänger"
+            vehicleType="anhaenger" label="Anhänger"
             C={C}
             fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
             fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
