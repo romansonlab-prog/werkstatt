@@ -100,7 +100,7 @@ const T = {
     repair:"Reparatur", maintenance:"Wartung / TO", inspection:"Inspektion",
     travelToShop:"Fahrt Ersatzteilladen", emergency:"Notruf",
     saved:"Gespeichert", traveling:"Unterwegs...", working:"In Arbeit...",
-    truck:"LKW", semiTrailer:"Sattelauflieger", forklift:"Stapler",
+    truck:"Zugmaschine", semiTrailer:"Sattelauflieger", forklift:"Stapler",
     anhaenger:"Anhänger", pkw:"PKW", other:"Sonstiges", workshop:"Werkstatt",
     totalJobs:"Aufträge heute", openJobs:"Offen", doneJobs:"Erledigt",
     travelTotal:"Fahrzeit gesamt", workTotal:"Arbeitszeit gesamt",
@@ -202,7 +202,7 @@ const T = {
     repair:"", maintenance:"", inspection:"",
     travelToShop:"  ", emergency:" ",
     saved:"", traveling:" ...", working:" ...",
-    truck:"LKW", semiTrailer:"", forklift:"",
+    truck:"Zugmaschine", semiTrailer:"", forklift:"",
     trailer:"", pkw:"PKW", other:"", workshop:"",
     totalJobs:" ", openJobs:"", doneJobs:"",
     travelTotal:"  ", workTotal:" ",
@@ -635,7 +635,7 @@ function exportDayReport(jobs, vehicles, lang) {
   var todayJobs = jobs.filter(function(j){ return j.date === today; });
   var dateStr = new Date().toLocaleDateString("de-DE");
 
-  var vLabel = {truck:"LKW",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"};
+  var vLabel = {truck:"Zugmaschine",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"};
   var rows = todayJobs.map(function(j) {
     return "<tr style='border-bottom:1px solid #eee'>" +
       "<td style='padding:8px'>" + (vLabel[j.vehicleType]||"") + " " + (j.plate||"") + "</td>" +
@@ -1083,8 +1083,8 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
   };
 
   var fleetTypes = [
-    {k:"truck",       l:"LKW",          color:"#1e4fa0", abbr:"LKW"},
-    {k:"semiTrailer", l:"Sattelzug",     color:"#1e4fa0", abbr:"SAT"},
+    {k:"truck",       l:"Zugmaschine",          color:"#1e4fa0", abbr:"Zugmaschine"},
+    {k:"semiTrailer", l:"Auflieger",     color:"#1e4fa0", abbr:"SAT"},
     {k:"forklift",    l:"Stapler",       color:"#1e4fa0", abbr:"STG"},
     {k:"trailer",     l:"Anhänger",      color:"#1e4fa0", abbr:"ANH"},
     {k:"pkw",         l:"PKW",           color:"#1e4fa0", abbr:"PKW"},
@@ -1162,8 +1162,8 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
     {k:"management", label:"Management"},
     {k:"mechanics",  label:"Mechaniker"},
     {k:"__sep1__",   label:"FUHRPARK", sep:true},
-    {k:"lkw",        label:"LKW"},
-    {k:"sattelzug",  label:"Sattelzug"},
+    {k:"lkw",        label:"Zugmaschine"},
+    {k:"sattelzug",  label:"Auflieger"},
     {k:"anhaenger",  label:"Anhänger"},
     {k:"stapler",    label:"Stapler"},
     {k:"pkwservice", label:"PKW-Service"},
@@ -1710,13 +1710,13 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             {/* Type tabs */}
             <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
               {[
-                {k:"all",        l:"Alle"},
-                {k:"truck",      l:"LKW"},
-                {k:"trailer,semiTrailer",l:"Sattelzug"},
-                {k:"forklift",   l:"Stapler"},
-                {k:"trailer",    l:"Anhänger"},
-                {k:"pkw",        l:"PKW"},
-                {k:"other",      l:"Sonstiges"},
+                {k:"all",             l:"Alle"},
+                {k:"truck,lkw10t",   l:"Zugmaschinen"},
+                {k:"semiTrailer",    l:"Auflieger"},
+                {k:"forklift",       l:"Stapler"},
+                {k:"trailer",        l:"Anhänger"},
+                {k:"pkw",            l:"PKW"},
+                {k:"other",          l:"Sonstiges"},
               ].map(function(t){
                 var cnt = t.k==="all" ? (vehicles||[]).length : (vehicles||[]).filter(function(v){ return v.type===t.k; }).length;
                 return (
@@ -1751,7 +1751,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                 var diff=Math.round((new Date(d)-today)/86400000);
                 return diff<0?"#ef4444":diff<30?"#d97706":diff<60?"#c8a84b":"#16a34a";
               };
-              var typeLabel = {truck:"LKW",trailer:"Sattelzug",forklift:"Stapler",anhaenger:"Anhänger",pkw:"PKW",other:"Sonstiges"};
+              var typeLabel = {truck:"Zugmaschine",lkw10t:"LKW 10t",semiTrailer:"Auflieger",forklift:"Stapler",trailer:"Anhänger",pkw:"PKW",other:"Sonstiges"};
               return (
                 <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, overflow:"hidden" }}>
                   <div style={{ overflowX:"auto" }}>
@@ -1854,7 +1854,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             </div>
             <div style={{ display:"flex", gap:6, marginBottom:14 }}>
               {["all","truck","trailer","mangel"].map(function(f){
-                var labels={all:"Alle",truck:"LKW",trailer:"Auflieger",mangel:"⚠ Mängel"};
+                var labels={all:"Alle",truck:"Zugmaschine",trailer:"Auflieger",mangel:"⚠ Mängel"};
                 var isAct = inspSectionVehicle===f||(f==="all"&&!inspSectionVehicle);
                 return (
                   <button key={f} onClick={function(){setInspSectionVehicle(f==="all"?null:f);}}
@@ -2357,7 +2357,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         {activeSection === "lkw" && (
           <FleetSection
             vehicles={vehicles} jobs={jobs}
-            vehicleType="truck" label="LKW"
+            vehicleType="truck,lkw10t" label="Zugmaschine"
             C={C}
             fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
             fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
@@ -2367,7 +2367,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         {activeSection === "sattelzug" && (
           <FleetSection
             vehicles={vehicles} jobs={jobs}
-            vehicleType="trailer,semiTrailer" label="Sattelzug"
+            vehicleType="semiTrailer" label="Auflieger"
             C={C}
             fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
             fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
@@ -2377,7 +2377,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
         {activeSection === "anhaenger" && (
           <FleetSection
             vehicles={vehicles} jobs={jobs}
-            vehicleType="anhaenger" label="Anhänger"
+            vehicleType="trailer" label="Anhänger"
             C={C}
             fleetSearch={fleetSearch} setFleetSearch={setFleetSearch}
             fleetDateFilter={fleetDateFilter} setFleetDateFilter={setFleetDateFilter}
@@ -2587,8 +2587,8 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
 <div style={{ background:C.surface, border:"1px solid "+C.border, borderRadius:10, padding:"20px" }}>
                 <div style={{ fontSize:14, fontWeight:700, color:C.white, marginBottom:14 }}>Fahrzeugtypen</div>
                 {[
-                  {k:"truck",       l:"LKW",        icon:"🚛", color:"#1d4ed8"},
-                  {k:"semiTrailer", l:"Sattelzug",   icon:"🚚", color:"#0369a1"},
+                  {k:"truck",       l:"Zugmaschine",        icon:"🚛", color:"#1d4ed8"},
+                  {k:"semiTrailer", l:"Auflieger",   icon:"🚚", color:"#0369a1"},
                   {k:"forklift",    l:"Stapler",     icon:"🏗",  color:"#d97706"},
                   {k:"trailer",     l:"Anhänger",    icon:"🔗", color:"#059669"},
                   {k:"pkw",         l:"PKW",         icon:"🚗", color:"#7c3aed"},
@@ -2672,7 +2672,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
                   <tbody>
                     {washJobs.map(function(j){
                       var washTypeLabel = {basic:"Einfach", full:"Vollwäsche", chemical:"Chemisch", other:"Sonstiges"}[j.washType||"basic"]||"Einfach";
-                      var vAbbr3 = {truck:"LKW",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"}[j.vehicleType]||"SNG";
+                      var vAbbr3 = {truck:"Zugmaschine",semiTrailer:"SAT",forklift:"STG",trailer:"ANH",pkw:"PKW",other:"SNG"}[j.vehicleType]||"SNG";
                       return (
                         <tr key={j.id} style={{ borderBottom:"1px solid "+C.border+"44" }}>
                           <td style={{ padding:"9px 10px", fontWeight:700, color:C.white }}>
