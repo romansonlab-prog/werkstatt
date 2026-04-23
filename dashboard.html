@@ -939,7 +939,7 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
             </button>
           </div>
         </div>
-<div style={{ display: (activeSection==="wash"||activeSection==="inspektion") ? "none" : "grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
+<div style={{ display: activeSection==="overview" ? "grid" : "none", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:20 }}>
           {kpis.map(function(k,i){
             return (
               <div key={i} style={{ background:C.surface, border:"1px solid "+C.border,
