@@ -25,6 +25,9 @@
 // -- Supabase --
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+const APP_PIN = "6038";
+const APP_STORAGE_KEY = "stapler_name";
+const APP_LABEL = "Stapler";
 const sbInsert = async (table, data) => {
   try {
     await fetch(SB_URL + "/rest/v1/" + table, {
@@ -256,48 +259,7 @@ function LTGLogo({ size = 1 }) {
 }
 
 
-
-const APP_PIN = "6038";
-const APP_STORAGE_KEY = "stapler_name";
-const APP_LABEL = "Stapler";
-
-const C = {
-
-  bg:       "#f0f4f8",   // light grey background
-  surface:  "#ffffff",   // white cards
-  surfaceAlt:"#1a3a6b",  // dark blue header
-  navy:     "#1a3a6b",   // LTG blue
-  navyDark: "#122a52",   // dark blue
-  navyMid:  "#1e4280",   // medium blue
-  border:   "#d0dbe8",   // light borders
-
-  white:    "#1a2332",   // dark text on light bg
-  gray50:   "#f8fafc",
-  gray100:  "#e2e8f0",
-  gray300:  "#4a6080",   // secondary text
-  gray500:  "#7a90a8",   // placeholders
-  gray700:  "#334155",
-
-  blue:     "#1a3a6b",   // LTG blue -  
-  blueLt:   "#2d5fa8",   // hover
-  orange:   "#c8a84b",   // LTG gold accent
-  orangeDim:"#7a6020",
-  green:    "#22c55e",   // success / OK
-  red:      "#ef4444",   // urgent / error
-  yellow:   "#c8a84b",   // warning - LTG gold
-};
-
-
-function LTGLogo({ size = 1 }) {
-  var h = Math.round(40 * size);
-  var w = Math.round(100 * size);
-  return (
-    <img src={GLOBAL_LOGO}
-      style={{ height: h, width: "auto", objectFit: "contain" }}
-      alt="LTG" />
-  );
-}
-
+// ── USERS ──────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   const t = T[lang];
@@ -559,7 +521,6 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
 
   return null;
 }
-
 
 
 
