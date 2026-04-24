@@ -20,6 +20,225 @@
 // -- Supabase --
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+const APP_PIN = "5291";
+
+function FahrerLogin({ onLogin }) {
+  const [step, setStep] = React.useState("init");
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [savedName, setSavedName] = React.useState("");
+  const [pin, setPin] = React.useState("");
+  const [error, setError] = React.useState(false);
+  const [sliderX, setSliderX] = React.useState(0);
+  const [dragging, setDragging] = React.useState(false);
+  const SLIDER_MAX = 240;
+
+  React.useEffect(function() {
+    try {
+      var n = localStorage.getItem("fahrer_name");
+      if (n) { setSavedName(n); setStep("slider"); }
+      else { setStep("register"); }
+    } catch(e) { setStep("register"); }
+  }, []);
+
+  var startDrag = function(clientX) {
+    var startX = clientX;
+    setDragging(true);
+    var move = function(e) {
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      var dx = Math.max(0, Math.min(SLIDER_MAX, cx - startX + sliderX));
+      setSliderX(dx);
+      if (dx >= SLIDER_MAX - 10) {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("touchmove", move);
+        window.removeEventListener("mouseup", up);
+        window.removeEventListener("touchend", up);
+        var name = savedName;
+        onLogin(name);
+      }
+    };
+    var up = function() {
+      setDragging(false);
+      if (sliderX < SLIDER_MAX - 10) setSliderX(0);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchend", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("touchmove", move, { passive: true });
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+  };
+
+  var handlePin = function(digit) {
+    var next = pin + digit;
+    setPin(next);
+    setError(false);
+    if (next.length === 4) {
+      if (next === APP_PIN) {
+        var name = firstName.trim() + " " + lastName.trim();
+        try { localStorage.setItem("fahrer_name", name); } catch(e) {}
+        onLogin(name);
+      } else {
+        setError(true);
+        setTimeout(function() { setPin(""); setError(false); }, 800);
+      }
+    }
+  };
+
+  var wrapStyle = {
+    minHeight: "100vh",
+    background: "linear-gradient(160deg, #0f1623 0%, #1a3a6b 60%, #1e4fa0 100%)",
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#f1f5f9", padding: 20
+  };
+
+  var Logo = function() {
+    return React.createElement("div", { style: { textAlign: "center", marginBottom: 32 } },
+      React.createElement("div", { style: {
+        display: "inline-flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        width: 100, height: 60, borderRadius: 14, background: "linear-gradient(135deg,#1a3a6b,#0f2445)",
+        border: "1px solid rgba(200,168,75,0.65)", marginBottom: 8
+      }},
+        React.createElement("div", { style: { color: "#c8a84b", fontSize: 22, fontWeight: 900, letterSpacing: "1.7px" } }, "LTG"),
+        React.createElement("div", { style: { color: "#fff", fontSize: 9, fontWeight: 800, letterSpacing: "1.3px", marginTop: 4 } }, "FAHRER APP")
+      )
+    );
+  };
+
+  var pinDots = function() {
+    return React.createElement("div", { style: { display: "flex", gap: 12, justifyContent: "center", marginBottom: 28 } },
+      [0,1,2,3].map(function(i) {
+        return React.createElement("div", { key: i, style: {
+          width: 14, height: 14, borderRadius: 7,
+          background: pin.length > i ? (error ? "#dc2626" : "#1a3a6b") : "#2a3a52",
+          transition: "background 0.15s"
+        }});
+      })
+    );
+  };
+
+  var numPad = function() {
+    return React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, width: 220 } },
+      ["1","2","3","4","5","6","7","8","9","","0","del"].map(function(d) {
+        if (!d) return React.createElement("div", { key: "empty" });
+        return React.createElement("button", {
+          key: d,
+          onClick: function() {
+            if (d === "del") { setPin(pin.slice(0,-1)); setError(false); }
+            else if (pin.length < 4) handlePin(d);
+          },
+          style: {
+            height: 54, borderRadius: 12, border: "1px solid #2a3a52",
+            background: "#1c2840", color: "#f1f5f9",
+            fontSize: d === "del" ? 16 : 22, fontWeight: 600, cursor: "pointer"
+          }
+        }, d === "del" ? "⌫" : d);
+      })
+    );
+  };
+
+  if (step === "register") {
+    var canContinue = firstName.trim().length > 0 && lastName.trim().length > 0;
+    return React.createElement("div", { style: wrapStyle },
+      React.createElement(Logo),
+      React.createElement("div", { style: { width: "100%", maxWidth: 320, background: "#1c2840", borderRadius: 16, padding: "24px 20px" } },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#c8a84b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 16, textAlign: "center" } }, "Erste Anmeldung"),
+        React.createElement("div", { style: { marginBottom: 12 } },
+          React.createElement("div", { style: { fontSize: 12, color: "#64748b", marginBottom: 6 } }, "Vorname *"),
+          React.createElement("input", {
+            value: firstName, onChange: function(e) { setFirstName(e.target.value); },
+            placeholder: "Vorname",
+            autoFocus: true,
+            style: { width: "100%", background: "#0f1623", border: "1px solid #2a3a52", borderRadius: 8, padding: "10px 12px", color: "#f1f5f9", fontSize: 16, outline: "none", boxSizing: "border-box" }
+          })
+        ),
+        React.createElement("div", { style: { marginBottom: 20 } },
+          React.createElement("div", { style: { fontSize: 12, color: "#64748b", marginBottom: 6 } }, "Nachname *"),
+          React.createElement("input", {
+            value: lastName, onChange: function(e) { setLastName(e.target.value); },
+            placeholder: "Nachname",
+            onKeyDown: function(e) { if (e.key === "Enter" && canContinue) setStep("pin"); },
+            style: { width: "100%", background: "#0f1623", border: "1px solid #2a3a52", borderRadius: 8, padding: "10px 12px", color: "#f1f5f9", fontSize: 16, outline: "none", boxSizing: "border-box" }
+          })
+        ),
+        React.createElement("button", {
+          onClick: function() { if (canContinue) setStep("pin"); },
+          disabled: !canContinue,
+          style: { width: "100%", background: canContinue ? "#c8a84b" : "#2a3a52", color: canContinue ? "#000" : "#64748b", border: "none", borderRadius: 10, padding: "13px 0", fontSize: 15, fontWeight: 800, cursor: canContinue ? "pointer" : "default" }
+        }, "Weiter →")
+      )
+    );
+  }
+
+  if (step === "pin") {
+    var displayName = firstName.trim() + " " + lastName.trim();
+    return React.createElement("div", { style: wrapStyle },
+      React.createElement(Logo),
+      React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } },
+        React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 4 } }, displayName),
+        React.createElement("div", { style: { fontSize: 13, color: "#64748b" } }, "PIN eingeben")
+      ),
+      pinDots(),
+      numPad(),
+      React.createElement("button", {
+        onClick: function() { setStep("register"); setPin(""); setError(false); },
+        style: { marginTop: 20, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13 }
+      }, "← Zurück")
+    );
+  }
+
+  if (step === "slider") {
+    var pct = sliderX / SLIDER_MAX;
+    return React.createElement("div", { style: wrapStyle },
+      React.createElement(Logo),
+      React.createElement("div", { style: { textAlign: "center", marginBottom: 32 } },
+        React.createElement("div", { style: { fontSize: 22, fontWeight: 800 } }, savedName),
+        React.createElement("div", { style: { fontSize: 13, color: "#64748b", marginTop: 4 } }, "Fahrer App")
+      ),
+      React.createElement("div", { style: {
+        width: SLIDER_MAX + 56, height: 56, borderRadius: 28,
+        background: "#1c2840", border: "1px solid #2a3a52",
+        position: "relative", overflow: "hidden", userSelect: "none"
+      }},
+        React.createElement("div", { style: {
+          position: "absolute", left: 0, top: 0, bottom: 0,
+          width: sliderX + 56, borderRadius: 28,
+          background: "linear-gradient(90deg,rgba(200,168,75,0.3),rgba(200,168,75,0.1))",
+          transition: dragging ? "none" : "width 0.3s"
+        }}),
+        React.createElement("div", {
+          style: {
+            position: "absolute", top: 4, left: 4 + sliderX, width: 48, height: 48,
+            borderRadius: 24, background: "#c8a84b", display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: 24, cursor: "grab",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)", transition: dragging ? "none" : "left 0.3s",
+            color: "#000", fontWeight: 900
+          },
+          onMouseDown: function(e) { startDrag(e.clientX); },
+          onTouchStart: function(e) { startDrag(e.touches[0].clientX); }
+        }, "→"),
+        React.createElement("div", { style: {
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 13, color: "#64748b", pointerEvents: "none",
+          opacity: Math.max(0, 1 - pct * 2)
+        }}, "Zum Entsperren schieben")
+      ),
+      React.createElement("button", {
+        onClick: function() {
+          try { localStorage.removeItem("fahrer_name"); } catch(e) {}
+          setSavedName(""); setFirstName(""); setLastName(""); setStep("register");
+        },
+        style: { marginTop: 24, background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13 }
+      }, "Anderer Benutzer")
+    );
+  }
+
+  return null;
+}
+
 const sbInsert = async (table, data) => {
   try {
     await fetch(SB_URL + "/rest/v1/" + table, {
@@ -727,6 +946,7 @@ function LocationPicker({ value, onChange, placeholder, C }) {
 
 
 function App() {
+  const [loggedIn, setLoggedIn] = React.useState(false);
   const [lang, setLang] = useState("de");
   const [screen, setScreen] = useState("home");
   const [prevScreen, setPrevScreen] = useState("home");
@@ -910,6 +1130,10 @@ function App() {
       </div>
     ) : null
   );
+
+  if (!loggedIn) {
+    return <FahrerLogin onLogin={function(name) { setDriverName(name); setLoggedIn(true); }} />;
+  }
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg,
