@@ -540,8 +540,8 @@ const T = {
 const USERS = [
   { id: "roman", name: "Roman Anokhin", role: "mechanic",  pin: "1234", avatar: "RA", isAdmin: true },
   { id: "petr",  name: "Petr Lorenz",   role: "mechanic",  pin: "5678", avatar: "PL", isAdmin: false },
-  { id: "doll",  name: "Herr Doll",     role: "boss",      pin: "0001", avatar: "HD" },
-  { id: "jens",  name: "Jens",          role: "fpl",       pin: "0002", avatar: "JE" },
+  { id: "doll",  name: "Herr Doll",     role: "boss",      pin: "0001", avatar: "HD", dashboardOnly: true },
+  { id: "jens",  name: "Jens",          role: "fpl",       pin: "0002", avatar: "JE", dashboardOnly: true },
 ];
 
 
@@ -937,7 +937,7 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
             })}
           </div>
 <div style={{ width:"100%", maxWidth:340 }}>
-            {USERS.map(function(u) {
+            {USERS.filter(function(u){ return !u.dashboardOnly; }).map(function(u) {
               var isMech = u.role === "mechanic";
               var alertCnt = openAlerts.length;
               return (
