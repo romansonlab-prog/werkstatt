@@ -899,7 +899,7 @@ ReactDOM.createRoot(document.getElementById("login-root")).render(React.createEl
           <div class="logo">LTG</div>
           <div>
             <div class="user">${escapeHtml(access.display_name)} · WASCHHALLE</div>
-            <button class="reset" onclick="LTGClearDevice('washhall')">Gerät zurücksetzen</button>
+            <button class="reset" onclick="localStorage.removeItem('waschhalle_name'); localStorage.removeItem('waschhalle_name_user'); location.reload()">Gerät zurücksetzen</button>
           </div>
         </header>
         <main class="wrap">
@@ -1136,16 +1136,19 @@ ReactDOM.createRoot(document.getElementById("login-root")).render(React.createEl
       }
     };
 
-    LTGRequireAccess({
-      app:"washhall",
-      role:"washer",
-      title:"Waschhalle",
-      hint:"Einmal aktivieren. Danach öffnet sich die Waschhalle App direkt.",
-      example:"W-LTG-2026"
-    }).then(async function(a) {
-      access = a;
+    // Auto-init after login
+    window.initWaschhalle = async function(user) {
+      access = { display_name: user.name, role: "washer" };
       await loadData();
-    });
+    };
+    // Check if already logged in
+    try {
+      var stored = localStorage.getItem("waschhalle_name_user");
+      if (stored) {
+        var u = JSON.parse(stored);
+        window.initWaschhalle(u);
+      }
+    } catch(e) {}
   </script>
 </body>
 </html>
