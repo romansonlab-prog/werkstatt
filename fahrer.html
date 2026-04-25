@@ -24,7 +24,7 @@
       background-color: #0a1730;
       background-image:
         linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%),
-        url("./bg-truck.png");
+        url("/bg-truck.png");
       background-size:cover;
       background-position:center center;
       background-repeat:no-repeat;
@@ -392,31 +392,31 @@ const APP_STORAGE_KEY = "werkflow_fahrer_v2";
 
 const T = {
   de:{
-    title:"LTG Fahrer App", subtitle:"Hockenheim",
+    title:"WerkFlow Fahrer", subtitle:"Hockenheim",
     inspectTruck:"LKW Inspektion", inspectTrailer:"Auflieger Inspektion",
-    reportBreakdown:"Storung / Unfall", yourName:"Ihr Name", namePh:"Vor- und Nachname",
-    selectTruck:"LKW wahlen",
-    selectOrEnter:"Fahrzeug wählen oder eingeben", enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wahlen",
-    startInspection:"Inspektion starten", back:"Zuruck",
-    defects:"Mangel / Bemerkungen", defectsPh:"Festgestellte Mangel beschreiben...",
-    photo:"Fotos", submit:"Inspektion abschliessen",
-    allChecked:"Alle Punkte gepruft", notAllChecked:"Nicht alle Punkte gepruft",
+    reportBreakdown:"Störung / Unfall", yourName:"Ihr Name", namePh:"Vor- und Nachname",
+    selectTruck:"LKW wählen",
+    selectOrEnter:"Fahrzeug wählen oder eingeben", enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wählen",
+    startInspection:"Inspektion starten", back:"Zurück",
+    defects:"Mängel / Bemerkungen", defectsPh:"Festgestellte Mängel beschreiben...",
+    photo:"Fotos", submit:"Inspektion abschließen",
+    allChecked:"Alle Punkte geprüft", notAllChecked:"Nicht alle Punkte geprüft",
     done:"Abgeschlossen!", saved:"Bericht gesendet", newInspection:"Neue Inspektion",
-    ok:"Fahrzeug OK", defectsFound:"Mangel festgestellt", okShort:"OK", notOkShort:"Nicht OK", checkedLabel:"geprüft", chooseAction:"Aktion wählen", continueBtn:"Weiter", fleetCheck:"FLOTTEN-CHECK", truckCode:"LKW", trailerCode:"ANH", sosCode:"SOS", translatedAuto:"Deutsch (auto)", statusDone:"Erledigt", statusInProgress:"In Bearbeitung", statusWaitingMechanic:"Gesendet — warte auf Mechaniker...",
-    translating:"Ubersetze...", points:"Punkte", translated:"Ubersetzt (DE)",
-    breakdownTitle:"Storung melden", breakdownType:"Art der Storung",
+    ok:"Fahrzeug OK", defectsFound:"Mängel festgestellt", okShort:"OK", notOkShort:"Nicht OK", checkedLabel:"geprüft", chooseAction:"Aktion wählen", continueBtn:"Weiter", fleetCheck:"FLOTTEN-CHECK", truckCode:"LKW", trailerCode:"ANH", sosCode:"SOS", translatedAuto:"Deutsch (auto)", statusDone:"Erledigt", statusInProgress:"In Bearbeitung", statusWaitingMechanic:"Gesendet — warte auf Mechaniker...",
+    translating:"Übersetze...", points:"Punkte", translated:"Übersetzt (DE)",
+    breakdownTitle:"Störung melden", breakdownType:"Art der Störung",
     location:"Standort", locationPh:"Autobahn A6 km 520 / Hockenheim...",
     description:"Beschreibung", descPh:"Was ist passiert?",
     urgency:"Dringlichkeit", urgentYes:"SOFORTIGE HILFE", urgentNo:"KANN WARTEN",
     send:"STORUNG MELDEN", sending:"Wird gesendet...", sent:"Gemeldet!",
-    sentDesc:"Werkstatt und Schef benachrichtigt", newReport:"Neue Meldung",
+    sentDesc:"Werkstatt und Chef benachrichtigt", newReport:"Neue Meldung",
     required:"Pflichtfeld", truck:"LKW", trailer:"Auflieger",
     truckChecks:[
       {k:"tires",   emoji:"TYR", label:"Reifen und Luftdruck"},
       {k:"lights",  emoji:"LGT", label:"Beleuchtung"},
       {k:"brakes",  emoji:"BRK", label:"Bremsen"},
       {k:"mirrors", emoji:"VIS", label:"Spiegel und Scheiben"},
-      {k:"engine",  emoji:"ENG", label:"Motor / Ol / Wasser"},
+      {k:"engine",  emoji:"ENG", label:"Motor / Öl / Wasser"},
       {k:"fuel",    emoji:"FUEL", label:"Kraftstoff und AdBlue"},
       {k:"docs",    emoji:"DOC", label:"Fahrzeugpapiere"},
     ],
@@ -425,7 +425,7 @@ const T = {
       {k:"lights",   emoji:"LGT", label:"Beleuchtung und Blinker"},
       {k:"body",     emoji:"BOX", label:"Karosserie / Plane"},
       {k:"coupling", emoji:"CPL", label:"Kupplung und Sattel"},
-      {k:"doors",    emoji:"DR", label:"Turen und Verschlusse"},
+      {k:"doors",    emoji:"DR", label:"Türen und Verschlüsse"},
       {k:"floor",    emoji:"FLR", label:"Ladeboden"},
     ],
     types:[
@@ -436,7 +436,7 @@ const T = {
     ],
   },
   ru:{
-    title:"LTG Приложение водителя", subtitle:"Хокенхайм",
+    title:"WerkFlow Водитель", subtitle:"Хокенхайм",
     inspectTruck:"Осмотр LKW", inspectTrailer:"Осмотр полуприцепа",
     reportBreakdown:"Поломка / Авария", yourName:"Ваше имя", namePh:"Имя и фамилия",
     selectTruck:"Выбрать LKW",
@@ -480,7 +480,7 @@ const T = {
     ],
   },
   en:{
-    title:"LTG Driver App", subtitle:"Hockenheim",
+    title:"WerkFlow Driver", subtitle:"Hockenheim",
     inspectTruck:"Truck Inspection", inspectTrailer:"Trailer Inspection",
     reportBreakdown:"Report Issue", yourName:"Your name", namePh:"First and last name",
     selectTruck:"Select truck",
@@ -524,7 +524,7 @@ const T = {
     ],
   },
   uk:{
-    title:"LTG Додаток водія", subtitle:"Хокенхайм",
+    title:"WerkFlow Водій", subtitle:"Хокенхайм",
     inspectTruck:"Огляд вантажівки", inspectTrailer:"Огляд напівпричепа",
     reportBreakdown:"Поломка / Аварія", yourName:"Ваше ім'я", namePh:"Ім'я та прізвище",
     selectTruck:"Обрати вантажівку",
@@ -568,7 +568,7 @@ const T = {
     ],
   },
   ro:{
-    title:"LTG App Sofer", subtitle:"Hockenheim",
+    title:"WerkFlow Șofer", subtitle:"Hockenheim",
     inspectTruck:"Inspectie Camion", inspectTrailer:"Inspectie Semiremorca",
     reportBreakdown:"Raporteaza Problema", yourName:"Numele dvs", namePh:"Prenume Nume",
     selectTruck:"Selectati camionul",
@@ -604,7 +604,7 @@ const T = {
     ],
   },
   hu:{
-    title:"LTG Sofor App", subtitle:"Hockenheim",
+    title:"WerkFlow Sofőr", subtitle:"Hockenheim",
     inspectTruck:"Teherauto Ellenorzes", inspectTrailer:"Potkocsi Ellenorzes",
     reportBreakdown:"Problema Bejelentese", yourName:"Az On neve", namePh:"Nev",
     selectTruck:"Teherauto valasztasa",
@@ -640,7 +640,7 @@ const T = {
     ],
   },
   cs:{
-    title:"LTG Aplikace Ridice", subtitle:"Hockenheim",
+    title:"WerkFlow Řidič", subtitle:"Hockenheim",
     inspectTruck:"Kontrola Nakladaku", inspectTrailer:"Kontrola Privese",
     reportBreakdown:"Nahlasit Problem", yourName:"Vase jmeno", namePh:"Jmeno a prijmeni",
     selectTruck:"Vyberte nakladak",
@@ -692,6 +692,16 @@ const TRAILERS = [
 ];
 
 
+const COMMON_T = {
+  de:{ appTitle:"WerkFlow Fahrer", driverLabel:"Fahrer", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ERSTE ANMELDUNG", firstName:"Vorname", lastName:"Nachname", pinLabel:"PIN EINGEBEN", loginBtn:"Anmelden", photoAdd:"Fotos hinzufügen", selectVehiclePh:"Kennzeichen eingeben oder wählen", locationInputPh:"Standort wählen oder eingeben", inspected:"geprüft", faultShort:"Mangel", inspectionWord:"Inspektion", okHeader:"OK", notOkHeader:"NICHT OK" },
+  ru:{ appTitle:"WerkFlow Водитель", driverLabel:"Водитель", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ПЕРВЫЙ ВХОД", firstName:"Имя", lastName:"Фамилия", pinLabel:"ВВЕДИТЕ PIN", loginBtn:"Войти", photoAdd:"Добавить фото", selectVehiclePh:"Введите или выберите номер", locationInputPh:"Выберите или введите место", inspected:"проверено", faultShort:"Замечания", inspectionWord:"Осмотр", okHeader:"OK", notOkHeader:"НЕ OK" },
+  en:{ appTitle:"WerkFlow Driver", driverLabel:"Driver", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"FIRST LOGIN", firstName:"First name", lastName:"Last name", pinLabel:"ENTER PIN", loginBtn:"Login", photoAdd:"Add photos", selectVehiclePh:"Enter or select plate", locationInputPh:"Select or enter location", inspected:"checked", faultShort:"Defect", inspectionWord:"Inspection", okHeader:"OK", notOkHeader:"NOT OK" },
+  uk:{ appTitle:"WerkFlow Водій", driverLabel:"Водій", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ПЕРШИЙ ВХІД", firstName:"Ім'я", lastName:"Прізвище", pinLabel:"ВВЕДІТЬ PIN", loginBtn:"Увійти", photoAdd:"Додати фото", selectVehiclePh:"Введіть або оберіть номер", locationInputPh:"Оберіть або введіть місце", inspected:"перевірено", faultShort:"Зауваження", inspectionWord:"Огляд", okHeader:"OK", notOkHeader:"НЕ OK" },
+  ro:{ appTitle:"WerkFlow Șofer", driverLabel:"Șofer", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"PRIMA AUTENTIFICARE", firstName:"Prenume", lastName:"Nume", pinLabel:"INTRODUCEȚI PIN", loginBtn:"Autentificare", photoAdd:"Adaugă poze", selectVehiclePh:"Introduceți sau selectați numărul", locationInputPh:"Selectați sau introduceți locația", inspected:"verificat", faultShort:"Defect", inspectionWord:"Inspecție", okHeader:"OK", notOkHeader:"NU OK" },
+  hu:{ appTitle:"WerkFlow Sofőr", driverLabel:"Sofőr", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ELSŐ BEJELENTKEZÉS", firstName:"Keresztnév", lastName:"Vezetéknév", pinLabel:"PIN MEGADÁSA", loginBtn:"Bejelentkezés", photoAdd:"Fotók hozzáadása", selectVehiclePh:"Rendszám megadása vagy választása", locationInputPh:"Hely kiválasztása vagy megadása", inspected:"ellenőrizve", faultShort:"Hiba", inspectionWord:"Ellenőrzés", okHeader:"OK", notOkHeader:"NEM OK" },
+  cs:{ appTitle:"WerkFlow Řidič", driverLabel:"Řidič", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"PRVNÍ PŘIHLÁŠENÍ", firstName:"Jméno", lastName:"Příjmení", pinLabel:"ZADEJTE PIN", loginBtn:"Přihlásit", photoAdd:"Přidat fotky", selectVehiclePh:"Zadejte nebo vyberte SPZ", locationInputPh:"Vyberte nebo zadejte polohu", inspected:"zkontrolováno", faultShort:"Závada", inspectionWord:"Kontrola", okHeader:"OK", notOkHeader:"NENÍ OK" }
+};
+
 function langKey(L) {
   // UI uses uppercase codes, T uses lowercase
   var map = { "DE":"de", "RU":"ru", "GB":"en", "UA":"uk", "RO":"ro", "HU":"hu", "CZ":"cs" };
@@ -699,7 +709,8 @@ function langKey(L) {
 }
 
 function getT(lang) {
-  return T[langKey(lang)] || T.de;
+  var k = langKey(lang);
+  return Object.assign({}, COMMON_T.de, T.de, COMMON_T[k] || {}, T[k] || {});
 }
 
 const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
@@ -731,18 +742,10 @@ const BD_TYPES = [
 ];
 
 function translateToGerman(text) {
-  if (!text || !text.trim()) return Promise.resolve(text);
-  return fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model:"claude-sonnet-4-20250514", max_tokens:500,
-      messages:[{role:"user",
-        content:"Translate to German. Return ONLY the translation:\n\n"+text}]
-    })
-  }).then(function(r){ return r.json(); })
-    .then(function(d){ return (d.content && d.content[0] ? d.content[0].text : null) || text; })
-    .catch(function(){ return text; });
+  // Translation from browser to external AI API was intentionally disabled.
+  // Direct AI calls from frontend are unreliable and unsafe because API keys cannot be protected.
+  // Keep the original driver text; backend/Edge Function can translate it later if needed.
+  return Promise.resolve(text || "");
 }
 
 
@@ -788,8 +791,8 @@ function Logo({ size = 44 }) {
   );
 }
 
-function FahrerLabel({ size = 32 }) {
-  return <div style={{ fontSize:size, fontWeight:800, color:"#ffa500", marginTop:6 }}>Fahrer</div>;
+function FahrerLabel({ size = 32, label = "Fahrer" }) {
+  return <div style={{ fontSize:size, fontWeight:800, color:"#ffa500", marginTop:6 }}>{label}</div>;
 }
 
 function BackBtn({ onClick }) {
@@ -871,26 +874,25 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
           <Logo size={40} />
           <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)",
-              letterSpacing:1.5 }}>POWERED BY</div>
+              letterSpacing:1.5 }}>{t.poweredBy}</div>
             <div style={{ width:1, height:32, background:"rgba(255,255,255,0.3)" }}></div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>
-              Die <span style={{ color:"#ffa500", fontWeight:700 }}>LTG</span> - Landauer<br/>
-              Transportgesellschaft Doll KG
+              <span dangerouslySetInnerHTML={{__html: t.clientName.replace("LTG", '<span style=\"color:#ffa500;font-weight:700\">LTG</span>').replace(" - ", " -<br/>")}} />
             </div>
           </div>
         </div>
 
-        <FahrerLabel size={38} />
+        <FahrerLabel size={38} label={t.driverLabel} />
         <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.55)",
           letterSpacing:3, marginTop:6, marginBottom:18 }}>
-          ERSTE ANMELDUNG
+          {t.firstLogin}
         </div>
 
         <div style={{ background:"#fff", color:"#0a1730", borderRadius:18, padding:22,
           boxShadow:"0 16px 40px rgba(0,0,0,0.4)" }}>
           <div style={{ marginBottom:16 }}>
             <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8, fontSize:14 }}>
-              Vorname <span style={{ color:"#dc2626" }}>*</span>
+              {t.firstName} <span style={{ color:"#dc2626" }}>*</span>
             </div>
             <div style={{ position:"relative" }}>
               <span className="field-icon-light">
@@ -906,7 +908,7 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
 
           <div style={{ marginBottom:20 }}>
             <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8, fontSize:14 }}>
-              Nachname <span style={{ color:"#dc2626" }}>*</span>
+              {t.lastName} <span style={{ color:"#dc2626" }}>*</span>
             </div>
             <div style={{ position:"relative" }}>
               <span className="field-icon-light">
@@ -966,10 +968,10 @@ function PinLogin({ onSuccess, lang, setLang }) {
         <LangSwitcher lang={lang} setLang={setLang} />
         <div style={{ marginTop:60 }}>
           <Logo size={42} />
-          <FahrerLabel size={32} />
+          <FahrerLabel size={32} label={t.driverLabel} />
           <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.6)",
             letterSpacing:3, marginTop:8 }}>
-            {t.pinLabel || "PIN EINGEBEN"}
+            {t.pinLabel}
           </div>
         </div>
 
@@ -1004,7 +1006,7 @@ function PinLogin({ onSuccess, lang, setLang }) {
             opacity: pin.length === 4 ? 1 : 0.5,
             display:"flex", alignItems:"center", justifyContent:"center", gap:10,
             marginBottom:20 }}>
-          {t.loginBtn || "Anmelden"} <span style={{ fontSize:20 }}>→</span>
+          {t.loginBtn} <span style={{ fontSize:20 }}>→</span>
         </button>
       </div>
     </div>
@@ -1059,7 +1061,7 @@ function SliderUnlock({ onUnlock, lang, setLang }) {
         <LangSwitcher lang={lang} setLang={setLang} />
         <div style={{ marginTop:80 }}>
           <Logo size={42} />
-          <FahrerLabel size={32} />
+          <FahrerLabel size={32} label={t.driverLabel} />
         </div>
         <div style={{ flex:1 }}></div>
         <div ref={trackRef} className="slider-track" style={{ marginBottom:30 }}>
@@ -1097,7 +1099,7 @@ function MainMenu({ onPick, lang, setLang }) {
         <LangSwitcher lang={lang} setLang={setLang} />
         <div style={{ marginTop:"34vh" }}>
           <Logo size={40} />
-          <FahrerLabel size={36} />
+          <FahrerLabel size={36} label={t.driverLabel} />
         </div>
 
         <div style={{ marginTop:"auto", paddingBottom:24, display:"flex",
@@ -1316,7 +1318,7 @@ function PhotoUpload({ photos, setPhotos, t }) {
         <div className="photo-box">
           <div style={{ fontSize:24, color:"#ffa500" }}>📷</div>
           <div style={{ marginTop:6 }}>
-            {t.photo + " hinzufügen"}{photos.length > 0 ? " (" + photos.length + ")" : ""}
+            {(t.photoAdd || (t.photo + " hinzufügen"))}{photos.length > 0 ? " (" + photos.length + ")" : ""}
           </div>
         </div>
       </button>
@@ -1334,12 +1336,26 @@ function PhotoUpload({ photos, setPhotos, t }) {
   );
 }
 
+function localizeChecks(baseItems, translatedItems) {
+  return baseItems.map(function(item, i){
+    var tr = translatedItems && translatedItems[i];
+    return Object.assign({}, item, { label: tr && tr.label ? tr.label : item.label });
+  });
+}
+
+function localizeBreakdownTypes(t) {
+  return BD_TYPES.map(function(item, i){
+    var tr = t.types && t.types[i];
+    return Object.assign({}, item, { label: tr && tr.label ? tr.label : item.label });
+  });
+}
+
 // === SCREEN: Inspection ===
 
 function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
-  const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
   const vehicleType = kind === "lkw" ? "truck" : "trailer";
   const t = getT(lang);
+  const items = kind === "lkw" ? localizeChecks(TRUCK_CHECKS, t.truckChecks) : localizeChecks(TRAILER_CHECKS, t.trailerChecks);
   const seedFleet = kind === "lkw" ? TRUCKS : TRAILERS;
   const [vehicles, setVehicles] = useState(seedFleet.map(function(v){
     return { id: v.id, plate: v.plate, brand: v.brand, type: vehicleType };
@@ -1422,22 +1438,22 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
 
         <div style={{ marginTop:6 }}>
           <div style={{ fontSize:30, fontWeight:900, lineHeight:1 }}>
-            {kind === "lkw" ? "LKW " : "Auflieger "}
-            <span style={{ color:"#ffa500" }}>Inspektion</span>
+            {kind === "lkw" ? (t.truck + " ") : (t.trailer + " ")}
+            <span style={{ color:"#ffa500" }}>{t.inspectionWord}</span>
           </div>
         </div>
 
         <div style={{ marginTop:12, marginBottom:16 }}>
           <VehicleCombobox vehicles={vehicles} vehicleType={vehicleType}
             value={vehSel} onChange={setVehSel}
-            placeholder="Kennzeichen eingeben oder wählen" />
+            placeholder={t.selectVehiclePh} />
         </div>
 
         <div className="insp-header">
           <div className="h-tag-spacer"></div>
           <div className="h-spacer"></div>
-          <div className="h-col">OK</div>
-          <div className="h-col">NICHT OK</div>
+          <div className="h-col">{t.okHeader}</div>
+          <div className="h-col">{t.notOkHeader}</div>
         </div>
 
         {items.map(function(it){
@@ -1471,7 +1487,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
           <span style={{ color: hasFault ? "#ff3b30" : "#22c55e", fontSize:18 }}>
             {hasFault ? "⚠" : "✓"}
           </span>
-          <span>{checkedCount}/{items.length} geprüft · {hasFault ? "Mangel" : "OK"}</span>
+          <span>{checkedCount}/{items.length} {t.inspected} · {hasFault ? t.faultShort : "OK"}</span>
         </div>
       </div>
 
@@ -1628,7 +1644,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
         </div>
 
         <div style={{ fontSize:32, fontWeight:900, lineHeight:1, marginTop:6, marginBottom:18 }}>
-          Störung <span style={{ color:"#ffa500" }}>melden</span>
+          {(t.breakdownTitle || "Störung melden").split(" ")[0]} <span style={{ color:"#ffa500" }}>{(t.breakdownTitle || "Störung melden").split(" ").slice(1).join(" ")}</span>
         </div>
 
         <div style={{ marginBottom:18 }}>
@@ -1640,13 +1656,13 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
 
         <div className="label-cap">{(t.breakdownType || "Art der Störung").toUpperCase() + " *"}</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
-          {BD_TYPES.map(function(t){
+          {localizeBreakdownTypes(t).map(function(bt){
             return (
-              <div key={t.k} className={"type-tile" + (type === t.k ? " active" : "")}
-                onClick={function(){ setType(t.k); }}
+              <div key={bt.k} className={"type-tile" + (type === bt.k ? " active" : "")}
+                onClick={function(){ setType(bt.k); }}
                 style={{ cursor:"pointer" }}>
-                <span className="type-tag">{t.tag}</span>
-                <span style={{ flex:1 }}>{t.label}</span>
+                <span className="type-tag">{bt.tag}</span>
+                <span style={{ flex:1 }}>{bt.label}</span>
               </div>
             );
           })}
@@ -1673,7 +1689,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
           <div style={{ position:"relative", flex:1 }}>
             <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
               color:"#9aa3b2", fontSize:18 }}>📍</span>
-            <input className="input-dark" placeholder="Standort wählen oder eingeben"
+            <input className="input-dark" placeholder={t.locationInputPh}
               value={loc} onChange={function(e){ setLoc(e.target.value); }} />
           </div>
           <button className="geo-btn" onClick={detectLoc} disabled={locLoading}>
@@ -1689,7 +1705,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
         <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
 
         <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:13, marginTop:14, marginBottom:14 }}>
-          "* " + (t.required || "Pflichtfeld")
+          {"* " + (t.required || "Pflichtfeld")}
         </div>
       </div>
 
