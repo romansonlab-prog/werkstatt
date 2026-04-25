@@ -777,6 +777,31 @@ async function sbInsert(table, payload) {
   return res.json();
 }
 
+async function uploadPhotoToEingang(base64, alertId, index) {
+  if (!base64) return null;
+  try {
+    const res = await fetch(base64);
+    const blob = await res.blob();
+    const ext = blob.type && blob.type.indexOf("png") !== -1 ? "png" : "jpg";
+    const path = "eingang/" + alertId + "/photo_" + index + "." + ext;
+    const up = await fetch(SB_URL + "/storage/v1/object/inspection-photos/" + path, {
+      method: "POST",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": blob.type || "image/jpeg",
+        "x-upsert": "true"
+      },
+      body: blob
+    });
+    if (!up.ok) return null;
+    return SB_URL + "/storage/v1/object/public/inspection-photos/" + path;
+  } catch(e) {
+    console.error("photo upload:", e);
+    return null;
+  }
+}
+
 // === Components ===
 
 function Bg() { return <div className="bg-image"></div>; }
@@ -1266,6 +1291,12 @@ function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeh
           })}
         </div>
       )}
+
+      {plate.trim() && !vehicles.some(function(v){ return (v.plate || "").toLowerCase() === plate.trim().toLowerCase(); }) && (
+        <div style={{ marginTop:8, color:"rgba(255,255,255,0.65)", fontSize:12, fontWeight:600 }}>
+          + Neues Fahrzeug wird beim Senden gespeichert: <span style={{ color:"#ffa500" }}>{plate.trim()}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1402,9 +1433,13 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
       if (notes) defectsText = defectsText ? (defectsText + " — " + notes) : notes;
       var prefix = vehicleType === "truck" ? "LKW" : "Auflieger";
 
-      // Always send alert (so dashboard/werkstatt see the inspection)
+      // Send alert into Werkstatt > Eingang. Photos are stored under inspection-photos/eingang/<alertId>/
+      const alertId = "I" + Date.now();
+      const photoUrls = photos.length
+        ? (await Promise.all(photos.map(function(p, i){ return uploadPhotoToEingang(p, alertId, i); }))).filter(Boolean)
+        : [];
       await sbInsert("alerts", {
-        id: "I" + Date.now(),
+        id: alertId,
         type: hasFault ? "inspection_mangel" : "inspection_ok",
         plate: vehSel.plate,
         location: "Werkstatt",
@@ -1412,7 +1447,9 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
         urgency: hasFault ? "normal" : "info",
         sender: driverName || "driver",
         sender_app: "fahrer",
-        status: hasFault ? "open" : "done"
+        status: hasFault ? "open" : "done",
+        photos: photoUrls.length,
+        photo_urls: photoUrls
       });
 
       onBack();
@@ -1582,25 +1619,23 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
         var asTy = (vehSel.type === "trailer") ? "trailer" : "truck";
         await ensureVehicleInDb(vehSel.plate, vehSel.brand, asTy);
       }
-      // AI-translate description to German if needed (best effort)
-      let descDe = desc;
-      try {
-        if (lang !== "DE" && desc.trim()) {
-          const tr = await translateToGerman(desc);
-          if (tr && tr !== "") descDe = tr;
-        }
-      } catch(e) {}
+      const alertId = "A" + Date.now();
+      const photoUrls = photos.length
+        ? (await Promise.all(photos.map(function(p, i){ return uploadPhotoToEingang(p, alertId, i); }))).filter(Boolean)
+        : [];
 
       await sbInsert("alerts", {
-        id: "A" + Date.now(),
+        id: alertId,
         type: type,
         plate: vehSel.plate,
         location: loc,
-        description: descDe,
+        description: desc,
         urgency: urg === "sofort" ? "urgent" : "normal",
         sender: driverName || "driver",
         sender_app: "fahrer",
-        status: "open"
+        status: "open",
+        photos: photoUrls.length,
+        photo_urls: photoUrls
       });
 
       setSent(true); setSending(false);
