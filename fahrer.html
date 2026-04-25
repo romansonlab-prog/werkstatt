@@ -335,6 +335,12 @@
     }
 
     /* Compact language switcher (top-right corner) */
+    .lang-switch-wrap {
+      position:absolute;
+      top:max(env(safe-area-inset-top), 14px);
+      right:16px;
+      z-index:30;
+    }
     .lang-switch {
       position:relative; z-index:25;
       display:inline-flex; align-items:center; gap:6px;
@@ -497,7 +503,7 @@ function BackBtn({ onClick }) {
   );
 }
 
-function LangSwitcher({ lang, setLang }) {
+function LangSwitcher({ lang, setLang, inline }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(function(){
@@ -511,8 +517,13 @@ function LangSwitcher({ lang, setLang }) {
       document.removeEventListener("touchstart", handler);
     };
   }, []);
+  // Default: absolute top-right of nearest positioned parent
+  // inline=true: just inline (for use inside flex header)
+  const wrapStyle = inline
+    ? { position:"relative", display:"inline-block" }
+    : { position:"absolute", top:"max(env(safe-area-inset-top), 14px)", right:16, zIndex:30 };
   return (
-    <div ref={ref} style={{ position:"relative" }}>
+    <div ref={ref} style={wrapStyle}>
       <button className="lang-switch" onClick={function(){ setOpen(!open); }}>
         <span>🌐</span>
         <span>{lang}</span>
@@ -1099,8 +1110,8 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
           <BackBtn onClick={onBack} />
-          <div style={{ flex:1 }}>
-            <LangSwitcher lang={lang} setLang={setLang} />
+          <div style={{ marginLeft:"auto" }}>
+            <LangSwitcher lang={lang} setLang={setLang} inline />
           </div>
         </div>
 
@@ -1305,8 +1316,8 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
           <BackBtn onClick={onBack} />
-          <div style={{ flex:1 }}>
-            <LangSwitcher lang={lang} setLang={setLang} />
+          <div style={{ marginLeft:"auto" }}>
+            <LangSwitcher lang={lang} setLang={setLang} inline />
           </div>
         </div>
 
