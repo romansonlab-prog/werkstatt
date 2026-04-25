@@ -26,14 +26,15 @@
       background-image:
         linear-gradient(180deg, rgba(7,19,38,.18) 0%, rgba(7,19,38,.62) 58%, rgba(7,19,38,.96) 100%),
         url("/bg-truck.png");
-      background-size:cover; background-position:center; background-repeat:no-repeat;
+      background-size:cover; background-position:center top; background-repeat:no-repeat;
       pointer-events:none;
     }
     .scrn {
       position:relative; z-index:2; min-height:100vh; min-height:100dvh;
       max-width:480px; margin:0 auto; width:100%;
-      padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+      padding:env(safe-area-inset-top) 28px env(safe-area-inset-bottom);
       display:flex; flex-direction:column;
+      overflow:hidden;
     }
     @media (min-width:481px) {
       body::before { content:""; position:fixed; inset:0; z-index:1; background:rgba(0,0,0,.42); pointer-events:none; }
@@ -50,7 +51,7 @@
     .powered .name { font-size:12px; line-height:1.35; font-weight:650; }
 
     .white-card {
-      background:#fff; color:#0a1730; border-radius:22px; padding:26px;
+      background:#fff; color:#0a1730; border-radius:26px; padding:30px 28px;
       box-shadow:0 20px 55px rgba(0,0,0,.42);
     }
     .input-light {
@@ -307,16 +308,37 @@ function Onboarding({onContinue}) {
   const ok=first.trim() && last.trim();
   return <div className="scrn">
     <Bg/>
-    <div style={{marginTop:90}}>
-      <Logo/><Powered/>
-      <div className="role-title" style={{marginTop:56}}>Werkstatt</div>
-      <div className="tiny-cap" style={{marginTop:8,marginBottom:28}}>Erste Anmeldung</div>
+    <div style={{position:"relative",zIndex:2,display:"flex",flexDirection:"column",minHeight:"100dvh",paddingTop:54}}>
+      <div>
+        <Logo/>
+        <Powered/>
+      </div>
+
+      <div style={{marginTop:48}}>
+        <div className="role-title" style={{fontSize:40,marginTop:0}}>Werkstatt</div>
+        <div className="tiny-cap" style={{marginTop:10,marginBottom:26}}>Erste Anmeldung</div>
+      </div>
+
       <div className="white-card">
-        <div style={{fontWeight:900,color:"#102d62",marginBottom:8}}>Vorname <span style={{color:"#ff3b30"}}>*</span></div>
-        <div style={{position:"relative",marginBottom:22}}><span className="field-icon-light"><UserIcon/></span><input className="input-light" value={first} onChange={e=>setFirst(e.target.value)} placeholder="Roman"/></div>
-        <div style={{fontWeight:900,color:"#102d62",marginBottom:8}}>Nachname <span style={{color:"#ff3b30"}}>*</span></div>
-        <div style={{position:"relative",marginBottom:26}}><span className="field-icon-light"><UserIcon/></span><input className="input-light" value={last} onChange={e=>setLast(e.target.value)} placeholder="Anokhin"/></div>
-        <button className="btn-blue" disabled={!ok} style={{opacity:ok?1:.55}} onClick={()=>onContinue(first.trim()+" "+last.trim())}>Weiter <span style={{fontSize:24}}>→</span></button>
+        <div style={{fontWeight:900,color:"#102d62",marginBottom:10,fontSize:17}}>
+          Vorname <span style={{color:"#ff3b30"}}>*</span>
+        </div>
+        <div style={{position:"relative",marginBottom:26}}>
+          <span className="field-icon-light"><UserIcon/></span>
+          <input className="input-light" value={first} onChange={e=>setFirst(e.target.value)} placeholder="Roman"/>
+        </div>
+
+        <div style={{fontWeight:900,color:"#102d62",marginBottom:10,fontSize:17}}>
+          Nachname <span style={{color:"#ff3b30"}}>*</span>
+        </div>
+        <div style={{position:"relative",marginBottom:30}}>
+          <span className="field-icon-light"><UserIcon/></span>
+          <input className="input-light" value={last} onChange={e=>setLast(e.target.value)} placeholder="Anokhin"/>
+        </div>
+
+        <button className="btn-blue" disabled={!ok} style={{opacity:ok?1:.55}} onClick={()=>onContinue(first.trim()+" "+last.trim())}>
+          Weiter <span style={{fontSize:26}}>→</span>
+        </button>
       </div>
     </div>
   </div>;
@@ -335,19 +357,30 @@ function PinLogin({onSuccess}) {
   function submit(){ if(pin===APP_PIN) onSuccess(); else { setErr(true); setTimeout(()=>{setPin("");setErr(false);},650); } }
   return <div className="scrn">
     <Bg/>
-    <div style={{marginTop:105}}>
-      <Logo/><Powered/>
-      <div className="role-title" style={{marginTop:52}}>Werkstatt</div>
-      <div className="tiny-cap" style={{marginTop:8}}>PIN eingeben</div>
-      <div style={{display:"flex",gap:18,justifyContent:"center",margin:"24px 0 28px"}}>
+    <div style={{position:"relative",zIndex:2,display:"flex",flexDirection:"column",minHeight:"100dvh",paddingTop:70}}>
+      <Logo/>
+      <Powered/>
+
+      <div style={{marginTop:42}}>
+        <div className="role-title" style={{fontSize:38,marginTop:0}}>Werkstatt</div>
+        <div className="tiny-cap" style={{marginTop:10}}>PIN eingeben</div>
+      </div>
+
+      <div style={{display:"flex",gap:18,justifyContent:"center",margin:"26px 0 28px"}}>
         {[0,1,2,3].map(i=><div key={i} className={"pin-dot "+(i<pin.length?"filled ":"")+(err?"error":"")}/>)}
       </div>
+
       <div className="keypad">
         {[1,2,3,4,5,6,7,8,9].map(d=><button key={d} className="keypad-btn" onClick={()=>press(String(d))}>{d}</button>)}
-        <div></div><button className="keypad-btn" onClick={()=>press("0")}>0</button>
+        <div></div>
+        <button className="keypad-btn" onClick={()=>press("0")}>0</button>
         <button className="keypad-btn" onClick={del}>⌫</button>
       </div>
-      <div style={{marginTop:34}}><button className="btn-outline" disabled={pin.length!==4} style={{opacity:pin.length===4?1:.55}} onClick={submit}>Anmelden <span style={{fontSize:24}}>→</span></button></div>
+
+      <div style={{flex:1}}/>
+      <button className="btn-outline" disabled={pin.length!==4} style={{opacity:pin.length===4?1:.55,marginBottom:30}} onClick={submit}>
+        Anmelden <span style={{fontSize:24}}>→</span>
+      </button>
     </div>
   </div>;
 }
@@ -363,12 +396,17 @@ function SliderUnlock({onUnlock}) {
   }
   return <div className="scrn">
     <Bg/>
-    <div style={{marginTop:"43vh"}}><Logo/><div className="role-title" style={{fontSize:34}}>Werkstatt</div></div>
-    <div style={{flex:1}}/>
-    <div className="slider-track" ref={track} style={{marginBottom:30}}>
-      <div className="slider-marks"><div className="slider-mark"/><div className="slider-mark"/><div className="slider-mark"/><div className="slider-mark"/></div>
-      <div className="slider-thumb" style={{left:6+x,transition:drag?"none":"left .28s"}} onMouseDown={e=>start(e.clientX)} onTouchStart={e=>start(e.touches[0].clientX)}>
-        <div className="slider-grip"><span/><span/><span/></div>
+    <div style={{position:"relative",zIndex:2,display:"flex",flexDirection:"column",minHeight:"100dvh"}}>
+      <div style={{marginTop:"43vh"}}>
+        <Logo/>
+        <div className="role-title" style={{fontSize:34,marginTop:8}}>Werkstatt</div>
+      </div>
+      <div style={{flex:1}}/>
+      <div className="slider-track" ref={track} style={{marginBottom:32}}>
+        <div className="slider-marks"><div className="slider-mark"/><div className="slider-mark"/><div className="slider-mark"/><div className="slider-mark"/></div>
+        <div className="slider-thumb" style={{left:6+x,transition:drag?"none":"left .28s"}} onMouseDown={e=>start(e.clientX)} onTouchStart={e=>start(e.touches[0].clientX)}>
+          <div className="slider-grip"><span/><span/><span/></div>
+        </div>
       </div>
     </div>
   </div>;
