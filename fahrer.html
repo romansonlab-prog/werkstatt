@@ -416,6 +416,25 @@ async function sbSelect(table, query) {
   return res.json();
 }
 
+async function createJob(data) {
+  const res = await fetch(SB_URL + "/rest/v1/jobs", {
+    method: "POST",
+    headers: {
+      "apikey": SB_KEY,
+      "Authorization": "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    var msg = "";
+    try { msg = await res.text(); } catch(e){}
+    throw new Error("createJob failed " + res.status + " " + msg);
+  }
+  return res.json();
+}
+
 async function sbInsert(table, payload) {
   const res = await fetch(SB_URL + "/rest/v1/" + table, {
     method: "POST",
@@ -427,7 +446,11 @@ async function sbInsert(table, payload) {
     },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error("Supabase insert failed");
+  if (!res.ok) {
+    var msg = "";
+    try { msg = await res.text(); } catch(e){}
+    throw new Error("Supabase " + table + " insert failed: " + res.status + " " + msg);
+  }
   return res.json();
 }
 
@@ -991,26 +1014,52 @@ function InspectionScreen({ kind, onBack, driverName }) {
       if (vehSel.isNew) {
         await ensureVehicleInDb(vehSel.plate, vehSel.brand, vehicleType);
       }
-      await sbInsert("inspections", {
-        kind: vehicleType,
-        plate: vehSel.plate, brand: vehSel.brand || "",
-        result: hasFault ? "mangel" : "ok",
-        checks_json: checks, notes: notes || null, photos: photos,
-        driver: driverName || "fahrer",
-        status: hasFault ? "mangel" : "ok",
+      // Build defects text and bad items list
+      var badItems = items
+        .filter(function(it){ return checks[it.k] === "fail"; })
+        .map(function(it){ return it.label; });
+      var defectsText = badItems.join(", ");
+      if (notes) defectsText = defectsText ? (defectsText + " — " + notes) : notes;
+
+      var assetLabel = vehSel.plate + (vehSel.brand ? " - " + vehSel.brand : "");
+      var descRaw = defectsText || (hasFault ? "Inspektion nicht OK" : "Inspektion OK");
+      var prefix = vehicleType === "truck" ? "LKW" : "Auflieger";
+
+      await createJob({
+        source_app: "driver",
+        source_type: vehicleType === "truck" ? "inspection_truck" : "inspection_trailer",
+        asset_type: vehicleType,
+        asset_label: assetLabel,
+        reporter_name: driverName || "",
+        reporter_contact: driverName || "",
+        language: "de",
+        urgency: hasFault ? "medium" : "low",
+        status: "new",
+        description_raw: descRaw,
+        description_de: descRaw,
+        checklist_json: { inspection_type: vehicleType, checks: checks },
+        defects_json: { result: hasFault ? "not_ok" : "ok", defects_text: notes || "", bad_items: badItems, photos: photos }
       });
+
       if (hasFault) {
         await sbInsert("alerts", {
-          id: "I" + Date.now(), type: "inspection_mangel",
-          plate: vehSel.plate, location: "Werkstatt",
-          description: notes || "Mangel bei Inspektion", urgency: "normal",
-          sender: driverName || "driver", sender_app: "fahrer", status: "open",
+          id: "I" + Date.now(),
+          type: "inspection_mangel",
+          plate: vehSel.plate,
+          location: "Werkstatt",
+          description: defectsText || (prefix + "-Inspektion: Mangel"),
+          urgency: "normal",
+          sender: driverName || "driver",
+          sender_app: "fahrer",
+          status: "open"
         });
       }
+
       onBack();
     } catch(e) {
       setSending(false);
-      alert("Fehler beim Senden");
+      console.error("Inspection error:", e);
+      alert("Fehler beim Senden: " + (e.message || e));
     }
   };
 
@@ -1165,21 +1214,45 @@ function BreakdownScreen({ onBack, driverName, lang }) {
     try {
       // If new vehicle, save to DB
       if (vehSel && vehSel.isNew) {
-        // Guess type by selecting from BD context - default truck
-        await ensureVehicleInDb(vehSel.plate, vehSel.brand, "truck");
+        var asTy = (vehSel.type === "trailer") ? "trailer" : "truck";
+        await ensureVehicleInDb(vehSel.plate, vehSel.brand, asTy);
       }
       const tr = await translateToGerman(lang !== "DE" && desc.trim() ? desc : "");
-      await sbInsert("alerts", {
-        id: "A" + Date.now(), type: type,
-        plate: vehSel.plate,
-        location: loc, description: desc,
-        urgency: urg === "sofort" ? "urgent" : "normal",
-        sender: driverName || "driver", sender_app: "fahrer", status: "open",
+      var assetTy = vehSel.type === "trailer" ? "trailer" : "truck";
+
+      await createJob({
+        source_app: "driver",
+        source_type: assetTy === "trailer" ? "breakdown_trailer" : "breakdown_truck",
+        asset_type: assetTy,
+        asset_label: vehSel.plate + (vehSel.brand ? " - " + vehSel.brand : ""),
+        reporter_name: driverName || "",
+        reporter_contact: driverName || "",
+        language: lang.toLowerCase(),
+        urgency: urg === "sofort" ? "critical" : "medium",
+        status: "new",
+        location_label: loc || "",
+        description_raw: desc || "",
+        description_de: (tr && tr !== "") ? tr : (desc || ""),
+        defects_json: { issue_type: type || "breakdown", urgent: urg === "sofort", photos: photos || [] }
       });
+
+      await sbInsert("alerts", {
+        id: "A" + Date.now(),
+        type: type,
+        plate: vehSel.plate,
+        location: loc,
+        description: desc,
+        urgency: urg === "sofort" ? "urgent" : "normal",
+        sender: driverName || "driver",
+        sender_app: "fahrer",
+        status: "open"
+      });
+
       setSent(true); setSending(false);
     } catch(e) {
       setSending(false);
-      alert("Fehler");
+      console.error("Breakdown error:", e);
+      alert("Fehler beim Senden: " + (e.message || e));
     }
   };
 
