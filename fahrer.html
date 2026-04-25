@@ -333,6 +333,40 @@
       font-size:11px; font-weight:700; color:rgba(255,255,255,0.6);
       letter-spacing:1.5px; margin-bottom:8px;
     }
+
+    /* Compact language switcher (top-right corner) */
+    .lang-switch {
+      position:relative; z-index:25;
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 12px;
+      background:rgba(20,40,80,0.65);
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:10px;
+      color:#fff; font-weight:700; font-size:13px;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
+      cursor:pointer;
+    }
+    .lang-switch .arrow { color:#ffa500; font-size:10px; }
+    .lang-menu {
+      position:absolute; top:calc(100% + 6px); right:0;
+      padding:6px;
+      background:#0d1f3d;
+      border:1px solid rgba(255,165,0,0.5);
+      border-radius:12px;
+      box-shadow:0 16px 40px rgba(0,0,0,0.6);
+      display:flex; gap:6px;
+      z-index:50;
+    }
+    .lang-menu button {
+      width:42px; padding:8px 0; text-align:center;
+      border:1px solid rgba(255,255,255,0.18);
+      border-radius:8px; font-weight:700; font-size:12px;
+      background:transparent; color:#fff;
+    }
+    .lang-menu button.active {
+      background:#ffa500; border-color:#ffa500; color:#0a1730;
+    }
   </style>
 </head>
 <body>
@@ -439,6 +473,7 @@ async function sbInsert(table, payload) {
 
 function Bg() { return <div className="bg-image"></div>; }
 
+
 function Logo({ size = 44 }) {
   return (
     <div style={{ fontSize:size, fontWeight:900, letterSpacing:-1.5, lineHeight:1 }}>
@@ -462,6 +497,43 @@ function BackBtn({ onClick }) {
   );
 }
 
+function LangSwitcher({ lang, setLang }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(function(){
+    const handler = function(e){
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return function(){
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
+  return (
+    <div ref={ref} style={{ position:"relative" }}>
+      <button className="lang-switch" onClick={function(){ setOpen(!open); }}>
+        <span>🌐</span>
+        <span>{lang}</span>
+        <span className="arrow" style={{ transform: open ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>▼</span>
+      </button>
+      {open && (
+        <div className="lang-menu">
+          {LANGS.map(function(L){
+            return (
+              <button key={L} className={lang === L ? "active" : ""}
+                onClick={function(){ setLang(L); setOpen(false); }}>
+                {L}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PrimaryBtn({ children, onClick, disabled, style }) {
   return (
     <button className="btn-primary" onClick={onClick} disabled={disabled}
@@ -482,15 +554,7 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
     <div className="scrn">
       <Bg />
       <div style={{ position:"relative", zIndex:2 }}>
-        <div style={{ display:"flex", gap:8, overflowX:"auto",
-          padding:"12px 0", marginBottom:18, scrollbarWidth:"none" }}>
-          {LANGS.map(function(L){
-            return (
-              <button key={L} className={"lang-pill" + (lang === L ? " active" : "")}
-                onClick={function(){ setLang(L); }}>{L}</button>
-            );
-          })}
-        </div>
+        <LangSwitcher lang={lang} setLang={setLang} />
 
         <div style={{ marginTop:60 }}>
           <Logo size={40} />
@@ -561,7 +625,7 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
 
 // === SCREEN: PIN Login ===
 
-function PinLogin({ onSuccess }) {
+function PinLogin({ onSuccess, lang, setLang }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
 
@@ -587,7 +651,8 @@ function PinLogin({ onSuccess }) {
     <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 50px)" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ marginTop:90 }}>
+        <LangSwitcher lang={lang} setLang={setLang} />
+        <div style={{ marginTop:60 }}>
           <Logo size={42} />
           <FahrerLabel size={32} />
           <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.6)",
@@ -636,7 +701,7 @@ function PinLogin({ onSuccess }) {
 
 // === SCREEN: Slider unlock ===
 
-function SliderUnlock({ onUnlock }) {
+function SliderUnlock({ onUnlock, lang, setLang }) {
   const [x, setX] = useState(0);
   const [drag, setDrag] = useState(false);
   const trackRef = useRef(null);
@@ -678,7 +743,8 @@ function SliderUnlock({ onUnlock }) {
     <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 60px)" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ marginTop:120 }}>
+        <LangSwitcher lang={lang} setLang={setLang} />
+        <div style={{ marginTop:80 }}>
           <Logo size={42} />
           <FahrerLabel size={32} />
         </div>
@@ -706,7 +772,7 @@ function SliderUnlock({ onUnlock }) {
 
 // === SCREEN: Main Menu ===
 
-function MainMenu({ onPick, onLogout }) {
+function MainMenu({ onPick, lang, setLang }) {
   const [active, setActive] = useState(null);
   const pick = function(k){ setActive(k); setTimeout(function(){ onPick(k); }, 150); };
 
@@ -714,7 +780,8 @@ function MainMenu({ onPick, onLogout }) {
     <div className="scrn">
       <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ marginTop:"42vh" }}>
+        <LangSwitcher lang={lang} setLang={setLang} />
+        <div style={{ marginTop:"34vh" }}>
           <Logo size={40} />
           <FahrerLabel size={36} />
         </div>
@@ -954,7 +1021,7 @@ function PhotoUpload({ photos, setPhotos }) {
 
 // === SCREEN: Inspection ===
 
-function InspectionScreen({ kind, onBack, driverName }) {
+function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
   const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
   const vehicleType = kind === "lkw" ? "truck" : "trailer";
   const seedFleet = kind === "lkw" ? TRUCKS : TRAILERS;
@@ -1030,9 +1097,14 @@ function InspectionScreen({ kind, onBack, driverName }) {
       maxWidth:480, margin:"0 auto" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
-        <BackBtn onClick={onBack} />
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+          <BackBtn onClick={onBack} />
+          <div style={{ flex:1 }}>
+            <LangSwitcher lang={lang} setLang={setLang} />
+          </div>
+        </div>
 
-        <div style={{ marginTop:14 }}>
+        <div style={{ marginTop:6 }}>
           <div style={{ fontSize:30, fontWeight:900, lineHeight:1 }}>
             {kind === "lkw" ? "LKW " : "Auflieger "}
             <span style={{ color:"#ffa500" }}>Inspektion</span>
@@ -1098,7 +1170,7 @@ function InspectionScreen({ kind, onBack, driverName }) {
 
 // === SCREEN: Breakdown ===
 
-function BreakdownScreen({ onBack, driverName, lang }) {
+function BreakdownScreen({ onBack, driverName, lang, setLang }) {
   const seedFleet = TRUCKS.map(function(v){ return Object.assign({}, v, { type:"truck" }); })
     .concat(TRAILERS.map(function(v){ return Object.assign({}, v, { type:"trailer" }); }));
   const [vehicles, setVehicles] = useState(seedFleet);
@@ -1231,9 +1303,14 @@ function BreakdownScreen({ onBack, driverName, lang }) {
       maxWidth:480, margin:"0 auto" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
-        <BackBtn onClick={onBack} />
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+          <BackBtn onClick={onBack} />
+          <div style={{ flex:1 }}>
+            <LangSwitcher lang={lang} setLang={setLang} />
+          </div>
+        </div>
 
-        <div style={{ fontSize:32, fontWeight:900, lineHeight:1, marginTop:14, marginBottom:18 }}>
+        <div style={{ fontSize:32, fontWeight:900, lineHeight:1, marginTop:6, marginBottom:18 }}>
           Störung <span style={{ color:"#ffa500" }}>melden</span>
         </div>
 
@@ -1312,12 +1389,18 @@ function BreakdownScreen({ onBack, driverName, lang }) {
 
 function App() {
   const [stage, setStage] = useState("loading");
-  const [lang, setLang] = useState("DE");
+  const [lang, setLangRaw] = useState("DE");
+  const setLang = function(v){
+    setLangRaw(v);
+    try { localStorage.setItem("werkflow_lang", v); } catch(e){}
+  };
   const [savedName, setSavedName] = useState("");
   const [screen, setScreen] = useState("menu");
 
   useEffect(function(){
     try {
+      const savedLang = localStorage.getItem("werkflow_lang");
+      if (savedLang) setLangRaw(savedLang);
       const n = localStorage.getItem(APP_STORAGE_KEY);
       if (n) { setSavedName(n); setStage("slider"); }
       else setStage("register");
@@ -1335,33 +1418,34 @@ function App() {
   }
 
   if (stage === "pin_first") {
-    return <PinLogin onSuccess={function(){
+    return <PinLogin lang={lang} setLang={setLang} onSuccess={function(){
       try { localStorage.setItem(APP_STORAGE_KEY, savedName); } catch(e){}
       setStage("menu");
     }} />;
   }
 
   if (stage === "slider") {
-    return <SliderUnlock onUnlock={function(){ setStage("menu"); }} />;
+    return <SliderUnlock lang={lang} setLang={setLang}
+      onUnlock={function(){ setStage("menu"); }} />;
   }
 
   if (screen === "menu") {
-    return <MainMenu onPick={function(k){
+    return <MainMenu lang={lang} setLang={setLang} onPick={function(k){
       if (k === "lkw") setScreen("insp_lkw");
       else if (k === "auf") setScreen("insp_auf");
       else if (k === "bd") setScreen("breakdown");
     }} />;
   }
   if (screen === "insp_lkw") {
-    return <InspectionScreen kind="lkw" driverName={savedName}
+    return <InspectionScreen kind="lkw" driverName={savedName} lang={lang} setLang={setLang}
       onBack={function(){ setScreen("menu"); }} />;
   }
   if (screen === "insp_auf") {
-    return <InspectionScreen kind="auf" driverName={savedName}
+    return <InspectionScreen kind="auf" driverName={savedName} lang={lang} setLang={setLang}
       onBack={function(){ setScreen("menu"); }} />;
   }
   if (screen === "breakdown") {
-    return <BreakdownScreen lang={lang} driverName={savedName}
+    return <BreakdownScreen lang={lang} setLang={setLang} driverName={savedName}
       onBack={function(){ setScreen("menu"); }} />;
   }
   return null;
