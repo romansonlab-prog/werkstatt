@@ -1457,7 +1457,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
 
         <div style={{ marginTop:18 }}>
           <div className="label-cap">{(t.defects || "Mangel / Bemerkungen").toUpperCase()}</div>
-          <textarea className="textarea-dark" placeholder=t.defectsPh
+          <textarea className="textarea-dark" placeholder={t.defectsPh}
             value={notes} onChange={function(e){ setNotes(e.target.value); }} />
         </div>
 
@@ -1633,7 +1633,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
           <VehicleCombobox vehicles={vehicles} allowAll={true}
             value={vehSel} onChange={setVehSel}
             label=(t.selectTruck + " / " + t.selectTrailer + " *").toUpperCase()
-            placeholder=t.selectOrEnter />
+            placeholder={t.selectOrEnter} />
         </div>
 
         <div className="label-cap">{(t.breakdownType || "Art der Störung").toUpperCase() + " *"}</div>
@@ -1680,7 +1680,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
         </div>
 
         <div className="label-cap">{(t.description || "Beschreibung").toUpperCase() + " *"}</div>
-        <textarea className="textarea-dark" placeholder=t.descPh
+        <textarea className="textarea-dark" placeholder={t.descPh}
           value={desc} onChange={function(e){ setDesc(e.target.value); }}
           style={{ marginBottom:14 }} />
 
