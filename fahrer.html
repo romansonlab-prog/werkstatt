@@ -389,6 +389,293 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const APP_PIN = "5291";
 const APP_STORAGE_KEY = "werkflow_fahrer_v2";
 
+const T = {
+  de:{
+    title:"LTG Fahrer App", subtitle:"Hockenheim",
+    inspectTruck:"LKW Inspektion", inspectTrailer:"Auflieger Inspektion",
+    reportBreakdown:"Storung / Unfall", yourName:"Ihr Name", namePh:"Vor- und Nachname",
+    selectTruck:"LKW wahlen",
+    selectOrEnter:t.selectOrEnter, enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wahlen",
+    startInspection:"Inspektion starten", back:"Zuruck",
+    defects:"Mangel / Bemerkungen", defectsPh:t.defectsPh,
+    photo:"Fotos", submit:t.submit,
+    allChecked:"Alle Punkte gepruft", notAllChecked:"Nicht alle Punkte gepruft",
+    done:"Abgeschlossen!", saved:"Bericht gesendet", newInspection:"Neue Inspektion",
+    ok:"Fahrzeug OK", defectsFound:"Mangel festgestellt", okShort:"OK", notOkShort:"Nicht OK", checkedLabel:"geprüft", chooseAction:"Aktion wählen", continueBtn:"Weiter", fleetCheck:"FLOTTEN-CHECK", truckCode:"LKW", trailerCode:"ANH", sosCode:"SOS", translatedAuto:"Deutsch (auto)", statusDone:"Erledigt", statusInProgress:"In Bearbeitung", statusWaitingMechanic:"Gesendet — warte auf Mechaniker...",
+    translating:"Ubersetze...", points:"Punkte", translated:"Ubersetzt (DE)",
+    breakdownTitle:"Storung melden", breakdownType:"Art der Storung",
+    location:"Standort", locationPh:"Autobahn A6 km 520 / Hockenheim...",
+    description:"Beschreibung", descPh:t.descPh,
+    urgency:"Dringlichkeit", urgentYes:"SOFORTIGE HILFE", urgentNo:"KANN WARTEN",
+    send:"STORUNG MELDEN", sending:"Wird gesendet...", sent:"Gemeldet!",
+    sentDesc:"Werkstatt und Schef benachrichtigt", newReport:"Neue Meldung",
+    required:"Pflichtfeld", truck:"LKW", trailer:"Auflieger",
+    truckChecks:[
+      {k:"tires",   emoji:"TYR", label:"Reifen und Luftdruck"},
+      {k:"lights",  emoji:"LGT", label:"Beleuchtung"},
+      {k:"brakes",  emoji:"BRK", label:"Bremsen"},
+      {k:"mirrors", emoji:"VIS", label:"Spiegel und Scheiben"},
+      {k:"engine",  emoji:"ENG", label:"Motor / Ol / Wasser"},
+      {k:"fuel",    emoji:"FUEL", label:"Kraftstoff und AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Fahrzeugpapiere"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"TYR", label:"Reifen und Luftdruck"},
+      {k:"lights",   emoji:"LGT", label:"Beleuchtung und Blinker"},
+      {k:"body",     emoji:"BOX", label:"Karosserie / Plane"},
+      {k:"coupling", emoji:"CPL", label:"Kupplung und Sattel"},
+      {k:"doors",    emoji:"DR", label:"Turen und Verschlusse"},
+      {k:"floor",    emoji:"FLR", label:"Ladeboden"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Panne / Defekt"},
+      {k:"accident", emoji:"SOS",label:"Unfall"},
+      {k:"tire",     emoji:"TYR",label:"Reifenpanne"},
+      {k:"other",    emoji:"!",label:"Sonstiges"},
+    ],
+  },
+  ru:{
+    title:"LTG Приложение водителя", subtitle:"Хокенхайм",
+    inspectTruck:"Осмотр LKW", inspectTrailer:"Осмотр полуприцепа",
+    reportBreakdown:"Поломка / Авария", yourName:"Ваше имя", namePh:"Имя и фамилия",
+    selectTruck:"Выбрать LKW",
+    selectOrEnter:"Выбрать или ввести номер", enterCustom:"Ввести свой номер", platePh:"напр. MA-LT 441", plateLabel:"Номер машины", selectTrailer:"Выбрать полуприцеп",
+    startInspection:"Начать осмотр", back:"Назад",
+    defects:"Замечания", defectsPh:"Опишите неисправности...",
+    photo:"Фото", submit:"Завершить осмотр",
+    allChecked:"Все пункты проверены", notAllChecked:"Не все пункты проверены",
+    done:"Завершено!", saved:"Отчёт отправлен", newInspection:"Новый осмотр",
+    ok:"Техника в порядке", defectsFound:"Найдены замечания", okShort:"OK", notOkShort:"Не OK", checkedLabel:"проверено", chooseAction:"Выберите действие", continueBtn:"Далее", fleetCheck:"ПРОВЕРКА ПАРКА", truckCode:"ТЯГ", trailerCode:"П/П", sosCode:"SOS", translatedAuto:"Немецкий (авто)", statusDone:"Выполнено", statusInProgress:"В работе", statusWaitingMechanic:"Отправлено — ждём механика...",
+    translating:"Перевожу...", points:"пунктов", translated:"Переведено (DE)",
+    breakdownTitle:"Сообщить о поломке", breakdownType:"Тип проблемы",
+    location:"Местоположение", locationPh:"Автобан A6 км 520 / Хокенхайм...",
+    description:"Описание", descPh:"Что случилось?",
+    urgency:"Срочность", urgentYes:"НУЖНА ПОМОЩЬ", urgentNo:"МОЖЕТ ПОДОЖДАТЬ",
+    send:"СООБЩИТЬ О ПРОБЛЕМЕ", sending:"Отправляется...", sent:"Отправлено!",
+    sentDesc:"Механики и шеф уведомлены", newReport:"Новое сообщение",
+    required:"обязательное поле", truck:"LKW", trailer:"Полуприцеп",
+    truckChecks:[
+      {k:"tires",   emoji:"TYR", label:"Шины и давление"},
+      {k:"lights",  emoji:"LGT", label:"Освещение"},
+      {k:"brakes",  emoji:"BRK", label:"Тормоза"},
+      {k:"mirrors", emoji:"VIS", label:"Зеркала и стёкла"},
+      {k:"engine",  emoji:"ENG", label:"Двигатель / масло / вода"},
+      {k:"fuel",    emoji:"FUEL", label:"Топливо и AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Документы"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"TYR", label:"Шины и давление"},
+      {k:"lights",   emoji:"LGT", label:"Освещение и поворотники"},
+      {k:"body",     emoji:"BOX", label:"Кузов / тент"},
+      {k:"coupling", emoji:"CPL", label:"Сцепка / седло"},
+      {k:"doors",    emoji:"DR", label:"Двери и замки"},
+      {k:"floor",    emoji:"FLR", label:"Пол кузова"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Поломка / неисправность"},
+      {k:"accident", emoji:"SOS",label:"Авария"},
+      {k:"tire",     emoji:"TYR",label:"Прокол шины"},
+      {k:"other",    emoji:"!",label:"Другое"},
+    ],
+  },
+  en:{
+    title:"LTG Driver App", subtitle:"Hockenheim",
+    inspectTruck:"Truck Inspection", inspectTrailer:"Trailer Inspection",
+    reportBreakdown:"Report Issue", yourName:"Your name", namePh:"First and last name",
+    selectTruck:"Select truck",
+    selectOrEnter:"Select or enter vehicle", enterCustom:"Enter custom plate", platePh:"e.g. MA-LT 441", plateLabel:"Plate / Nr.", selectTrailer:"Select trailer",
+    startInspection:"Start inspection", back:"Back",
+    defects:"Defects / notes", defectsPh:"Describe defects found...",
+    photo:"Photos", submit:"Complete inspection",
+    allChecked:"All items checked", notAllChecked:"Not all items checked",
+    done:"Done!", saved:"Report sent", newInspection:"New inspection",
+    ok:"Vehicle OK", defectsFound:"Defects found", okShort:"OK", notOkShort:"Not OK", checkedLabel:"checked", chooseAction:"Choose action", continueBtn:"Continue", fleetCheck:"FLEET CHECK", truckCode:"TRK", trailerCode:"TRL", sosCode:"SOS", translatedAuto:"German (auto)", statusDone:"Done", statusInProgress:"In progress", statusWaitingMechanic:"Sent — waiting for mechanic...",
+    translating:"Translating...", points:"points", translated:"Translated (DE)",
+    breakdownTitle:"Report breakdown / accident", breakdownType:"Type of issue",
+    location:"Location", locationPh:"Motorway A6 km 520 / Hockenheim...",
+    description:"Description", descPh:"What happened?",
+    urgency:"Urgency", urgentYes:"IMMEDIATE HELP", urgentNo:"CAN WAIT",
+    send:"REPORT ISSUE", sending:"Sending...", sent:"Reported!",
+    sentDesc:"Workshop and Chef notified", newReport:"New report",
+    required:"required field", truck:"Truck", trailer:"Trailer",
+    truckChecks:[
+      {k:"tires",   emoji:"TYR", label:"Tires and pressure"},
+      {k:"lights",  emoji:"LGT", label:"Lights"},
+      {k:"brakes",  emoji:"BRK", label:"Brakes"},
+      {k:"mirrors", emoji:"VIS", label:"Mirrors and windows"},
+      {k:"engine",  emoji:"ENG", label:"Engine / oil / water"},
+      {k:"fuel",    emoji:"FUEL", label:"Fuel and AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Documents"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"TYR", label:"Tires and pressure"},
+      {k:"lights",   emoji:"LGT", label:"Lights and indicators"},
+      {k:"body",     emoji:"BOX", label:"Body / tarpaulin"},
+      {k:"coupling", emoji:"CPL", label:"Coupling and saddle"},
+      {k:"doors",    emoji:"DR", label:"Doors and locks"},
+      {k:"floor",    emoji:"FLR", label:"Load floor"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Breakdown / defect"},
+      {k:"accident", emoji:"SOS",label:"Accident"},
+      {k:"tire",     emoji:"TYR",label:"Flat tire"},
+      {k:"other",    emoji:"!",label:"Other"},
+    ],
+  },
+  uk:{
+    title:"LTG Додаток водія", subtitle:"Хокенхайм",
+    inspectTruck:"Огляд вантажівки", inspectTrailer:"Огляд напівпричепа",
+    reportBreakdown:"Поломка / Аварія", yourName:"Ваше ім'я", namePh:"Ім'я та прізвище",
+    selectTruck:"Обрати вантажівку",
+    selectOrEnter:"Обрати або ввести номер", enterCustom:"Ввести свій номер", platePh:"напр. MA-LT 441", plateLabel:"Номер машини", selectTrailer:"Обрати напівпричіп",
+    startInspection:"Почати огляд", back:"Назад",
+    defects:"Зауваження", defectsPh:"Опишіть несправності...",
+    photo:"Фото", submit:"Завершити огляд",
+    allChecked:"Всі пункти перевірено", notAllChecked:"Не всі пункти перевірено",
+    done:"Завершено!", saved:"Звіт надіслано", newInspection:"Новий огляд",
+    ok:"Техніка в порядку", defectsFound:"Знайдено зауваження", okShort:"OK", notOkShort:"Не OK", checkedLabel:"перевірено", chooseAction:"Оберіть дію", continueBtn:"Далі", fleetCheck:"ПЕРЕВІРКА ПАРКУ", truckCode:"ВАН", trailerCode:"НПП", sosCode:"SOS", translatedAuto:"Німецька (авто)", statusDone:"Виконано", statusInProgress:"В роботі", statusWaitingMechanic:"Надіслано — чекаємо механіка...",
+    translating:"Перекладаю...", points:"пунктів", translated:"Перекладено (DE)",
+    breakdownTitle:"Повідомити про поломку", breakdownType:"Тип проблеми",
+    location:"Місцезнаходження", locationPh:"Автобан A6 км 520...",
+    description:"Опис", descPh:"Що сталося?",
+    urgency:"Терміновість", urgentYes:"ПОТРІБНА ДОПОМОГА", urgentNo:"МОЖЕ ЗАЧЕКАТИ",
+    send:"ПОВІДОМИТИ", sending:"Надсилається...", sent:"Надіслано!",
+    sentDesc:"Механіки та шеф повідомлені", newReport:"Нове повідомлення",
+    required:"обов'язкове поле", truck:"Вантажівка", trailer:"Напівпричіп",
+    truckChecks:[
+      {k:"tires",   emoji:"TYR", label:"Шини та тиск"},
+      {k:"lights",  emoji:"LGT", label:"Освітлення"},
+      {k:"brakes",  emoji:"BRK", label:"Гальма"},
+      {k:"mirrors", emoji:"VIS", label:"Дзеркала та скло"},
+      {k:"engine",  emoji:"ENG", label:"Двигун / масло / вода"},
+      {k:"fuel",    emoji:"FUEL", label:"Пальне та AdBlue"},
+      {k:"docs",    emoji:"DOC", label:"Документи"},
+    ],
+    trailerChecks:[
+      {k:"tires",    emoji:"TYR", label:"Шини та тиск"},
+      {k:"lights",   emoji:"LGT", label:"Освітлення та поворотники"},
+      {k:"body",     emoji:"BOX", label:"Кузов / тент"},
+      {k:"coupling", emoji:"CPL", label:"Зчіпка / сідло"},
+      {k:"doors",    emoji:"DR", label:"Двері та замки"},
+      {k:"floor",    emoji:"FLR", label:"Підлога кузова"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Поломка / несправність"},
+      {k:"accident", emoji:"SOS",label:"Аварія"},
+      {k:"tire",     emoji:"TYR",label:"Прокол шини"},
+      {k:"other",    emoji:"!",label:"Інше"},
+    ],
+  },
+  ro:{
+    title:"LTG App Sofer", subtitle:"Hockenheim",
+    inspectTruck:"Inspectie Camion", inspectTrailer:"Inspectie Semiremorca",
+    reportBreakdown:"Raporteaza Problema", yourName:"Numele dvs", namePh:"Prenume Nume",
+    selectTruck:"Selectati camionul",
+    selectOrEnter:"Selectati sau introduceti", enterCustom:"Introduceti numarul", platePh:"ex. MA-LT 441", plateLabel:"Numar / Nr.", selectTrailer:"Selectati semiremorca",
+    startInspection:"Incepe inspectia", back:"Inapoi",
+    defects:"Defecte", defectsPh:"Descrieti defectele...",
+    photo:"Poze", submit:"Finalizeaza inspectia",
+    allChecked:"Toate verificate", notAllChecked:"Nu toate verificate",
+    done:"Gata!", saved:"Raport trimis", newInspection:"Inspectie noua",
+    ok:"Vehicul OK", defectsFound:"Defecte gasite", okShort:"OK", notOkShort:"Nu OK", checkedLabel:"verificat", chooseAction:"Alegeți acțiunea", continueBtn:"Continuă", fleetCheck:"VERIFICARE FLOTĂ", truckCode:"CAM", trailerCode:"REM", sosCode:"SOS", translatedAuto:"Germană (auto)", statusDone:"Finalizat", statusInProgress:"În lucru", statusWaitingMechanic:"Trimis — așteaptă mecanicul...",
+    translating:"Traducere...", points:"puncte", translated:"Tradus (DE)",
+    breakdownTitle:"Raporteaza problema", breakdownType:"Tipul problemei",
+    location:"Locatie", locationPh:"Autostrada A6 km 520...",
+    description:"Descriere", descPh:"Ce s-a intamplat?",
+    urgency:"Urgenta", urgentYes:"AJUTOR IMEDIAT", urgentNo:"POATE ASTEPTA",
+    send:"RAPORTEAZA", sending:"Se trimite...", sent:"Trimis!",
+    sentDesc:"Atelierul si Seful notificati", newReport:"Raport nou",
+    required:"obligatoriu", truck:"Camion", trailer:"Semiremorca",
+    truckChecks:[
+      {k:"tires",emoji:"TYR",label:"Anvelope"},{k:"lights",emoji:"LGT",label:"Iluminat"},
+      {k:"brakes",emoji:"BRK",label:"Frane"},{k:"mirrors",emoji:"VIS",label:"Oglinzi"},
+      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Combustibil"},
+      {k:"docs",emoji:"DOC",label:"Documente"},
+    ],
+    trailerChecks:[
+      {k:"tires",emoji:"TYR",label:"Anvelope"},{k:"lights",emoji:"LGT",label:"Iluminat"},
+      {k:"body",emoji:"BOX",label:"Caroserie"},{k:"coupling",emoji:"CPL",label:"Cuplaj"},
+      {k:"doors",emoji:"DR",label:"Usi"},{k:"floor",emoji:"FLR",label:"Podea"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Pana"},{k:"accident",emoji:"SOS",label:"Accident"},
+      {k:"tire",emoji:"TYR",label:"Cauciuc"},{k:"other",emoji:"!",label:"Altele"},
+    ],
+  },
+  hu:{
+    title:"LTG Sofor App", subtitle:"Hockenheim",
+    inspectTruck:"Teherauto Ellenorzes", inspectTrailer:"Potkocsi Ellenorzes",
+    reportBreakdown:"Problema Bejelentese", yourName:"Az On neve", namePh:"Nev",
+    selectTruck:"Teherauto valasztasa",
+    selectOrEnter:"Valasszon vagy irjon be", enterCustom:"Sajat rendszam", platePh:"pl. MA-LT 441", plateLabel:"Rendszam", selectTrailer:"Potkocsi valasztasa",
+    startInspection:"Ellenorzes kezdese", back:"Vissza",
+    defects:"Hibak", defectsPh:"Irja le a hibakat...",
+    photo:"Kepek", submit:"Ellenorzes befejezese",
+    allChecked:"Minden pont ellenorizve", notAllChecked:"Nem minden pont OK",
+    done:"Kesz!", saved:"Jelentes elkuldve", newInspection:"Uj ellenorzes",
+    ok:"Jarmu rendben", defectsFound:"Hibak talalhatok", okShort:"OK", notOkShort:"Nem OK", checkedLabel:"ellenőrizve", chooseAction:"Művelet választása", continueBtn:"Tovább", fleetCheck:"FLOTTA ELLENŐRZÉS", truckCode:"TGK", trailerCode:"PÓT", sosCode:"SOS", translatedAuto:"Német (auto)", statusDone:"Kész", statusInProgress:"Folyamatban", statusWaitingMechanic:"Elküldve — várakozás szerelőre...",
+    translating:"Forditas...", points:"pont", translated:"Lefordítva (DE)",
+    breakdownTitle:"Meghibasodas bejelentese", breakdownType:"Tipus",
+    location:"Helyszin", locationPh:"A6 autopalya km 520...",
+    description:"Leiras", descPh:"Mi tortent?",
+    urgency:"Surgosseg", urgentYes:"AZONNALI SEGITSEG", urgentNo:"VARHAT",
+    send:"BEJELENTES", sending:"Kuldes...", sent:"Elkuldve!",
+    sentDesc:"Muhely es Fonok ertesitve", newReport:"Uj jelentes",
+    required:"kotelezo", truck:"Teherauto", trailer:"Potkocsi",
+    truckChecks:[
+      {k:"tires",emoji:"TYR",label:"Gumik"},{k:"lights",emoji:"LGT",label:"Vilagitas"},
+      {k:"brakes",emoji:"BRK",label:"Fekek"},{k:"mirrors",emoji:"VIS",label:"Tukrok"},
+      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Uzemanyag"},
+      {k:"docs",emoji:"DOC",label:"Okmanyok"},
+    ],
+    trailerChecks:[
+      {k:"tires",emoji:"TYR",label:"Gumik"},{k:"lights",emoji:"LGT",label:"Vilagitas"},
+      {k:"body",emoji:"BOX",label:"Karosszeria"},{k:"coupling",emoji:"CPL",label:"Kapcsolo"},
+      {k:"doors",emoji:"DR",label:"Ajtok"},{k:"floor",emoji:"FLR",label:"Padlo"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Meghibasodas"},{k:"accident",emoji:"SOS",label:"Baleset"},
+      {k:"tire",emoji:"TYR",label:"Defekt"},{k:"other",emoji:"!",label:"Egyeb"},
+    ],
+  },
+  cs:{
+    title:"LTG Aplikace Ridice", subtitle:"Hockenheim",
+    inspectTruck:"Kontrola Nakladaku", inspectTrailer:"Kontrola Privese",
+    reportBreakdown:"Nahlasit Problem", yourName:"Vase jmeno", namePh:"Jmeno a prijmeni",
+    selectTruck:"Vyberte nakladak",
+    selectOrEnter:"Vyberte nebo zadejte", enterCustom:"Vlastni SPZ", platePh:"napr. MA-LT 441", plateLabel:"SPZ / Nr.", selectTrailer:"Vyberte prives",
+    startInspection:"Zahajit kontrolu", back:"Zpet",
+    defects:"Zavady", defectsPh:"Popiste zavady...",
+    photo:"Fotky", submit:"Dokoncit kontrolu",
+    allChecked:"Vse zkontrolovano", notAllChecked:"Ne vse zkontrolovano",
+    done:"Hotovo!", saved:"Zprava odeslana", newInspection:"Nova kontrola",
+    ok:"Vozidlo v poradku", defectsFound:"Nalezeny zavady", okShort:"OK", notOkShort:"Není OK", checkedLabel:"zkontrolováno", chooseAction:"Vyberte akci", continueBtn:"Pokračovat", fleetCheck:"KONTROLA FLOTILY", truckCode:"NAK", trailerCode:"PŘÍ", sosCode:"SOS", translatedAuto:"Němčina (auto)", statusDone:"Hotovo", statusInProgress:"Probíhá", statusWaitingMechanic:"Odesláno — čeká se na mechanika...",
+    translating:"Prelozuji...", points:"bodů", translated:"Prelozeno (DE)",
+    breakdownTitle:"Nahlasit poruchu", breakdownType:"Typ problemu",
+    location:"Poloha", locationPh:"Dalnice A6 km 520...",
+    description:"Popis", descPh:"Co se stalo?",
+    urgency:"Nalehavost", urgentYes:"NUTNA POMOC", urgentNo:"MUZE POCKAT",
+    send:"NAHLASIT", sending:"Odesilani...", sent:"Odeslano!",
+    sentDesc:"Dilna a Sef informovani", newReport:"Nova zprava",
+    required:"povinne", truck:"Nakladak", trailer:"Prives",
+    truckChecks:[
+      {k:"tires",emoji:"TYR",label:"Pneumatiky"},{k:"lights",emoji:"LGT",label:"Osvetleni"},
+      {k:"brakes",emoji:"BRK",label:"Brzdy"},{k:"mirrors",emoji:"VIS",label:"Zrcatka"},
+      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Palivo"},
+      {k:"docs",emoji:"DOC",label:"Doklady"},
+    ],
+    trailerChecks:[
+      {k:"tires",emoji:"TYR",label:"Pneumatiky"},{k:"lights",emoji:"LGT",label:"Osvetleni"},
+      {k:"body",emoji:"BOX",label:"Karoserie"},{k:"coupling",emoji:"CPL",label:"Spojka"},
+      {k:"doors",emoji:"DR",label:"Dvere"},{k:"floor",emoji:"FLR",label:"Podlaha"},
+    ],
+    types:[
+      {k:"breakdown",emoji:"DEF",label:"Porucha"},{k:"accident",emoji:"SOS",label:"Nehoda"},
+      {k:"tire",emoji:"TYR",label:"Defekt"},{k:"other",emoji:"!",label:"Jine"},
+    ],
+  },
+};;
+
 const TRUCKS = [
   { id:"malt441", plate:"MA-LT 441", brand:"MAN TGX 2019"         },
   { id:"hdlg221", plate:"HD-LG 221", brand:"Mercedes Actros 2018" },
@@ -402,6 +689,17 @@ const TRAILERS = [
   { id:"mata445", plate:"MA-TA 445", brand:"Kogel Cargo"       },
   { id:"mata213", plate:"MA-TA 213", brand:"Fliegl SDS"        },
 ];
+
+
+function langKey(L) {
+  // UI uses uppercase codes, T uses lowercase
+  var map = { "DE":"de", "RU":"ru", "GB":"en", "UA":"uk", "RO":"ro", "HU":"hu", "CZ":"cs" };
+  return map[L] || "de";
+}
+
+function getT(lang) {
+  return T[langKey(lang)] || T.de;
+}
 
 const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
 
@@ -559,6 +857,7 @@ function PrimaryBtn({ children, onClick, disabled, style }) {
 function ErsteAnmeldung({ lang, setLang, onContinue }) {
   const [vorname, setVorname] = useState("");
   const [nachname, setNachname] = useState("");
+  const t = getT(lang);
   const ok = vorname.trim() && nachname.trim();
 
   return (
@@ -626,7 +925,7 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
               border:"none", borderRadius:12, fontSize:17, fontWeight:700,
               opacity: ok ? 1 : 0.5,
               display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
-            Weiter <span style={{ fontSize:20 }}>→</span>
+            {t.continueBtn} <span style={{ fontSize:20 }}>→</span>
           </button>
         </div>
       </div>
@@ -639,6 +938,7 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
 function PinLogin({ onSuccess, lang, setLang }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const t = getT(lang);
 
   const press = function(d) {
     if (pin.length >= 4) return;
@@ -668,7 +968,7 @@ function PinLogin({ onSuccess, lang, setLang }) {
           <FahrerLabel size={32} />
           <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.6)",
             letterSpacing:3, marginTop:8 }}>
-            PIN EINGEBEN
+            {t.pinLabel || "PIN EINGEBEN"}
           </div>
         </div>
 
@@ -703,7 +1003,7 @@ function PinLogin({ onSuccess, lang, setLang }) {
             opacity: pin.length === 4 ? 1 : 0.5,
             display:"flex", alignItems:"center", justifyContent:"center", gap:10,
             marginBottom:20 }}>
-          Anmelden <span style={{ fontSize:20 }}>→</span>
+          {t.loginBtn || "Anmelden"} <span style={{ fontSize:20 }}>→</span>
         </button>
       </div>
     </div>
@@ -715,6 +1015,7 @@ function PinLogin({ onSuccess, lang, setLang }) {
 function SliderUnlock({ onUnlock, lang, setLang }) {
   const [x, setX] = useState(0);
   const [drag, setDrag] = useState(false);
+  const t = getT(lang);
   const trackRef = useRef(null);
   const MAX_REF = useRef(0);
 
@@ -785,6 +1086,7 @@ function SliderUnlock({ onUnlock, lang, setLang }) {
 
 function MainMenu({ onPick, lang, setLang }) {
   const [active, setActive] = useState(null);
+  const t = getT(lang);
   const pick = function(k){ setActive(k); setTimeout(function(){ onPick(k); }, 150); };
 
   return (
@@ -808,8 +1110,8 @@ function MainMenu({ onPick, lang, setLang }) {
               </svg>
             </div>
             <div style={{ flex:1, textAlign:"left" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>LKW Inspektion</div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>7 Punkte</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{t.inspectTruck}</div>
+              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>{"7 " + (t.points || "Punkte")}</div>
             </div>
             <span style={{ color: active === "lkw" ? "#ffa500" : "rgba(255,255,255,0.45)", fontSize:22 }}>›</span>
           </button>
@@ -824,8 +1126,8 @@ function MainMenu({ onPick, lang, setLang }) {
               </svg>
             </div>
             <div style={{ flex:1, textAlign:"left" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Auflieger Inspektion</div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>6 Punkte</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{t.inspectTrailer}</div>
+              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>{"6 " + (t.points || "Punkte")}</div>
             </div>
             <span style={{ color: active === "auf" ? "#ffa500" : "rgba(255,255,255,0.45)", fontSize:22 }}>›</span>
           </button>
@@ -839,8 +1141,8 @@ function MainMenu({ onPick, lang, setLang }) {
               </svg>
             </div>
             <div style={{ flex:1, textAlign:"left" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Störung / Unfall</div>
-              <div style={{ fontSize:13, color:"#ff8b80" }}>Störung melden</div>
+              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{t.reportBreakdown}</div>
+              <div style={{ fontSize:13, color:"#ff8b80" }}>{t.breakdownTitle}</div>
             </div>
             <span style={{ color: active === "bd" ? "#ff3b30" : "rgba(255,140,140,0.55)", fontSize:22 }}>›</span>
           </button>
@@ -1012,7 +1314,7 @@ function PhotoUpload({ photos, setPhotos }) {
         <div className="photo-box">
           <div style={{ fontSize:24, color:"#ffa500" }}>📷</div>
           <div style={{ marginTop:6 }}>
-            Fotos hinzufügen{photos.length > 0 ? " (" + photos.length + ")" : ""}
+            {t.photo + " hinzufügen"}{photos.length > 0 ? " (" + photos.length + ")" : ""}
           </div>
         </div>
       </button>
@@ -1035,6 +1337,7 @@ function PhotoUpload({ photos, setPhotos }) {
 function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
   const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
   const vehicleType = kind === "lkw" ? "truck" : "trailer";
+  const t = getT(lang);
   const seedFleet = kind === "lkw" ? TRUCKS : TRAILERS;
   const [vehicles, setVehicles] = useState(seedFleet.map(function(v){
     return { id: v.id, plate: v.plate, brand: v.brand, type: vehicleType };
@@ -1153,8 +1456,8 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
         })}
 
         <div style={{ marginTop:18 }}>
-          <div className="label-cap">MANGEL / BEMERKUNGEN</div>
-          <textarea className="textarea-dark" placeholder="Festgestellte Mangel beschreiben..."
+          <div className="label-cap">{(t.defects || "Mangel / Bemerkungen").toUpperCase()}</div>
+          <textarea className="textarea-dark" placeholder=t.defectsPh
             value={notes} onChange={function(e){ setNotes(e.target.value); }} />
         </div>
 
@@ -1172,7 +1475,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
 
       <div className="fixed-bottom-bar">
         <PrimaryBtn onClick={submit} disabled={!allDone || !vehSel || !vehSel.plate || sending}>
-          {sending ? "Senden..." : "Inspektion abschliessen"}
+          {sending ? t.sending : t.submit}
         </PrimaryBtn>
       </div>
     </div>
@@ -1182,6 +1485,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
 // === SCREEN: Breakdown ===
 
 function BreakdownScreen({ onBack, driverName, lang, setLang }) {
+  const t = getT(lang);
   const seedFleet = TRUCKS.map(function(v){ return Object.assign({}, v, { type:"truck" }); })
     .concat(TRAILERS.map(function(v){ return Object.assign({}, v, { type:"trailer" }); }));
   const [vehicles, setVehicles] = useState(seedFleet);
@@ -1298,11 +1602,11 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
           <div style={{ width:90, height:90, borderRadius:"50%",
             background:"rgba(34,197,94,0.18)", border:"2px solid #22c55e",
             display:"flex", alignItems:"center", justifyContent:"center", fontSize:42, marginBottom:20 }}>✓</div>
-          <div style={{ fontSize:24, fontWeight:800, marginBottom:8 }}>Gesendet!</div>
+          <div style={{ fontSize:24, fontWeight:800, marginBottom:8 }}>{t.sent}</div>
           <div style={{ color:"rgba(255,255,255,0.7)", marginBottom:30 }}>
-            Werkstatt und Chef benachrichtigt
+            {t.sentDesc}
           </div>
-          <PrimaryBtn onClick={onBack} style={{ maxWidth:280 }}>Zurück zum Menü</PrimaryBtn>
+          <PrimaryBtn onClick={onBack} style={{ maxWidth:280 }}>{t.newReport || "Zurück zum Menü"}</PrimaryBtn>
         </div>
       </div>
     );
@@ -1328,11 +1632,11 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
         <div style={{ marginBottom:18 }}>
           <VehicleCombobox vehicles={vehicles} allowAll={true}
             value={vehSel} onChange={setVehSel}
-            label="LKW WÄHLEN / AUFLIEGER WÄHLEN *"
-            placeholder="Fahrzeug wählen oder eingeben" />
+            label=(t.selectTruck + " / " + t.selectTrailer + " *").toUpperCase()
+            placeholder=t.selectOrEnter />
         </div>
 
-        <div className="label-cap">ART DER STÖRUNG *</div>
+        <div className="label-cap">{(t.breakdownType || "Art der Störung").toUpperCase() + " *"}</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
           {BD_TYPES.map(function(t){
             return (
@@ -1346,23 +1650,23 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
           })}
         </div>
 
-        <div className="label-cap">DRINGLICHKEIT *</div>
+        <div className="label-cap">{(t.urgency || "Dringlichkeit").toUpperCase() + " *"}</div>
         <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
           <div onClick={function(){ setUrg("sofort"); }}
             className={"urg-row" + (urg === "sofort" ? " active-red" : "")}
             style={{ cursor:"pointer" }}>
             <div className="urg-dot" style={{ background:"#ff3b30" }}></div>
-            <span>SOFORTIGE HILFE</span>
+            <span>{t.urgentYes}</span>
           </div>
           <div onClick={function(){ setUrg("warten"); }}
             className={"urg-row" + (urg === "warten" ? " active-orange" : "")}
             style={{ cursor:"pointer" }}>
             <div className="urg-dot" style={{ background:"#ffa500" }}></div>
-            <span>KANN WARTEN</span>
+            <span>{t.urgentNo}</span>
           </div>
         </div>
 
-        <div className="label-cap">STANDORT *</div>
+        <div className="label-cap">{(t.location || "Standort").toUpperCase() + " *"}</div>
         <div style={{ display:"flex", gap:10, marginBottom:18 }}>
           <div style={{ position:"relative", flex:1 }}>
             <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
@@ -1375,21 +1679,21 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
           </button>
         </div>
 
-        <div className="label-cap">BESCHREIBUNG *</div>
-        <textarea className="textarea-dark" placeholder="Was ist passiert?"
+        <div className="label-cap">{(t.description || "Beschreibung").toUpperCase() + " *"}</div>
+        <textarea className="textarea-dark" placeholder=t.descPh
           value={desc} onChange={function(e){ setDesc(e.target.value); }}
           style={{ marginBottom:14 }} />
 
         <PhotoUpload photos={photos} setPhotos={setPhotos} />
 
         <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:13, marginTop:14, marginBottom:14 }}>
-          * Pflichtfeld
+          "* " + (t.required || "Pflichtfeld")
         </div>
       </div>
 
       <div className="fixed-bottom-bar">
         <PrimaryBtn onClick={submit} disabled={!ok || sending}>
-          {sending ? "Senden..." : "STÖRUNG MELDEN"}
+          {sending ? t.sending : t.send}
         </PrimaryBtn>
       </div>
     </div>
