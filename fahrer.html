@@ -1632,7 +1632,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
         <div style={{ marginBottom:18 }}>
           <VehicleCombobox vehicles={vehicles} allowAll={true}
             value={vehSel} onChange={setVehSel}
-            label=(t.selectTruck + " / " + t.selectTrailer + " *").toUpperCase()
+            label={(t.selectTruck + " / " + t.selectTrailer + " *").toUpperCase()}
             placeholder={t.selectOrEnter} />
         </div>
 
