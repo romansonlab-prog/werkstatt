@@ -21,6 +21,7 @@
     /* Background — same on all screens, exact image */
     .bg-image {
       position:fixed; inset:0; z-index:0;
+      background-color: #0a1730;
       background-image:
         linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%),
         url("./bg-truck.png");
@@ -395,17 +396,17 @@ const T = {
     inspectTruck:"LKW Inspektion", inspectTrailer:"Auflieger Inspektion",
     reportBreakdown:"Storung / Unfall", yourName:"Ihr Name", namePh:"Vor- und Nachname",
     selectTruck:"LKW wahlen",
-    selectOrEnter:t.selectOrEnter, enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wahlen",
+    selectOrEnter:"Fahrzeug wählen oder eingeben", enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wahlen",
     startInspection:"Inspektion starten", back:"Zuruck",
-    defects:"Mangel / Bemerkungen", defectsPh:t.defectsPh,
-    photo:"Fotos", submit:t.submit,
+    defects:"Mangel / Bemerkungen", defectsPh:"Festgestellte Mangel beschreiben...",
+    photo:"Fotos", submit:"Inspektion abschliessen",
     allChecked:"Alle Punkte gepruft", notAllChecked:"Nicht alle Punkte gepruft",
     done:"Abgeschlossen!", saved:"Bericht gesendet", newInspection:"Neue Inspektion",
     ok:"Fahrzeug OK", defectsFound:"Mangel festgestellt", okShort:"OK", notOkShort:"Nicht OK", checkedLabel:"geprüft", chooseAction:"Aktion wählen", continueBtn:"Weiter", fleetCheck:"FLOTTEN-CHECK", truckCode:"LKW", trailerCode:"ANH", sosCode:"SOS", translatedAuto:"Deutsch (auto)", statusDone:"Erledigt", statusInProgress:"In Bearbeitung", statusWaitingMechanic:"Gesendet — warte auf Mechaniker...",
     translating:"Ubersetze...", points:"Punkte", translated:"Ubersetzt (DE)",
     breakdownTitle:"Storung melden", breakdownType:"Art der Storung",
     location:"Standort", locationPh:"Autobahn A6 km 520 / Hockenheim...",
-    description:"Beschreibung", descPh:t.descPh,
+    description:"Beschreibung", descPh:"Was ist passiert?",
     urgency:"Dringlichkeit", urgentYes:"SOFORTIGE HILFE", urgentNo:"KANN WARTEN",
     send:"STORUNG MELDEN", sending:"Wird gesendet...", sent:"Gemeldet!",
     sentDesc:"Werkstatt und Schef benachrichtigt", newReport:"Neue Meldung",
@@ -1295,7 +1296,8 @@ async function ensureVehicleInDb(plate, brand, vehicleType) {
 
 // === Photo Upload (CAMERA) ===
 
-function PhotoUpload({ photos, setPhotos }) {
+function PhotoUpload({ photos, setPhotos, t }) {
+  if (!t) t = { photo: "Fotos" };
   const fileRef = useRef(null);
   const handle = function(e){
     const files = Array.from(e.target.files || []);
@@ -1462,7 +1464,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
         </div>
 
         <div style={{ marginTop:14 }}>
-          <PhotoUpload photos={photos} setPhotos={setPhotos} />
+          <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
         </div>
 
         <div className={"progress-box" + (hasFault ? " warn" : "")} style={{ marginTop:14 }}>
@@ -1684,7 +1686,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
           value={desc} onChange={function(e){ setDesc(e.target.value); }}
           style={{ marginBottom:14 }} />
 
-        <PhotoUpload photos={photos} setPhotos={setPhotos} />
+        <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
 
         <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:13, marginTop:14, marginBottom:14 }}>
           "* " + (t.required || "Pflichtfeld")
