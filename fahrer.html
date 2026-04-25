@@ -14,45 +14,31 @@
       background:#0a1730;
       color:#fff;
       font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height:100vh;
-      min-height:100dvh;
+      min-height:100vh; min-height:100dvh;
     }
     #root { min-height:100vh; min-height:100dvh; }
-    .app-bg {
-      position:fixed; inset:0; z-index:0;
-      background:
-        linear-gradient(180deg, rgba(10,23,48,0.55) 0%, rgba(10,23,48,0.85) 60%, rgba(10,23,48,0.95) 100%),
-        radial-gradient(ellipse at 50% 30%, #1e3a6b 0%, #0a1730 70%);
-      pointer-events:none;
-    }
-    .truck-bg {
+
+    /* Background — same on all screens, exact image */
+    .bg-image {
       position:fixed; inset:0; z-index:0;
       background-image:
-        linear-gradient(180deg, rgba(10,23,48,0.4) 0%, rgba(10,23,48,0.85) 70%, #0a1730 100%),
-        url("https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=900&q=70");
-      background-size:cover; background-position:center top;
+        linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%),
+        url("./bg-truck.png");
+      background-size:cover;
+      background-position:center center;
+      background-repeat:no-repeat;
       pointer-events:none;
     }
+
     .scrn { position:relative; z-index:2; min-height:100vh; min-height:100dvh;
-      padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom); display:flex; flex-direction:column; }
-    .glass {
-      background:rgba(255,255,255,0.04);
-      border:1px solid rgba(255,255,255,0.10);
-      backdrop-filter:blur(12px);
-      -webkit-backdrop-filter:blur(12px);
-      border-radius:16px;
-    }
-    .glass-strong {
-      background:rgba(20,40,80,0.55);
-      border:1px solid rgba(255,255,255,0.10);
-      backdrop-filter:blur(14px);
-      -webkit-backdrop-filter:blur(14px);
-      border-radius:16px;
-    }
+      padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+      display:flex; flex-direction:column; }
+
     button { font:inherit; color:inherit; cursor:pointer; }
     input, textarea, select { font:inherit; }
     textarea { resize:none; }
     ::placeholder { color:rgba(255,255,255,0.45); }
+
     .btn-primary {
       background:linear-gradient(180deg, #ffa500 0%, #ff8c00 100%);
       color:#0a1730; border:none; border-radius:12px;
@@ -60,6 +46,7 @@
       box-shadow:0 8px 24px rgba(255,165,0,0.35);
     }
     .btn-primary:active { transform:translateY(1px); }
+
     .btn-back {
       width:48px; height:48px; border-radius:12px;
       background:rgba(255,255,255,0.06);
@@ -67,6 +54,7 @@
       display:flex; align-items:center; justify-content:center;
       color:#ffa500;
     }
+
     .lang-pill {
       padding:10px 0; min-width:54px; text-align:center;
       border:1px solid rgba(255,255,255,0.18);
@@ -74,21 +62,24 @@
       font-weight:700; font-size:13px; letter-spacing:0.4px;
       background:rgba(255,255,255,0.04);
       color:rgba(255,255,255,0.85);
+      flex-shrink:0;
     }
     .lang-pill.active {
       background:#ffa500; border-color:#ffa500; color:#0a1730;
       box-shadow:0 6px 18px rgba(255,165,0,0.4);
     }
+
     .input-light {
       width:100%; padding:14px 14px 14px 44px;
       background:#fff; color:#0a1730;
       border:1px solid #e5e7eb; border-radius:12px;
       font-size:16px; outline:none;
     }
-    .field-icon {
+    .field-icon-light {
       position:absolute; left:14px; top:50%; transform:translateY(-50%);
       color:#9aa3b2; font-size:18px;
     }
+
     .keypad-btn {
       width:78px; height:78px; border-radius:50%;
       background:transparent;
@@ -97,9 +88,12 @@
       display:flex; align-items:center; justify-content:center;
     }
     .keypad-btn:active { background:rgba(255,255,255,0.10); }
+
     .pin-dot { width:14px; height:14px; border-radius:50%;
-      background:rgba(255,255,255,0.20); }
+      background:rgba(255,255,255,0.20); transition:background 0.15s; }
     .pin-dot.filled { background:#ffa500; box-shadow:0 0 12px rgba(255,165,0,0.6); }
+    .pin-dot.error { background:#ff3b30; }
+
     .slider-track {
       position:relative; height:78px; border-radius:18px;
       background:rgba(0,0,0,0.45);
@@ -120,14 +114,16 @@
       align-items:center; justify-content:space-around; padding:0 90px 0 80px;
       pointer-events:none; }
     .slider-mark { width:2px; height:24px; background:rgba(255,255,255,0.2); border-radius:2px; }
+
     .menu-card {
       display:flex; align-items:center; gap:14px;
       padding:18px;
       border:1px solid rgba(255,255,255,0.10);
       border-radius:18px;
-      background:rgba(20,40,80,0.45);
+      background:rgba(20,40,80,0.55);
       backdrop-filter:blur(12px);
       -webkit-backdrop-filter:blur(12px);
+      width:100%;
     }
     .menu-card.active {
       border-color:#ffa500;
@@ -135,7 +131,7 @@
     }
     .menu-card.danger {
       border-color:rgba(255,59,48,0.55);
-      background:rgba(60,20,30,0.45);
+      background:rgba(60,20,30,0.55);
     }
     .menu-card.danger.active {
       box-shadow:0 0 0 1px #ff3b30, 0 8px 28px rgba(255,59,48,0.25);
@@ -144,30 +140,47 @@
       width:54px; height:54px; border-radius:14px;
       background:rgba(255,165,0,0.10);
       display:flex; align-items:center; justify-content:center;
-      color:#ffa500; font-size:24px;
+      color:#ffa500; flex-shrink:0;
     }
     .menu-card.danger .menu-icon {
       background:rgba(255,59,48,0.10); color:#ff3b30;
     }
+
+    /* INSPECTION ROW — fixed columns, never breaks */
     .insp-row {
-      display:grid; grid-template-columns:60px 1fr 90px 90px;
-      gap:10px; align-items:center;
-      padding:10px; border-radius:12px;
-      background:rgba(255,255,255,0.03);
-      border:1px solid rgba(255,255,255,0.06);
+      display:flex; align-items:center;
+      gap:8px;
+      padding:10px;
+      border-radius:12px;
+      background:rgba(20,40,80,0.50);
+      border:1px solid rgba(255,255,255,0.08);
       margin-bottom:8px;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
     }
     .insp-tag {
+      width:50px;
+      flex-shrink:0;
       background:#ffa500; color:#0a1730;
       font-weight:800; font-size:11px;
-      padding:6px 0; text-align:center; border-radius:8px;
+      padding:7px 0; text-align:center; border-radius:8px;
       letter-spacing:0.5px;
     }
+    .insp-label {
+      flex:1; min-width:0;
+      font-size:13px; font-weight:600;
+      line-height:1.2;
+      color:#fff;
+    }
     .insp-btn {
-      padding:10px; border-radius:10px;
-      border:1px solid rgba(255,255,255,0.15);
-      background:transparent; color:#fff;
+      width:54px; height:42px;
+      flex-shrink:0;
+      padding:0;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.18);
+      background:transparent; color:rgba(255,255,255,0.55);
       font-weight:700; font-size:13px;
+      display:flex; align-items:center; justify-content:center;
     }
     .insp-btn.ok-active {
       background:rgba(255,165,0,0.18);
@@ -179,12 +192,24 @@
       border-color:#ff3b30; color:#ff3b30;
       box-shadow:0 0 0 1px #ff3b30;
     }
+    .insp-header {
+      display:flex; gap:8px; padding:0 10px 6px;
+      font-size:10px; font-weight:700;
+      color:rgba(255,255,255,0.55);
+      letter-spacing:1.2px;
+    }
+    .insp-header .h-spacer { flex:1; }
+    .insp-header .h-col { width:54px; flex-shrink:0; text-align:center; }
+    .insp-header .h-tag-spacer { width:50px; flex-shrink:0; }
+
     .photo-box {
       border:2px dashed rgba(255,165,0,0.45);
       border-radius:14px; padding:22px;
       text-align:center; color:rgba(255,255,255,0.7);
       background:rgba(255,165,0,0.04);
+      width:100%;
     }
+
     .progress-box {
       display:flex; align-items:center; gap:10px;
       padding:14px;
@@ -197,12 +222,15 @@
       border-color:rgba(255,59,48,0.40);
       background:rgba(255,59,48,0.06);
     }
+
     .dropdown-trigger {
       width:100%; padding:14px 16px;
-      background:rgba(255,255,255,0.04);
+      background:rgba(20,40,80,0.50);
       border:1px solid #ffa500; border-radius:12px;
       color:#fff; text-align:left;
       display:flex; justify-content:space-between; align-items:center;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
     }
     .dropdown-list {
       position:absolute; top:100%; left:0; right:0;
@@ -211,7 +239,7 @@
       border:1px solid rgba(255,165,0,0.5);
       border-radius:12px;
       box-shadow:0 16px 40px rgba(0,0,0,0.6);
-      max-height:280px; overflow:auto; z-index:20;
+      max-height:280px; overflow:auto; z-index:30;
     }
     .dropdown-item {
       padding:12px 14px; border-radius:8px;
@@ -220,26 +248,32 @@
     .dropdown-item:active, .dropdown-item.active {
       background:rgba(255,165,0,0.18); color:#ffa500;
     }
+
     .urg-row {
       display:flex; align-items:center; gap:14px;
       padding:14px 16px; border-radius:12px;
       border:1px solid rgba(255,255,255,0.10);
-      background:rgba(255,255,255,0.03);
+      background:rgba(20,40,80,0.45);
       font-weight:700;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
     }
     .urg-row.active-red { border-color:#ff3b30; box-shadow:0 0 0 1px #ff3b30; }
     .urg-row.active-orange { border-color:#ffa500; box-shadow:0 0 0 1px #ffa500; }
     .urg-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+
     .type-tile {
       display:flex; align-items:center; gap:10px;
       padding:14px;
       border:1px solid rgba(255,255,255,0.10);
       border-radius:12px;
-      background:rgba(255,255,255,0.03);
+      background:rgba(20,40,80,0.45);
       font-weight:700; color:#fff; font-size:14px;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
     }
     .type-tile.active {
-      border-color:#ffa500; background:rgba(255,165,0,0.10);
+      border-color:#ffa500; background:rgba(255,165,0,0.12);
       box-shadow:0 0 0 1px #ffa500;
     }
     .type-tag {
@@ -247,21 +281,28 @@
       font-weight:800; font-size:10px;
       padding:5px 7px; border-radius:6px; letter-spacing:0.4px;
     }
+
     .textarea-dark {
       width:100%; padding:14px;
-      background:rgba(255,255,255,0.03);
+      background:rgba(20,40,80,0.45);
       border:1px solid rgba(255,255,255,0.10);
       border-radius:12px;
       color:#fff; min-height:96px; outline:none;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
     }
     .textarea-dark:focus { border-color:#ffa500; }
+
     .input-dark {
       width:100%; padding:14px 14px 14px 40px;
-      background:rgba(255,255,255,0.03);
+      background:rgba(20,40,80,0.45);
       border:1px solid rgba(255,255,255,0.10);
       border-radius:12px; color:#fff; outline:none;
+      backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px);
     }
     .input-dark:focus { border-color:#ffa500; }
+
     .geo-btn {
       width:48px; height:48px; border-radius:12px;
       background:rgba(255,165,0,0.12);
@@ -269,6 +310,12 @@
       color:#ffa500;
       display:flex; align-items:center; justify-content:center;
       flex-shrink:0;
+    }
+    .geo-btn:active { background:rgba(255,165,0,0.25); }
+
+    .label-cap {
+      font-size:11px; font-weight:700; color:rgba(255,255,255,0.6);
+      letter-spacing:1.5px; margin-bottom:8px;
     }
   </style>
 </head>
@@ -278,52 +325,14 @@
     window.GLOBAL_LOGO = null;
   </script>
   <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
+    const { useState, useEffect, useRef } = React;
 
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 
 const APP_PIN = "5291";
-const APP_STORAGE_KEY = "fahrer_name";
-const APP_LABEL = "Fahrer";
+const APP_STORAGE_KEY = "werkflow_fahrer_v2";
 
-// Translations
-const T = {
-  de: {
-    title:"WerkFlow", subtitle:"Fahrer",
-    erste:"ERSTE ANMELDUNG", weiter:"Weiter",
-    vorname:"Vorname", nachname:"Nachname",
-    pinEingeben:"PIN EINGEBEN", anmelden:"Anmelden",
-    poweredBy:"POWERED BY", ltgFull:"Die LTG - Landauer Transportgesellschaft Doll KG",
-    lkwInsp:"LKW Inspektion", aufInsp:"Auflieger Inspektion",
-    stoerung:"Störung / Unfall", stoerungMelden:"Störung melden",
-    punkte:"Punkte",
-    fahrzeugWaehlen:"Fahrzeug auswählen",
-    fahrzeugSubtitle:"Bitte wähle dein Fahrzeug aus der Liste",
-    aufWaehlen:"Auflieger auswählen",
-    ok:"OK", nichtOk:"Fehler",
-    mangel:"MANGEL / BEMERKUNGEN",
-    mangelPh:"Festgestellte Mangel beschreiben...",
-    fotosHinz:"Fotos hinzufügen",
-    geprueft:"geprüft",
-    abschliessen:"Inspektion abschliessen",
-    artStoerung:"ART DER STÖRUNG",
-    dringlich:"DRINGLICHKEIT",
-    sofort:"SOFORTIGE HILFE", kannWarten:"KANN WARTEN",
-    standort:"STANDORT",
-    standortPh:"Standort wählen oder eingeben",
-    beschreibung:"BESCHREIBUNG",
-    beschreibungPh:"Was ist passiert?",
-    pflichtfeld:"* Pflichtfeld",
-    stoerungBtn:"STÖRUNG MELDEN",
-    fahrzeugPh:"Fahrzeug wählen oder eingeben",
-    lkwAufWaehlen:"LKW WÄHLEN / AUFLIEGER WÄHLEN",
-    sent:"Gesendet!", sentDesc:"Werkstatt und Chef benachrichtigt",
-    newReport:"Neue Meldung",
-  }
-};
-
-// Data
 const TRUCKS = [
   { id:"malt441", plate:"MA-LT 441", brand:"MAN TGX 2019"         },
   { id:"hdlg221", plate:"HD-LG 221", brand:"Mercedes Actros 2018" },
@@ -360,10 +369,10 @@ const TRAILER_CHECKS = [
 ];
 
 const BD_TYPES = [
-  { k:"def",  tag:"DEF", label:"Panne / Defekt" },
-  { k:"sos",  tag:"SOS", label:"SOS Unfall" },
-  { k:"tyr",  tag:"TYR", label:"Reifenpanne" },
-  { k:"oth",  tag:"!",   label:"Sonstiges" },
+  { k:"def", tag:"DEF", label:"Panne / Defekt" },
+  { k:"sos", tag:"SOS", label:"SOS Unfall" },
+  { k:"tyr", tag:"TYR", label:"Reifenpanne" },
+  { k:"oth", tag:"!",   label:"Sonstiges" },
 ];
 
 function translateToGerman(text) {
@@ -399,20 +408,18 @@ async function sbInsert(table, payload) {
 
 // === Components ===
 
-function AppBackground({ withTruck }) {
-  return withTruck ? <div className="truck-bg"></div> : <div className="app-bg"></div>;
-}
+function Bg() { return <div className="bg-image"></div>; }
 
-function Logo({ small }) {
+function Logo({ size = 44 }) {
   return (
-    <div style={{ fontSize: small ? 30 : 44, fontWeight:900, letterSpacing:-1.5, lineHeight:1 }}>
+    <div style={{ fontSize:size, fontWeight:900, letterSpacing:-1.5, lineHeight:1 }}>
       <span style={{ color:"#fff" }}>Werk</span>
       <span style={{ color:"#ffa500" }}>Flow</span>
     </div>
   );
 }
 
-function FahrerLabel({ size = 28 }) {
+function FahrerLabel({ size = 32 }) {
   return <div style={{ fontSize:size, fontWeight:800, color:"#ffa500", marginTop:6 }}>Fahrer</div>;
 }
 
@@ -429,7 +436,7 @@ function BackBtn({ onClick }) {
 function PrimaryBtn({ children, onClick, disabled, style }) {
   return (
     <button className="btn-primary" onClick={onClick} disabled={disabled}
-      style={{ width:"100%", opacity: disabled ? 0.5 : 1, ...style }}>
+      style={Object.assign({ width:"100%", opacity: disabled ? 0.5 : 1 }, style || {})}>
       {children}
     </button>
   );
@@ -440,32 +447,28 @@ function PrimaryBtn({ children, onClick, disabled, style }) {
 function ErsteAnmeldung({ lang, setLang, onContinue }) {
   const [vorname, setVorname] = useState("");
   const [nachname, setNachname] = useState("");
-  const t = T.de;
-
   const ok = vorname.trim() && nachname.trim();
 
   return (
     <div className="scrn">
-      <AppBackground withTruck />
+      <Bg />
       <div style={{ position:"relative", zIndex:2 }}>
         <div style={{ display:"flex", gap:8, overflowX:"auto",
           padding:"12px 0", marginBottom:18, scrollbarWidth:"none" }}>
           {LANGS.map(function(L){
             return (
               <button key={L} className={"lang-pill" + (lang === L ? " active" : "")}
-                onClick={function(){ setLang(L); }}>
-                {L}
-              </button>
+                onClick={function(){ setLang(L); }}>{L}</button>
             );
           })}
         </div>
 
-        <div style={{ marginTop:80 }}>
-          <Logo />
+        <div style={{ marginTop:60 }}>
+          <Logo size={40} />
           <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)",
               letterSpacing:1.5 }}>POWERED BY</div>
-            <div style={{ width:1, height:36, background:"rgba(255,255,255,0.3)" }}></div>
+            <div style={{ width:1, height:32, background:"rgba(255,255,255,0.3)" }}></div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>
               Die <span style={{ color:"#ffa500", fontWeight:700 }}>LTG</span> - Landauer<br/>
               Transportgesellschaft Doll KG
@@ -473,20 +476,20 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
           </div>
         </div>
 
-        <FahrerLabel size={42} />
-        <div style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.55)",
-          letterSpacing:3, marginTop:6, marginBottom:24 }}>
+        <FahrerLabel size={38} />
+        <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.55)",
+          letterSpacing:3, marginTop:6, marginBottom:18 }}>
           ERSTE ANMELDUNG
         </div>
 
-        <div style={{ background:"#fff", color:"#0a1730", borderRadius:18, padding:24,
+        <div style={{ background:"#fff", color:"#0a1730", borderRadius:18, padding:22,
           boxShadow:"0 16px 40px rgba(0,0,0,0.4)" }}>
-          <div style={{ marginBottom:18 }}>
-            <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8 }}>
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8, fontSize:14 }}>
               Vorname <span style={{ color:"#dc2626" }}>*</span>
             </div>
             <div style={{ position:"relative" }}>
-              <span className="field-icon">
+              <span className="field-icon-light">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -497,12 +500,12 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
             </div>
           </div>
 
-          <div style={{ marginBottom:24 }}>
-            <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8 }}>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8, fontSize:14 }}>
               Nachname <span style={{ color:"#dc2626" }}>*</span>
             </div>
             <div style={{ position:"relative" }}>
-              <span className="field-icon">
+              <span className="field-icon-light">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -536,21 +539,27 @@ function PinLogin({ onSuccess }) {
   const press = function(d) {
     if (pin.length >= 4) return;
     setError(false);
-    setPin(pin + d);
+    const next = pin + d;
+    setPin(next);
+    if (next.length === 4) {
+      setTimeout(function(){
+        if (next === APP_PIN) onSuccess();
+        else { setError(true); setTimeout(function(){ setPin(""); setError(false); }, 700); }
+      }, 150);
+    }
   };
   const back = function() { setPin(pin.slice(0, -1)); setError(false); };
-
   const submit = function() {
     if (pin === APP_PIN) onSuccess();
     else { setError(true); setTimeout(function(){ setPin(""); setError(false); }, 700); }
   };
 
   return (
-    <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 60px)" }}>
-      <AppBackground withTruck />
+    <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 50px)" }}>
+      <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ marginTop:120 }}>
-          <Logo />
+        <div style={{ marginTop:90 }}>
+          <Logo size={42} />
           <FahrerLabel size={32} />
           <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.6)",
             letterSpacing:3, marginTop:8 }}>
@@ -558,23 +567,21 @@ function PinLogin({ onSuccess }) {
           </div>
         </div>
 
-        <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:28 }}>
+        <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:24 }}>
           {[0,1,2,3].map(function(i){
-            return <div key={i} className={"pin-dot" + (i < pin.length ? " filled" : "")}
-              style={{ background: error ? "#ff3b30" : (i < pin.length ? "#ffa500" : "rgba(255,255,255,0.20)") }}></div>;
+            return <div key={i}
+              className={"pin-dot" + (i < pin.length ? " filled" : "") + (error ? " error" : "")}></div>;
           })}
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:16, marginTop:36,
-          maxWidth:300, width:"100%", margin:"36px auto 0" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 78px)", gap:18,
+          maxWidth:300, width:"100%", margin:"30px auto 0", justifyContent:"center" }}>
           {[1,2,3,4,5,6,7,8,9].map(function(d){
-            return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}
-              style={{ margin:"0 auto" }}>{d}</button>;
+            return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>;
           })}
           <div></div>
-          <button className="keypad-btn" onClick={function(){ press("0"); }}
-            style={{ margin:"0 auto" }}>0</button>
-          <button className="keypad-btn" onClick={back} style={{ margin:"0 auto" }}>
+          <button className="keypad-btn" onClick={function(){ press("0"); }}>0</button>
+          <button className="keypad-btn" onClick={back}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M21 5H8L3 12l5 7h13a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6"
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -607,19 +614,17 @@ function SliderUnlock({ onUnlock }) {
   const MAX_REF = useRef(0);
 
   useEffect(function(){
-    if (trackRef.current) {
-      MAX_REF.current = trackRef.current.offsetWidth - 78;
-    }
+    if (trackRef.current) MAX_REF.current = trackRef.current.offsetWidth - 78;
   }, []);
 
   const start = function(clientX){
     setDrag(true);
     const startX = clientX;
-    const startSlide = x;
+    let curX = x;
     const move = function(e){
       const cx = e.touches ? e.touches[0].clientX : e.clientX;
-      const dx = Math.max(0, Math.min(MAX_REF.current, cx - startX + startSlide));
-      setX(dx);
+      curX = Math.max(0, Math.min(MAX_REF.current, cx - startX + x));
+      setX(curX);
     };
     const up = function(){
       window.removeEventListener("mousemove", move);
@@ -627,13 +632,12 @@ function SliderUnlock({ onUnlock }) {
       window.removeEventListener("mouseup", up);
       window.removeEventListener("touchend", up);
       setDrag(false);
-      setX(function(curr){
-        if (curr >= MAX_REF.current * 0.85) {
-          setTimeout(onUnlock, 100);
-          return MAX_REF.current;
-        }
-        return 0;
-      });
+      if (curX >= MAX_REF.current * 0.85) {
+        setX(MAX_REF.current);
+        setTimeout(onUnlock, 100);
+      } else {
+        setX(0);
+      }
     };
     window.addEventListener("mousemove", move);
     window.addEventListener("touchmove", move, { passive:false });
@@ -643,15 +647,13 @@ function SliderUnlock({ onUnlock }) {
 
   return (
     <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 60px)" }}>
-      <AppBackground withTruck />
+      <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ marginTop:160 }}>
-          <Logo />
+        <div style={{ marginTop:120 }}>
+          <Logo size={42} />
           <FahrerLabel size={32} />
         </div>
-
         <div style={{ flex:1 }}></div>
-
         <div ref={trackRef} className="slider-track" style={{ marginBottom:30 }}>
           <div className="slider-marks">
             <div className="slider-mark"></div>
@@ -675,39 +677,30 @@ function SliderUnlock({ onUnlock }) {
 
 // === SCREEN: Main Menu ===
 
-function MainMenu({ onPick }) {
+function MainMenu({ onPick, onLogout }) {
   const [active, setActive] = useState(null);
-
-  const pick = function(k){
-    setActive(k);
-    setTimeout(function(){ onPick(k); }, 150);
-  };
+  const pick = function(k){ setActive(k); setTimeout(function(){ onPick(k); }, 150); };
 
   return (
     <div className="scrn">
-      <AppBackground withTruck />
+      <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ marginTop:"48vh" }}>
-          <Logo />
+        <div style={{ marginTop:"42vh" }}>
+          <Logo size={40} />
           <FahrerLabel size={36} />
         </div>
 
-        <div style={{ marginTop:"auto", paddingBottom:30, display:"flex",
+        <div style={{ marginTop:"auto", paddingBottom:24, display:"flex",
           flexDirection:"column", gap:14 }}>
           <button className={"menu-card" + (active === "lkw" ? " active" : "")}
-            onClick={function(){ pick("lkw"); }}
-            style={{ all:"unset", display:"flex", alignItems:"center", gap:14,
-              padding:18, borderRadius:18, cursor:"pointer",
-              border: active === "lkw" ? "1px solid #ffa500" : "1px solid rgba(255,255,255,0.10)",
-              background: active === "lkw" ? "rgba(255,165,0,0.12)" : "rgba(20,40,80,0.45)",
-              boxShadow: active === "lkw" ? "0 0 0 1px #ffa500, 0 8px 28px rgba(255,165,0,0.25)" : "none" }}>
+            onClick={function(){ pick("lkw"); }}>
             <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <path d="M14 18V6H1v12h13zM14 9h4l3 3v6h-7M5.5 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18.5 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"
                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <div style={{ flex:1 }}>
+            <div style={{ flex:1, textAlign:"left" }}>
               <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>LKW Inspektion</div>
               <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>7 Punkte</div>
             </div>
@@ -715,12 +708,7 @@ function MainMenu({ onPick }) {
           </button>
 
           <button className={"menu-card" + (active === "auf" ? " active" : "")}
-            onClick={function(){ pick("auf"); }}
-            style={{ all:"unset", display:"flex", alignItems:"center", gap:14,
-              padding:18, borderRadius:18, cursor:"pointer",
-              border: active === "auf" ? "1px solid #ffa500" : "1px solid rgba(255,255,255,0.10)",
-              background: active === "auf" ? "rgba(255,165,0,0.12)" : "rgba(20,40,80,0.45)",
-              boxShadow: active === "auf" ? "0 0 0 1px #ffa500, 0 8px 28px rgba(255,165,0,0.25)" : "none" }}>
+            onClick={function(){ pick("auf"); }}>
             <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -728,7 +716,7 @@ function MainMenu({ onPick }) {
                 <circle cx="15" cy="20" r="2" stroke="currentColor" strokeWidth="2"/>
               </svg>
             </div>
-            <div style={{ flex:1 }}>
+            <div style={{ flex:1, textAlign:"left" }}>
               <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Auflieger Inspektion</div>
               <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>6 Punkte</div>
             </div>
@@ -736,19 +724,14 @@ function MainMenu({ onPick }) {
           </button>
 
           <button className={"menu-card danger" + (active === "bd" ? " active" : "")}
-            onClick={function(){ pick("bd"); }}
-            style={{ all:"unset", display:"flex", alignItems:"center", gap:14,
-              padding:18, borderRadius:18, cursor:"pointer",
-              border: active === "bd" ? "1px solid #ff3b30" : "1px solid rgba(255,59,48,0.55)",
-              background: active === "bd" ? "rgba(255,59,48,0.18)" : "rgba(60,20,30,0.45)",
-              boxShadow: active === "bd" ? "0 0 0 1px #ff3b30, 0 8px 28px rgba(255,59,48,0.25)" : "none" }}>
-            <div className="menu-icon" style={{ background:"rgba(255,59,48,0.10)", color:"#ff3b30" }}>
+            onClick={function(){ pick("bd"); }}>
+            <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"
                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <div style={{ flex:1 }}>
+            <div style={{ flex:1, textAlign:"left" }}>
               <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Störung / Unfall</div>
               <div style={{ fontSize:13, color:"#ff8b80" }}>Störung melden</div>
             </div>
@@ -771,21 +754,24 @@ function VehicleDropdown({ items, value, onChange, label, placeholder }) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
-    return function(){ document.removeEventListener("mousedown", handler); };
+    document.addEventListener("touchstart", handler);
+    return function(){
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, []);
 
   const sel = items.find(function(x){ return x.id === value; });
 
   return (
     <div ref={ref} style={{ position:"relative" }}>
-      {label && <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.6)",
-        letterSpacing:1.5, marginBottom:8 }}>{label}</div>}
+      {label && <div className="label-cap">{label}</div>}
       <button className="dropdown-trigger" onClick={function(){ setOpen(!open); }}>
-        <span style={{ color: sel ? "#fff" : "rgba(255,255,255,0.5)" }}>
-          {sel ? sel.plate + " — " + sel.brand : (placeholder || "Auswählen")}
+        <span style={{ color: sel ? "#fff" : "rgba(255,255,255,0.5)", fontWeight:600 }}>
+          {sel ? sel.plate + " - " + sel.brand : (placeholder || "Auswählen")}
         </span>
-        <span style={{ color:"#ffa500", fontSize:18, transform: open ? "rotate(180deg)" : "none",
-          transition:"transform 0.2s" }}>▾</span>
+        <span style={{ color:"#ffa500", fontSize:14, transform: open ? "rotate(180deg)" : "none",
+          transition:"transform 0.2s" }}>▼</span>
       </button>
       {open && (
         <div className="dropdown-list">
@@ -804,24 +790,11 @@ function VehicleDropdown({ items, value, onChange, label, placeholder }) {
   );
 }
 
-// === SCREEN: Inspection (LKW or Auflieger) ===
+// === Photo Upload (CAMERA) ===
 
-function InspectionScreen({ kind, onBack, driverName }) {
-  const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
-  const fleet = kind === "lkw" ? TRUCKS : TRAILERS;
-  const [vehicleId, setVehicleId] = useState(fleet[0].id);
-  const [checks, setChecks] = useState({});
-  const [notes, setNotes] = useState("");
-  const [photos, setPhotos] = useState([]);
-  const [sending, setSending] = useState(false);
+function PhotoUpload({ photos, setPhotos }) {
   const fileRef = useRef(null);
-
-  const veh = fleet.find(function(x){ return x.id === vehicleId; });
-  const checkedCount = items.filter(function(it){ return checks[it.k]; }).length;
-  const hasFault = items.some(function(it){ return checks[it.k] === "fail"; });
-  const allDone = checkedCount === items.length;
-
-  const handlePhoto = function(e){
+  const handle = function(e){
     const files = Array.from(e.target.files || []);
     Promise.all(files.map(function(f){
       return new Promise(function(res){
@@ -831,6 +804,46 @@ function InspectionScreen({ kind, onBack, driverName }) {
       });
     })).then(function(arr){ setPhotos(photos.concat(arr)); });
   };
+  return (
+    <div>
+      <button onClick={function(){ fileRef.current && fileRef.current.click(); }}
+        style={{ all:"unset", display:"block", width:"100%", cursor:"pointer" }}>
+        <div className="photo-box">
+          <div style={{ fontSize:24, color:"#ffa500" }}>📷</div>
+          <div style={{ marginTop:6 }}>
+            Fotos hinzufügen{photos.length > 0 ? " (" + photos.length + ")" : ""}
+          </div>
+        </div>
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple
+        style={{ display:"none" }} onChange={handle} />
+      {photos.length > 0 && (
+        <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
+          {photos.map(function(p, i){
+            return <img key={i} src={p} alt="" style={{ width:70, height:70,
+              objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)" }} />;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === SCREEN: Inspection ===
+
+function InspectionScreen({ kind, onBack, driverName }) {
+  const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
+  const fleet = kind === "lkw" ? TRUCKS : TRAILERS;
+  const [vehicleId, setVehicleId] = useState(fleet[0].id);
+  const [checks, setChecks] = useState({});
+  const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState([]);
+  const [sending, setSending] = useState(false);
+
+  const veh = fleet.find(function(x){ return x.id === vehicleId; });
+  const checkedCount = items.filter(function(it){ return checks[it.k]; }).length;
+  const hasFault = items.some(function(it){ return checks[it.k] === "fail"; });
+  const allDone = checkedCount === items.length;
 
   const submit = async function(){
     if (!allDone || sending) return;
@@ -840,21 +853,16 @@ function InspectionScreen({ kind, onBack, driverName }) {
         kind: kind === "lkw" ? "truck" : "trailer",
         plate: veh.plate, brand: veh.brand,
         result: hasFault ? "mangel" : "ok",
-        checks_json: checks,
-        notes: notes || null,
-        photos: photos,
+        checks_json: checks, notes: notes || null, photos: photos,
         driver: driverName || "fahrer",
         status: hasFault ? "mangel" : "ok",
       });
       if (hasFault) {
         await sbInsert("alerts", {
-          id: "I" + Date.now(),
-          type: "inspection_mangel",
-          plate: veh.plate, location: kind === "lkw" ? "Werkstatt" : "Werkstatt",
-          description: notes || "Mangel bei Inspektion",
-          urgency: "normal",
-          sender: driverName || "driver", sender_app: "fahrer",
-          status: "open",
+          id: "I" + Date.now(), type: "inspection_mangel",
+          plate: veh.plate, location: "Werkstatt",
+          description: notes || "Mangel bei Inspektion", urgency: "normal",
+          sender: driverName || "driver", sender_app: "fahrer", status: "open",
         });
       }
       onBack();
@@ -867,12 +875,12 @@ function InspectionScreen({ kind, onBack, driverName }) {
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
       paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)" }}>
-      <AppBackground withTruck />
-      <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 20px 0" }}>
+      <Bg />
+      <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <BackBtn onClick={onBack} />
 
         <div style={{ marginTop:14 }}>
-          <div style={{ fontSize:32, fontWeight:900, lineHeight:1 }}>
+          <div style={{ fontSize:30, fontWeight:900, lineHeight:1 }}>
             {kind === "lkw" ? "LKW " : "Auflieger "}
             <span style={{ color:"#ffa500" }}>Inspektion</span>
           </div>
@@ -882,48 +890,39 @@ function InspectionScreen({ kind, onBack, driverName }) {
           <VehicleDropdown items={fleet} value={vehicleId} onChange={setVehicleId} />
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 90px 90px",
-          gap:8, marginBottom:8, padding:"0 8px" }}>
-          <div></div>
-          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.55)",
-            letterSpacing:1.5, textAlign:"center" }}>OK</div>
-          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.55)",
-            letterSpacing:1.5, textAlign:"center" }}>NICHT OK</div>
+        <div className="insp-header">
+          <div className="h-tag-spacer"></div>
+          <div className="h-spacer"></div>
+          <div className="h-col">OK</div>
+          <div className="h-col">NICHT OK</div>
         </div>
 
         {items.map(function(it){
           return (
             <div key={it.k} className="insp-row">
               <div className="insp-tag">{it.emoji}</div>
-              <div style={{ fontSize:14, fontWeight:600 }}>{it.label}</div>
+              <div className="insp-label">{it.label}</div>
               <button className={"insp-btn" + (checks[it.k] === "ok" ? " ok-active" : "")}
                 onClick={function(){ setChecks(Object.assign({}, checks, { [it.k]: "ok" })); }}>
                 ✓
               </button>
               <button className={"insp-btn" + (checks[it.k] === "fail" ? " fail-active" : "")}
                 onClick={function(){ setChecks(Object.assign({}, checks, { [it.k]: "fail" })); }}>
-                ✕ Fehler
+                ✕
               </button>
             </div>
           );
         })}
 
-        <div style={{ marginTop:20 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.6)",
-            letterSpacing:1.5, marginBottom:8 }}>MANGEL / BEMERKUNGEN</div>
+        <div style={{ marginTop:18 }}>
+          <div className="label-cap">MANGEL / BEMERKUNGEN</div>
           <textarea className="textarea-dark" placeholder="Festgestellte Mangel beschreiben..."
             value={notes} onChange={function(e){ setNotes(e.target.value); }} />
         </div>
 
-        <button className="photo-box" onClick={function(){ fileRef.current && fileRef.current.click(); }}
-          style={{ width:"100%", marginTop:14, all:"unset", display:"block" }}>
-          <div className="photo-box">
-            <div style={{ fontSize:24, color:"#ffa500" }}>📷</div>
-            <div style={{ marginTop:6 }}>Fotos hinzufügen {photos.length > 0 ? "(" + photos.length + ")" : ""}</div>
-          </div>
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" multiple
-          style={{ display:"none" }} onChange={handlePhoto} />
+        <div style={{ marginTop:14 }}>
+          <PhotoUpload photos={photos} setPhotos={setPhotos} />
+        </div>
 
         <div className={"progress-box" + (hasFault ? " warn" : "")} style={{ marginTop:14 }}>
           <span style={{ color: hasFault ? "#ff3b30" : "#22c55e", fontSize:18 }}>
@@ -934,7 +933,7 @@ function InspectionScreen({ kind, onBack, driverName }) {
       </div>
 
       <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:5,
-        padding:"14px 20px calc(env(safe-area-inset-bottom) + 14px)",
+        padding:"14px 16px calc(env(safe-area-inset-bottom) + 14px)",
         background:"linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%)" }}>
         <PrimaryBtn onClick={submit} disabled={!allDone || sending}>
           {sending ? "Senden..." : "Inspektion abschliessen"}
@@ -952,47 +951,46 @@ function BreakdownScreen({ onBack, driverName, lang }) {
   const [type, setType] = useState(null);
   const [urg, setUrg] = useState(null);
   const [loc, setLoc] = useState("");
+  const [locLoading, setLocLoading] = useState(false);
   const [desc, setDesc] = useState("");
   const [photos, setPhotos] = useState([]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const fileRef = useRef(null);
 
   const vehSel = allFleet.find(function(x){ return x.id === vehicle; });
   const ok = vehicle && type && urg && loc && desc && driverName;
 
-  const handlePhoto = function(e){
-    const files = Array.from(e.target.files || []);
-    Promise.all(files.map(function(f){
-      return new Promise(function(res){
-        const r = new FileReader();
-        r.onload = function(ev){ res(ev.target.result); };
-        r.readAsDataURL(f);
-      });
-    })).then(function(arr){ setPhotos(photos.concat(arr)); });
-  };
-
   const detectLoc = function(){
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(function(p){
-      setLoc(p.coords.latitude.toFixed(5) + ", " + p.coords.longitude.toFixed(5));
-    });
+    if (!navigator.geolocation) {
+      alert("Geolocation nicht verfügbar");
+      return;
+    }
+    setLocLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      function(p){
+        setLoc(p.coords.latitude.toFixed(5) + ", " + p.coords.longitude.toFixed(5));
+        setLocLoading(false);
+      },
+      function(err){
+        setLocLoading(false);
+        alert("Standort konnte nicht ermittelt werden: " + err.message);
+      },
+      { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+    );
   };
 
   const submit = async function(){
     if (!ok || sending) return;
     setSending(true);
-    const tr = await translateToGerman(lang !== "DE" && desc.trim() ? desc : "");
-    const alertId = "A" + Date.now();
     try {
+      const tr = await translateToGerman(lang !== "DE" && desc.trim() ? desc : "");
       await sbInsert("alerts", {
-        id: alertId, type: type, plate: vehSel ? vehSel.plate : null,
+        id: "A" + Date.now(), type: type, plate: vehSel ? vehSel.plate : null,
         location: loc, description: desc,
         urgency: urg === "sofort" ? "urgent" : "normal",
         sender: driverName || "driver", sender_app: "fahrer", status: "open",
       });
-      setSent(true);
-      setSending(false);
+      setSent(true); setSending(false);
     } catch(e) {
       setSending(false);
       alert("Fehler");
@@ -1002,14 +1000,12 @@ function BreakdownScreen({ onBack, driverName, lang }) {
   if (sent) {
     return (
       <div className="scrn">
-        <AppBackground withTruck />
+        <Bg />
         <div style={{ position:"relative", zIndex:2, flex:1, display:"flex",
           flexDirection:"column", justifyContent:"center", alignItems:"center", textAlign:"center" }}>
           <div style={{ width:90, height:90, borderRadius:"50%",
             background:"rgba(34,197,94,0.18)", border:"2px solid #22c55e",
-            display:"flex", alignItems:"center", justifyContent:"center", fontSize:42, marginBottom:20 }}>
-            ✓
-          </div>
+            display:"flex", alignItems:"center", justifyContent:"center", fontSize:42, marginBottom:20 }}>✓</div>
           <div style={{ fontSize:24, fontWeight:800, marginBottom:8 }}>Gesendet!</div>
           <div style={{ color:"rgba(255,255,255,0.7)", marginBottom:30 }}>
             Werkstatt und Chef benachrichtigt
@@ -1023,88 +1019,77 @@ function BreakdownScreen({ onBack, driverName, lang }) {
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
       paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)" }}>
-      <AppBackground withTruck />
-      <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 20px 0" }}>
+      <Bg />
+      <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <BackBtn onClick={onBack} />
 
-        <div style={{ fontSize:34, fontWeight:900, lineHeight:1, marginTop:14, marginBottom:20 }}>
+        <div style={{ fontSize:32, fontWeight:900, lineHeight:1, marginTop:14, marginBottom:18 }}>
           Störung <span style={{ color:"#ffa500" }}>melden</span>
         </div>
 
-        <div style={{ marginBottom:20 }}>
+        <div style={{ marginBottom:18 }}>
           <VehicleDropdown items={allFleet} value={vehicle} onChange={setVehicle}
             label="LKW WÄHLEN / AUFLIEGER WÄHLEN *"
             placeholder="Fahrzeug wählen oder eingeben" />
         </div>
 
-        <div style={{ marginBottom:8, fontSize:11, fontWeight:700,
-          color:"rgba(255,255,255,0.6)", letterSpacing:1.5 }}>ART DER STÖRUNG *</div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
+        <div className="label-cap">ART DER STÖRUNG *</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
           {BD_TYPES.map(function(t){
             return (
-              <button key={t.k} className={"type-tile" + (type === t.k ? " active" : "")}
+              <div key={t.k} className={"type-tile" + (type === t.k ? " active" : "")}
                 onClick={function(){ setType(t.k); }}
-                style={{ all:"unset", cursor:"pointer" }}>
-                <div className={"type-tile" + (type === t.k ? " active" : "")}>
-                  <span className="type-tag">{t.tag}</span>
-                  <span>{t.label}</span>
-                </div>
-              </button>
+                style={{ cursor:"pointer" }}>
+                <span className="type-tag">{t.tag}</span>
+                <span style={{ flex:1 }}>{t.label}</span>
+              </div>
             );
           })}
         </div>
 
-        <div style={{ marginBottom:8, fontSize:11, fontWeight:700,
-          color:"rgba(255,255,255,0.6)", letterSpacing:1.5 }}>DRINGLICHKEIT *</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
-          <button onClick={function(){ setUrg("sofort"); }} style={{ all:"unset", cursor:"pointer" }}>
-            <div className={"urg-row" + (urg === "sofort" ? " active-red" : "")}>
-              <div className="urg-dot" style={{ background:"#ff3b30" }}></div>
-              <span>SOFORTIGE HILFE</span>
-            </div>
-          </button>
-          <button onClick={function(){ setUrg("warten"); }} style={{ all:"unset", cursor:"pointer" }}>
-            <div className={"urg-row" + (urg === "warten" ? " active-orange" : "")}>
-              <div className="urg-dot" style={{ background:"#ffa500" }}></div>
-              <span>KANN WARTEN</span>
-            </div>
-          </button>
+        <div className="label-cap">DRINGLICHKEIT *</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
+          <div onClick={function(){ setUrg("sofort"); }}
+            className={"urg-row" + (urg === "sofort" ? " active-red" : "")}
+            style={{ cursor:"pointer" }}>
+            <div className="urg-dot" style={{ background:"#ff3b30" }}></div>
+            <span>SOFORTIGE HILFE</span>
+          </div>
+          <div onClick={function(){ setUrg("warten"); }}
+            className={"urg-row" + (urg === "warten" ? " active-orange" : "")}
+            style={{ cursor:"pointer" }}>
+            <div className="urg-dot" style={{ background:"#ffa500" }}></div>
+            <span>KANN WARTEN</span>
+          </div>
         </div>
 
-        <div style={{ marginBottom:8, fontSize:11, fontWeight:700,
-          color:"rgba(255,255,255,0.6)", letterSpacing:1.5 }}>STANDORT *</div>
-        <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+        <div className="label-cap">STANDORT *</div>
+        <div style={{ display:"flex", gap:10, marginBottom:18 }}>
           <div style={{ position:"relative", flex:1 }}>
-            <span className="field-icon" style={{ color:"#9aa3b2" }}>📍</span>
+            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
+              color:"#9aa3b2", fontSize:18 }}>📍</span>
             <input className="input-dark" placeholder="Standort wählen oder eingeben"
               value={loc} onChange={function(e){ setLoc(e.target.value); }} />
           </div>
-          <button className="geo-btn" onClick={detectLoc}>📍</button>
+          <button className="geo-btn" onClick={detectLoc} disabled={locLoading}>
+            {locLoading ? "..." : "📍"}
+          </button>
         </div>
 
-        <div style={{ marginBottom:8, fontSize:11, fontWeight:700,
-          color:"rgba(255,255,255,0.6)", letterSpacing:1.5 }}>BESCHREIBUNG *</div>
+        <div className="label-cap">BESCHREIBUNG *</div>
         <textarea className="textarea-dark" placeholder="Was ist passiert?"
           value={desc} onChange={function(e){ setDesc(e.target.value); }}
           style={{ marginBottom:14 }} />
 
-        <button className="photo-box" onClick={function(){ fileRef.current && fileRef.current.click(); }}
-          style={{ width:"100%", all:"unset", display:"block", marginBottom:14 }}>
-          <div className="photo-box">
-            <div style={{ fontSize:24 }}>📷</div>
-            <div style={{ marginTop:6 }}>Fotos hinzufügen {photos.length > 0 ? "(" + photos.length + ")" : ""}</div>
-          </div>
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" multiple
-          style={{ display:"none" }} onChange={handlePhoto} />
+        <PhotoUpload photos={photos} setPhotos={setPhotos} />
 
-        <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:13, marginBottom:14 }}>
+        <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:13, marginTop:14, marginBottom:14 }}>
           * Pflichtfeld
         </div>
       </div>
 
       <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:5,
-        padding:"14px 20px calc(env(safe-area-inset-bottom) + 14px)",
+        padding:"14px 16px calc(env(safe-area-inset-bottom) + 14px)",
         background:"linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%)" }}>
         <PrimaryBtn onClick={submit} disabled={!ok || sending}>
           {sending ? "Senden..." : "STÖRUNG MELDEN"}
@@ -1130,9 +1115,7 @@ function App() {
     } catch(e) { setStage("register"); }
   }, []);
 
-  if (stage === "loading") {
-    return <div className="scrn"><AppBackground /></div>;
-  }
+  if (stage === "loading") return <div className="scrn"><Bg /></div>;
 
   if (stage === "register") {
     return <ErsteAnmeldung lang={lang} setLang={setLang}
@@ -1153,7 +1136,6 @@ function App() {
     return <SliderUnlock onUnlock={function(){ setStage("menu"); }} />;
   }
 
-  // stage === "menu"
   if (screen === "menu") {
     return <MainMenu onPick={function(k){
       if (k === "lkw") setScreen("insp_lkw");
