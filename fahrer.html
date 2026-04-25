@@ -416,25 +416,6 @@ async function sbSelect(table, query) {
   return res.json();
 }
 
-async function createJob(data) {
-  const res = await fetch(SB_URL + "/rest/v1/jobs", {
-    method: "POST",
-    headers: {
-      "apikey": SB_KEY,
-      "Authorization": "Bearer " + SB_KEY,
-      "Content-Type": "application/json",
-      "Prefer": "return=representation"
-    },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    var msg = "";
-    try { msg = await res.text(); } catch(e){}
-    throw new Error("createJob failed " + res.status + " " + msg);
-  }
-  return res.json();
-}
-
 async function sbInsert(table, payload) {
   const res = await fetch(SB_URL + "/rest/v1/" + table, {
     method: "POST",
@@ -1014,46 +995,26 @@ function InspectionScreen({ kind, onBack, driverName }) {
       if (vehSel.isNew) {
         await ensureVehicleInDb(vehSel.plate, vehSel.brand, vehicleType);
       }
-      // Build defects text and bad items list
+      // Build defects text from failed checks
       var badItems = items
         .filter(function(it){ return checks[it.k] === "fail"; })
         .map(function(it){ return it.label; });
       var defectsText = badItems.join(", ");
       if (notes) defectsText = defectsText ? (defectsText + " — " + notes) : notes;
-
-      var assetLabel = vehSel.plate + (vehSel.brand ? " - " + vehSel.brand : "");
-      var descRaw = defectsText || (hasFault ? "Inspektion nicht OK" : "Inspektion OK");
       var prefix = vehicleType === "truck" ? "LKW" : "Auflieger";
 
-      await createJob({
-        source_app: "driver",
-        source_type: vehicleType === "truck" ? "inspection_truck" : "inspection_trailer",
-        asset_type: vehicleType,
-        asset_label: assetLabel,
-        reporter_name: driverName || "",
-        reporter_contact: driverName || "",
-        language: "de",
-        urgency: hasFault ? "medium" : "low",
-        status: "new",
-        description_raw: descRaw,
-        description_de: descRaw,
-        checklist_json: { inspection_type: vehicleType, checks: checks },
-        defects_json: { result: hasFault ? "not_ok" : "ok", defects_text: notes || "", bad_items: badItems, photos: photos }
+      // Always send alert (so dashboard/werkstatt see the inspection)
+      await sbInsert("alerts", {
+        id: "I" + Date.now(),
+        type: hasFault ? "inspection_mangel" : "inspection_ok",
+        plate: vehSel.plate,
+        location: "Werkstatt",
+        description: defectsText || (prefix + "-Inspektion: " + (hasFault ? "Mangel" : "OK")),
+        urgency: hasFault ? "normal" : "info",
+        sender: driverName || "driver",
+        sender_app: "fahrer",
+        status: hasFault ? "open" : "done"
       });
-
-      if (hasFault) {
-        await sbInsert("alerts", {
-          id: "I" + Date.now(),
-          type: "inspection_mangel",
-          plate: vehSel.plate,
-          location: "Werkstatt",
-          description: defectsText || (prefix + "-Inspektion: Mangel"),
-          urgency: "normal",
-          sender: driverName || "driver",
-          sender_app: "fahrer",
-          status: "open"
-        });
-      }
 
       onBack();
     } catch(e) {
@@ -1212,36 +1173,25 @@ function BreakdownScreen({ onBack, driverName, lang }) {
     if (!ok || sending) return;
     setSending(true);
     try {
-      // If new vehicle, save to DB
       if (vehSel && vehSel.isNew) {
         var asTy = (vehSel.type === "trailer") ? "trailer" : "truck";
         await ensureVehicleInDb(vehSel.plate, vehSel.brand, asTy);
       }
-      const tr = await translateToGerman(lang !== "DE" && desc.trim() ? desc : "");
-      var assetTy = vehSel.type === "trailer" ? "trailer" : "truck";
-
-      await createJob({
-        source_app: "driver",
-        source_type: assetTy === "trailer" ? "breakdown_trailer" : "breakdown_truck",
-        asset_type: assetTy,
-        asset_label: vehSel.plate + (vehSel.brand ? " - " + vehSel.brand : ""),
-        reporter_name: driverName || "",
-        reporter_contact: driverName || "",
-        language: lang.toLowerCase(),
-        urgency: urg === "sofort" ? "critical" : "medium",
-        status: "new",
-        location_label: loc || "",
-        description_raw: desc || "",
-        description_de: (tr && tr !== "") ? tr : (desc || ""),
-        defects_json: { issue_type: type || "breakdown", urgent: urg === "sofort", photos: photos || [] }
-      });
+      // AI-translate description to German if needed (best effort)
+      let descDe = desc;
+      try {
+        if (lang !== "DE" && desc.trim()) {
+          const tr = await translateToGerman(desc);
+          if (tr && tr !== "") descDe = tr;
+        }
+      } catch(e) {}
 
       await sbInsert("alerts", {
         id: "A" + Date.now(),
         type: type,
         plate: vehSel.plate,
         location: loc,
-        description: desc,
+        description: descDe,
         urgency: urg === "sofort" ? "urgent" : "normal",
         sender: driverName || "driver",
         sender_app: "fahrer",
