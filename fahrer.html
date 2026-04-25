@@ -32,7 +32,23 @@
 
     .scrn { position:relative; z-index:2; min-height:100vh; min-height:100dvh;
       padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
-      display:flex; flex-direction:column; }
+      display:flex; flex-direction:column;
+      max-width:480px; margin:0 auto; width:100%; }
+    /* Tablet/desktop: center the app and add side dim */
+    @media (min-width: 481px) {
+      body::before {
+        content:""; position:fixed; inset:0; z-index:1;
+        background:rgba(0,0,0,0.4); pointer-events:none;
+      }
+      .scrn { box-shadow:0 0 60px rgba(0,0,0,0.6); }
+    }
+    /* Fixed bottom buttons must also respect max-width */
+    .fixed-bottom-bar {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:5;
+      padding:14px 16px calc(env(safe-area-inset-bottom) + 14px);
+      background:linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%);
+    }
 
     button { font:inherit; color:inherit; cursor:pointer; }
     input, textarea, select { font:inherit; }
@@ -874,7 +890,8 @@ function InspectionScreen({ kind, onBack, driverName }) {
 
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
-      paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)" }}>
+      paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)",
+      maxWidth:480, margin:"0 auto" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <BackBtn onClick={onBack} />
@@ -932,9 +949,7 @@ function InspectionScreen({ kind, onBack, driverName }) {
         </div>
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:5,
-        padding:"14px 16px calc(env(safe-area-inset-bottom) + 14px)",
-        background:"linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%)" }}>
+      <div className="fixed-bottom-bar">
         <PrimaryBtn onClick={submit} disabled={!allDone || sending}>
           {sending ? "Senden..." : "Inspektion abschliessen"}
         </PrimaryBtn>
@@ -1018,7 +1033,8 @@ function BreakdownScreen({ onBack, driverName, lang }) {
 
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
-      paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)" }}>
+      paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)",
+      maxWidth:480, margin:"0 auto" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <BackBtn onClick={onBack} />
@@ -1088,9 +1104,7 @@ function BreakdownScreen({ onBack, driverName, lang }) {
         </div>
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:5,
-        padding:"14px 16px calc(env(safe-area-inset-bottom) + 14px)",
-        background:"linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%)" }}>
+      <div className="fixed-bottom-bar">
         <PrimaryBtn onClick={submit} disabled={!ok || sending}>
           {sending ? "Senden..." : "STÖRUNG MELDEN"}
         </PrimaryBtn>
