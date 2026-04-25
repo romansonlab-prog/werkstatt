@@ -20,24 +20,59 @@
 // -- Supabase --
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+
+// ── Photo compression + Storage upload ──────────────────────
+const compressPhoto = (base64, maxW=1200, quality=0.75) => new Promise(resolve => {
+  const img = new Image();
+  img.onload = () => {
+    const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    resolve(canvas.toDataURL('image/jpeg', quality));
+  };
+  img.onerror = () => resolve(base64);
+  img.src = base64;
+});
+
 const uploadPhotoToStorage = async (base64, reportId, index) => {
   try {
-    const res = await fetch(base64);
+    const compressed = await compressPhoto(base64);
+    const res = await fetch(compressed);
     const blob = await res.blob();
-    const ext = blob.type.includes('png') ? 'png' : 'jpg';
-    const path = reportId + '/photo_' + index + '.' + ext;
+    const path = reportId + '/photo_' + index + '.jpg';
     const up = await fetch(SB_URL + '/storage/v1/object/inspection-photos/' + path, {
       method: 'POST',
       headers: {
         'apikey': SB_KEY,
         'Authorization': 'Bearer ' + SB_KEY,
-        'Content-Type': blob.type || 'image/jpeg'
+        'Content-Type': 'image/jpeg'
       },
       body: blob
     });
     if (!up.ok) return null;
     return SB_URL + '/storage/v1/object/public/inspection-photos/' + path;
   } catch(e) { console.error('photo upload:', e); return null; }
+};
+
+const sbInsertReport = async (payload) => {
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data) ? data[0] : data;
+  } catch(e) { console.error('sbInsertReport:', e); return null; }
 };
 
 const sbInsert = async (table, data) => {
@@ -803,29 +838,59 @@ function App() {
     translateToGerman(lang !== "de" && safeTrim(truckDefects) ? truckDefects : "")
       .then(async function(tr) {
         if (tr && tr !== "") setTruckTranslated(tr);
-        const truckRId = "TRK-" + Date.now();
-        let truckPhotoUrls = [];
-        if (truckPhotos && truckPhotos.length > 0) {
-          const ups = await Promise.all(truckPhotos.map((p, i) => uploadPhotoToStorage(p, truckRId, i)));
-          truckPhotoUrls = ups.filter(Boolean);
-        }
         try {
-          await createJob({
-            source_app: "driver",
+          // 1. Загружаем фото в Storage
+          const rId = "TRK-" + Date.now();
+          let photoUrls = [];
+          if (truckPhotos && truckPhotos.length > 0) {
+            const ups = await Promise.all(truckPhotos.map((p, i) => uploadPhotoToStorage(p, rId, i)));
+            photoUrls = ups.filter(Boolean);
+          }
+          // 2. Сохраняем полный отчёт в reports
+          const report = await sbInsertReport({
+            id: rId,
+            source_app: "fahrer",
             source_type: "inspection_truck",
+            sender: driverName || "",
+            plate: truckVehicle ? (truckVehicle.plate || "") : "",
+            location: "Werkstatt",
+            description: (tr && tr !== "") ? tr : (safeTrim(truckDefects) || (inspectionResult === "ok" ? "LKW-Inspektion OK" : "LKW-Inspektion nicht OK")),
+            urgency: inspectionResult === "not_ok" ? "urgent" : "info",
+            checklist_json: { inspection_type: "truck", checks: truckChecks, stats: inspectionStats },
+            defects_json: { result: inspectionResult, defects_text: truckDefects || "", bad_items: badItems },
+            photos: photoUrls,
+            status: "new"
+          });
+          // 3. Если есть мангел — сигнал в alerts
+          if (inspectionResult === "not_ok") {
+            await sbInsert("alerts", {
+              id: "A" + Date.now(),
+              type: "inspection_truck",
+              plate: truckVehicle ? (truckVehicle.plate || "") : "",
+              location: "Werkstatt",
+              description: safeTrim(truckDefects) || "LKW-Inspektion: Mangel festgestellt",
+              urgency: "normal",
+              sender: driverName || "driver",
+              sender_app: "fahrer",
+              status: "open",
+              report_id: report ? report.id : rId
+            });
+          }
+          // 4. Создаём job как раньше
+          await createJob({
+            source_app: "driver", source_type: "inspection_truck",
             asset_type: "truck",
             asset_label: truckVehicle ? ((truckVehicle.plate || "") + (truckVehicle.brand ? " - " + truckVehicle.brand : "")) : "",
-            reporter_name: driverName || "",
-            reporter_contact: driverName || "",
+            reporter_name: driverName || "", reporter_contact: driverName || "",
             language: lang || "de",
             urgency: inspectionResult === "not_ok" ? "medium" : "low",
             status: "new",
             description_raw: safeTrim(truckDefects) || (inspectionResult === "ok" ? "Truck inspection OK" : "Truck inspection not OK"),
             description_de: (tr && tr !== "") ? tr : (safeTrim(truckDefects) || (inspectionResult === "ok" ? "LKW-Inspektion OK" : "LKW-Inspektion nicht OK")),
             checklist_json: { inspection_type: "truck", checks: truckChecks, stats: inspectionStats },
-            defects_json: { result: inspectionResult, defects_text: truckDefects || "", bad_items: badItems, photos: truckPhotoUrls }
+            defects_json: { result: inspectionResult, defects_text: truckDefects || "", bad_items: badItems, photos: photoUrls }
           });
-        } catch(e) {}
+        } catch(e) { console.error("submitTruck:", e); }
         setTruckLoading(false);
         setScreen("truckDone");
       })
@@ -841,29 +906,59 @@ function App() {
     translateToGerman(lang !== "de" && safeTrim(trailerDefects) ? trailerDefects : "")
       .then(async function(tr) {
         if (tr && tr !== "") setTrailerTranslated(tr);
-        const trailerRId = "TRL-" + Date.now();
-        let trailerPhotoUrls = [];
-        if (trailerPhotos && trailerPhotos.length > 0) {
-          const ups = await Promise.all(trailerPhotos.map((p, i) => uploadPhotoToStorage(p, trailerRId, i)));
-          trailerPhotoUrls = ups.filter(Boolean);
-        }
         try {
-          await createJob({
-            source_app: "driver",
+          // 1. Загружаем фото
+          const rId = "TRL-" + Date.now();
+          let photoUrls = [];
+          if (trailerPhotos && trailerPhotos.length > 0) {
+            const ups = await Promise.all(trailerPhotos.map((p, i) => uploadPhotoToStorage(p, rId, i)));
+            photoUrls = ups.filter(Boolean);
+          }
+          // 2. Полный отчёт в reports
+          const report = await sbInsertReport({
+            id: rId,
+            source_app: "fahrer",
             source_type: "inspection_trailer",
+            sender: driverName || "",
+            plate: trailerVehicle ? (trailerVehicle.plate || "") : "",
+            location: "Werkstatt",
+            description: (tr && tr !== "") ? tr : (safeTrim(trailerDefects) || (inspectionResult === "ok" ? "Auflieger-Inspektion OK" : "Auflieger-Inspektion nicht OK")),
+            urgency: inspectionResult === "not_ok" ? "urgent" : "info",
+            checklist_json: { inspection_type: "trailer", checks: trailerChecks, stats: inspectionStats },
+            defects_json: { result: inspectionResult, defects_text: trailerDefects || "", bad_items: badItems },
+            photos: photoUrls,
+            status: "new"
+          });
+          // 3. Сигнал в alerts только если mangel
+          if (inspectionResult === "not_ok") {
+            await sbInsert("alerts", {
+              id: "A" + Date.now(),
+              type: "inspection_trailer",
+              plate: trailerVehicle ? (trailerVehicle.plate || "") : "",
+              location: "Werkstatt",
+              description: safeTrim(trailerDefects) || "Auflieger-Inspektion: Mangel festgestellt",
+              urgency: "normal",
+              sender: driverName || "driver",
+              sender_app: "fahrer",
+              status: "open",
+              report_id: report ? report.id : rId
+            });
+          }
+          // 4. Job как раньше
+          await createJob({
+            source_app: "driver", source_type: "inspection_trailer",
             asset_type: "trailer",
             asset_label: trailerVehicle ? ((trailerVehicle.plate || "") + (trailerVehicle.brand ? " - " + trailerVehicle.brand : "")) : "",
-            reporter_name: driverName || "",
-            reporter_contact: driverName || "",
+            reporter_name: driverName || "", reporter_contact: driverName || "",
             language: lang || "de",
             urgency: inspectionResult === "not_ok" ? "medium" : "low",
             status: "new",
             description_raw: safeTrim(trailerDefects) || (inspectionResult === "ok" ? "Trailer inspection OK" : "Trailer inspection not OK"),
             description_de: (tr && tr !== "") ? tr : (safeTrim(trailerDefects) || (inspectionResult === "ok" ? "Auflieger-Inspektion OK" : "Auflieger-Inspektion nicht OK")),
             checklist_json: { inspection_type: "trailer", checks: trailerChecks, stats: inspectionStats },
-            defects_json: { result: inspectionResult, defects_text: trailerDefects || "", bad_items: badItems, photos: trailerPhotoUrls }
+            defects_json: { result: inspectionResult, defects_text: trailerDefects || "", bad_items: badItems, photos: photoUrls }
           });
-        } catch(e) {}
+        } catch(e) { console.error("submitTrailer:", e); }
         setTrailerLoading(false);
         setScreen("trailerDone");
       })
@@ -875,15 +970,46 @@ function App() {
     if (!ok) return;
     setBdSending(true);
     var alertId = "A" + Date.now();
+    var rId = "BD-" + Date.now();
     translateToGerman(lang !== "de" && bd.description.trim() ? bd.description : "")
       .then(async function(tr) {
         if (tr && tr !== "") setBdTranslated(tr);
-        let bdPhotoUrls = [];
-        if (bd.photos && bd.photos.length > 0) {
-          const ups = await Promise.all(bd.photos.map((p, i) => uploadPhotoToStorage(p, alertId, i)));
-          bdPhotoUrls = ups.filter(Boolean);
-        }
         try {
+          // 1. Загружаем фото в Storage (сжатые)
+          let photoUrls = [];
+          if (bd.photos && bd.photos.length > 0) {
+            const ups = await Promise.all(bd.photos.map((p, i) => uploadPhotoToStorage(p, rId, i)));
+            photoUrls = ups.filter(Boolean);
+          }
+          // 2. Полный отчёт в reports
+          const report = await sbInsertReport({
+            id: rId,
+            source_app: "fahrer",
+            source_type: bd.vehicle === "trailer" ? "breakdown_trailer" : "breakdown_truck",
+            sender: driverName || "",
+            plate: bd.plate || "",
+            location: bd.location || "",
+            description: (tr && tr !== "") ? tr : (bd.description || ""),
+            urgency: bd.urgency || "urgent",
+            checklist_json: null,
+            defects_json: { issue_type: bd.type || "breakdown", urgent: bd.urgency === "urgent" },
+            photos: photoUrls,
+            status: "new"
+          });
+          // 3. Краткий сигнал в alerts (всегда при поломке)
+          await sbInsert("alerts", {
+            id: alertId,
+            type: bd.type || "breakdown",
+            plate: bd.plate || null,
+            location: bd.location || "",
+            description: bd.description || "",
+            urgency: bd.urgency || "urgent",
+            sender: driverName || "driver",
+            sender_app: "fahrer",
+            status: "open",
+            report_id: report ? report.id : rId
+          });
+          // 4. Job как раньше
           await createJob({
             source_app: "driver",
             source_type: bd.vehicle === "trailer" ? "breakdown_trailer" : "breakdown_truck",
@@ -897,19 +1023,12 @@ function App() {
             location_label: bd.location || "",
             description_raw: bd.description || "",
             description_de: (tr && tr !== "") ? tr : (bd.description || ""),
-            defects_json: { issue_type: bd.type || "breakdown", urgent: bd.urgency === "urgent", photos: bdPhotoUrls }
+            defects_json: { issue_type: bd.type || "breakdown", urgent: bd.urgency === "urgent", photos: photoUrls }
           });
-        } catch(e) {}
+        } catch(e) { console.error("submitBreakdown:", e); }
         setBdSending(false);
         setBdAlertId(alertId);
         setBdAlertStatus("open");
-        sbInsert("alerts", {
-          id: alertId, type: bd.type || "breakdown",
-          plate: bd.plate || null, location: bd.location || "",
-          description: bd.description || "", urgency: bd.urgency || "urgent",
-          sender: driverName || "driver", sender_app: "fahrer", status: "open",
-          photos: bdPhotoUrls,
-        }).catch(function(e){ console.error("bd alert:", e); });
         setBdSent(true);
         var pollInterval = setInterval(function() {
           fetch(SB_URL + "/rest/v1/alerts?id=eq." + alertId + "&select=status", {
