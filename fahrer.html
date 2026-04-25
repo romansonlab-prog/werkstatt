@@ -97,10 +97,10 @@
     }
 
     .keypad-btn {
-      width:78px; height:78px; border-radius:50%;
+      width:68px; height:68px; border-radius:50%;
       background:transparent;
       border:1.5px solid rgba(255,255,255,0.35);
-      color:#fff; font-size:28px; font-weight:500;
+      color:#fff; font-size:24px; font-weight:500;
       display:flex; align-items:center; justify-content:center;
     }
     .keypad-btn:active { background:rgba(255,255,255,0.10); }
@@ -407,6 +407,15 @@ function translateToGerman(text) {
 }
 
 
+async function sbSelect(table, query) {
+  const url = SB_URL + "/rest/v1/" + table + (query ? "?" + query : "");
+  const res = await fetch(url, {
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
+  });
+  if (!res.ok) throw new Error("Supabase select failed");
+  return res.json();
+}
+
 async function sbInsert(table, payload) {
   const res = await fetch(SB_URL + "/rest/v1/" + table, {
     method: "POST",
@@ -590,8 +599,8 @@ function PinLogin({ onSuccess }) {
           })}
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 78px)", gap:18,
-          maxWidth:300, width:"100%", margin:"30px auto 0", justifyContent:"center" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 68px)", gap:14,
+          maxWidth:260, width:"100%", margin:"24px auto 0", justifyContent:"center" }}>
           {[1,2,3,4,5,6,7,8,9].map(function(d){
             return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>;
           })}
@@ -759,15 +768,29 @@ function MainMenu({ onPick, onLogout }) {
   );
 }
 
-// === Vehicle Dropdown ===
+// === Vehicle Combobox: search + select + free input + save ===
 
-function VehicleDropdown({ items, value, onChange, label, placeholder }) {
+function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeholder, allowAll }) {
+  // value = { plate, brand } or null
   const [open, setOpen] = useState(false);
+  const [plate, setPlate] = useState(value && value.plate ? value.plate : "");
+  const [brand, setBrand] = useState(value && value.brand ? value.brand : "");
+  const [editingBrand, setEditingBrand] = useState(false);
   const ref = useRef(null);
 
   useEffect(function(){
+    if (value) {
+      setPlate(value.plate || "");
+      setBrand(value.brand || "");
+    }
+  }, [value]);
+
+  useEffect(function(){
     const handler = function(e){
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setEditingBrand(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("touchstart", handler);
@@ -777,26 +800,80 @@ function VehicleDropdown({ items, value, onChange, label, placeholder }) {
     };
   }, []);
 
-  const sel = items.find(function(x){ return x.id === value; });
+  // Filter list by typed plate
+  const list = vehicles.filter(function(v){
+    if (!allowAll && v.type && vehicleType && v.type !== vehicleType) return false;
+    if (!plate.trim()) return true;
+    return (v.plate + " " + (v.brand||"")).toLowerCase()
+      .indexOf(plate.toLowerCase().trim()) !== -1;
+  });
+
+  const pickExisting = function(v){
+    setPlate(v.plate);
+    setBrand(v.brand || "");
+    setOpen(false);
+    onChange({ plate: v.plate, brand: v.brand || "", id: v.id, isNew: false });
+  };
+
+  const commit = function(){
+    const p = plate.trim();
+    const b = brand.trim();
+    if (!p) { onChange(null); return; }
+    // Check if matches existing
+    const existing = vehicles.find(function(v){
+      return v.plate.toLowerCase() === p.toLowerCase();
+    });
+    if (existing) {
+      onChange({ plate: existing.plate, brand: existing.brand || b, id: existing.id, isNew: false });
+    } else {
+      onChange({ plate: p, brand: b, isNew: true });
+    }
+  };
 
   return (
     <div ref={ref} style={{ position:"relative" }}>
       {label && <div className="label-cap">{label}</div>}
-      <button className="dropdown-trigger" onClick={function(){ setOpen(!open); }}>
-        <span style={{ color: sel ? "#fff" : "rgba(255,255,255,0.5)", fontWeight:600 }}>
-          {sel ? sel.plate + " - " + sel.brand : (placeholder || "Auswählen")}
-        </span>
-        <span style={{ color:"#ffa500", fontSize:14, transform: open ? "rotate(180deg)" : "none",
-          transition:"transform 0.2s" }}>▼</span>
-      </button>
-      {open && (
+
+      {/* Plate input */}
+      <div style={{ position:"relative" }}>
+        <input
+          className="dropdown-trigger"
+          style={{ paddingRight:40, fontWeight:600 }}
+          placeholder={placeholder || "Kennzeichen eingeben oder wählen"}
+          value={plate}
+          onChange={function(e){ setPlate(e.target.value); setOpen(true); }}
+          onFocus={function(){ setOpen(true); }}
+          onBlur={function(){ setTimeout(commit, 200); }}
+        />
+        <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
+          color:"#ffa500", fontSize:14, pointerEvents:"none" }}>▼</span>
+      </div>
+
+      {/* Brand input - shown when plate is entered */}
+      {plate.trim() && (
+        <div style={{ marginTop:8, position:"relative" }}>
+          <input
+            className="dropdown-trigger"
+            style={{ fontWeight:500, fontSize:14, paddingTop:10, paddingBottom:10,
+              borderColor: brand.trim() ? "#ffa500" : "rgba(255,255,255,0.2)" }}
+            placeholder="Marke / Modell (z.B. MAN TGX 18.440)"
+            value={brand}
+            onChange={function(e){ setBrand(e.target.value); }}
+            onBlur={function(){ setTimeout(commit, 200); }}
+          />
+        </div>
+      )}
+
+      {/* Dropdown with existing vehicles */}
+      {open && list.length > 0 && (
         <div className="dropdown-list">
-          {items.map(function(it){
+          {list.slice(0, 30).map(function(v){
             return (
-              <div key={it.id} className={"dropdown-item" + (it.id === value ? " active" : "")}
-                onClick={function(){ onChange(it.id); setOpen(false); }}>
-                <div style={{ fontWeight:700 }}>{it.plate}</div>
-                <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{it.brand}</div>
+              <div key={v.id || v.plate} className="dropdown-item"
+                onMouseDown={function(e){ e.preventDefault(); pickExisting(v); }}
+                onTouchStart={function(e){ e.preventDefault(); pickExisting(v); }}>
+                <div style={{ fontWeight:700 }}>{v.plate}</div>
+                {v.brand && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{v.brand}</div>}
               </div>
             );
           })}
@@ -804,6 +881,32 @@ function VehicleDropdown({ items, value, onChange, label, placeholder }) {
       )}
     </div>
   );
+}
+
+// Helper: ensure vehicle exists in DB (insert if new)
+async function ensureVehicleInDb(plate, brand, vehicleType) {
+  if (!plate) return null;
+  // Check if exists
+  const existing = await sbSelect("vehicles", "plate=eq." + encodeURIComponent(plate) + "&select=*").catch(function(){ return []; });
+  if (existing && existing.length > 0) return existing[0];
+  // Insert new
+  const newId = "v_" + Date.now();
+  try {
+    await sbInsert("vehicles", {
+      id: newId,
+      plate: plate,
+      brand: (brand || "").split(" ")[0] || (brand || ""),
+      model: (brand || "").split(" ").slice(1).join(" "),
+      type: vehicleType || "truck",
+      year: null, mileage: 0,
+      tuev: null, insurance: null, uvv: null,
+      next_service: null, notes: ""
+    });
+    return { id: newId, plate: plate, brand: brand || "", type: vehicleType };
+  } catch(e) {
+    console.error("Could not save vehicle:", e);
+    return { id: newId, plate: plate, brand: brand || "", type: vehicleType };
+  }
 }
 
 // === Photo Upload (CAMERA) ===
@@ -849,25 +952,48 @@ function PhotoUpload({ photos, setPhotos }) {
 
 function InspectionScreen({ kind, onBack, driverName }) {
   const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
-  const fleet = kind === "lkw" ? TRUCKS : TRAILERS;
-  const [vehicleId, setVehicleId] = useState(fleet[0].id);
+  const vehicleType = kind === "lkw" ? "truck" : "trailer";
+  const seedFleet = kind === "lkw" ? TRUCKS : TRAILERS;
+  const [vehicles, setVehicles] = useState(seedFleet.map(function(v){
+    return { id: v.id, plate: v.plate, brand: v.brand, type: vehicleType };
+  }));
+  const [vehSel, setVehSel] = useState(null); // { plate, brand, isNew }
   const [checks, setChecks] = useState({});
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState([]);
   const [sending, setSending] = useState(false);
 
-  const veh = fleet.find(function(x){ return x.id === vehicleId; });
+  // Load vehicles from Supabase
+  useEffect(function(){
+    sbSelect("vehicles", "type=eq." + vehicleType + "&select=*&order=plate")
+      .then(function(rows){
+        if (rows && rows.length > 0) {
+          setVehicles(rows.map(function(r){
+            return {
+              id: r.id, plate: r.plate,
+              brand: (r.brand || "") + (r.model ? " " + r.model : ""),
+              type: r.type
+            };
+          }));
+        }
+      })
+      .catch(function(){});
+  }, [vehicleType]);
   const checkedCount = items.filter(function(it){ return checks[it.k]; }).length;
   const hasFault = items.some(function(it){ return checks[it.k] === "fail"; });
   const allDone = checkedCount === items.length;
 
   const submit = async function(){
-    if (!allDone || sending) return;
+    if (!allDone || !vehSel || !vehSel.plate || sending) return;
     setSending(true);
     try {
+      // If new vehicle, save to DB
+      if (vehSel.isNew) {
+        await ensureVehicleInDb(vehSel.plate, vehSel.brand, vehicleType);
+      }
       await sbInsert("inspections", {
-        kind: kind === "lkw" ? "truck" : "trailer",
-        plate: veh.plate, brand: veh.brand,
+        kind: vehicleType,
+        plate: vehSel.plate, brand: vehSel.brand || "",
         result: hasFault ? "mangel" : "ok",
         checks_json: checks, notes: notes || null, photos: photos,
         driver: driverName || "fahrer",
@@ -876,7 +1002,7 @@ function InspectionScreen({ kind, onBack, driverName }) {
       if (hasFault) {
         await sbInsert("alerts", {
           id: "I" + Date.now(), type: "inspection_mangel",
-          plate: veh.plate, location: "Werkstatt",
+          plate: vehSel.plate, location: "Werkstatt",
           description: notes || "Mangel bei Inspektion", urgency: "normal",
           sender: driverName || "driver", sender_app: "fahrer", status: "open",
         });
@@ -904,7 +1030,9 @@ function InspectionScreen({ kind, onBack, driverName }) {
         </div>
 
         <div style={{ marginTop:12, marginBottom:16 }}>
-          <VehicleDropdown items={fleet} value={vehicleId} onChange={setVehicleId} />
+          <VehicleCombobox vehicles={vehicles} vehicleType={vehicleType}
+            value={vehSel} onChange={setVehSel}
+            placeholder="Kennzeichen eingeben oder wählen" />
         </div>
 
         <div className="insp-header">
@@ -950,7 +1078,7 @@ function InspectionScreen({ kind, onBack, driverName }) {
       </div>
 
       <div className="fixed-bottom-bar">
-        <PrimaryBtn onClick={submit} disabled={!allDone || sending}>
+        <PrimaryBtn onClick={submit} disabled={!allDone || !vehSel || !vehSel.plate || sending}>
           {sending ? "Senden..." : "Inspektion abschliessen"}
         </PrimaryBtn>
       </div>
@@ -961,8 +1089,10 @@ function InspectionScreen({ kind, onBack, driverName }) {
 // === SCREEN: Breakdown ===
 
 function BreakdownScreen({ onBack, driverName, lang }) {
-  const allFleet = TRUCKS.concat(TRAILERS);
-  const [vehicle, setVehicle] = useState(null);
+  const seedFleet = TRUCKS.map(function(v){ return Object.assign({}, v, { type:"truck" }); })
+    .concat(TRAILERS.map(function(v){ return Object.assign({}, v, { type:"trailer" }); }));
+  const [vehicles, setVehicles] = useState(seedFleet);
+  const [vehSel, setVehSel] = useState(null);
   const [type, setType] = useState(null);
   const [urg, setUrg] = useState(null);
   const [loc, setLoc] = useState("");
@@ -972,8 +1102,24 @@ function BreakdownScreen({ onBack, driverName, lang }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const vehSel = allFleet.find(function(x){ return x.id === vehicle; });
-  const ok = vehicle && type && urg && loc && desc && driverName;
+  // Load vehicles from Supabase (all types)
+  useEffect(function(){
+    sbSelect("vehicles", "select=*&order=plate")
+      .then(function(rows){
+        if (rows && rows.length > 0) {
+          setVehicles(rows.map(function(r){
+            return {
+              id: r.id, plate: r.plate,
+              brand: (r.brand || "") + (r.model ? " " + r.model : ""),
+              type: r.type
+            };
+          }));
+        }
+      })
+      .catch(function(){});
+  }, []);
+
+  const ok = vehSel && vehSel.plate && type && urg && loc && desc && driverName;
 
   const detectLoc = function(){
     if (!navigator.geolocation) {
@@ -983,8 +1129,27 @@ function BreakdownScreen({ onBack, driverName, lang }) {
     setLocLoading(true);
     navigator.geolocation.getCurrentPosition(
       function(p){
-        setLoc(p.coords.latitude.toFixed(5) + ", " + p.coords.longitude.toFixed(5));
-        setLocLoading(false);
+        const lat = p.coords.latitude;
+        const lon = p.coords.longitude;
+        // Reverse geocoding via OpenStreetMap Nominatim
+        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&accept-language=de&zoom=14")
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            const a = d.address || {};
+            const parts = [];
+            if (a.road) parts.push(a.road + (a.house_number ? " " + a.house_number : ""));
+            if (a.city || a.town || a.village || a.suburb) {
+              parts.push(a.city || a.town || a.village || a.suburb);
+            }
+            if (a.country_code) parts.push((a.country_code + "").toUpperCase());
+            const txt = parts.length ? parts.join(", ") : (lat.toFixed(5) + ", " + lon.toFixed(5));
+            setLoc(txt);
+            setLocLoading(false);
+          })
+          .catch(function(){
+            setLoc(lat.toFixed(5) + ", " + lon.toFixed(5));
+            setLocLoading(false);
+          });
       },
       function(err){
         setLocLoading(false);
@@ -998,9 +1163,15 @@ function BreakdownScreen({ onBack, driverName, lang }) {
     if (!ok || sending) return;
     setSending(true);
     try {
+      // If new vehicle, save to DB
+      if (vehSel && vehSel.isNew) {
+        // Guess type by selecting from BD context - default truck
+        await ensureVehicleInDb(vehSel.plate, vehSel.brand, "truck");
+      }
       const tr = await translateToGerman(lang !== "DE" && desc.trim() ? desc : "");
       await sbInsert("alerts", {
-        id: "A" + Date.now(), type: type, plate: vehSel ? vehSel.plate : null,
+        id: "A" + Date.now(), type: type,
+        plate: vehSel.plate,
         location: loc, description: desc,
         urgency: urg === "sofort" ? "urgent" : "normal",
         sender: driverName || "driver", sender_app: "fahrer", status: "open",
@@ -1044,7 +1215,8 @@ function BreakdownScreen({ onBack, driverName, lang }) {
         </div>
 
         <div style={{ marginBottom:18 }}>
-          <VehicleDropdown items={allFleet} value={vehicle} onChange={setVehicle}
+          <VehicleCombobox vehicles={vehicles} allowAll={true}
+            value={vehSel} onChange={setVehSel}
             label="LKW WÄHLEN / AUFLIEGER WÄHLEN *"
             placeholder="Fahrzeug wählen oder eingeben" />
         </div>
