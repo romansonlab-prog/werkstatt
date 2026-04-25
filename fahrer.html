@@ -691,6 +691,13 @@ const TRAILERS = [
   { id:"mata213", plate:"MA-TA 213", brand:"Fliegl SDS"        },
 ];
 
+function normalizeVehicleType(type) {
+  const s = String(type || "").toLowerCase().trim();
+  if (["truck", "lkw", "zugmaschine", "tractor", "trk"].includes(s)) return "truck";
+  if (["trailer", "auflieger", "auf", "anh", "anhaenger", "anhänger", "semi"].includes(s)) return "trailer";
+  return s;
+}
+
 
 function langKey(L) {
   // UI uses uppercase codes, T uses lowercase
@@ -1167,6 +1174,9 @@ function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeh
     if (value) {
       setPlate(value.plate || "");
       setBrand(value.brand || "");
+    } else {
+      setPlate("");
+      setBrand("");
     }
   }, [value]);
 
@@ -1187,9 +1197,9 @@ function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeh
 
   // Filter list by typed plate
   const list = vehicles.filter(function(v){
-    if (!allowAll && v.type && vehicleType && v.type !== vehicleType) return false;
+    if (!allowAll && vehicleType && normalizeVehicleType(v.type) && normalizeVehicleType(v.type) !== normalizeVehicleType(vehicleType)) return false;
     if (!plate.trim()) return true;
-    return (v.plate + " " + (v.brand||"")).toLowerCase()
+    return ((v.plate || "") + " " + (v.brand || "")).toLowerCase()
       .indexOf(plate.toLowerCase().trim()) !== -1;
   });
 
@@ -1197,7 +1207,7 @@ function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeh
     setPlate(v.plate);
     setBrand(v.brand || "");
     setOpen(false);
-    onChange({ plate: v.plate, brand: v.brand || "", id: v.id, isNew: false });
+    onChange({ plate: v.plate, brand: v.brand || "", id: v.id, type: normalizeVehicleType(v.type), isNew: false });
   };
 
   const commit = function(){
@@ -1206,10 +1216,11 @@ function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeh
     if (!p) { onChange(null); return; }
     // Check if matches existing
     const existing = vehicles.find(function(v){
-      return v.plate.toLowerCase() === p.toLowerCase();
+      const typeOk = allowAll || !vehicleType || !normalizeVehicleType(v.type) || normalizeVehicleType(v.type) === normalizeVehicleType(vehicleType);
+      return typeOk && String(v.plate || "").toLowerCase() === p.toLowerCase();
     });
     if (existing) {
-      onChange({ plate: existing.plate, brand: existing.brand || b, id: existing.id, isNew: false });
+      onChange({ plate: existing.plate, brand: existing.brand || b, id: existing.id, type: normalizeVehicleType(existing.type), isNew: false });
     } else {
       onChange({ plate: p, brand: b, isNew: true });
     }
@@ -1256,7 +1267,7 @@ function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeh
             return (
               <div key={v.id || v.plate} className="dropdown-item"
                 onMouseDown={function(e){ e.preventDefault(); pickExisting(v); }}
-                onTouchStart={function(e){ e.preventDefault(); pickExisting(v); }}>
+                onClick={function(){ pickExisting(v); }}>
                 <div style={{ fontWeight:700 }}>{v.plate}</div>
                 {v.brand && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{v.brand}</div>}
               </div>
@@ -1337,9 +1348,9 @@ function PhotoUpload({ photos, setPhotos, t }) {
 // === SCREEN: Inspection ===
 
 function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
-  const items = kind === "lkw" ? TRUCK_CHECKS : TRAILER_CHECKS;
-  const vehicleType = kind === "lkw" ? "truck" : "trailer";
   const t = getT(lang);
+  const items = kind === "lkw" ? (t.truckChecks || TRUCK_CHECKS) : (t.trailerChecks || TRAILER_CHECKS);
+  const vehicleType = kind === "lkw" ? "truck" : "trailer";
   const seedFleet = kind === "lkw" ? TRUCKS : TRAILERS;
   const [vehicles, setVehicles] = useState(seedFleet.map(function(v){
     return { id: v.id, plate: v.plate, brand: v.brand, type: vehicleType };
@@ -1352,16 +1363,17 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
 
   // Load vehicles from Supabase
   useEffect(function(){
-    sbSelect("vehicles", "type=eq." + vehicleType + "&select=*&order=plate")
+    sbSelect("vehicles", "select=*&order=plate")
       .then(function(rows){
         if (rows && rows.length > 0) {
-          setVehicles(rows.map(function(r){
+          const normalized = rows.map(function(r){
             return {
               id: r.id, plate: r.plate,
               brand: (r.brand || "") + (r.model ? " " + r.model : ""),
-              type: r.type
+              type: normalizeVehicleType(r.type)
             };
-          }));
+          }).filter(function(v){ return normalizeVehicleType(v.type) === vehicleType; });
+          if (normalized.length > 0) setVehicles(normalized);
         }
       })
       .catch(function(){});
@@ -1510,7 +1522,7 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
             return {
               id: r.id, plate: r.plate,
               brand: (r.brand || "") + (r.model ? " " + r.model : ""),
-              type: r.type
+              type: normalizeVehicleType(r.type)
             };
           }));
         }
@@ -1640,13 +1652,13 @@ function BreakdownScreen({ onBack, driverName, lang, setLang }) {
 
         <div className="label-cap">{(t.breakdownType || "Art der Störung").toUpperCase() + " *"}</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
-          {BD_TYPES.map(function(t){
+          {(t.types || BD_TYPES).map(function(item){
             return (
-              <div key={t.k} className={"type-tile" + (type === t.k ? " active" : "")}
-                onClick={function(){ setType(t.k); }}
+              <div key={item.k} className={"type-tile" + (type === item.k ? " active" : "")}
+                onClick={function(){ setType(item.k); }}
                 style={{ cursor:"pointer" }}>
-                <span className="type-tag">{t.tag}</span>
-                <span style={{ flex:1 }}>{t.label}</span>
+                <span className="type-tag">{item.emoji || item.tag}</span>
+                <span style={{ flex:1 }}>{item.label}</span>
               </div>
             );
           })}
