@@ -1748,17 +1748,7 @@ function exportDayReport(jobs, vehicles, lang) {
     "<b>Gesamt:</b> " + todayJobs.length + " Aufträge | " +
     Math.floor(totalMin/60) + "h " + (totalMin%60) + "min | " +
     totalCost.toFixed(2) + " €" +
-    "</div>
-<script>
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    document.querySelectorAll("button").forEach(function(b){
-      var t=(b.textContent||"").toLowerCase();
-      if(t.includes("fahrzeuge")) b.remove();
-    });
-  }, 500);
-});
-</script>
+    "</div>" +
 
 </body></html>";
 
@@ -1827,16 +1817,6 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
       +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
       +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
       +"</div>
-<script>
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    document.querySelectorAll("button").forEach(function(b){
-      var t=(b.textContent||"").toLowerCase();
-      if(t.includes("fahrzeuge")) b.remove();
-    });
-  }, 500);
-});
-</script>
 
 </body></html>";
     win.document.write(html);
@@ -3800,16 +3780,6 @@ function Archive({ jobs, user, t, inspections }) {
       +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
       +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
       +"</div>
-<script>
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    document.querySelectorAll("button").forEach(function(b){
-      var t=(b.textContent||"").toLowerCase();
-      if(t.includes("fahrzeuge")) b.remove();
-    });
-  }, 500);
-});
-</script>
 
 </body></html>";
     win.document.write(html);
@@ -3879,16 +3849,6 @@ window.addEventListener("load", function(){
       + "<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>&#128424; Drucken</button>"
       + "</div>"
       + "
-<script>
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    document.querySelectorAll("button").forEach(function(b){
-      var t=(b.textContent||"").toLowerCase();
-      if(t.includes("fahrzeuge")) b.remove();
-    });
-  }, 500);
-});
-</script>
 
 </body></html>";
     win.document.write(html);
@@ -5117,16 +5077,6 @@ function App() {
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
   </script>
 
-<script>
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    document.querySelectorAll("button").forEach(function(b){
-      var t=(b.textContent||"").toLowerCase();
-      if(t.includes("fahrzeuge")) b.remove();
-    });
-  }, 500);
-});
-</script>
 
 </body>
 </html>
