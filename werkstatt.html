@@ -1155,6 +1155,73 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
   );
 }
 
+// === StandortPicker ===
+function StandortPicker({ value, onChange }) {
+  var _so = useState(false); var open = _so[0]; var setOpen = _so[1];
+  var _si = useState(value || ""); var input = _si[0]; var setInput = _si[1];
+  var ref = useRef(null);
+
+  useEffect(function() { setInput(value || ""); }, [value]);
+
+  useEffect(function() {
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return function() {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, []);
+
+  var filtered = LOCATIONS.filter(function(l) {
+    return l.toLowerCase().includes(input.toLowerCase());
+  });
+
+  return (
+    <div style={{ position:"relative" }} ref={ref}>
+      <div style={{ position:"relative" }}>
+        <input
+          className="input-dark"
+          value={input}
+          placeholder="Standort wählen oder eingeben"
+          onFocus={function(){ setOpen(true); }}
+          onChange={function(e){ setInput(e.target.value); onChange(e.target.value); setOpen(true); }}
+          onBlur={function(){ setTimeout(function(){ if (!open) onChange(input); }, 200); }}
+        />
+        <button
+          type="button"
+          onClick={function(){ setOpen(!open); }}
+          style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", border:0, background:"transparent", color:"#ffa500", fontSize:18, padding:4 }}>
+          ▾
+        </button>
+      </div>
+      {open && (
+        <div className="dropdown-list">
+          {filtered.map(function(l) {
+            return (
+              <div key={l} className="dropdown-item"
+                style={{ fontWeight: value === l ? 800 : 500, color: value === l ? "#ffa500" : "#fff" }}
+                onMouseDown={function(){ onChange(l); setInput(l); setOpen(false); }}
+                onTouchEnd={function(){ onChange(l); setInput(l); setOpen(false); }}>
+                {l}
+              </div>
+            );
+          })}
+          {input.trim() && !LOCATIONS.includes(input.trim()) && (
+            <div className="dropdown-item" style={{ color:"#ffa500", fontWeight:800 }}
+              onMouseDown={function(){ onChange(input.trim()); setOpen(false); }}
+              onTouchEnd={function(){ onChange(input.trim()); setOpen(false); }}>
+              + Eigener Standort: {input.trim()}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // === NEW JOB FORM ===
 function NewJob({ vehicles, setVehicles, user, prefill, onClear, onSaved }) {
   var _svt = useState(prefill && prefill.vehicle_type ? prefill.vehicle_type : "truck");
@@ -1292,19 +1359,7 @@ function NewJob({ vehicles, setVehicles, user, prefill, onClear, onSaved }) {
           </div>
         </div>
         <div className="label-cap" style={{ marginTop:10 }}>Standort</div>
-        {/* п.4: select + возможность ручного ввода через datalist */}
-        <div style={{ position:"relative" }}>
-          <input
-            className="input-dark"
-            list="wf-locations"
-            value={location}
-            onChange={function(e){ setLocation(e.target.value); }}
-            placeholder="Standort wählen oder eingeben"
-          />
-          <datalist id="wf-locations">
-            {LOCATIONS.map(function(l) { return <option key={l} value={l} />; })}
-          </datalist>
-        </div>
+        <StandortPicker value={location} onChange={setLocation} />
       </div>
 
       <div className="glass-panel">
