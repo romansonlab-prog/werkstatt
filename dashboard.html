@@ -1202,6 +1202,402 @@ function Archiv({ jobs }) {
   );
 }
 
+// === SVG ICONS ===
+var IC = {
+  home:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>,
+  inbox:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22,12 16,12 14,15 10,15 8,12 2,12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>,
+  wrench:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>,
+  truck:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16,8 20,8 23,11 23,16 16,16 16,8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+  search:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  droplet:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>,
+  box:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+  archive:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="21,8 21,21 3,21 3,8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
+  euro:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12M4 14h12M19.5 9a6.5 6.5 0 100 6"/></svg>,
+  receipt:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="6" x2="12" y2="6"/></svg>,
+  calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  report:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>,
+};
+
+// === KOSTEN ===
+function Kosten({ jobs, invoices, vehicles, forklifts }) {
+  var _sp = useState("month"); var period = _sp[0]; var setPeriod = _sp[1];
+
+  function periodStart() {
+    var d = new Date();
+    if (period === "month") { d.setDate(1); return d.toISOString().slice(0,10); }
+    if (period === "quarter") { d.setMonth(Math.floor(d.getMonth()/3)*3, 1); return d.toISOString().slice(0,10); }
+    if (period === "year") { d.setMonth(0,1); return d.toISOString().slice(0,10); }
+    return "";
+  }
+
+  var start = periodStart();
+  var filtered = start ? jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) >= start; }) : jobs;
+  var filtInv = start ? invoices.filter(function(i){ return (i.date||"") >= start; }) : invoices;
+
+  var totalLabor = filtered.reduce(function(s,j){ return s+(Number(j.labor_cost)||0); }, 0);
+  var totalParts = filtered.reduce(function(s,j){ return s+(Number(j.parts_cost)||0); }, 0);
+  var totalInv   = filtInv.reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+  var totalAll   = totalLabor + totalParts + totalInv;
+
+  var byVeh = {};
+  filtered.forEach(function(j){
+    if (!j.plate) return;
+    if (!byVeh[j.plate]) byVeh[j.plate] = { labor:0, parts:0, jobs:0, min:0 };
+    byVeh[j.plate].labor += Number(j.labor_cost)||0;
+    byVeh[j.plate].parts += Number(j.parts_cost)||0;
+    byVeh[j.plate].jobs++;
+    byVeh[j.plate].min += parseInt(j.work_min||0)||0;
+  });
+  var topVeh = Object.keys(byVeh).sort(function(a,b){
+    return (byVeh[b].labor+byVeh[b].parts) - (byVeh[a].labor+byVeh[a].parts);
+  }).slice(0,10);
+
+  var byMech = {};
+  filtered.forEach(function(j){
+    if (!j.mechanic) return;
+    if (!byMech[j.mechanic]) byMech[j.mechanic] = { labor:0, jobs:0, min:0 };
+    byMech[j.mechanic].labor += Number(j.labor_cost)||0;
+    byMech[j.mechanic].jobs++;
+    byMech[j.mechanic].min += parseInt(j.work_min||0)||0;
+  });
+
+  var byType = {};
+  filtered.forEach(function(j){
+    var t = j.work_type||"other";
+    if (!byType[t]) byType[t] = { cost:0, jobs:0 };
+    byType[t].cost += (Number(j.labor_cost)||0)+(Number(j.parts_cost)||0);
+    byType[t].jobs++;
+  });
+
+  function exportKosten() {
+    var rows = topVeh.map(function(p){
+      var v = byVeh[p];
+      return "<tr><td>"+p+"</td><td>"+(v.labor.toFixed(2))+" €</td><td>"+(v.parts.toFixed(2))+" €</td><td>"+((v.labor+v.parts).toFixed(2))+" €</td><td>"+v.jobs+"</td><td>"+fmtMin(v.min)+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Kostenanalyse</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Kostenanalyse</h1><h2>Zeitraum: "+fmtDate(start)+" — heute</h2>"+
+      "<div class='sum'><div class='sum-item'><div class='sum-val'>"+totalAll.toFixed(2)+" €</div><div class='sum-lab'>Gesamt</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+totalLabor.toFixed(2)+" €</div><div class='sum-lab'>Lohnkosten</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+totalParts.toFixed(2)+" €</div><div class='sum-lab'>Ersatzteile</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+totalInv.toFixed(2)+" €</div><div class='sum-lab'>Rechnungen</div></div></div>"+
+      "<h2 style='margin-bottom:10px'>Kosten je Fahrzeug</h2>"+
+      "<table><thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Gesamt</th><th>Aufträge</th><th>Arbeitszeit</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Kostenanalyse");
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:8, marginBottom:20, alignItems:"center" }}>
+        <div style={{ fontSize:18, fontWeight:900, flex:1 }}>Kostenanalyse</div>
+        {[["month","Monat"],["quarter","Quartal"],["year","Jahr"],["all","Gesamt"]].map(function(p){
+          return <button key={p[0]} className={"btn-small "+(period===p[0]?"btn-primary":"btn-outline")} onClick={function(){ setPeriod(p[0]); }}>{p[1]}</button>;
+        })}
+        <button className="btn-outline btn-small no-print" onClick={exportKosten}>Export</button>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="kpi-card orange"><div className="kpi-icon" style={{ fontSize:18 }}>∑</div><div className="kpi-val">{totalAll.toFixed(0)} €</div><div className="kpi-label">Gesamtkosten</div></div>
+        <div className="kpi-card blue"><div className="kpi-icon" style={{ fontSize:18 }}>⏱</div><div className="kpi-val">{totalLabor.toFixed(0)} €</div><div className="kpi-label">Lohnkosten</div></div>
+        <div className="kpi-card purple"><div className="kpi-icon" style={{ fontSize:18 }}>⚙</div><div className="kpi-val">{totalParts.toFixed(0)} €</div><div className="kpi-label">Ersatzteile</div></div>
+        <div className="kpi-card green"><div className="kpi-icon" style={{ fontSize:18 }}>🧾</div><div className="kpi-val">{totalInv.toFixed(0)} €</div><div className="kpi-label">Rechnungen</div></div>
+      </div>
+
+      <div className="g2">
+        <div className="panel">
+          <div className="panel-hd"><div className="panel-title">Kosten je Fahrzeug (Top 10)</div></div>
+          {topVeh.length === 0 ? <div className="empty">Keine Daten</div> :
+            <table className="tbl">
+              <thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Gesamt</th><th>Aufträge</th></tr></thead>
+              <tbody>
+                {topVeh.map(function(p){
+                  var v = byVeh[p];
+                  var total = v.labor + v.parts;
+                  return (
+                    <tr key={p}>
+                      <td><strong>{p}</strong></td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{v.labor.toFixed(2)} €</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{v.parts.toFixed(2)} €</td>
+                      <td style={{ color:"#ffa500", fontWeight:700 }}>{total.toFixed(2)} €</td>
+                      <td style={{ fontSize:12 }}>{v.jobs}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          }
+        </div>
+
+        <div className="panel">
+          <div className="panel-hd"><div className="panel-title">Kosten je Mechaniker</div></div>
+          {Object.keys(byMech).length === 0 ? <div className="empty">Keine Daten</div> :
+            Object.keys(byMech).map(function(id){
+              var m = byMech[id];
+              return (
+                <div key={id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ flex:1, fontWeight:700, fontSize:13 }}>{id}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{m.jobs} Auftr. · {fmtMin(m.min)}</div>
+                  <div style={{ fontWeight:800, color:"#ffa500", minWidth:70, textAlign:"right" }}>{m.labor.toFixed(2)} €</div>
+                </div>
+              );
+            })
+          }
+          <div style={{ marginTop:14 }}>
+            <div className="panel-title" style={{ marginBottom:10 }}>Kosten je Arbeitstyp</div>
+            {Object.keys(byType).map(function(t){
+              var x = byType[t];
+              return (
+                <div key={t} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                  <div style={{ flex:1, fontSize:12 }}>{WORK_TYPES[t]||t}</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{x.jobs}x</div>
+                  <div style={{ fontWeight:700, color:"#ffa500", fontSize:13, minWidth:70, textAlign:"right" }}>{x.cost.toFixed(2)} €</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === RECHNUNGEN ===
+function Rechnungen({ invoices, vehicles, jobs, onRefresh, loading }) {
+  var _sd = useState(""); var dateF = _sd[0]; var setDateF = _sd[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _sp = useState("all"); var paidF = _sp[0]; var setPaidF = _sp[1];
+
+  var list = invoices;
+  if (dateF) list = list.filter(function(i){ return (i.date||"") === dateF; });
+  if (paidF === "paid")   list = list.filter(function(i){ return i.paid; });
+  if (paidF === "unpaid") list = list.filter(function(i){ return !i.paid; });
+  if (search) list = list.filter(function(i){ return ((i.supplier_name||"")+(i.invoice_nr||"")+(i.vehicle_id||"")+(i.notes||"")).toLowerCase().includes(search.toLowerCase()); });
+
+  var total = list.reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+  var unpaid = list.filter(function(i){ return !i.paid; }).reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+
+  function exportInv() {
+    var rows = list.map(function(i){
+      return "<tr><td>"+(i.date||"")+"</td><td>"+(i.supplier_name||"—")+"</td><td>"+(i.invoice_nr||"—")+"</td>"+
+        "<td>"+(i.vehicle_id||"—")+"</td><td style='font-weight:700'>"+(i.total_eur?Number(i.total_eur).toFixed(2)+" €":"—")+"</td>"+
+        "<td style='color:"+(i.paid?"#22c55e":"#ef4444")+"'>"+(i.paid?"✓ Bezahlt":"Offen")+"</td>"+
+        "<td>"+(i.notes||"")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Rechnungen Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Rechnungen</h1>"+
+      "<div class='sum'><div class='sum-item'><div class='sum-val'>"+list.length+"</div><div class='sum-lab'>Gesamt</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+total.toFixed(2)+" €</div><div class='sum-lab'>Betrag</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+unpaid.toFixed(2)+" €</div><div class='sum-lab'>Offen</div></div></div>"+
+      "<table><thead><tr><th>Datum</th><th>Lieferant</th><th>Beleg-Nr.</th><th>Fahrzeug</th><th>Betrag</th><th>Status</th><th>Notizen</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Rechnungen Export");
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:14, marginBottom:16 }}>
+        <div className="kpi-card orange" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{list.length}</div><div className="kpi-label">Rechnungen</div></div>
+        <div className="kpi-card blue" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{total.toFixed(2)} €</div><div className="kpi-label">Gesamt</div></div>
+        <div className="kpi-card red" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{unpaid.toFixed(2)} €</div><div className="kpi-label">Offene Beträge</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Rechnungen</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportInv}>Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+          {[["all","Alle"],["unpaid","Offen"],["paid","Bezahlt"]].map(function(f){
+            return <button key={f[0]} className={"btn-small "+(paidF===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setPaidF(f[0]); }}>{f[1]}</button>;
+          })}
+          <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
+          <input className="inp" style={{ flex:1, minWidth:180 }} value={search} placeholder="Suche Lieferant / Beleg-Nr. / Fahrzeug..." onChange={function(e){ setSearch(e.target.value); }} />
+        </div>
+        {list.length === 0
+          ? <div className="empty">Keine Rechnungen gefunden</div>
+          : <table className="tbl">
+              <thead><tr><th>Datum</th><th>Lieferant</th><th>Beleg-Nr.</th><th>Fahrzeug</th><th>Auftrag</th><th>Betrag</th><th>Status</th><th>Notizen</th></tr></thead>
+              <tbody>
+                {list.map(function(i){
+                  return (
+                    <tr key={i.id}>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{fmtDate(i.date)}</td>
+                      <td style={{ fontWeight:700 }}>{i.supplier_name||"—"}</td>
+                      <td style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.65)" }}>{i.invoice_nr||"—"}</td>
+                      <td style={{ fontSize:12 }}>{i.vehicle_id||"—"}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{i.job_id ? i.job_id.slice(0,10)+"..." : "—"}</td>
+                      <td style={{ fontWeight:800, color:"#ffa500" }}>{i.total_eur?Number(i.total_eur).toFixed(2)+" €":"—"}</td>
+                      <td><span className={"badge "+(i.paid?"badge-green":"badge-red")}>{i.paid?"✓ Bezahlt":"Offen"}</span></td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{(i.notes||"").slice(0,40)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+      </div>
+    </div>
+  );
+}
+
+// === WARTUNGSPLAN ===
+function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
+  var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
+
+  var allVeh = vehicles.concat(forklifts||[]);
+
+  function planStatus(p) {
+    var today = new Date();
+    var byDate = p.next_service_date ? Math.round((new Date(p.next_service_date) - today) / 86400000) : null;
+    if (byDate !== null) {
+      if (byDate < 0) return "expired";
+      if (byDate < 14) return "urgent";
+      if (byDate < 30) return "warn";
+    }
+    return "ok";
+  }
+
+  var list = plans;
+  if (filter === "expired") list = list.filter(function(p){ return planStatus(p) === "expired"; });
+  if (filter === "urgent")  list = list.filter(function(p){ return ["expired","urgent"].includes(planStatus(p)); });
+  if (filter === "warn")    list = list.filter(function(p){ return ["expired","urgent","warn"].includes(planStatus(p)); });
+
+  var expiredCount = plans.filter(function(p){ return planStatus(p) === "expired"; }).length;
+  var urgentCount  = plans.filter(function(p){ return planStatus(p) === "urgent"; }).length;
+  var warnCount    = plans.filter(function(p){ return planStatus(p) === "warn"; }).length;
+
+  function exportPlan() {
+    var rows = list.map(function(p){
+      var st = planStatus(p);
+      var diff = p.next_service_date ? Math.round((new Date(p.next_service_date)-new Date())/86400000) : null;
+      return "<tr><td>"+(p.vehicle_plate||p.vehicle_id||"—")+"</td>"+
+        "<td>"+(p.interval_days?" alle "+p.interval_days+" Tage":"—")+"</td>"+
+        "<td>"+(p.interval_km?" alle "+p.interval_km+" km":"—")+"</td>"+
+        "<td>"+(fmtDate(p.last_service_date)||"—")+"</td>"+
+        "<td>"+(fmtDate(p.next_service_date)||"—")+"</td>"+
+        "<td>"+(diff!==null?(diff<0?Math.abs(diff)+" Tage überfällig":diff+" Tage"):"—")+"</td>"+
+        "<td style='color:"+docColor(st)+"'>"+st.toUpperCase()+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Wartungsplan</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Wartungsplan</h1>"+
+      "<table><thead><tr><th>Fahrzeug</th><th>Intervall (Zeit)</th><th>Intervall (km)</th><th>Letztes TO</th><th>Nächstes TO</th><th>In/Vor</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Wartungsplan");
+  }
+
+  return (
+    <div>
+      <div className="g3" style={{ marginBottom:16 }}>
+        <div className="kpi-card red"><div style={{ fontSize:22, fontWeight:900 }}>{expiredCount}</div><div className="kpi-label">Überfällig</div></div>
+        <div className="kpi-card orange"><div style={{ fontSize:22, fontWeight:900 }}>{urgentCount}</div><div className="kpi-label">Dringend (&lt;14 Tage)</div></div>
+        <div className="kpi-card" style={{ borderLeft:"3px solid #ffa500" }}><div style={{ fontSize:22, fontWeight:900 }}>{warnCount}</div><div className="kpi-label">Bald fällig (&lt;30 Tage)</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Wartungsplan</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportPlan}>Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+          {[["all","Alle"],["urgent","Dringend"],["warn","Bald fällig"],["expired","Überfällig"]].map(function(f){
+            return <button key={f[0]} className={"btn-small "+(filter===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setFilter(f[0]); }}>{f[1]}</button>;
+          })}
+        </div>
+        {list.length === 0
+          ? <div className="empty">{plans.length === 0 ? "Noch keine Wartungspläne — Daten in Supabase eintragen" : "Keine Einträge für diesen Filter"}</div>
+          : <table className="tbl">
+              <thead><tr><th>Fahrzeug</th><th>Letztes TO</th><th>Nächstes TO</th><th>Intervall</th><th>Fälligkeit</th><th>Status</th></tr></thead>
+              <tbody>
+                {list.map(function(p){
+                  var st = planStatus(p);
+                  var diff = p.next_service_date ? Math.round((new Date(p.next_service_date)-new Date())/86400000) : null;
+                  var veh = allVeh.find(function(v){ return (v.plate||v.nummer||"") === (p.vehicle_plate||""); });
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{ fontWeight:700 }}>{p.vehicle_plate||p.vehicle_id||"—"}</div>
+                        {veh && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{veh.brand||veh.hersteller||""} {veh.model||""}</div>}
+                      </td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{fmtDate(p.last_service_date)||"—"}</td>
+                      <td style={{ fontWeight:700 }}>{fmtDate(p.next_service_date)||"—"}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
+                        {p.interval_days ? p.interval_days+"d" : ""}{p.interval_days && p.interval_km ? " / " : ""}{p.interval_km ? p.interval_km+"km" : ""}
+                      </td>
+                      <td>
+                        {diff !== null
+                          ? <span style={{ fontWeight:700, color: diff<0?"#ef4444":diff<14?"#ef4444":diff<30?"#ffa500":"#22c55e" }}>
+                              {diff < 0 ? Math.abs(diff)+"d überfällig" : "in "+diff+"d"}
+                            </span>
+                          : "—"
+                        }
+                      </td>
+                      <td>
+                        <span className={"badge "+(st==="expired"||st==="urgent"?"badge-red":st==="warn"?"badge-orange":"badge-green")}>
+                          {st==="expired"?"Überfällig":st==="urgent"?"Dringend":st==="warn"?"Bald":"OK"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+        <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
+          💡 Wartungspläne werden in Supabase → Tabelle <strong style={{ color:"rgba(255,255,255,0.6)" }}>maintenance_plans</strong> gepflegt.
+          Felder: vehicle_plate, interval_days, interval_km, last_service_date, next_service_date
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === SCHICHTBERICHT ===
+function genSchichtbericht(jobs, date, mechanics) {
+  var dateLabel = fmtDate(date) || "Heute";
+  var allMechSections = mechanics.map(function(mech){
+    var mj = jobs.filter(function(j){ return j.mechanic === mech.id && (j.date||(j.created_at||"").slice(0,10)) === date; });
+    var totalMin  = mj.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
+    var totalCost = mj.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
+    var done = mj.filter(function(j){ return j.status==="done"; }).length;
+    if (mj.length === 0) return "";
+    var rows = mj.map(function(j){
+      return "<tr><td style='font-weight:700'>"+(j.plate||"—")+"</td>"+
+        "<td>"+(WORK_TYPES[j.work_type]||j.work_type||"—")+"</td>"+
+        "<td>"+(j.location||"—")+"</td>"+
+        "<td style='max-width:200px'>"+(j.description||"").slice(0,80)+"</td>"+
+        "<td>"+fmtMin(j.work_min||0)+"</td>"+
+        "<td style='font-weight:700;color:#d97706'>"+(j.cost?Number(j.cost).toFixed(2)+" €":"—")+"</td>"+
+        "<td style='color:"+(j.status==="done"?"#16a34a":"#d97706")+"'>"+(j.status==="done"?"✓ Fertig":"⚙ In Arbeit")+"</td></tr>";
+    }).join("");
+    return "<div style='margin-bottom:28px;page-break-inside:avoid'>"+
+      "<h2 style='color:#1a3a6b;margin-bottom:4px'>"+mech.name+"</h2>"+
+      "<p style='color:#64748b;font-size:13px;margin-bottom:10px'>"+mj.length+" Aufträge · "+done+" erledigt · "+fmtMin(totalMin)+" · "+totalCost.toFixed(2)+" €</p>"+
+      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead>"+
+      "<tbody>"+rows+"</tbody></table></div>";
+  }).join("");
+
+  var allJobs = jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) === date; });
+  var grand = { jobs:allJobs.length, min:allJobs.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); },0), cost:allJobs.reduce(function(s,j){ return s+(Number(j.cost)||0); },0) };
+
+  var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Schichtbericht "+dateLabel+"</title>"+baseReportStyle()+
+    "</head><body>"+
+    "<h1 style='margin-bottom:4px'>WerkFlow — Schichtbericht</h1>"+
+    "<h2 style='margin-bottom:20px'>"+dateLabel+" · LTG Werkstatt</h2>"+
+    "<div class='sum'>"+
+    "<div class='sum-item'><div class='sum-val'>"+grand.jobs+"</div><div class='sum-lab'>Aufträge gesamt</div></div>"+
+    "<div class='sum-item'><div class='sum-val'>"+fmtMin(grand.min)+"</div><div class='sum-lab'>Arbeitszeit</div></div>"+
+    "<div class='sum-item'><div class='sum-val'>"+grand.cost.toFixed(2)+" €</div><div class='sum-lab'>Gesamtkosten</div></div>"+
+    "</div>"+
+    allMechSections+
+    "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>"+
+    "</body></html>";
+  printHtml(html, "Schichtbericht");
+}
+
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
@@ -1212,22 +1608,28 @@ function AppShell({ user, onLogout }) {
   var _sst = useState([]); var stock = _sst[0]; var setStock = _sst[1];
   var _swash = useState([]); var washOrders = _swash[0]; var setWashOrders = _swash[1];
   var _sins = useState([]); var inspections = _sins[0]; var setInspections = _sins[1];
+  var _sinv = useState([]); var invoices = _sinv[0]; var setInvoices = _sinv[1];
+  var _splans = useState([]); var plans = _splans[0]; var setPlans = _splans[1];
   var _sload = useState(false); var loading = _sload[0]; var setLoading = _sload[1];
   var _sdb = useState(null); var dbOk = _sdb[0]; var setDbOk = _sdb[1];
+  var _sshift = useState(todayIso()); var shiftDate = _sshift[0]; var setShiftDate = _sshift[1];
 
   function loadAll() {
     setLoading(true);
     Promise.all([
-      sbGet("jobs", "select=*&order=created_at.desc&limit=500"),
-      sbGet("alerts", "select=*&order=created_at.desc&limit=200"),
-      sbGet("vehicles", "select=*&order=plate.asc&limit=500"),
-      sbGet("forklifts", "select=*&order=nummer.asc&limit=200"),
-      sbGet("stock", "select=*&order=name.asc&limit=300"),
-      sbGet("wash_orders", "select=*&order=created_at.desc&limit=300"),
-      sbGet("inspections", "select=*&order=created_at.desc&limit=300"),
+      sbGet("jobs",               "select=*&order=created_at.desc&limit=500"),
+      sbGet("alerts",             "select=*&order=created_at.desc&limit=200"),
+      sbGet("vehicles",           "select=*&order=plate.asc&limit=500"),
+      sbGet("forklifts",          "select=*&order=nummer.asc&limit=200"),
+      sbGet("stock",              "select=*&order=name.asc&limit=300"),
+      sbGet("wash_orders",        "select=*&order=created_at.desc&limit=300"),
+      sbGet("inspections",        "select=*&order=created_at.desc&limit=300"),
+      sbGet("invoices",           "select=*&order=date.desc&limit=300"),
+      sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
+      setInvoices(r[7]); setPlans(r[8]);
       setDbOk(true); setLoading(false);
     }).catch(function(e){ console.error(e); setDbOk(false); setLoading(false); });
   }
@@ -1235,22 +1637,31 @@ function AppShell({ user, onLogout }) {
   useEffect(function(){ loadAll(); }, []);
 
   var openAlerts = alerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
+  var lowStock = stock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
+  var overduePlans = plans.filter(function(p){
+    if (!p.next_service_date) return false;
+    return Math.round((new Date(p.next_service_date)-new Date())/86400000) < 14;
+  }).length;
 
   var NAV = [
-    { k:"uebersicht", icon:"🏠", label:"Übersicht" },
-    { k:"eingang",    icon:"📥", label:"Eingang",    badge: openAlerts.length },
-    { k:"mechaniker", icon:"👷", label:"Mechaniker" },
-    { k:"technik",    icon:"🚛", label:"Technik" },
-    { k:"inspektion", icon:"🔍", label:"Inspektion" },
-    { k:"waschhalle", icon:"🚿", label:"Waschhalle" },
-    { k:"lager",      icon:"📦", label:"Lager",      badge: stock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length, badgeCls:"orange" },
-    { k:"archiv",     icon:"🗃", label:"Archiv" },
+    { k:"uebersicht",  ic: IC.home,     label:"Übersicht" },
+    { k:"eingang",     ic: IC.inbox,    label:"Eingang",      badge: openAlerts.length },
+    { k:"mechaniker",  ic: IC.wrench,   label:"Mechaniker" },
+    { k:"technik",     ic: IC.truck,    label:"Technik" },
+    { k:"inspektion",  ic: IC.search,   label:"Inspektion" },
+    { k:"waschhalle",  ic: IC.droplet,  label:"Waschhalle" },
+    { k:"lager",       ic: IC.box,      label:"Lager",         badge: lowStock, badgeCls:"orange" },
+    { k:"kosten",      ic: IC.euro,     label:"Kosten" },
+    { k:"rechnungen",  ic: IC.receipt,  label:"Rechnungen" },
+    { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
+    { k:"archiv",      ic: IC.archive,  label:"Archiv" },
   ];
 
   var PAGE_TITLES = {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", waschhalle:"Waschhalle",
-    lager:"Lager", archiv:"Archiv"
+    lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Rechnungen",
+    wartung:"Wartungsplan", archiv:"Archiv"
   };
 
   return (
@@ -1266,7 +1677,7 @@ function AppShell({ user, onLogout }) {
           {NAV.map(function(n){
             return (
               <button key={n.k} className={"nav-item" + (sec===n.k ? " active" : "")} onClick={function(){ setSec(n.k); }}>
-                <span style={{ fontSize:16 }}>{n.icon}</span>
+                <span style={{ display:"flex", alignItems:"center", flexShrink:0 }}>{n.ic}</span>
                 <span>{n.label}</span>
                 {n.badge > 0 && <span className={"nav-badge " + (n.badgeCls||"")}>{n.badge}</span>}
               </button>
@@ -1281,7 +1692,14 @@ function AppShell({ user, onLogout }) {
               <div className="sidebar-role">{user.role==="chef"?"Chef":"Fuhrparkleiter"}</div>
             </div>
           </div>
-          <button onClick={onLogout} style={{ marginTop:10, width:"100%", padding:"7px", border:"1px solid rgba(255,255,255,0.12)", background:"transparent", color:"rgba(255,255,255,0.5)", borderRadius:8, fontSize:12, fontWeight:700 }}>
+          <div style={{ marginTop:12, display:"flex", gap:6, alignItems:"center" }}>
+            <input type="date" className="inp" style={{ flex:1, fontSize:11, padding:"5px 8px" }} value={shiftDate} onChange={function(e){ setShiftDate(e.target.value); }} />
+            <button onClick={function(){ genSchichtbericht(jobs, shiftDate, MECHANICS); }}
+              style={{ flexShrink:0, padding:"5px 10px", border:"1px solid rgba(255,165,0,0.35)", background:"rgba(255,165,0,0.08)", color:"#ffa500", borderRadius:8, fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>
+              {IC.report} Schicht
+            </button>
+          </div>
+          <button onClick={onLogout} style={{ marginTop:8, width:"100%", padding:"7px", border:"1px solid rgba(255,255,255,0.12)", background:"transparent", color:"rgba(255,255,255,0.5)", borderRadius:8, fontSize:12, fontWeight:700 }}>
             ↩ Abmelden
           </button>
         </div>
@@ -1289,10 +1707,12 @@ function AppShell({ user, onLogout }) {
 
       <div className="main">
         <div className="topbar">
-          <div style={{ fontSize:16 }}>{NAV.find(function(n){ return n.k===sec; }) ? NAV.find(function(n){ return n.k===sec; }).icon : ""}</div>
-          <div className="topbar-title">{PAGE_TITLES[sec]||sec}</div>
-          <div style={{ fontSize:12, color: dbOk===false?"#ef4444":dbOk===true?"#22c55e":"#ffa500" }}>
-            {dbOk===false?"● DB Fehler":dbOk===true?"● Online":"● Lädt..."}
+          <div style={{ display:"flex", alignItems:"center", color:"rgba(255,255,255,0.6)" }}>
+            {NAV.find(function(n){ return n.k===sec; }) && NAV.find(function(n){ return n.k===sec; }).ic}
+          </div>
+          <div className="topbar-title" style={{ marginLeft:8 }}>{PAGE_TITLES[sec]||sec}</div>
+          <div style={{ fontSize:12, color: dbOk===false?"#ef4444":dbOk===true?"#22c55e":"#ffa500", marginLeft:8 }}>
+            {dbOk===false?"● Fehler":dbOk===true?"● Online":"● Lädt"}
           </div>
           <div className="topbar-right">
             <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>{new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"})}</span>
@@ -1308,6 +1728,9 @@ function AppShell({ user, onLogout }) {
           {sec === "inspektion"  && <Inspektion inspections={inspections} onRefresh={loadAll} loading={loading} />}
           {sec === "waschhalle"  && <Waschhalle washOrders={washOrders} onRefresh={loadAll} loading={loading} />}
           {sec === "lager"       && <Lager stock={stock} onRefresh={loadAll} loading={loading} />}
+          {sec === "kosten"      && <Kosten jobs={jobs} invoices={invoices} vehicles={vehicles} forklifts={forklifts} />}
+          {sec === "rechnungen"  && <Rechnungen invoices={invoices} vehicles={vehicles} jobs={jobs} onRefresh={loadAll} loading={loading} />}
+          {sec === "wartung"     && <Wartungsplan plans={plans} vehicles={vehicles} forklifts={forklifts} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={jobs} />}
         </div>
       </div>
