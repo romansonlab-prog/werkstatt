@@ -1619,12 +1619,33 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
       "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Kosten</th><th>Status</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table>" +
       "</body></html>";
+
+    var fileName = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
+
+    // Web Share API — системный диалог "Поделиться" на мобильных
+    if (navigator.share && navigator.canShare) {
+      var blob = new Blob([html], { type:"text/html" });
+      var file = new File([blob], fileName, { type:"text/html" });
+      if (navigator.canShare({ files:[file] })) {
+        navigator.share({
+          title: "Tagesbericht " + user.name + " · " + dateDMY(date),
+          text: "WerkFlow Tagesbericht: " + todayJobs.length + " Aufträge, " + fmtMin(totalMin) + ", " + totalCost.toFixed(2) + " €",
+          files: [file]
+        }).catch(function(e){
+          if (e.name !== "AbortError") fallbackDownload(html, fileName);
+        });
+        return;
+      }
+    }
+    // Fallback: обычное скачивание (десктоп или старые браузеры)
+    fallbackDownload(html, fileName);
+  }
+
+  function fallbackDownload(html, fileName) {
     var blob = new Blob([html], { type:"text/html" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
-    a.href = url;
-    a.download = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
-    a.click();
+    a.href = url; a.download = fileName; a.click();
     URL.revokeObjectURL(url);
   }
 
