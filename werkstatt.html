@@ -8,72 +8,77 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html, body { height:100%; overscroll-behavior:none; }
-    body {
-      background:#0a1730;
-      color:#fff;
-      font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height:100vh; min-height:100dvh;
-    }
-    #root { min-height:100vh; min-height:100dvh; }
-    .wf-bg {
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#f0f4f8; min-height:100vh; }
+    #root { min-height:100vh; }
+  
+
+    /* FINAL WerkFlow visual overrides */
+    body { background:#0a1730 !important; color:#fff !important; }
+    .wf-bg { opacity:1 !important; }
+    .wf-nav-item[data-k="fahrzeuge"], .hide-fahrzeuge { display:none !important; }
+
+    .wf-main-bg {
       position:fixed; inset:0; z-index:0;
-      background-color:#0a1730;
-      background-image:
-        linear-gradient(180deg, rgba(10,23,48,0.42) 0%, rgba(10,23,48,0.72) 55%, rgba(10,23,48,0.88) 100%),
-        url("./bg-truck.png");
-      background-size:cover; background-position:center center;
-      background-repeat:no-repeat; pointer-events:none;
+      background:
+        linear-gradient(180deg, rgba(10,23,48,.35), rgba(10,23,48,.88)),
+        url("/bg-truck.png") center center / cover no-repeat;
+      pointer-events:none;
     }
-    @media(min-width:481px){
-      .wf-app { box-shadow:0 0 60px rgba(0,0,0,0.6); }
-      body::before { content:""; position:fixed; inset:0; z-index:1; background:rgba(0,0,0,0.38); pointer-events:none; }
+    .wf-main-shell-final {
+      position:relative; z-index:2; max-width:480px; margin:0 auto; min-height:100vh; min-height:100dvh;
+      padding: env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 88px);
+      color:#fff;
     }
-    .wf-card { background:rgba(20,40,80,0.55); border:1px solid rgba(255,255,255,0.10); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-radius:16px; }
-    .wf-label { font-size:11px; font-weight:700; color:rgba(255,255,255,0.55); letter-spacing:1.5px; }
-    .wf-btn-primary { background:linear-gradient(180deg,#FFA500,#e69500); color:#0a1730; border:none; border-radius:12px; font-weight:800; font-size:15px; padding:16px; width:100%; cursor:pointer; box-shadow:0 6px 20px rgba(255,165,0,0.35); }
-    .wf-btn-primary:active { transform:translateY(1px); }
-    .wf-navbar {
-      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
-      width:100%; max-width:480px; z-index:20;
-      background:rgba(10,23,48,0.95);
-      border-top:1px solid rgba(255,255,255,0.08);
-      backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-      display:flex; padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);
+    @media(min-width:481px){ .wf-main-shell-final{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-final-header { padding:22px 0 14px; }
+    .wf-final-logo { font-size:34px; font-weight:900; letter-spacing:-1.5px; line-height:1; }
+    .wf-final-logo .white{color:#fff}.wf-final-logo .orange{color:#ffa500}
+    .wf-final-title { margin-top:12px; font-size:34px; font-weight:950; line-height:1.05; }
+    .wf-final-title .orange{color:#ffa500}
+    .wf-final-alert {
+      margin:12px 0 15px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55); background:rgba(75,18,32,.72);
+      display:flex; align-items:center; gap:10px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
     }
-    .wf-nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; padding:6px 4px; font-size:11px; font-weight:600; color:rgba(255,255,255,0.45); border:none; background:transparent; }
-    .wf-nav-item.active { color:#FFA500; }
-    .wf-nav-icon { font-size:20px; }
-    .wf-keypad-btn { width:72px; height:72px; border-radius:50%; background:transparent; border:1.5px solid rgba(255,255,255,0.30); color:#fff; font-size:26px; font-weight:500; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-    .wf-keypad-btn:active { background:rgba(255,255,255,0.10); }
-    .wf-pin-dot { width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,0.20); transition:background 0.15s; }
-    .wf-pin-dot.filled { background:#FFA500; box-shadow:0 0 10px rgba(255,165,0,0.6); }
-    .wf-pin-dot.error { background:#ef4444; }
-    .wf-slider-track { position:relative; height:76px; border-radius:18px; background:rgba(0,0,0,0.40); border:1px solid rgba(255,255,255,0.08); }
-    .wf-slider-thumb { position:absolute; top:6px; left:6px; width:64px; height:64px; border-radius:14px; background:linear-gradient(180deg,#FFA500,#e69500); box-shadow:0 0 20px rgba(255,165,0,0.65); display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; }
-    .wf-slider-grip { display:flex; gap:4px; }
-    .wf-slider-grip span { width:3px; height:20px; background:#0a1730; border-radius:2px; }
-    .wf-slider-marks { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-around; padding:0 88px 0 78px; pointer-events:none; }
-    .wf-slider-mark { width:2px; height:22px; background:rgba(255,255,255,0.18); border-radius:2px; }
-    .wf-input { width:100%; padding:13px 13px 13px 42px; background:rgba(20,40,80,0.50); border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#fff; outline:none; font-size:15px; }
-    .wf-input:focus { border-color:#FFA500; }
-    .wf-input-light { width:100%; padding:13px 13px 13px 42px; background:#fff; color:#1a2332; border:1px solid #e2e8f0; border-radius:10px; font-size:15px; outline:none; }
-    .wf-textarea { width:100%; padding:12px; background:rgba(20,40,80,0.50); border:1px solid rgba(255,255,255,0.12); border-radius:10px; color:#fff; min-height:90px; outline:none; resize:none; }
-    .wf-textarea:focus { border-color:#FFA500; }
-    ::placeholder { color:rgba(255,255,255,0.40); }
-    .wf-row { display:flex; align-items:center; gap:14px; padding:16px; border-radius:14px; background:rgba(20,40,80,0.55); border:1px solid rgba(255,255,255,0.08); cursor:pointer; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
-    .wf-row-icon { width:42px; height:42px; border-radius:10px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; color:#FFA500; font-size:20px; flex-shrink:0; }
-    .wf-row-chevron { color:rgba(255,165,0,0.7); font-size:18px; margin-left:auto; flex-shrink:0; }
-    .wf-badge { display:inline-flex; align-items:center; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:0.5px; }
-    .wf-badge-green { background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
-    .wf-badge-red { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
-    .wf-badge-orange { background:rgba(255,165,0,0.15); color:#FFA500; border:1px solid rgba(255,165,0,0.3); }
-    .wf-scroll { flex:1; overflow-y:auto; padding:16px 16px calc(env(safe-area-inset-bottom) + 80px); scrollbar-width:none; }
-    .wf-scroll::-webkit-scrollbar { display:none; }
-    button { font:inherit; cursor:pointer; }
-    input, textarea, select { font:inherit; }
-  </style>
+    .wf-final-panel {
+      background:rgba(15,39,78,.64); border:1px solid rgba(255,255,255,.15);
+      border-radius:16px; padding:16px; margin-bottom:13px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-final-panel h3 {
+      display:flex; align-items:center; gap:10px; margin:0 0 12px;
+      font-size:15px; font-weight:900; letter-spacing:.5px; text-transform:uppercase;
+    }
+    .wf-final-panel h3 span { color:#ffa500; font-size:22px; }
+    .wf-final-label { color:rgba(255,255,255,.68); font-size:11px; font-weight:850; text-transform:uppercase; letter-spacing:1px; margin:10px 0 6px; }
+    .wf-final-input, .wf-final-select, .wf-final-textarea {
+      width:100%; background:rgba(9,27,58,.74); border:1px solid rgba(255,255,255,.16);
+      color:#fff; border-radius:12px; padding:13px 14px; outline:none; font-size:15px;
+    }
+    .wf-final-textarea { min-height:96px; resize:vertical; }
+    .wf-final-input:focus, .wf-final-select:focus, .wf-final-textarea:focus {
+      border-color:#ffa500; box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-final-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-final-chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-final-chip {
+      border:1px solid rgba(255,255,255,.18); background:rgba(9,27,58,.72);
+      color:#fff; border-radius:999px; padding:9px 12px; font-weight:850; font-size:13px;
+    }
+    .wf-final-chip.active { color:#0a1730; background:#ffa500; border-color:#ffa500; }
+    .wf-final-camera {
+      width:100%; border:2px dashed rgba(255,165,0,.48); background:rgba(255,165,0,.05);
+      border-radius:14px; padding:22px 16px; color:rgba(255,255,255,.86); font-weight:900;
+      display:flex; justify-content:center; align-items:center; gap:10px;
+    }
+    .wf-final-save {
+      width:100%; border:0; border-radius:14px; padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00); color:#0a1730;
+      font-size:16px; font-weight:950; box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+</style>
 </head>
 <body>
   <div id="root"></div>
@@ -163,13 +168,29 @@ const sb = {
 const COMPANY_LOGO = null;
 
 const C = {
-  bg:"#0a1730", surface:"rgba(20,40,80,0.55)", surfaceAlt:"rgba(10,23,48,0.85)",
-  navy:"#1a3a6b", navyDark:"#0a1730", navyMid:"#1e4280", border:"rgba(255,255,255,0.10)",
-  white:"#ffffff", gray50:"rgba(255,255,255,0.04)", gray100:"rgba(255,255,255,0.08)",
-  gray300:"rgba(255,255,255,0.55)", gray500:"rgba(255,255,255,0.38)", gray700:"rgba(255,255,255,0.75)",
-  blue:"#1a3a6b", blueLt:"#2d5fa8",
-  orange:"#FFA500", orangeDim:"rgba(255,165,0,0.65)",
-  green:"#22c55e", red:"#ef4444", yellow:"#FFA500",
+
+  bg:       "#f0f4f8",   // light grey background
+  surface:  "#ffffff",   // white cards
+  surfaceAlt:"#1a3a6b",  // dark blue header
+  navy:     "#1a3a6b",   // LTG blue
+  navyDark: "#122a52",   // dark blue
+  navyMid:  "#1e4280",   // medium blue
+  border:   "#d0dbe8",   // light borders
+
+  white:    "#1a2332",   // dark text on light bg
+  gray50:   "#f8fafc",
+  gray100:  "#e2e8f0",
+  gray300:  "#4a6080",   // secondary text
+  gray500:  "#7a90a8",   // placeholders
+  gray700:  "#334155",
+
+  blue:     "#1a3a6b",   // LTG blue -  
+  blueLt:   "#2d5fa8",   // hover
+  orange:   "#c8a84b",   // LTG gold accent
+  orangeDim:"#7a6020",
+  green:    "#22c55e",   // success / OK
+  red:      "#ef4444",   // urgent / error
+  yellow:   "#c8a84b",   // warning - LTG gold
 };
 
 const T = {
@@ -646,11 +667,11 @@ function Textarea({ ...props }) {
 
 function Btn({ variant = "primary", children, ...props }) {
   const variants = {
-    primary: { background: "linear-gradient(180deg,#FFA500,#e69500)", color: "#0a1730", border: "none" },
-    secondary: { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)", border: "1px solid rgba(255,255,255,0.15)" },
+    primary: { background: C.blue, color: "#fff", border: "none" },
+    secondary: { background: "transparent", color: C.gray300, border: `1px solid ${C.border}` },
     danger: { background: C.red, color: "#fff", border: "none" },
     green: { background: C.green, color: "#fff", border: "none" },
-    navy: { background: "rgba(20,40,80,0.6)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)" },
+    navy: { background: C.navyMid, color: C.white, border: `1px solid ${C.border}` },
   };
   return (
     <button {...props} style={{ ...variants[variant], borderRadius: 9, padding: "10px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s", ...props.style }}>
@@ -674,12 +695,13 @@ function Card({ children, style }) {
 }
 
 function LTGLogo({ size = 1 }) {
-  var fs = Math.round(26 * size);
+  var h = Math.round(40 * size);
+  var w = Math.round(100 * size);
   return (
-    <div style={{ fontSize:fs, fontWeight:900, letterSpacing:-0.5, lineHeight:1 }}>
-      <span style={{ color:"#fff" }}>Werk</span>
-      <span style={{ color:"#FFA500" }}>Flow</span>
-    </div>
+    <svg width={w} height={h} viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="40" rx="6" fill="#1e4fa0"/>
+      <text x="50" y="27" textAnchor="middle" fontFamily="Arial Black, Arial" fontWeight="900" fontSize="22" fill="#ffffff" letterSpacing="3">LTG</text>
+    </svg>
   );
 }
 
@@ -690,232 +712,260 @@ function LoginScreen({ onLogin, lang, setLang, alerts, onRefresh }) {
   const [pin, setPin] = React.useState("");
   const [error, setError] = React.useState(false);
   const [sliderX, setSliderX] = React.useState(0);
+  const [unlocked, setUnlocked] = React.useState(false);
   const [dragging, setDragging] = React.useState(false);
-  const [step, setStep] = React.useState("init");
+  const [step, setStep] = React.useState("init"); // init | register | pin | slider
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
-  const trackRef = React.useRef(null);
-  const maxX = React.useRef(0);
+  const [savedName, setSavedName] = React.useState("");
+  const SLIDER_MAX = 240;
 
+  // On mount: check localStorage for saved name
   React.useEffect(function() {
-    var saved = null;
-    try { saved = localStorage.getItem("werkstatt_name"); } catch(e) {}
-    setStep(saved ? "slider" : "register");
+    try {
+      var n = localStorage.getItem("werkstatt_name");
+      if (n) { setSavedName(n); setStep("slider"); }
+      else { setStep("register"); }
+    } catch(e) { setStep("register"); }
   }, []);
 
-  React.useEffect(function() {
-    if (step === "slider" && trackRef.current) {
-      maxX.current = trackRef.current.offsetWidth - 76;
-    }
-  }, [step]);
+  var openAlerts = (alerts||[]).filter(function(a){ return a.status !== "done"; });
+  var hasUrgent = openAlerts.some(function(a){ return a.urgency === "urgent"; });
 
+  // Slider logic
   var startDrag = function(clientX) {
     setDragging(true);
-    var startXPos = clientX;
-    var startSlide = sliderX;
+    var startX = clientX;
     var move = function(e) {
       var cx = e.touches ? e.touches[0].clientX : e.clientX;
-      var dx = Math.max(0, Math.min(maxX.current, cx - startXPos + startSlide));
+      var dx = Math.max(0, Math.min(SLIDER_MAX, cx - startX + sliderX));
       setSliderX(dx);
+      if (dx >= SLIDER_MAX - 10) {
+        setUnlocked(true);
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("touchmove", move);
+        window.removeEventListener("mouseup", up);
+        window.removeEventListener("touchend", up);
+      }
     };
     var up = function() {
+      setDragging(false);
+      if (sliderX < SLIDER_MAX - 10) setSliderX(0);
       window.removeEventListener("mousemove", move);
       window.removeEventListener("touchmove", move);
       window.removeEventListener("mouseup", up);
       window.removeEventListener("touchend", up);
-      setDragging(false);
-      setSliderX(function(curr) {
-        if (curr >= maxX.current * 0.85) {
-          setTimeout(function() {
-            var saved = "";
-            try { saved = localStorage.getItem("werkstatt_name") || ""; } catch(e) {}
-            var parts = saved.split(" ");
-            var initials = parts.map(function(p){ return p[0] || ""; }).join("").toUpperCase().slice(0,2);
-            onLogin({ id: "user_" + Date.now(), name: saved, role: "mechanic", avatar: initials, pin: APP_PIN });
-          }, 100);
-          return maxX.current;
-        }
-        return 0;
-      });
     };
     window.addEventListener("mousemove", move);
-    window.addEventListener("touchmove", move, { passive: false });
+    window.addEventListener("touchmove", move, { passive: true });
     window.addEventListener("mouseup", up);
     window.addEventListener("touchend", up);
   };
 
-  var pressPin = function(d) {
-    if (pin.length >= 4) return;
-    setError(false);
-    var next = pin + d;
+  React.useEffect(function() {
+    if (unlocked) {
+      // Returning user: slider = direct login, no PIN needed
+      var name = savedName;
+      var initials = name.split(" ").map(function(w){ return w[0]||""; }).join("").toUpperCase().slice(0,2);
+      onLogin({ id: "user_" + Date.now(), name: name, role: "mechanic", avatar: initials, pin: APP_PIN });
+    }
+  }, [unlocked]);
+
+  var handlePin = function(digit) {
+    var next = pin + digit;
     setPin(next);
+    setError(false);
     if (next.length === 4) {
-      setTimeout(function() {
-        if (next === APP_PIN) {
-          var name = firstName.trim() + " " + lastName.trim();
-          try { localStorage.setItem("werkstatt_name", name); } catch(e) {}
-          setStep("slider"); setPin("");
-        } else {
-          setError(true);
-          setTimeout(function() { setPin(""); setError(false); }, 700);
-        }
-      }, 150);
+      if (next === APP_PIN) {
+        var name = step === "register" ? (firstName.trim() + " " + lastName.trim()) : savedName;
+        try { localStorage.setItem("werkstatt_name", name); } catch(e){}
+        var initials = name.split(" ").map(function(w){ return w[0] || ""; }).join("").toUpperCase().slice(0,2);
+        onLogin({ id: "user_" + Date.now(), name: name, role: "mechanic", avatar: initials, pin: APP_PIN });
+      } else {
+        setError(true);
+        setTimeout(function(){ setPin(""); setError(false); }, 800);
+      }
     }
   };
 
-  if (step === "register") {
-    var regOk = firstName.trim() && lastName.trim();
-    return (
-      <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh", display:"flex", flexDirection:"column" }}>
-        <WfBg />
-        <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top),20px) 20px 30px", flex:1, display:"flex", flexDirection:"column" }}>
-          <div style={{ marginTop:60 }}>
-            <div style={{ fontSize:42, fontWeight:900, lineHeight:1, letterSpacing:-1.5 }}>
-              <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#FFA500" }}>Flow</span>
-            </div>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)", letterSpacing:1.5 }}>POWERED BY</div>
-              <div style={{ width:1, height:30, background:"rgba(255,255,255,0.25)" }}></div>
-              <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>
-                Die <span style={{ color:"#FFA500", fontWeight:700 }}>LTG</span> - Landauer<br/>Transportgesellschaft Doll KG
-              </div>
-            </div>
-          </div>
-          <div style={{ marginTop:20 }}>
-            <div style={{ fontSize:38, fontWeight:900, color:"#FFA500" }}>Werkstatt</div>
-            <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.55)", letterSpacing:3, marginTop:4 }}>ERSTE ANMELDUNG</div>
-          </div>
-          <div style={{ flex:1 }}></div>
-          <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 16px 40px rgba(0,0,0,0.4)" }}>
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontWeight:700, color:"#1a2332", marginBottom:8, fontSize:15 }}>Vorname <span style={{ color:"#dc2626" }}>*</span></div>
-              <div style={{ position:"relative" }}>
-                <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9aa3b2" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                <input className="wf-input-light" value={firstName} onChange={function(e){ setFirstName(e.target.value); }} placeholder="Roman" />
-              </div>
-            </div>
-            <div style={{ marginBottom:24 }}>
-              <div style={{ fontWeight:700, color:"#1a2332", marginBottom:8, fontSize:15 }}>Nachname <span style={{ color:"#dc2626" }}>*</span></div>
-              <div style={{ position:"relative" }}>
-                <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9aa3b2" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                <input className="wf-input-light" value={lastName} onChange={function(e){ setLastName(e.target.value); }} placeholder="Anokhin" />
-              </div>
-            </div>
-            <button onClick={function(){ if(regOk) setStep("pin"); }} disabled={!regOk}
-              style={{ width:"100%", padding:18, background:"#1a3a6b", color:"#fff", border:"none", borderRadius:12, fontSize:17, fontWeight:700, opacity:regOk?1:0.5, display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
-              Weiter <span style={{ fontSize:20 }}>→</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  var wrapStyle = {
+    minHeight: "100vh",
+    background: "linear-gradient(160deg, #0d2145 0%, #1a3a6b 60%, #1e4fa0 100%)",
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.white, padding: 16
+  };
 
-  if (step === "pin") {
+  var pinDots = function() {
+    return React.createElement("div", { style: { display:"flex", gap:12, justifyContent:"center", marginBottom:28 } },
+      [0,1,2,3].map(function(i) {
+        return React.createElement("div", { key:i, style: {
+          width:14, height:14, borderRadius:7,
+          background: pin.length > i ? (error ? C.red : C.blue) : C.border,
+          transition: "background 0.15s"
+        }});
+      })
+    );
+  };
+
+  var numPad = function() {
+    return React.createElement("div", { style: { display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, width:220 } },
+      ["1","2","3","4","5","6","7","8","9","","0","del"].map(function(d) {
+        if (!d) return React.createElement("div", { key:"empty" });
+        return React.createElement("button", {
+          key: d,
+          onClick: function() {
+            if (d === "del") { setPin(pin.slice(0,-1)); setError(false); }
+            else if (pin.length < 4) handlePin(d);
+          },
+          style: {
+            height:54, borderRadius:12, border: "1px solid " + C.border,
+            background: C.surface, color: C.white,
+            fontSize: d==="del" ? 16 : 22, fontWeight:600, cursor:"pointer"
+          }
+        }, d === "del" ? "⌫" : d);
+      })
+    );
+  };
+
+  // STEP: register (first time)
+  if (step === "register") {
+    var canContinue = firstName.trim().length > 0 && lastName.trim().length > 0;
     return (
-      <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh", display:"flex", flexDirection:"column" }}>
-        <WfBg />
-        <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", padding:"max(env(safe-area-inset-top),50px) 20px 20px" }}>
-          <div style={{ marginTop:80 }}>
-            <div style={{ fontSize:40, fontWeight:900, lineHeight:1, letterSpacing:-1.5 }}>
-              <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#FFA500" }}>Flow</span>
-            </div>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)", letterSpacing:1.5 }}>POWERED BY</div>
-              <div style={{ width:1, height:30, background:"rgba(255,255,255,0.25)" }}></div>
-              <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>
-                Die <span style={{ color:"#FFA500", fontWeight:700 }}>LTG</span> - Landauer<br/>Transportgesellschaft Doll KG
-              </div>
-            </div>
-            <div style={{ marginTop:16 }}>
-              <div style={{ fontSize:34, fontWeight:900, color:"#FFA500" }}>Werkstatt</div>
-              <div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.55)", letterSpacing:3, marginTop:4 }}>PIN EINGEBEN</div>
-            </div>
+      <div style={wrapStyle}>
+        {openAlerts.length > 0 && (
+          <div style={{ position:"fixed", top:0, left:0, right:0, background: hasUrgent ? "#c0392b" : C.orange,
+            padding:"12px 16px", display:"flex", alignItems:"center", gap:10, zIndex:100 }}>
+            <span style={{ fontSize:20 }}>🚨</span>
+            <span style={{ fontWeight:800, fontSize:15 }}>NOTRUF!</span>
+            <span style={{ marginLeft:"auto", fontWeight:700 }}>{openAlerts.length}</span>
           </div>
-          <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:24 }}>
-            {[0,1,2,3].map(function(i){
-              return <div key={i} className={"wf-pin-dot" + (i < pin.length ? " filled" : "") + (error ? " error" : "")}></div>;
-            })}
+        )}
+        <div style={{ marginBottom:24, textAlign:"center" }}>
+          <LTGLogo size={1} />
+          <div style={{ height:4, width:60, background:"#e2001a", borderRadius:2, marginTop:6, marginBottom:8 }} />
+          <div style={{ fontSize:13, color:C.gray300 }}>Werkstatt App</div>
+        </div>
+        <div style={{ width:"100%", maxWidth:320, background:C.surface, borderRadius:16, padding:"24px 20px" }}>
+          <div style={{ fontSize:14, fontWeight:700, color:C.orange, textTransform:"uppercase", letterSpacing:1, marginBottom:16, textAlign:"center" }}>
+            Erste Anmeldung
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 72px)", gap:14, maxWidth:260, width:"100%", margin:"28px auto 0", justifyContent:"center" }}>
-            {[1,2,3,4,5,6,7,8,9].map(function(d){
-              return <button key={d} className="wf-keypad-btn" onClick={function(){ pressPin(String(d)); }}>{d}</button>;
-            })}
-            <div></div>
-            <button className="wf-keypad-btn" onClick={function(){ pressPin("0"); }}>0</button>
-            <button className="wf-keypad-btn" onClick={function(){ setError(false); setPin(pin.slice(0,-1)); }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 5H8L3 12l5 7h13a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:12, color:C.gray300, marginBottom:6 }}>Vorname *</div>
+            <input
+              value={firstName}
+              onChange={function(e){ setFirstName(e.target.value); }}
+              placeholder="Roman"
+              style={{ width:"100%", background:C.bg, border:"1px solid " + C.border, borderRadius:8,
+                padding:"10px 12px", color:C.white, fontSize:16, outline:"none", boxSizing:"border-box" }}
+              autoFocus
+            />
           </div>
-          <div style={{ flex:1 }}></div>
-          <button onClick={function(){
-            if (pin === APP_PIN) {
-              var name = firstName.trim() + " " + lastName.trim();
-              try { localStorage.setItem("werkstatt_name", name); } catch(e) {}
-              setStep("slider"); setPin("");
-            } else { setError(true); setTimeout(function(){ setPin(""); setError(false); }, 700); }
-          }} disabled={pin.length !== 4}
-            style={{ width:"100%", padding:18, background:"transparent", border:"1.5px solid rgba(255,255,255,0.35)", borderRadius:14, color:"#fff", fontSize:17, fontWeight:600, marginBottom:20, opacity:pin.length===4?1:0.5, display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
-            Anmelden <span style={{ fontSize:20 }}>→</span>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, color:C.gray300, marginBottom:6 }}>Nachname *</div>
+            <input
+              value={lastName}
+              onChange={function(e){ setLastName(e.target.value); }}
+              placeholder="Anokhin"
+              style={{ width:"100%", background:C.bg, border:"1px solid " + C.border, borderRadius:8,
+                padding:"10px 12px", color:C.white, fontSize:16, outline:"none", boxSizing:"border-box" }}
+              onKeyDown={function(e){ if(e.key==="Enter" && canContinue) setStep("pin"); }}
+            />
+          </div>
+          <button
+            onClick={function(){ if(canContinue) setStep("pin"); }}
+            disabled={!canContinue}
+            style={{ width:"100%", background: canContinue ? C.orange : C.border, color: canContinue ? "#000" : C.gray500,
+              border:"none", borderRadius:10, padding:"13px 0", fontSize:15, fontWeight:800, cursor: canContinue ? "pointer" : "default" }}
+          >
+            Weiter →
           </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh", display:"flex", flexDirection:"column" }}>
-      <WfBg />
-      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", padding:"max(env(safe-area-inset-top),60px) 20px 30px" }}>
-        <div style={{ marginTop:120 }}>
-          <div style={{ fontSize:42, fontWeight:900, lineHeight:1, letterSpacing:-1.5 }}>
-            <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#FFA500" }}>Flow</span>
-          </div>
-          <div style={{ fontSize:34, fontWeight:900, color:"#FFA500", marginTop:8 }}>Werkstatt</div>
+  // STEP: pin entry (after register or after slider)
+  if (step === "pin") {
+    var displayName = step === "pin" && savedName ? savedName : (firstName.trim() + " " + lastName.trim());
+    return (
+      <div style={wrapStyle}>
+        <div style={{ marginBottom:20, textAlign:"center" }}>
+          <LTGLogo size={1} />
+          <div style={{ height:4, width:60, background:"#e2001a", borderRadius:2, marginTop:6, marginBottom:16 }} />
+          {displayName && <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>{displayName}</div>}
+          <div style={{ fontSize:13, color:C.gray300 }}>PIN eingeben</div>
         </div>
-        {alerts && alerts.filter(function(a){ return a.status !== "done"; }).length > 0 && (
-          <div style={{ marginTop:24 }}>
-            {alerts.filter(function(a){ return a.status !== "done"; }).slice(0,3).map(function(a){
-              var isUrgent = a.urgency === "urgent";
-              return (
-                <div key={a.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderRadius:12, marginBottom:10, background:isUrgent?"rgba(239,68,68,0.85)":"rgba(255,165,0,0.20)", border:isUrgent?"1px solid rgba(239,68,68,0.9)":"1px solid rgba(255,165,0,0.5)", backdropFilter:"blur(8px)" }}>
-                  <span style={{ fontSize:22, flexShrink:0 }}>{isUrgent ? "🚨" : "⚠️"}</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:800, fontSize:13, color:isUrgent?"#fff":"#FFA500" }}>
-                      {isUrgent ? "SOFORTIGE HILFE" : "NEUE MELDUNG"}{a.plate ? " · " + a.plate : ""}
-                    </div>
-                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.85)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {a.description || a.type || "Störung gemeldet"}
-                    </div>
-                  </div>
-                  <span style={{ fontSize:11, color:"rgba(255,255,255,0.5)", flexShrink:0 }}>Eingang ›</span>
-                </div>
-              );
-            })}
+        {pinDots()}
+        {numPad()}
+        <button onClick={function(){
+          setStep(savedName ? "slider" : "register");
+          setPin(""); setError(false);
+        }} style={{ marginTop:20, background:"none", border:"none", color:C.gray500, cursor:"pointer", fontSize:13 }}>
+          ← Zurück
+        </button>
+      </div>
+    );
+  }
+
+  // STEP: slider (returning user)
+  if (step === "slider") {
+    var pct = sliderX / SLIDER_MAX;
+    return (
+      <div style={wrapStyle}>
+        {openAlerts.length > 0 && (
+          <div style={{ position:"fixed", top:0, left:0, right:0, background: hasUrgent ? "#c0392b" : C.orange,
+            padding:"12px 16px", display:"flex", alignItems:"center", gap:10, zIndex:100 }}>
+            <span style={{ fontSize:20 }}>🚨</span>
+            <span style={{ fontWeight:800, fontSize:15 }}>NOTRUF!</span>
+            <span style={{ marginLeft:"auto", fontWeight:700 }}>{openAlerts.length}</span>
           </div>
         )}
-        <div style={{ flex:1 }}></div>
-        <div ref={trackRef} className="wf-slider-track" style={{ marginBottom:30 }}>
-          <div className="wf-slider-marks">
-            <div className="wf-slider-mark"></div>
-            <div className="wf-slider-mark"></div>
-            <div className="wf-slider-mark"></div>
-            <div className="wf-slider-mark"></div>
-          </div>
-          <div className="wf-slider-thumb"
-            style={{ left: 6 + sliderX, transition: dragging ? "none" : "left 0.3s ease" }}
+        <div style={{ marginBottom:32, textAlign:"center" }}>
+          <LTGLogo size={1} />
+          <div style={{ height:4, width:60, background:"#e2001a", borderRadius:2, marginTop:6, marginBottom:20 }} />
+          <div style={{ fontSize:22, fontWeight:800 }}>{savedName}</div>
+          <div style={{ fontSize:13, color:C.gray300, marginTop:4 }}>Werkstatt</div>
+        </div>
+        <div ref={null} style={{
+          width: SLIDER_MAX + 56, height:56, borderRadius:28,
+          background: C.surface, border:"1px solid " + C.border,
+          position:"relative", overflow:"hidden", userSelect:"none"
+        }}>
+          <div style={{
+            position:"absolute", left:0, top:0, bottom:0,
+            width: sliderX + 56, borderRadius:28,
+            background: "linear-gradient(90deg, " + C.blue + "44, " + C.blue + "22)",
+            transition: dragging ? "none" : "width 0.3s"
+          }} />
+          <div style={{
+            position:"absolute", top:4, left:4 + sliderX, width:48, height:48,
+            borderRadius:24, background: C.blue, display:"flex", alignItems:"center",
+            justifyContent:"center", fontSize:24, cursor:"grab",
+            boxShadow:"0 2px 8px #0005", transition: dragging ? "none" : "left 0.3s"
+          }}
             onMouseDown={function(e){ startDrag(e.clientX); }}
-            onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}>
-            <div className="wf-slider-grip"><span></span><span></span><span></span></div>
+            onTouchStart={function(e){ startDrag(e.touches[0].clientX); }}
+          >→</div>
+          <div style={{
+            position:"absolute", top:0, left:0, right:0, bottom:0,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:13, color:C.gray300, pointerEvents:"none",
+            opacity: 1 - pct * 2
+          }}>
+            Zum Entsperren schieben
           </div>
         </div>
+        <button onClick={function(){
+          try { localStorage.removeItem("werkstatt_name"); } catch(e){}
+          setSavedName(""); setFirstName(""); setLastName(""); setStep("register");
+        }} style={{ marginTop:24, background:"none", border:"none", color:C.gray500, cursor:"pointer", fontSize:13 }}>
+          Anderer Benutzer
+        </button>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
 
 
@@ -1698,7 +1748,8 @@ function exportDayReport(jobs, vehicles, lang) {
     "<b>Gesamt:</b> " + todayJobs.length + " Aufträge | " +
     Math.floor(totalMin/60) + "h " + (totalMin%60) + "min | " +
     totalCost.toFixed(2) + " €" +
-    "</div></body></html>";
+    "</div>" +
+    "</body></html>";
 
   var blob = new Blob([html], {type: "text/html"});
   var url = URL.createObjectURL(blob);
@@ -1764,7 +1815,9 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
       +"</div>"
       +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
       +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
-      +"</div></body></html>";
+      +"</div>
+
+</body></html>";
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -3725,7 +3778,9 @@ function Archive({ jobs, user, t, inspections }) {
       +"</div>"
       +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
       +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
-      +"</div></body></html>";
+      +"</div>
+
+</body></html>";
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -3792,7 +3847,9 @@ function Archive({ jobs, user, t, inspections }) {
       + "<br/><div class='noprint' style='text-align:center;padding:16px'>"
       + "<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>&#128424; Drucken</button>"
       + "</div>"
-      + "</body></html>";
+      + "
+
+</body></html>";
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -4850,7 +4907,7 @@ function App() {
     <div style={{ position:"relative", zIndex:2, maxWidth:480, margin:"0 auto", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.white }}>
 <div style={{ position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ height: 5, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 40%, #f5a623 60%, #1e4fa0 100%)" }} />
-        <div style={{ background: "rgba(10,23,48,0.92)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: "#1e4fa0", borderBottom: "1px solid #1a3a8a", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 <div>
             {isMechanic && <LTGLogo size={0.65} />}
           </div>
@@ -4993,10 +5050,10 @@ function App() {
 
           setTimeout(function(){ loadAlerts(); }, 2000);
         }} t={t} vehicles={vehicles} />
-<div className="wf-navbar" style={{ display: (user.role==="boss"||user.role==="fpl") ? "none" : "flex" }}>
+<div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.surfaceAlt, borderTop: `1px solid ${C.border}`, display: (user.role==="boss"||user.role==="fpl") ? "none" : "flex", zIndex: 100 }}>
         {tabs.map(({ k, icon, label }) => (
-          <button key={k} onClick={() => { setPrevTab(tab); setTab(k); }} className={"wf-nav-item" + (activeTab === k ? " active" : "")}>
-            <div className="wf-nav-icon" style={{ position:"relative", background: activeTab === k && k === "new" ? "rgba(255,165,0,0.20)" : "transparent", borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <button key={k} onClick={() => { setPrevTab(tab); setTab(k); }} style={{ flex: 1, padding: "10px 0", background: "transparent", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <div style={{ position:"relative", fontSize: k === "new" ? 20 : 18, background: activeTab === k && k === "new" ? C.blue : "transparent", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: activeTab === k ? (k === "new" ? "#fff" : C.orange) : C.gray500, fontWeight: 800 }}>
               {icon}
               {k === "eingang" && (alerts||[]).filter(function(a){ return a.status !== "done"; }).length > 0 && (
                 <span style={{ position:"absolute", top:0, right:0, background:C.red,
@@ -5012,7 +5069,6 @@ function App() {
         ))}
       </div>
     </div>
-  </div>
     </React.Fragment>
   );
 }
