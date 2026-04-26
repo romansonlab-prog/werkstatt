@@ -1394,6 +1394,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
   const [vehSel, setVehSel] = useState(null); // { plate, brand, isNew }
   const [checks, setChecks] = useState({});
   const [notes, setNotes] = useState("");
+  const [mileage, setMileage] = useState("");
   const [photos, setPhotos] = useState([]);
   const [sending, setSending] = useState(false);
 
@@ -1452,6 +1453,17 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
         photo_urls: photoUrls
       });
 
+      // Обновляем пробег если введён
+      if (mileage && parseInt(mileage) > 0 && vehSel && vehSel.id && !vehSel.isNew) {
+        try {
+          await fetch(SB_URL + "/rest/v1/vehicles?id=eq." + encodeURIComponent(vehSel.id), {
+            method: "PATCH",
+            headers: { "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
+            body: JSON.stringify({ mileage: parseInt(mileage) })
+          });
+        } catch(e) { console.warn("mileage update:", e); }
+      }
+
       onBack();
     } catch(e) {
       setSending(false);
@@ -1484,6 +1496,22 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
           <VehicleCombobox vehicles={vehicles} vehicleType={vehicleType}
             value={vehSel} onChange={setVehSel}
             placeholder={t.selectVehiclePh} />
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div className="label-cap" style={{ marginBottom:8 }}>KILOMETERSTAND *</div>
+          <div style={{ position:"relative" }}>
+            <input
+              className="input-dark"
+              type="number"
+              inputMode="numeric"
+              value={mileage}
+              onChange={function(e){ setMileage(e.target.value.replace(/\D/g,"")); }}
+              placeholder="z.B. 245000"
+              style={{ paddingRight:50 }}
+            />
+            <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:700 }}>km</span>
+          </div>
         </div>
 
         <div className="insp-header">
@@ -1529,7 +1557,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
       </div>
 
       <div className="fixed-bottom-bar">
-        <PrimaryBtn onClick={submit} disabled={!allDone || !vehSel || !vehSel.plate || sending}>
+        <PrimaryBtn onClick={submit} disabled={!allDone || !vehSel || !vehSel.plate || !mileage || sending}>
           {sending ? t.sending : t.submit}
         </PrimaryBtn>
       </div>
