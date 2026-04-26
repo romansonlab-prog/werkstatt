@@ -745,7 +745,7 @@ function SliderScreen({ userName, alerts, onUnlock, onChangeUser }) {
           )}
         </div>
 
-        {/* п.2: Alarm-Badge mit Zahl */}
+        {/* п.2: только Alarm-Badge с цифрой */}
         {openAlerts.length > 0 && (
           <div style={{ textAlign:"center", marginTop:28 }}>
             <div className="alarm-badge">
@@ -756,24 +756,6 @@ function SliderScreen({ userName, alerts, onUnlock, onChangeUser }) {
                 ? urgentCount + " DRINGEND · " + (openAlerts.length - urgentCount) + " NORMAL"
                 : openAlerts.length + " Meldung" + (openAlerts.length !== 1 ? "en" : "") + " offen"
               }
-            </div>
-            <div style={{ marginTop:14, display:"flex", flexDirection:"column", gap:8 }}>
-              {openAlerts.slice(0,2).map(function(a) {
-                var urgent = (a.urgency || "").includes("urgent");
-                return (
-                  <div key={a.id} className={urgent ? "slider-alert-urgent" : "slider-alert-normal"}>
-                    <div style={{ fontSize:18 }}>{urgent ? "🚨" : "⚠️"}</div>
-                    <div style={{ flex:1, minWidth:0, textAlign:"left" }}>
-                      <div style={{ color: urgent ? "#ff7d73" : "#ffa500", fontSize:12, fontWeight:800, textTransform:"uppercase" }}>
-                        {urgent ? "Sofort!" : "Meldung"} · {a.plate || "kein KZ"}
-                      </div>
-                      <div style={{ marginTop:2, color:"rgba(255,255,255,0.75)", fontSize:11, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                        {a.description || a.type || "Störung gemeldet"}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}
@@ -1155,68 +1137,61 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
   );
 }
 
-// === StandortPicker — надёжный select + ручной ввод для мобильных ===
+// === StandortPicker — плитки как Arbeitstyp ===
 function StandortPicker({ value, onChange }) {
-  var _sm = useState(false); var manual = _sm[0]; var setManual = _sm[1];
-  var _si = useState(""); var customInput = _si[0]; var setCustomInput = _si[1];
+  var _sc = useState(false); var custom = _sc[0]; var setCustom = _sc[1];
+  var _si = useState(""); var customVal = _si[0]; var setCustomVal = _si[1];
 
   var isCustom = value && !LOCATIONS.includes(value);
 
-  function pickFromSelect(e) {
-    var v = e.target.value;
-    if (v === "__custom__") {
-      setManual(true);
-      setCustomInput("");
+  function pick(l) {
+    if (l === "__custom__") {
+      setCustom(true);
+      setCustomVal(isCustom ? value : "");
     } else {
-      onChange(v);
-      setManual(false);
+      onChange(l);
+      setCustom(false);
     }
   }
 
-  function applyCustom() {
-    if (customInput.trim()) {
-      onChange(customInput.trim());
-      setManual(false);
-    }
-  }
+  var allItems = LOCATIONS.concat(["__custom__"]);
 
   return (
     <div>
-      <div style={{ position:"relative" }}>
-        <select
-          className="select-dark"
-          value={isCustom ? "__custom__" : (value || "")}
-          onChange={pickFromSelect}
-          style={{ paddingRight:36 }}
-        >
-          <option value="" disabled={true}>Standort wählen...</option>
-          {LOCATIONS.map(function(l) { return <option key={l} value={l}>{l}</option>; })}
-          <option value="__custom__">✎ Eigener Standort...</option>
-          {isCustom && <option value="__custom__">{value}</option>}
-        </select>
-        <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", color:"#ffa500", fontSize:16, pointerEvents:"none" }}>▾</span>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+        {allItems.map(function(l) {
+          var isCustomBtn = l === "__custom__";
+          var isActive = isCustomBtn ? (custom || isCustom) : value === l;
+          return (
+            <button key={l} type="button"
+              onClick={function(){ pick(l); }}
+              style={{
+                padding:"10px 14px", borderRadius:999,
+                border: isActive ? "1px solid #ffa500" : "1px solid rgba(255,255,255,0.18)",
+                background: isActive ? "#ffa500" : "rgba(9,27,58,0.72)",
+                color: isActive ? "#0a1730" : "#fff",
+                fontSize:13, fontWeight:700,
+                boxShadow: isActive ? "0 4px 14px rgba(255,165,0,0.3)" : "none"
+              }}>
+              {isCustomBtn ? (isCustom ? ("✎ " + value) : "✎ Eigener...") : l}
+            </button>
+          );
+        })}
       </div>
-      {(manual || isCustom) && (
-        <div style={{ marginTop:8, display:"flex", gap:8 }}>
+      {(custom || isCustom) && (
+        <div style={{ display:"flex", gap:8, marginTop:10 }}>
           <input
             className="input-dark"
             style={{ flex:1 }}
-            value={manual ? customInput : value}
+            value={customVal !== "" ? customVal : (isCustom ? value : "")}
             placeholder="Eigenen Standort eingeben..."
-            onChange={function(e){
-              if (manual) setCustomInput(e.target.value);
-              else onChange(e.target.value);
-            }}
-            onBlur={function(){ if (manual && customInput.trim()) applyCustom(); }}
+            onChange={function(e){ setCustomVal(e.target.value); }}
+            onBlur={function(){ if (customVal.trim()) { onChange(customVal.trim()); setCustom(false); } }}
           />
-          {manual && (
-            <button type="button" className="mini-btn start" onClick={applyCustom}>✓</button>
-          )}
-        </div>
-      )}
-      {value && (
-        <div style={{ marginTop:6, fontSize:12, color:"rgba(255,255,255,0.5)" }}>
-          📍 {value}
+          <button type="button" className="mini-btn start"
+            onClick={function(){ if (customVal.trim()) { onChange(customVal.trim()); setCustom(false); } }}>
+            ✓
+          </button>
         </div>
       )}
     </div>
