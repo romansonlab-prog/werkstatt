@@ -5080,7 +5080,7 @@ function App() {
   return (
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", minHeight: "100vh", minHeight:"100dvh", color: C.white, position:"relative" }}>
       <WfBg />
-<div style={{ position: "sticky", top: 0, zIndex: 100 }}>
+<div style={{ position: "sticky", top: 0, zIndex: 100, isolation:"isolate" }}>
         <div style={{ height: 5, background: "linear-gradient(90deg, #1e4fa0 0%, #f5a623 40%, #f5a623 60%, #1e4fa0 100%)" }} />
         <div style={{ background: "rgba(10,23,48,0.88)", borderBottom: "1px solid #1a3a8a", padding: "0 16px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 <div>
@@ -5136,6 +5136,7 @@ function App() {
           </div>
         </div>
       </div>
+    </div>
 {dbStatus === "error" && (
         <div style={{ background:"#1a0808", borderBottom:"1px solid "+C.red+"44",
           padding:"8px 16px", display:"flex", justifyContent:"space-between",
@@ -5243,8 +5244,8 @@ function App() {
           </button>
         ))}
       </div>
-      </div>
     </div>
+  </div>
   );
 }
 
