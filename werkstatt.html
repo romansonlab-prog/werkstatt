@@ -308,14 +308,16 @@
     .modal-back {
       position:fixed; inset:0; z-index:100;
       background:rgba(0,0,0,0.65); display:flex;
-      align-items:flex-end; justify-content:center;
+      align-items:center; justify-content:center;
+      padding:20px;
     }
     .modal {
-      width:100%; max-width:480px; background:#0d1f3d;
+      width:100%; max-width:440px; background:#0d1f3d;
       border:1px solid rgba(255,255,255,0.18);
-      border-radius:22px 22px 0 0;
-      padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);
-      box-shadow:0 -20px 60px rgba(0,0,0,0.5);
+      border-radius:22px;
+      padding:24px 20px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.6);
+      max-height:90vh; overflow-y:auto;
     }
 
     .dropdown-list {
@@ -1572,6 +1574,60 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
     .filter(function(j) { return j.mechanic === (user && user.id); })
     .filter(function(j) { return j.status !== "done"; });
 
+  // Все заказы механика за сегодня (включая done) для экспорта
+  var todayJobs = (jobs || []).filter(function(j) {
+    return j.mechanic === (user && user.id) &&
+      (j.date || (j.created_at || "").slice(0,10)) === todayIso();
+  });
+
+  function exportDay() {
+    var date = todayIso();
+    var totalMin = todayJobs.reduce(function(s,j){ return s + (j.work_min || 0); }, 0);
+    var totalCost = todayJobs.reduce(function(s,j){ return s + (Number(j.cost) || 0); }, 0);
+    var rows = todayJobs.map(function(j) {
+      var statusDE = j.status === "done" ? "Fertig" : j.status === "inProgress" ? "In Arbeit" : j.status === "paused" ? "Pause" : "Neu";
+      return "<tr>" +
+        "<td>" + (j.plate || "—") + "</td>" +
+        "<td>" + (labelFrom(WORK_TYPES, j.work_type) || "") + "</td>" +
+        "<td>" + (j.location || "") + "</td>" +
+        "<td>" + (j.description ? j.description.slice(0,80) : "") + "</td>" +
+        "<td>" + fmtMin(j.work_min || 0) + "</td>" +
+        "<td>" + fmtMin((j.travel_to_min||0)+(j.travel_back_min||0)) + "</td>" +
+        "<td>" + (j.cost ? Number(j.cost).toFixed(2) + " €" : "—") + "</td>" +
+        "<td style='color:" + (j.status === "done" ? "green" : "orange") + ";font-weight:bold'>" + statusDE + "</td>" +
+        "</tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+      "<title>Tagesbericht " + date + "</title>" +
+      "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:900px;margin:0 auto}" +
+      "h1{color:#0a1730;margin-bottom:4px}h2{color:#555;font-size:14px;font-weight:normal;margin-bottom:20px}" +
+      "table{width:100%;border-collapse:collapse;margin-bottom:20px}" +
+      "td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:13px}" +
+      "th{background:#0a1730;color:#fff;font-size:12px;letter-spacing:0.5px}" +
+      "tr:nth-child(even){background:#f8f9fc}" +
+      ".summary{display:flex;gap:24px;background:#f0f4ff;border-radius:12px;padding:16px 20px;margin-bottom:24px}" +
+      ".sum-item{text-align:center}.sum-val{font-size:24px;font-weight:900;color:#0a1730}" +
+      ".sum-lab{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}" +
+      "</style></head><body>" +
+      "<h1>WerkFlow — Tagesbericht</h1>" +
+      "<h2>" + user.name + " · " + dateDMY(date) + "</h2>" +
+      "<div class='summary'>" +
+      "<div class='sum-item'><div class='sum-val'>" + todayJobs.length + "</div><div class='sum-lab'>Aufträge</div></div>" +
+      "<div class='sum-item'><div class='sum-val'>" + fmtMin(totalMin) + "</div><div class='sum-lab'>Arbeitszeit</div></div>" +
+      "<div class='sum-item'><div class='sum-val'>" + totalCost.toFixed(2) + " €</div><div class='sum-lab'>Gesamtkosten</div></div>" +
+      "</div>" +
+      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Kosten</th><th>Status</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" +
+      "</body></html>";
+    var blob = new Blob([html], { type:"text/html" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function changeStatus(job, newStatus, pauseNote) {
     setUpdating(true);
     var patch = { status:newStatus };
@@ -1597,9 +1653,22 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
   return (
     <div>
       <div className="page-title">Meine <span style={{ color:"#ffa500" }}>Aufträge</span></div>
-      <button className="outline-btn" type="button" style={{ marginBottom:14, padding:13 }} onClick={onRefresh}>
-        {loading ? "Lädt..." : "↻ Aktualisieren"}
-      </button>
+      <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+        <button className="outline-btn" type="button" style={{ padding:13 }} onClick={onRefresh}>
+          {loading ? "Lädt..." : "↻ Aktualisieren"}
+        </button>
+        <button type="button" onClick={exportDay}
+          style={{ flexShrink:0, padding:"13px 16px", borderRadius:12, border:"1px solid rgba(255,165,0,0.5)", background:"rgba(255,165,0,0.08)", color:"#ffa500", fontWeight:700, fontSize:13, whiteSpace:"nowrap" }}>
+          📄 Tagesbericht
+        </button>
+      </div>
+      {todayJobs.length > 0 && (
+        <div style={{ marginBottom:12, padding:"10px 14px", borderRadius:12, background:"rgba(255,255,255,0.05)", fontSize:12, color:"rgba(255,255,255,0.55)", display:"flex", gap:16 }}>
+          <span>Heute: {todayJobs.length} Aufträge</span>
+          <span>⏱ {fmtMin(todayJobs.reduce(function(s,j){ return s + (j.work_min||0); },0))}</span>
+          <span>💶 {todayJobs.reduce(function(s,j){ return s + (Number(j.cost)||0); },0).toFixed(2)} €</span>
+        </div>
+      )}
       {myJobs.length === 0 && (
         <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>Keine offenen Aufträge</div>
       )}
