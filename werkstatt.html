@@ -12,25 +12,19 @@
     html, body { height:100%; overscroll-behavior:none; }
     body { background:#0a1730; color:#fff; min-height:100vh; min-height:100dvh; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     #root { min-height:100vh; min-height:100dvh; }
-  
-
     .wf-bg {
       position:fixed; inset:0; z-index:0;
       background-color:#0a1730;
       background-image:
-        linear-gradient(180deg, rgba(10,23,48,0.18) 0%, rgba(10,23,48,0.48) 58%, rgba(10,23,48,0.88) 100%),
+        linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.70) 60%, rgba(10,23,48,0.92) 100%),
         url("/bg-truck.png");
       background-size:cover;
-      background-position:center top;
+      background-position:center center;
       background-repeat:no-repeat;
       pointer-events:none;
     }
-    @media (min-width:481px) {
-      body::before {
-        content:""; position:fixed; inset:0; z-index:1;
-        background:rgba(0,0,0,0.32); pointer-events:none;
-      }
-    }
+
+    
 
     /* WerkFlow login exact Fahrer style */
     .scrn { position:relative; z-index:2; min-height:100vh; min-height:100dvh;
@@ -58,7 +52,149 @@
     .slider-marks { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-around; padding:0 90px 0 80px; pointer-events:none; }
     .slider-mark { width:2px; height:24px; background:rgba(255,255,255,0.2); border-radius:2px; }
 
-  </style>
+  
+    /* WerkFlow Werkstatt main screen v2 */
+    .wf-main-shell {
+      position:relative; z-index:2;
+      min-height:100vh; min-height:100dvh;
+      max-width:480px; margin:0 auto; width:100%;
+      padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 92px);
+      color:#fff;
+    }
+    @media(min-width:481px){ .wf-main-shell{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-main-header {
+      padding:24px 0 12px;
+    }
+    .wf-main-logo {
+      font-size:34px; font-weight:900; letter-spacing:-1.4px; line-height:1;
+    }
+    .wf-main-logo .white{color:#fff}.wf-main-logo .orange{color:#ffa500}
+    .wf-page-title {
+      margin-top:10px; font-size:34px; font-weight:900; letter-spacing:-1px;
+    }
+    .wf-page-title .orange{color:#ffa500}
+    .wf-alert-strip {
+      margin:12px 0 16px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55);
+      background:rgba(80,22,34,.72);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow:0 10px 30px rgba(255,59,48,.12);
+    }
+    .wf-alert-strip .count {
+      margin-left:auto; min-width:28px; height:24px; padding:0 8px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:900;
+    }
+    .wf-content-v2 { display:flex; flex-direction:column; gap:13px; }
+    .wf-panel-v2 {
+      background:rgba(15,39,78,.64);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;
+      padding:16px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-panel-title {
+      display:flex; align-items:center; gap:10px;
+      color:#fff; font-size:15px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.5px;
+      margin-bottom:12px;
+    }
+    .wf-panel-title .ico { color:#ffa500; font-size:24px; width:30px; text-align:center; }
+    .wf-field-label {
+      color:rgba(255,255,255,.66);
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:1px; margin:10px 0 6px;
+    }
+    .wf-input-v2, .wf-select-v2, .wf-textarea-v2 {
+      width:100%;
+      background:rgba(9,27,58,.72);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      border-radius:12px;
+      padding:13px 14px;
+      outline:none;
+      font-size:15px;
+    }
+    .wf-input-v2:focus, .wf-select-v2:focus, .wf-textarea-v2:focus {
+      border-color:#ffa500;
+      box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-textarea-v2 { min-height:96px; resize:vertical; }
+    .wf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-chip {
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(9,27,58,.72);
+      color:#fff;
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:800;
+      font-size:13px;
+    }
+    .wf-chip.active {
+      color:#0a1730;
+      background:#ffa500;
+      border-color:#ffa500;
+      box-shadow:0 8px 18px rgba(255,165,0,.25);
+    }
+    .wf-camera-box {
+      width:100%;
+      border:2px dashed rgba(255,165,0,.48);
+      background:rgba(255,165,0,.05);
+      border-radius:14px;
+      padding:22px 16px;
+      color:rgba(255,255,255,.86);
+      font-weight:900;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .wf-save-v2 {
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730;
+      font-size:16px;
+      font-weight:950;
+      box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+    .wf-bottom-nav-v2 {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:30;
+      padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background:linear-gradient(180deg,transparent,rgba(7,19,38,.98) 28%);
+    }
+    .wf-bottom-nav-inner-v2 {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      background:rgba(15,39,78,.88);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      padding:8px 6px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .wf-nav-v2 {
+      border:0; background:transparent;
+      color:rgba(255,255,255,.66);
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      font-size:10.5px; font-weight:800;
+      padding:7px 2px; border-radius:10px;
+    }
+    .wf-nav-v2.active { color:#ffa500; }
+    .wf-nav-v2 .navico { font-size:20px; line-height:1; }
+    .wf-card, .wf-row, .wf-navbar { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+
+
+    /* Hard override old light leftovers */
+    body, .wf-app { background:#0a1730 !important; }
+    .wf-scroll { background:transparent !important; }
+    [style*="background: rgb(240"], [style*="background:#f0"], [style*="background: #f0"] {
+      background:transparent !important;
+    }
+
+</style>
 </head>
 <body>
   <div id="root"></div>
@@ -1656,7 +1792,149 @@ function exportDayReport(jobs, vehicles, lang) {
     "th{background:#1a3a6b;color:#fff;padding:10px;text-align:left}" +
     "tr:nth-child(even){background:#f5f5f5}" +
     ".summary{margin-top:20px;padding:15px;background:#f0f4ff;border-radius:8px}" +
-    "</style></head><body>" +
+    "
+    /* WerkFlow Werkstatt main screen v2 */
+    .wf-main-shell {
+      position:relative; z-index:2;
+      min-height:100vh; min-height:100dvh;
+      max-width:480px; margin:0 auto; width:100%;
+      padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 92px);
+      color:#fff;
+    }
+    @media(min-width:481px){ .wf-main-shell{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-main-header {
+      padding:24px 0 12px;
+    }
+    .wf-main-logo {
+      font-size:34px; font-weight:900; letter-spacing:-1.4px; line-height:1;
+    }
+    .wf-main-logo .white{color:#fff}.wf-main-logo .orange{color:#ffa500}
+    .wf-page-title {
+      margin-top:10px; font-size:34px; font-weight:900; letter-spacing:-1px;
+    }
+    .wf-page-title .orange{color:#ffa500}
+    .wf-alert-strip {
+      margin:12px 0 16px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55);
+      background:rgba(80,22,34,.72);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow:0 10px 30px rgba(255,59,48,.12);
+    }
+    .wf-alert-strip .count {
+      margin-left:auto; min-width:28px; height:24px; padding:0 8px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:900;
+    }
+    .wf-content-v2 { display:flex; flex-direction:column; gap:13px; }
+    .wf-panel-v2 {
+      background:rgba(15,39,78,.64);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;
+      padding:16px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-panel-title {
+      display:flex; align-items:center; gap:10px;
+      color:#fff; font-size:15px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.5px;
+      margin-bottom:12px;
+    }
+    .wf-panel-title .ico { color:#ffa500; font-size:24px; width:30px; text-align:center; }
+    .wf-field-label {
+      color:rgba(255,255,255,.66);
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:1px; margin:10px 0 6px;
+    }
+    .wf-input-v2, .wf-select-v2, .wf-textarea-v2 {
+      width:100%;
+      background:rgba(9,27,58,.72);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      border-radius:12px;
+      padding:13px 14px;
+      outline:none;
+      font-size:15px;
+    }
+    .wf-input-v2:focus, .wf-select-v2:focus, .wf-textarea-v2:focus {
+      border-color:#ffa500;
+      box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-textarea-v2 { min-height:96px; resize:vertical; }
+    .wf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-chip {
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(9,27,58,.72);
+      color:#fff;
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:800;
+      font-size:13px;
+    }
+    .wf-chip.active {
+      color:#0a1730;
+      background:#ffa500;
+      border-color:#ffa500;
+      box-shadow:0 8px 18px rgba(255,165,0,.25);
+    }
+    .wf-camera-box {
+      width:100%;
+      border:2px dashed rgba(255,165,0,.48);
+      background:rgba(255,165,0,.05);
+      border-radius:14px;
+      padding:22px 16px;
+      color:rgba(255,255,255,.86);
+      font-weight:900;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .wf-save-v2 {
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730;
+      font-size:16px;
+      font-weight:950;
+      box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+    .wf-bottom-nav-v2 {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:30;
+      padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background:linear-gradient(180deg,transparent,rgba(7,19,38,.98) 28%);
+    }
+    .wf-bottom-nav-inner-v2 {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      background:rgba(15,39,78,.88);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      padding:8px 6px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .wf-nav-v2 {
+      border:0; background:transparent;
+      color:rgba(255,255,255,.66);
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      font-size:10.5px; font-weight:800;
+      padding:7px 2px; border-radius:10px;
+    }
+    .wf-nav-v2.active { color:#ffa500; }
+    .wf-nav-v2 .navico { font-size:20px; line-height:1; }
+    .wf-card, .wf-row, .wf-navbar { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+
+
+    /* Hard override old light leftovers */
+    body, .wf-app { background:#0a1730 !important; }
+    .wf-scroll { background:transparent !important; }
+    [style*="background: rgb(240"], [style*="background:#f0"], [style*="background: #f0"] {
+      background:transparent !important;
+    }
+
+</style></head><body>" +
     "<h1>LTG Werkstatt — Tagesbericht</h1>" +
     "<p><b>Datum:</b> " + dateStr + " | <b>Aufträge:</b> " + todayJobs.length + "</p>" +
     "<table><thead><tr>" +
@@ -1667,7 +1945,19 @@ function exportDayReport(jobs, vehicles, lang) {
     "<b>Gesamt:</b> " + todayJobs.length + " Aufträge | " +
     Math.floor(totalMin/60) + "h " + (totalMin%60) + "min | " +
     totalCost.toFixed(2) + " €" +
-    "</div></body></html>";
+    "</div>
+<script>
+  window.addEventListener("load", function(){
+    setTimeout(function(){
+      document.querySelectorAll("button").forEach(function(b){
+        var t=(b.textContent||"").trim().toLowerCase();
+        if(t === "fahrzeuge" || t.includes("fahrzeuge")) b.remove();
+      });
+    }, 300);
+  });
+</script>
+
+</body></html>";
 
   var blob = new Blob([html], {type: "text/html"});
   var url = URL.createObjectURL(blob);
@@ -1713,7 +2003,149 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
       +photos.map(function(p){return "<img src=\""+p+"\" style=\"width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0\">";}).join("")
       +"</div></div>":"";
     var css="*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;padding:0;margin:0;color:#1a2332}.header{background:#1e4fa0;padding:16px 32px;display:flex;align-items:center}.header img{height:44px}.stripe{height:5px;background:linear-gradient(90deg,#1e4fa0 0%,#f5a623 40%,#f5a623 60%,#1e4fa0 100%)}.body{padding:28px 32px;max-width:680px;margin:0 auto}.title{font-size:22px;font-weight:800;color:#1e4fa0;margin-bottom:4px}.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;margin-bottom:16px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px}.meta-row{padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:12px}.meta-label{color:#64748b;margin-bottom:2px}.meta-val{font-weight:700}.section-title{font-size:11px;font-weight:800;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px}.defect-box{background:#fff5f5;border:1px solid #ef444433;border-radius:8px;padding:12px;margin-top:14px}.foot{margin-top:28px;font-size:11px;color:#94a3b8;text-align:center;padding-top:12px;border-top:1px solid #e8eef4}@media print{.noprint{display:none}}";
-    var html="<!DOCTYPE html><html><head><meta charset='utf-8'><title>Inspektion "+(ins.plate||"")+"</title><style>"+css+"</style></head><body>"
+    var html="<!DOCTYPE html><html><head><meta charset='utf-8'><title>Inspektion "+(ins.plate||"")+"</title><style>"+css+"
+    /* WerkFlow Werkstatt main screen v2 */
+    .wf-main-shell {
+      position:relative; z-index:2;
+      min-height:100vh; min-height:100dvh;
+      max-width:480px; margin:0 auto; width:100%;
+      padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 92px);
+      color:#fff;
+    }
+    @media(min-width:481px){ .wf-main-shell{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-main-header {
+      padding:24px 0 12px;
+    }
+    .wf-main-logo {
+      font-size:34px; font-weight:900; letter-spacing:-1.4px; line-height:1;
+    }
+    .wf-main-logo .white{color:#fff}.wf-main-logo .orange{color:#ffa500}
+    .wf-page-title {
+      margin-top:10px; font-size:34px; font-weight:900; letter-spacing:-1px;
+    }
+    .wf-page-title .orange{color:#ffa500}
+    .wf-alert-strip {
+      margin:12px 0 16px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55);
+      background:rgba(80,22,34,.72);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow:0 10px 30px rgba(255,59,48,.12);
+    }
+    .wf-alert-strip .count {
+      margin-left:auto; min-width:28px; height:24px; padding:0 8px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:900;
+    }
+    .wf-content-v2 { display:flex; flex-direction:column; gap:13px; }
+    .wf-panel-v2 {
+      background:rgba(15,39,78,.64);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;
+      padding:16px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-panel-title {
+      display:flex; align-items:center; gap:10px;
+      color:#fff; font-size:15px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.5px;
+      margin-bottom:12px;
+    }
+    .wf-panel-title .ico { color:#ffa500; font-size:24px; width:30px; text-align:center; }
+    .wf-field-label {
+      color:rgba(255,255,255,.66);
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:1px; margin:10px 0 6px;
+    }
+    .wf-input-v2, .wf-select-v2, .wf-textarea-v2 {
+      width:100%;
+      background:rgba(9,27,58,.72);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      border-radius:12px;
+      padding:13px 14px;
+      outline:none;
+      font-size:15px;
+    }
+    .wf-input-v2:focus, .wf-select-v2:focus, .wf-textarea-v2:focus {
+      border-color:#ffa500;
+      box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-textarea-v2 { min-height:96px; resize:vertical; }
+    .wf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-chip {
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(9,27,58,.72);
+      color:#fff;
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:800;
+      font-size:13px;
+    }
+    .wf-chip.active {
+      color:#0a1730;
+      background:#ffa500;
+      border-color:#ffa500;
+      box-shadow:0 8px 18px rgba(255,165,0,.25);
+    }
+    .wf-camera-box {
+      width:100%;
+      border:2px dashed rgba(255,165,0,.48);
+      background:rgba(255,165,0,.05);
+      border-radius:14px;
+      padding:22px 16px;
+      color:rgba(255,255,255,.86);
+      font-weight:900;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .wf-save-v2 {
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730;
+      font-size:16px;
+      font-weight:950;
+      box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+    .wf-bottom-nav-v2 {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:30;
+      padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background:linear-gradient(180deg,transparent,rgba(7,19,38,.98) 28%);
+    }
+    .wf-bottom-nav-inner-v2 {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      background:rgba(15,39,78,.88);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      padding:8px 6px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .wf-nav-v2 {
+      border:0; background:transparent;
+      color:rgba(255,255,255,.66);
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      font-size:10.5px; font-weight:800;
+      padding:7px 2px; border-radius:10px;
+    }
+    .wf-nav-v2.active { color:#ffa500; }
+    .wf-nav-v2 .navico { font-size:20px; line-height:1; }
+    .wf-card, .wf-row, .wf-navbar { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+
+
+    /* Hard override old light leftovers */
+    body, .wf-app { background:#0a1730 !important; }
+    .wf-scroll { background:transparent !important; }
+    [style*="background: rgb(240"], [style*="background:#f0"], [style*="background: #f0"] {
+      background:transparent !important;
+    }
+
+</style></head><body>"
       +"<div class='header'><img src='"+LOGO_B64+"'/></div>"
       +"<div class='stripe'></div>"
       +"<div class='body'>"
@@ -1733,7 +2165,19 @@ function DashboardShared({ jobs, vehicles, alerts, inspections, t, lang, user, o
       +"</div>"
       +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
       +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
-      +"</div></body></html>";
+      +"</div>
+<script>
+  window.addEventListener("load", function(){
+    setTimeout(function(){
+      document.querySelectorAll("button").forEach(function(b){
+        var t=(b.textContent||"").trim().toLowerCase();
+        if(t === "fahrzeuge" || t.includes("fahrzeuge")) b.remove();
+      });
+    }, 300);
+  });
+</script>
+
+</body></html>";
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -3674,7 +4118,149 @@ function Archive({ jobs, user, t, inspections }) {
       +photos.map(function(p){ return "<img src=\""+p+"\" style=\"width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0\">"; }).join("")
       +"</div></div>" : "";
     var css = "*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;padding:0;margin:0;color:#1a2332}.header{background:#1e4fa0;padding:16px 32px;display:flex;align-items:center}.header img{height:44px}.stripe{height:5px;background:linear-gradient(90deg,#1e4fa0 0%,#f5a623 40%,#f5a623 60%,#1e4fa0 100%)}.body{padding:28px 32px;max-width:680px;margin:0 auto}.title{font-size:22px;font-weight:800;color:#1e4fa0;margin-bottom:4px}.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;margin-bottom:16px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px}.meta-row{padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:12px}.meta-label{color:#64748b;margin-bottom:2px}.meta-val{font-weight:700}.section-title{font-size:11px;font-weight:800;color:#1e4fa0;text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px}.defect-box{background:#fff5f5;border:1px solid #ef444433;border-radius:8px;padding:12px;margin-top:14px}.foot{margin-top:28px;font-size:11px;color:#94a3b8;text-align:center;padding-top:12px;border-top:1px solid #e8eef4}@media print{.noprint{display:none}}";
-    var html = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Inspektion "+( ins.plate||"")+"</title><style>"+css+"</style></head><body>"
+    var html = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Inspektion "+( ins.plate||"")+"</title><style>"+css+"
+    /* WerkFlow Werkstatt main screen v2 */
+    .wf-main-shell {
+      position:relative; z-index:2;
+      min-height:100vh; min-height:100dvh;
+      max-width:480px; margin:0 auto; width:100%;
+      padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 92px);
+      color:#fff;
+    }
+    @media(min-width:481px){ .wf-main-shell{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-main-header {
+      padding:24px 0 12px;
+    }
+    .wf-main-logo {
+      font-size:34px; font-weight:900; letter-spacing:-1.4px; line-height:1;
+    }
+    .wf-main-logo .white{color:#fff}.wf-main-logo .orange{color:#ffa500}
+    .wf-page-title {
+      margin-top:10px; font-size:34px; font-weight:900; letter-spacing:-1px;
+    }
+    .wf-page-title .orange{color:#ffa500}
+    .wf-alert-strip {
+      margin:12px 0 16px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55);
+      background:rgba(80,22,34,.72);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow:0 10px 30px rgba(255,59,48,.12);
+    }
+    .wf-alert-strip .count {
+      margin-left:auto; min-width:28px; height:24px; padding:0 8px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:900;
+    }
+    .wf-content-v2 { display:flex; flex-direction:column; gap:13px; }
+    .wf-panel-v2 {
+      background:rgba(15,39,78,.64);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;
+      padding:16px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-panel-title {
+      display:flex; align-items:center; gap:10px;
+      color:#fff; font-size:15px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.5px;
+      margin-bottom:12px;
+    }
+    .wf-panel-title .ico { color:#ffa500; font-size:24px; width:30px; text-align:center; }
+    .wf-field-label {
+      color:rgba(255,255,255,.66);
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:1px; margin:10px 0 6px;
+    }
+    .wf-input-v2, .wf-select-v2, .wf-textarea-v2 {
+      width:100%;
+      background:rgba(9,27,58,.72);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      border-radius:12px;
+      padding:13px 14px;
+      outline:none;
+      font-size:15px;
+    }
+    .wf-input-v2:focus, .wf-select-v2:focus, .wf-textarea-v2:focus {
+      border-color:#ffa500;
+      box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-textarea-v2 { min-height:96px; resize:vertical; }
+    .wf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-chip {
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(9,27,58,.72);
+      color:#fff;
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:800;
+      font-size:13px;
+    }
+    .wf-chip.active {
+      color:#0a1730;
+      background:#ffa500;
+      border-color:#ffa500;
+      box-shadow:0 8px 18px rgba(255,165,0,.25);
+    }
+    .wf-camera-box {
+      width:100%;
+      border:2px dashed rgba(255,165,0,.48);
+      background:rgba(255,165,0,.05);
+      border-radius:14px;
+      padding:22px 16px;
+      color:rgba(255,255,255,.86);
+      font-weight:900;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .wf-save-v2 {
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730;
+      font-size:16px;
+      font-weight:950;
+      box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+    .wf-bottom-nav-v2 {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:30;
+      padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background:linear-gradient(180deg,transparent,rgba(7,19,38,.98) 28%);
+    }
+    .wf-bottom-nav-inner-v2 {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      background:rgba(15,39,78,.88);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      padding:8px 6px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .wf-nav-v2 {
+      border:0; background:transparent;
+      color:rgba(255,255,255,.66);
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      font-size:10.5px; font-weight:800;
+      padding:7px 2px; border-radius:10px;
+    }
+    .wf-nav-v2.active { color:#ffa500; }
+    .wf-nav-v2 .navico { font-size:20px; line-height:1; }
+    .wf-card, .wf-row, .wf-navbar { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+
+
+    /* Hard override old light leftovers */
+    body, .wf-app { background:#0a1730 !important; }
+    .wf-scroll { background:transparent !important; }
+    [style*="background: rgb(240"], [style*="background:#f0"], [style*="background: #f0"] {
+      background:transparent !important;
+    }
+
+</style></head><body>"
       +"<div class='header'><img src='"+LOGO+"'/></div>"
       +"<div class='stripe'></div>"
       +"<div class='body'>"
@@ -3694,7 +4280,19 @@ function Archive({ jobs, user, t, inspections }) {
       +"</div>"
       +"<br/><div class='noprint' style='text-align:center;padding:16px'>"
       +"<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken</button>"
-      +"</div></body></html>";
+      +"</div>
+<script>
+  window.addEventListener("load", function(){
+    setTimeout(function(){
+      document.querySelectorAll("button").forEach(function(b){
+        var t=(b.textContent||"").trim().toLowerCase();
+        if(t === "fahrzeuge" || t.includes("fahrzeuge")) b.remove();
+      });
+    }, 300);
+  });
+</script>
+
+</body></html>";
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -3747,7 +4345,149 @@ function Archive({ jobs, user, t, inspections }) {
     ].join("");
     const html = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
       + "<title>Auftrag " + j.plate + "</title>"
-      + "<style>" + css + "</style></head><body>"
+      + "<style>" + css + "
+    /* WerkFlow Werkstatt main screen v2 */
+    .wf-main-shell {
+      position:relative; z-index:2;
+      min-height:100vh; min-height:100dvh;
+      max-width:480px; margin:0 auto; width:100%;
+      padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 92px);
+      color:#fff;
+    }
+    @media(min-width:481px){ .wf-main-shell{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-main-header {
+      padding:24px 0 12px;
+    }
+    .wf-main-logo {
+      font-size:34px; font-weight:900; letter-spacing:-1.4px; line-height:1;
+    }
+    .wf-main-logo .white{color:#fff}.wf-main-logo .orange{color:#ffa500}
+    .wf-page-title {
+      margin-top:10px; font-size:34px; font-weight:900; letter-spacing:-1px;
+    }
+    .wf-page-title .orange{color:#ffa500}
+    .wf-alert-strip {
+      margin:12px 0 16px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55);
+      background:rgba(80,22,34,.72);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow:0 10px 30px rgba(255,59,48,.12);
+    }
+    .wf-alert-strip .count {
+      margin-left:auto; min-width:28px; height:24px; padding:0 8px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:900;
+    }
+    .wf-content-v2 { display:flex; flex-direction:column; gap:13px; }
+    .wf-panel-v2 {
+      background:rgba(15,39,78,.64);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;
+      padding:16px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-panel-title {
+      display:flex; align-items:center; gap:10px;
+      color:#fff; font-size:15px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.5px;
+      margin-bottom:12px;
+    }
+    .wf-panel-title .ico { color:#ffa500; font-size:24px; width:30px; text-align:center; }
+    .wf-field-label {
+      color:rgba(255,255,255,.66);
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:1px; margin:10px 0 6px;
+    }
+    .wf-input-v2, .wf-select-v2, .wf-textarea-v2 {
+      width:100%;
+      background:rgba(9,27,58,.72);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      border-radius:12px;
+      padding:13px 14px;
+      outline:none;
+      font-size:15px;
+    }
+    .wf-input-v2:focus, .wf-select-v2:focus, .wf-textarea-v2:focus {
+      border-color:#ffa500;
+      box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-textarea-v2 { min-height:96px; resize:vertical; }
+    .wf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-chip {
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(9,27,58,.72);
+      color:#fff;
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:800;
+      font-size:13px;
+    }
+    .wf-chip.active {
+      color:#0a1730;
+      background:#ffa500;
+      border-color:#ffa500;
+      box-shadow:0 8px 18px rgba(255,165,0,.25);
+    }
+    .wf-camera-box {
+      width:100%;
+      border:2px dashed rgba(255,165,0,.48);
+      background:rgba(255,165,0,.05);
+      border-radius:14px;
+      padding:22px 16px;
+      color:rgba(255,255,255,.86);
+      font-weight:900;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .wf-save-v2 {
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730;
+      font-size:16px;
+      font-weight:950;
+      box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+    .wf-bottom-nav-v2 {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:30;
+      padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background:linear-gradient(180deg,transparent,rgba(7,19,38,.98) 28%);
+    }
+    .wf-bottom-nav-inner-v2 {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      background:rgba(15,39,78,.88);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      padding:8px 6px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .wf-nav-v2 {
+      border:0; background:transparent;
+      color:rgba(255,255,255,.66);
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      font-size:10.5px; font-weight:800;
+      padding:7px 2px; border-radius:10px;
+    }
+    .wf-nav-v2.active { color:#ffa500; }
+    .wf-nav-v2 .navico { font-size:20px; line-height:1; }
+    .wf-card, .wf-row, .wf-navbar { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+
+
+    /* Hard override old light leftovers */
+    body, .wf-app { background:#0a1730 !important; }
+    .wf-scroll { background:transparent !important; }
+    [style*="background: rgb(240"], [style*="background:#f0"], [style*="background: #f0"] {
+      background:transparent !important;
+    }
+
+</style></head><body>"
       + "<div class='header'><img src='" + LOGO + "'/></div>"
       + "<div class='stripe'></div>"
       + "<div class='body'>"
@@ -3761,7 +4501,19 @@ function Archive({ jobs, user, t, inspections }) {
       + "<br/><div class='noprint' style='text-align:center;padding:16px'>"
       + "<button onclick='window.print()' style='background:#1e4fa0;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>&#128424; Drucken</button>"
       + "</div>"
-      + "</body></html>";
+      + "
+<script>
+  window.addEventListener("load", function(){
+    setTimeout(function(){
+      document.querySelectorAll("button").forEach(function(b){
+        var t=(b.textContent||"").trim().toLowerCase();
+        if(t === "fahrzeuge" || t.includes("fahrzeuge")) b.remove();
+      });
+    }, 300);
+  });
+</script>
+
+</body></html>";
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -4791,7 +5543,149 @@ function App() {
       <div style={{ width: 40, height: 40, border: "3px solid #d0dbe8",
         borderTop: "3px solid #3b82f6", borderRadius: "50%",
         animation: "spin 1s linear infinite" }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}
+    /* WerkFlow Werkstatt main screen v2 */
+    .wf-main-shell {
+      position:relative; z-index:2;
+      min-height:100vh; min-height:100dvh;
+      max-width:480px; margin:0 auto; width:100%;
+      padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 92px);
+      color:#fff;
+    }
+    @media(min-width:481px){ .wf-main-shell{ box-shadow:0 0 60px rgba(0,0,0,.55); } }
+    .wf-main-header {
+      padding:24px 0 12px;
+    }
+    .wf-main-logo {
+      font-size:34px; font-weight:900; letter-spacing:-1.4px; line-height:1;
+    }
+    .wf-main-logo .white{color:#fff}.wf-main-logo .orange{color:#ffa500}
+    .wf-page-title {
+      margin-top:10px; font-size:34px; font-weight:900; letter-spacing:-1px;
+    }
+    .wf-page-title .orange{color:#ffa500}
+    .wf-alert-strip {
+      margin:12px 0 16px; padding:12px 14px; border-radius:14px;
+      border:1px solid rgba(255,59,48,.55);
+      background:rgba(80,22,34,.72);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      display:flex; align-items:center; gap:10px;
+      box-shadow:0 10px 30px rgba(255,59,48,.12);
+    }
+    .wf-alert-strip .count {
+      margin-left:auto; min-width:28px; height:24px; padding:0 8px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:900;
+    }
+    .wf-content-v2 { display:flex; flex-direction:column; gap:13px; }
+    .wf-panel-v2 {
+      background:rgba(15,39,78,.64);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;
+      padding:16px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 10px 28px rgba(0,0,0,.18);
+    }
+    .wf-panel-title {
+      display:flex; align-items:center; gap:10px;
+      color:#fff; font-size:15px; font-weight:900;
+      text-transform:uppercase; letter-spacing:.5px;
+      margin-bottom:12px;
+    }
+    .wf-panel-title .ico { color:#ffa500; font-size:24px; width:30px; text-align:center; }
+    .wf-field-label {
+      color:rgba(255,255,255,.66);
+      font-size:11px; font-weight:800; text-transform:uppercase;
+      letter-spacing:1px; margin:10px 0 6px;
+    }
+    .wf-input-v2, .wf-select-v2, .wf-textarea-v2 {
+      width:100%;
+      background:rgba(9,27,58,.72);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+      border-radius:12px;
+      padding:13px 14px;
+      outline:none;
+      font-size:15px;
+    }
+    .wf-input-v2:focus, .wf-select-v2:focus, .wf-textarea-v2:focus {
+      border-color:#ffa500;
+      box-shadow:0 0 0 1px rgba(255,165,0,.55);
+    }
+    .wf-textarea-v2 { min-height:96px; resize:vertical; }
+    .wf-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .wf-chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .wf-chip {
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(9,27,58,.72);
+      color:#fff;
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:800;
+      font-size:13px;
+    }
+    .wf-chip.active {
+      color:#0a1730;
+      background:#ffa500;
+      border-color:#ffa500;
+      box-shadow:0 8px 18px rgba(255,165,0,.25);
+    }
+    .wf-camera-box {
+      width:100%;
+      border:2px dashed rgba(255,165,0,.48);
+      background:rgba(255,165,0,.05);
+      border-radius:14px;
+      padding:22px 16px;
+      color:rgba(255,255,255,.86);
+      font-weight:900;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .wf-save-v2 {
+      width:100%;
+      border:0;
+      border-radius:14px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730;
+      font-size:16px;
+      font-weight:950;
+      box-shadow:0 10px 28px rgba(255,165,0,.35);
+    }
+    .wf-bottom-nav-v2 {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:30;
+      padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background:linear-gradient(180deg,transparent,rgba(7,19,38,.98) 28%);
+    }
+    .wf-bottom-nav-inner-v2 {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      background:rgba(15,39,78,.88);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:15px;
+      padding:8px 6px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .wf-nav-v2 {
+      border:0; background:transparent;
+      color:rgba(255,255,255,.66);
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      font-size:10.5px; font-weight:800;
+      padding:7px 2px; border-radius:10px;
+    }
+    .wf-nav-v2.active { color:#ffa500; }
+    .wf-nav-v2 .navico { font-size:20px; line-height:1; }
+    .wf-card, .wf-row, .wf-navbar { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+
+
+    /* Hard override old light leftovers */
+    body, .wf-app { background:#0a1730 !important; }
+    .wf-scroll { background:transparent !important; }
+    [style*="background: rgb(240"], [style*="background:#f0"], [style*="background: #f0"] {
+      background:transparent !important;
+    }
+
+</style>
       {dbError && <div style={{ marginTop: 20, color: "#ef4444",
         fontSize: 13, textAlign: "center", maxWidth: 300 }}>{dbError}</div>}
     </div>
@@ -4985,5 +5879,17 @@ function App() {
 
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
   </script>
+
+<script>
+  window.addEventListener("load", function(){
+    setTimeout(function(){
+      document.querySelectorAll("button").forEach(function(b){
+        var t=(b.textContent||"").trim().toLowerCase();
+        if(t === "fahrzeuge" || t.includes("fahrzeuge")) b.remove();
+      });
+    }, 300);
+  });
+</script>
+
 </body>
 </html>
