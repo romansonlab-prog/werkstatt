@@ -1475,7 +1475,7 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
       paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)",
-      maxWidth:480, margin:"0 auto" }}>
+      maxWidth:480, margin:"0 auto", boxShadow:"0 0 60px rgba(0,0,0,0.6)" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
@@ -1492,25 +1492,21 @@ function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
           </div>
         </div>
 
-        <div style={{ marginTop:12, marginBottom:16 }}>
+        <div style={{ marginTop:12, marginBottom:10 }}>
           <VehicleCombobox vehicles={vehicles} vehicleType={vehicleType}
             value={vehSel} onChange={setVehSel}
             placeholder={t.selectVehiclePh} />
         </div>
 
         <div style={{ marginBottom:16 }}>
-          <div className="label-cap" style={{ marginBottom:8 }}>KILOMETERSTAND *</div>
+          <div className="label-cap" style={{ marginBottom:6 }}>KILOMETERSTAND *</div>
           <div style={{ position:"relative" }}>
-            <input
-              className="input-dark"
-              type="number"
-              inputMode="numeric"
+            <input className="dropdown-trigger" type="text" inputMode="numeric"
               value={mileage}
               onChange={function(e){ setMileage(e.target.value.replace(/\D/g,"")); }}
               placeholder="z.B. 245000"
-              style={{ paddingRight:50 }}
-            />
-            <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:700 }}>km</span>
+              style={{ paddingRight:50 }} />
+            <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:700, pointerEvents:"none" }}>km</span>
           </div>
         </div>
 
