@@ -10,217 +10,79 @@
   <style>
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html, body { height:100%; overscroll-behavior:none; }
-    body {
-      background:#0a1730; color:#fff;
-      font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height:100vh; min-height:100dvh;
-    }
+    body { background:#0a1730; color:#fff; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height:100vh; min-height:100dvh; }
     #root { min-height:100vh; min-height:100dvh; }
-
     .bg-image {
-      position:fixed; inset:0; z-index:0;
-      background-color:#0a1730;
-      background-image:
-        linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%),
-        url("./bg-truck.png");
-      background-size:cover; background-position:center; background-repeat:no-repeat;
-      pointer-events:none;
+      position:fixed; inset:0; z-index:0; background-color:#0a1730;
+      background-image: linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%), url("./bg-truck.png");
+      background-size:cover; background-position:center; background-repeat:no-repeat; pointer-events:none;
     }
     .scrn {
       position:relative; z-index:2; min-height:100vh; min-height:100dvh;
       padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
-      display:flex; flex-direction:column;
-      max-width:480px; margin:0 auto; width:100%;
+      display:flex; flex-direction:column; max-width:480px; margin:0 auto; width:100%;
     }
     @media (min-width:481px) {
       body::before { content:""; position:fixed; inset:0; z-index:1; background:rgba(0,0,0,0.4); pointer-events:none; }
       .scrn { box-shadow:0 0 60px rgba(0,0,0,0.6); }
     }
-
     button { font:inherit; color:inherit; cursor:pointer; }
-    input, textarea, select { font:inherit; }
+    input, textarea { font:inherit; }
     textarea { resize:none; }
     ::placeholder { color:rgba(255,255,255,0.45); }
-
-    .btn-primary {
-      background:linear-gradient(180deg, #ffa500 0%, #ff8c00 100%);
-      color:#0a1730; border:none; border-radius:12px;
-      font-weight:800; padding:18px; width:100%;
-      box-shadow:0 8px 24px rgba(255,165,0,0.35); font-size:16px;
-    }
-    .btn-primary:active { transform:translateY(1px); }
-    .btn-primary:disabled { opacity:0.5; }
-    .btn-danger {
-      background:linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
-      color:#fff; border:none; border-radius:12px;
-      font-weight:800; padding:18px; width:100%;
-      box-shadow:0 8px 24px rgba(239,68,68,0.35); font-size:16px;
-    }
-    .btn-danger:disabled { opacity:0.5; }
-
-    .input-light {
-      width:100%; padding:14px 14px 14px 44px;
-      background:#fff; color:#0a1730;
-      border:1px solid #e5e7eb; border-radius:12px;
-      font-size:16px; outline:none;
-    }
+    .btn-primary { background:linear-gradient(180deg,#ffa500,#ff8c00); color:#0a1730; border:none; border-radius:12px; font-weight:800; padding:18px; width:100%; box-shadow:0 8px 24px rgba(255,165,0,0.35); font-size:16px; }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-danger { background:linear-gradient(180deg,#ef4444,#dc2626); color:#fff; border:none; border-radius:12px; font-weight:800; padding:18px; width:100%; box-shadow:0 8px 24px rgba(239,68,68,0.35); font-size:16px; }
+    .btn-danger:disabled { opacity:0.5; cursor:not-allowed; }
+    .input-light { width:100%; padding:14px 14px 14px 44px; background:#fff; color:#0a1730; border:1px solid #e5e7eb; border-radius:12px; font-size:16px; outline:none; }
     .input-light:focus { border-color:#ffa500; }
-
-    .input-dark {
-      width:100%; padding:13px 14px;
-      background:rgba(9,27,58,0.74);
-      border:1px solid rgba(255,255,255,0.16);
-      border-radius:12px; color:#fff; outline:none; font-size:15px;
-    }
-    .input-dark:focus { border-color:#ffa500; }
-
-    .textarea-dark {
-      width:100%; padding:13px 14px;
-      background:rgba(9,27,58,0.74);
-      border:1px solid rgba(255,255,255,0.16);
-      border-radius:12px; color:#fff; min-height:90px; outline:none; font-size:15px;
-    }
+    .input-dark { width:100%; padding:13px 14px; background:rgba(9,27,58,0.74); border:1px solid rgba(255,255,255,0.16); border-radius:12px; color:#fff; outline:none; font-size:15px; }
+    .input-dark:focus { border-color:#ffa500; box-shadow:0 0 0 1px rgba(255,165,0,0.4); }
+    .textarea-dark { width:100%; padding:13px 14px; background:rgba(9,27,58,0.74); border:1px solid rgba(255,255,255,0.16); border-radius:12px; color:#fff; min-height:90px; outline:none; font-size:15px; }
     .textarea-dark:focus { border-color:#ffa500; }
-
-    .keypad-btn {
-      width:70px; height:70px; border-radius:50%;
-      background:rgba(3,12,28,0.18);
-      border:1.5px solid rgba(255,255,255,0.35);
-      color:#fff; font-size:28px; font-weight:500;
-      display:flex; align-items:center; justify-content:center;
-    }
+    .keypad-btn { width:70px; height:70px; border-radius:50%; background:rgba(3,12,28,0.18); border:1.5px solid rgba(255,255,255,0.35); color:#fff; font-size:28px; font-weight:500; display:flex; align-items:center; justify-content:center; }
     .keypad-btn:active { background:rgba(255,255,255,0.10); }
-
     .pin-dot { width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,0.20); transition:background 0.15s; }
     .pin-dot.filled { background:#ffa500; box-shadow:0 0 12px rgba(255,165,0,0.6); }
     .pin-dot.error { background:#ff3b30; }
-
-    .slider-track {
-      position:relative; height:78px; border-radius:18px;
-      background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.10); overflow:hidden;
-    }
-    .slider-thumb {
-      position:absolute; top:6px; left:6px; width:66px; height:66px; border-radius:14px;
-      background:linear-gradient(180deg,#ffa500,#ff8c00);
-      box-shadow:0 0 20px rgba(255,165,0,0.7);
-      display:flex; align-items:center; justify-content:center;
-      touch-action:none; cursor:grab; user-select:none;
-    }
+    .slider-track { position:relative; height:78px; border-radius:18px; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.10); overflow:hidden; }
+    .slider-thumb { position:absolute; top:6px; left:6px; width:66px; height:66px; border-radius:14px; background:linear-gradient(180deg,#ffa500,#ff8c00); box-shadow:0 0 20px rgba(255,165,0,0.7); display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; user-select:none; }
     .slider-grip { display:flex; gap:4px; }
     .slider-grip span { width:3px; height:22px; background:#0a1730; border-radius:2px; }
     .slider-marks { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-around; padding:0 90px 0 80px; pointer-events:none; }
     .slider-mark { width:2px; height:24px; background:rgba(255,255,255,0.2); border-radius:2px; }
-
-    .glass-panel {
-      background:rgba(15,39,78,0.64); border:1px solid rgba(255,255,255,0.15);
-      border-radius:16px; padding:16px; margin-bottom:13px;
-      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-    }
-    .label-cap {
-      font-size:11px; font-weight:700; color:rgba(255,255,255,0.6);
-      letter-spacing:1.5px; margin-bottom:8px;
-    }
-
-    .tile-btn {
-      padding:12px 8px; border-radius:12px; text-align:center;
-      border:1px solid rgba(255,255,255,0.14);
-      background:rgba(9,27,58,0.72);
-      color:#fff; font-size:13px; font-weight:700; cursor:pointer;
-    }
-    .tile-btn.active {
-      border-color:#ffa500; background:rgba(255,165,0,0.12);
-      color:#ffa500; box-shadow:0 0 0 1px #ffa500;
-    }
-    .tile-btn.active-red {
-      border-color:#ef4444; background:rgba(239,68,68,0.12);
-      color:#ef4444; box-shadow:0 0 0 1px #ef4444;
-    }
-
-    .forklift-row {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:13px 16px; border-radius:12px;
-      border:1px solid rgba(255,255,255,0.14);
-      background:rgba(9,27,58,0.72); margin-bottom:8px; cursor:pointer;
-    }
-    .forklift-row.active {
-      border-color:#ffa500; background:rgba(255,165,0,0.10);
-      box-shadow:0 0 0 1px #ffa500;
-    }
-
-    .urg-row {
-      display:flex; align-items:center; gap:14px;
-      padding:14px 16px; border-radius:12px;
-      border:1px solid rgba(255,255,255,0.10);
-      background:rgba(20,40,80,0.45); font-weight:700;
-      backdrop-filter:blur(8px); margin-bottom:8px; cursor:pointer;
-    }
-    .urg-row.active-red  { border-color:#ff3b30; box-shadow:0 0 0 1px #ff3b30; }
-    .urg-row.active-orange { border-color:#ffa500; box-shadow:0 0 0 1px #ffa500; }
+    .glass-panel { background:rgba(15,39,78,0.64); border:1px solid rgba(255,255,255,0.15); border-radius:16px; padding:16px; margin-bottom:13px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+    .label-cap { font-size:11px; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:1.5px; margin-bottom:8px; }
+    .tile-btn { padding:12px 8px; border-radius:12px; text-align:center; border:1px solid rgba(255,255,255,0.14); background:rgba(9,27,58,0.72); color:#fff; font-size:13px; font-weight:700; }
+    .tile-btn.active { border-color:#ffa500; background:rgba(255,165,0,0.12); color:#ffa500; box-shadow:0 0 0 1px #ffa500; }
+    .urg-row { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background:rgba(20,40,80,0.45); font-weight:700; margin-bottom:8px; cursor:pointer; }
+    .urg-row.active-red { border-color:#ff3b30; background:rgba(239,68,68,0.10); box-shadow:0 0 0 1px #ff3b30; }
+    .urg-row.active-orange { border-color:#ffa500; background:rgba(255,165,0,0.10); box-shadow:0 0 0 1px #ffa500; }
     .urg-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
-
-    .photo-box {
-      border:2px dashed rgba(255,165,0,0.45); border-radius:14px; padding:20px;
-      text-align:center; color:rgba(255,255,255,0.7);
-      background:rgba(255,165,0,0.04); width:100%; font-weight:700;
-      display:flex; align-items:center; justify-content:center; gap:10px;
-    }
+    .photo-box { border:2px dashed rgba(255,165,0,0.45); border-radius:14px; padding:20px; text-align:center; color:rgba(255,255,255,0.7); background:rgba(255,165,0,0.04); width:100%; font-weight:700; display:flex; align-items:center; justify-content:center; gap:10px; }
     .photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
-    .photo-thumb {
-      position:relative; aspect-ratio:1/1; overflow:hidden;
-      border-radius:10px; border:1px solid rgba(255,255,255,0.18); background:#061326;
-    }
+    .photo-thumb { position:relative; aspect-ratio:1/1; overflow:hidden; border-radius:10px; border:1px solid rgba(255,255,255,0.18); background:#061326; }
     .photo-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-    .photo-thumb button {
-      position:absolute; right:4px; top:4px; width:22px; height:22px;
-      border:0; border-radius:50%; background:rgba(0,0,0,0.75); color:#fff; font-weight:800; font-size:13px;
-    }
-
-    .white-card {
-      margin-top:28px; background:#fff; color:#0a1730;
-      border-radius:24px; padding:28px 24px;
-      box-shadow:0 22px 60px rgba(0,0,0,0.45);
-    }
+    .photo-thumb button { position:absolute; right:4px; top:4px; width:22px; height:22px; border:0; border-radius:50%; background:rgba(0,0,0,0.75); color:#fff; font-weight:800; font-size:13px; }
+    .white-card { margin-top:28px; background:#fff; color:#0a1730; border-radius:24px; padding:28px 24px; box-shadow:0 22px 60px rgba(0,0,0,0.45); }
     .light-label { color:#102d62; font-size:16px; font-weight:800; margin-bottom:10px; }
     .light-field { position:relative; margin-bottom:22px; }
-    .light-field-icon {
-      position:absolute; left:14px; top:50%; transform:translateY(-50%);
-      color:#8a94a7; font-size:18px; pointer-events:none;
-    }
-    .blue-btn {
-      width:100%; border:0; border-radius:13px; padding:17px;
-      background:#082b66; color:#fff; font-size:17px; font-weight:800;
-      display:flex; align-items:center; justify-content:center; gap:12px;
-    }
+    .light-field-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#8a94a7; font-size:18px; pointer-events:none; }
+    .blue-btn { width:100%; border:0; border-radius:13px; padding:17px; background:#082b66; color:#fff; font-size:17px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:12px; }
     .blue-btn:disabled { opacity:0.5; }
-
     .powered { display:flex; align-items:center; gap:12px; margin-top:14px; }
     .powered-small { font-size:10px; font-weight:800; color:rgba(255,255,255,0.62); letter-spacing:1.9px; text-transform:uppercase; }
     .powered-line { width:1px; height:34px; background:rgba(255,255,255,0.42); }
     .powered-name { font-size:12px; line-height:1.35; font-weight:700; color:rgba(255,255,255,0.92); }
-
-    .lang-switch {
-      display:inline-flex; align-items:center; gap:6px; padding:8px 12px;
-      background:rgba(20,40,80,0.65); border:1px solid rgba(255,255,255,0.15);
-      border-radius:10px; color:#fff; font-weight:700; font-size:13px;
-      backdrop-filter:blur(8px); cursor:pointer; position:relative;
-    }
-    .lang-menu {
-      position:absolute; top:calc(100% + 6px); right:0; padding:6px;
-      background:#0d1f3d; border:1px solid rgba(255,165,0,0.5);
-      border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.6);
-      display:flex; gap:6px; z-index:50;
-    }
-    .lang-menu button {
-      width:42px; padding:8px 0; text-align:center;
-      border:1px solid rgba(255,255,255,0.18); border-radius:8px;
-      font-weight:700; font-size:12px; background:transparent; color:#fff;
-    }
-    .lang-menu button.active { background:#ffa500; border-color:#ffa500; color:#0a1730; }
-
-    .status-box {
-      border-radius:14px; padding:14px 16px; margin-bottom:16px;
-      display:flex; align-items:center; gap:12px;
-    }
+    .nummer-big { width:100%; padding:18px; text-align:center; background:rgba(9,27,58,0.74); border:2px solid rgba(255,255,255,0.2); border-radius:14px; color:#fff; font-size:36px; font-weight:900; outline:none; letter-spacing:6px; }
+    .nummer-big:focus { border-color:#ffa500; box-shadow:0 0 0 2px rgba(255,165,0,0.3); }
+    .nummer-big.found { border-color:#22c55e; }
+    .nummer-big.notfound { border-color:#ef4444; }
+    .forklift-card { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3); border-radius:14px; padding:14px 16px; margin-top:10px; }
+    .forklift-tag { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.12); display:inline-block; margin:3px 3px 0 0; }
+    .gps-btn { display:flex; align-items:center; gap:8px; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,165,0,0.35); background:rgba(255,165,0,0.08); color:#ffa500; font-weight:700; font-size:13px; width:100%; margin-top:10px; justify-content:center; }
+    .gps-btn:disabled { opacity:0.5; }
+    .status-box { border-radius:14px; padding:14px 16px; margin-bottom:16px; display:flex; align-items:center; gap:12px; }
     .status-box.waiting { background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); }
     .status-box.progress { background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); }
     .status-box.done { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); }
@@ -245,171 +107,10 @@ const LOCATIONS = [
   { id:"jd",   name:"John Deere" },
 ];
 
-const FORKLIFTS = [
-  { id:"stg019", plate:"STG-019", brand:"Linde H35",    loc:"hoc4" },
-  { id:"stg044", plate:"STG-044", brand:"Still RX60",   loc:"hoc2" },
-  { id:"stg107", plate:"STG-107", brand:"Linde E25",    loc:"hoc1" },
-  { id:"stg221", plate:"STG-221", brand:"Toyota 8FBN",  loc:"hoc3" },
-  { id:"stg305", plate:"STG-305", brand:"Jungheinrich", loc:"hoc5" },
-  { id:"stg401", plate:"STG-401", brand:"Linde H20",    loc:"jd"   },
-];
-
-const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
-
-const T = {
-  DE:{
-    firstLogin:"ERSTE ANMELDUNG", firstName:"Vorname", lastName:"Nachname",
-    pinLabel:"PIN EINGEBEN", sliderLabel:"SCHIEBEN →",
-    changeUser:"Anderer Benutzer",
-    location:"STANDORT", forklift:"STAPLER", urgency:"DRINGLICHKEIT",
-    description:"PROBLEMBESCHREIBUNG", descPh:"z.B. Stapler fährt nicht an, Hydraulik defekt...",
-    contact:"IHR NAME / KONTAKT", contactPh:"Name und Telefon",
-    photo:"Foto aufnehmen",
-    urgent:"🔴 DRINGEND — Arbeit steht still",
-    canWait:"🟡 Kann warten",
-    send:"STÖRUNG MELDEN", sendUrgent:"🚨 NOTRUF MELDEN",
-    sending:"Wird gesendet...", sent:"Gesendet!",
-    sentDesc:"Werkstatt wurde benachrichtigt",
-    newReport:"Neue Meldung",
-    statusWaiting:"⏳ Gesendet — warte auf Mechaniker...",
-    statusProgress:"🔧 Mechaniker arbeitet daran...",
-    statusDone:"✅ Erledigt",
-    required:"* Pflichtfeld",
-    weiter:"Weiter →",
-  },
-  RU:{
-    firstLogin:"ПЕРВЫЙ ВХОД", firstName:"Имя", lastName:"Фамилия",
-    pinLabel:"ВВЕДИТЕ PIN", sliderLabel:"СДВИНЬТЕ →",
-    changeUser:"Другой пользователь",
-    location:"МЕСТО", forklift:"ПОГРУЗЧИК", urgency:"СРОЧНОСТЬ",
-    description:"ОПИСАНИЕ ПРОБЛЕМЫ", descPh:"напр. погрузчик не заводится, гидравлика не работает...",
-    contact:"ВАШЕ ИМЯ / КОНТАКТ", contactPh:"Имя и телефон",
-    photo:"Сделать фото",
-    urgent:"🔴 СРОЧНО — работа стоит",
-    canWait:"🟡 Может подождать",
-    send:"СООБЩИТЬ О НЕИСПРАВНОСТИ", sendUrgent:"🚨 ВЫЗОВ МЕХАНИКА",
-    sending:"Отправляется...", sent:"Отправлено!",
-    sentDesc:"Мастерская уведомлена",
-    newReport:"Новое сообщение",
-    statusWaiting:"⏳ Отправлено — ждём механика...",
-    statusProgress:"🔧 Механик работает...",
-    statusDone:"✅ Выполнено",
-    required:"* обязательное поле",
-    weiter:"Далее →",
-  },
-  GB:{
-    firstLogin:"FIRST LOGIN", firstName:"First name", lastName:"Last name",
-    pinLabel:"ENTER PIN", sliderLabel:"SLIDE →",
-    changeUser:"Change user",
-    location:"LOCATION", forklift:"FORKLIFT", urgency:"URGENCY",
-    description:"PROBLEM DESCRIPTION", descPh:"e.g. forklift won't start, hydraulics leaking...",
-    contact:"YOUR NAME / CONTACT", contactPh:"Name and phone",
-    photo:"Take photo",
-    urgent:"🔴 URGENT — work stopped",
-    canWait:"🟡 Can wait",
-    send:"REPORT BREAKDOWN", sendUrgent:"🚨 EMERGENCY CALL",
-    sending:"Sending...", sent:"Sent!",
-    sentDesc:"Workshop has been notified",
-    newReport:"New report",
-    statusWaiting:"⏳ Sent — waiting for mechanic...",
-    statusProgress:"🔧 Mechanic is working on it...",
-    statusDone:"✅ Done",
-    required:"* required field",
-    weiter:"Continue →",
-  },
-  UA:{
-    firstLogin:"ПЕРШИЙ ВХІД", firstName:"Ім'я", lastName:"Прізвище",
-    pinLabel:"ВВЕДІТЬ PIN", sliderLabel:"ПРОВЕДІТЬ →",
-    changeUser:"Інший користувач",
-    location:"МІСЦЕ", forklift:"НАВАНТАЖУВАЧ", urgency:"ТЕРМІНОВІСТЬ",
-    description:"ОПИС ПРОБЛЕМИ", descPh:"напр. навантажувач не заводиться...",
-    contact:"ВАШЕ ІМ'Я / КОНТАКТ", contactPh:"Ім'я та телефон",
-    photo:"Зробити фото",
-    urgent:"🔴 ТЕРМІНОВО — робота стоїть",
-    canWait:"🟡 Може зачекати",
-    send:"ПОВІДОМИТИ ПРО НЕСПРАВНІСТЬ", sendUrgent:"🚨 ВИКЛИК МЕХАНІКА",
-    sending:"Надсилається...", sent:"Надіслано!",
-    sentDesc:"Майстерню повідомлено",
-    newReport:"Нове повідомлення",
-    statusWaiting:"⏳ Надіслано — чекаємо механіка...",
-    statusProgress:"🔧 Механік працює...",
-    statusDone:"✅ Виконано",
-    required:"* обов'язкове поле",
-    weiter:"Далі →",
-  },
-  RO:{
-    firstLogin:"PRIMA AUTENTIFICARE", firstName:"Prenume", lastName:"Nume",
-    pinLabel:"INTRODUCETI PIN", sliderLabel:"GLISATI →",
-    changeUser:"Alt utilizator",
-    location:"LOCATIE", forklift:"STIVUITOR", urgency:"URGENTA",
-    description:"DESCRIERE PROBLEMA", descPh:"Ex: stivuitorul nu porneste...",
-    contact:"NUMELE DVS / CONTACT", contactPh:"Nume si telefon",
-    photo:"Faceti o poza",
-    urgent:"🔴 URGENT — lucrul s-a oprit",
-    canWait:"🟡 Poate astepta",
-    send:"RAPORTEAZA DEFECTIUNEA", sendUrgent:"🚨 APEL DE URGENTA",
-    sending:"Se trimite...", sent:"Trimis!",
-    sentDesc:"Atelierul a fost notificat",
-    newReport:"Raport nou",
-    statusWaiting:"⏳ Trimis — asteptam mecanicul...",
-    statusProgress:"🔧 Mecanicul lucreaza...",
-    statusDone:"✅ Gata",
-    required:"* obligatoriu",
-    weiter:"Continuare →",
-  },
-  HU:{
-    firstLogin:"ELSO BEJELENTKEZES", firstName:"Keresztnev", lastName:"Vezeteknev",
-    pinLabel:"PIN MEGADASA", sliderLabel:"HUZZA →",
-    changeUser:"Mas felhasznalo",
-    location:"HELYSZIN", forklift:"TARGONCA", urgency:"SURGOSSEG",
-    description:"PROBLEMA LEIRASA", descPh:"Pl: a targonca nem indul...",
-    contact:"NEVE / KAPCSOLAT", contactPh:"Nev es telefon",
-    photo:"Fenykep keszitese",
-    urgent:"🔴 SURGOS — a munka megallt",
-    canWait:"🟡 Varhat",
-    send:"MEGHIBASODAS BEJELENTESE", sendUrgent:"🚨 SZIRGOS BEJELENTES",
-    sending:"Kuldes...", sent:"Elkuldve!",
-    sentDesc:"A muhely ertesitve",
-    newReport:"Uj jelentes",
-    statusWaiting:"⏳ Elkuldve — varakozas...",
-    statusProgress:"🔧 Szerelo dolgozik...",
-    statusDone:"✅ Kesz",
-    required:"* kotelezo",
-    weiter:"Tovabb →",
-  },
-  CZ:{
-    firstLogin:"PRVNI PRIHLASENI", firstName:"Jmeno", lastName:"Prijmeni",
-    pinLabel:"ZADEJTE PIN", sliderLabel:"POSUNOUT →",
-    changeUser:"Jiny uzivatel",
-    location:"MISTO", forklift:"VOZIK", urgency:"NALEHAVOST",
-    description:"POPIS PROBLEMU", descPh:"Napr: vozik nestartuje...",
-    contact:"VASE JMENO / KONTAKT", contactPh:"Jmeno a telefon",
-    photo:"Vyfotit",
-    urgent:"🔴 NALEJHAVE — prace stoji",
-    canWait:"🟡 Muze pockat",
-    send:"NAHLASIT PORUCHU", sendUrgent:"🚨 NOUZE VOLANI",
-    sending:"Odesilani...", sent:"Odeslano!",
-    sentDesc:"Dilna byla informovana",
-    newReport:"Nova zprava",
-    statusWaiting:"⏳ Odeslano — cekame na mechanika...",
-    statusProgress:"🔧 Mechanik pracuje...",
-    statusDone:"✅ Hotovo",
-    required:"* povinne",
-    weiter:"Pokracovat →",
-  },
-};
-
-function getT(lang) { return T[lang] || T.DE; }
-
-// === Supabase helpers ===
 function sbInsert(table, payload) {
   return fetch(SB_URL + "/rest/v1/" + table, {
     method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY,
-      "Prefer":"return=minimal"
-    },
+    headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
     body:JSON.stringify(payload)
   }).then(function(res){
     if (!res.ok) return res.text().then(function(t){ throw new Error(t); });
@@ -418,14 +119,21 @@ function sbInsert(table, payload) {
 }
 
 function sbGetStatus(alertId) {
-  return fetch(SB_URL + "/rest/v1/alerts?id=eq." + alertId + "&select=status", {
+  return fetch(SB_URL + "/rest/v1/alerts?id=eq." + encodeURIComponent(alertId) + "&select=status", {
     headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
   }).then(function(r){ return r.json(); })
     .then(function(d){ return d && d[0] ? d[0].status : "open"; })
     .catch(function(){ return "open"; });
 }
 
-// === BASE ===
+function sbFindForklift(nummer) {
+  return fetch(SB_URL + "/rest/v1/forklifts?nummer=eq." + encodeURIComponent(nummer) + "&limit=1", {
+    headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
+  }).then(function(r){ return r.json(); })
+    .then(function(d){ return d && d[0] ? d[0] : null; })
+    .catch(function(){ return null; });
+}
+
 function Bg() { return React.createElement("div", { className:"bg-image" }); }
 
 function Logo({ small }) {
@@ -447,39 +155,7 @@ function Powered() {
   );
 }
 
-function LangSwitcher({ lang, setLang }) {
-  var _so = useState(false); var open = _so[0]; var setOpen = _so[1];
-  var ref = useRef(null);
-  useEffect(function(){
-    function h(e){ if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
-    document.addEventListener("mousedown", h);
-    document.addEventListener("touchstart", h);
-    return function(){ document.removeEventListener("mousedown", h); document.removeEventListener("touchstart", h); };
-  }, []);
-  return (
-    <div ref={ref} style={{ position:"relative" }}>
-      <button className="lang-switch" onClick={function(){ setOpen(!open); }}>
-        <span>🌐</span><span>{lang}</span>
-        <span style={{ color:"#ffa500", fontSize:10, transform: open ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>▼</span>
-      </button>
-      {open && (
-        <div className="lang-menu">
-          {LANGS.map(function(L){
-            return (
-              <button key={L} className={lang === L ? "active" : ""} onClick={function(){ setLang(L); setOpen(false); }}>
-                {L}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// === SCREENS ===
-function ErsteAnmeldung({ lang, setLang, onContinue }) {
-  var t = getT(lang);
+function ErsteAnmeldung({ onContinue }) {
   var _sv = useState(""); var vorname = _sv[0]; var setVorname = _sv[1];
   var _sn = useState(""); var nachname = _sn[0]; var setNachname = _sn[1];
   var ok = vorname.trim() && nachname.trim();
@@ -487,27 +163,23 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
     <div className="scrn">
       <Bg />
       <div style={{ position:"relative", zIndex:2, paddingTop:54 }}>
-        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
-          <LangSwitcher lang={lang} setLang={setLang} />
-        </div>
-        <Logo />
-        <Powered />
+        <Logo /><Powered />
         <div style={{ marginTop:50, color:"#ffa500", fontSize:38, fontWeight:900, lineHeight:1 }}>Stapler</div>
-        <div style={{ marginTop:12, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>{t.firstLogin}</div>
+        <div style={{ marginTop:12, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>ERSTE ANMELDUNG</div>
         <div className="white-card">
-          <div className="light-label">{t.firstName} <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div className="light-label">Vorname <span style={{ color:"#ff3b30" }}>*</span></div>
           <div className="light-field">
             <span className="light-field-icon">👤</span>
             <input className="input-light" value={vorname} onChange={function(e){ setVorname(e.target.value); }} placeholder="Roman" />
           </div>
-          <div className="light-label">{t.lastName} <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div className="light-label">Nachname <span style={{ color:"#ff3b30" }}>*</span></div>
           <div className="light-field" style={{ marginBottom:26 }}>
             <span className="light-field-icon">👤</span>
             <input className="input-light" value={nachname} onChange={function(e){ setNachname(e.target.value); }} placeholder="Anokhin" />
           </div>
           <button className="blue-btn" disabled={!ok} style={{ opacity: ok ? 1 : 0.5 }}
             onClick={function(){ if (ok) onContinue(vorname.trim(), nachname.trim()); }}>
-            {t.weiter}
+            Weiter →
           </button>
         </div>
       </div>
@@ -515,16 +187,13 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
   );
 }
 
-function PinScreen({ lang, setLang, onSuccess, onBack }) {
-  var t = getT(lang);
+function PinScreen({ onSuccess, onBack }) {
   var _sp = useState(""); var pin = _sp[0]; var setPin = _sp[1];
   var _se = useState(false); var err = _se[0]; var setErr = _se[1];
-
   function press(d) {
     if (pin.length >= 4) return;
     setErr(false);
-    var next = pin + d;
-    setPin(next);
+    var next = pin + d; setPin(next);
     if (next.length === 4) {
       setTimeout(function(){
         if (next === APP_PIN) onSuccess();
@@ -533,30 +202,21 @@ function PinScreen({ lang, setLang, onSuccess, onBack }) {
     }
   }
   function del() { setPin(function(p){ return p.slice(0,-1); }); setErr(false); }
-
   return (
     <div className="scrn">
       <Bg />
       <div style={{ position:"relative", zIndex:2, paddingTop:16 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <button onClick={onBack} style={{ border:0, background:"transparent", color:"#ffa500", fontSize:13, fontWeight:700, padding:4 }}>← Zurück</button>
-          <LangSwitcher lang={lang} setLang={setLang} />
-        </div>
+        <button onClick={onBack} style={{ border:0, background:"transparent", color:"#ffa500", fontSize:13, fontWeight:700, padding:4 }}>← Zurück</button>
       </div>
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:32 }}>
-        <Logo />
-        <Powered />
+        <Logo /><Powered />
         <div style={{ marginTop:40, color:"#ffa500", fontSize:36, fontWeight:900 }}>Stapler</div>
-        <div style={{ marginTop:10, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>{t.pinLabel}</div>
+        <div style={{ marginTop:10, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>PIN EINGEBEN</div>
         <div style={{ display:"flex", gap:18, margin:"28px 0 32px" }}>
-          {[0,1,2,3].map(function(i){
-            return <div key={i} className={"pin-dot" + (i < pin.length ? " filled" : "") + (err ? " error" : "")}></div>;
-          })}
+          {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot" + (i < pin.length ? " filled" : "") + (err ? " error" : "")}></div>; })}
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 70px)", gap:16, justifyContent:"center" }}>
-          {[1,2,3,4,5,6,7,8,9].map(function(d){
-            return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>;
-          })}
+          {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>; })}
           <div></div>
           <button className="keypad-btn" onClick={function(){ press("0"); }}>0</button>
           <button className="keypad-btn" onClick={del}>⌫</button>
@@ -566,55 +226,32 @@ function PinScreen({ lang, setLang, onSuccess, onBack }) {
   );
 }
 
-function SliderScreen({ lang, setLang, userName, onUnlock, onChangeUser }) {
-  var t = getT(lang);
+function SliderScreen({ userName, onUnlock, onChangeUser }) {
   var _sx = useState(0); var x = _sx[0]; var setX = _sx[1];
   var _sd = useState(false); var drag = _sd[0]; var setDrag = _sd[1];
-  var trackRef = useRef(null);
-  var maxRef = useRef(0);
-
-  useEffect(function(){
-    if (trackRef.current) maxRef.current = trackRef.current.offsetWidth - 78;
-  }, []);
-
+  var trackRef = useRef(null); var maxRef = useRef(0);
+  useEffect(function(){ if (trackRef.current) maxRef.current = trackRef.current.offsetWidth - 78; }, []);
   function startSlide(clientX) {
     setDrag(true);
     var start = clientX; var oldX = x; var cur = oldX;
-    function move(e) {
-      var cx = e.touches ? e.touches[0].clientX : e.clientX;
-      cur = Math.max(0, Math.min(maxRef.current, cx - start + oldX));
-      setX(cur);
-    }
+    function move(e) { var cx = e.touches ? e.touches[0].clientX : e.clientX; cur = Math.max(0, Math.min(maxRef.current, cx - start + oldX)); setX(cur); }
     function up() {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("touchmove", move);
-      window.removeEventListener("mouseup", up);
-      window.removeEventListener("touchend", up);
+      window.removeEventListener("mousemove", move); window.removeEventListener("touchmove", move);
+      window.removeEventListener("mouseup", up); window.removeEventListener("touchend", up);
       setDrag(false);
-      if (cur >= maxRef.current * 0.82) { setX(maxRef.current); setTimeout(onUnlock, 120); }
-      else setX(0);
+      if (cur >= maxRef.current * 0.82) { setX(maxRef.current); setTimeout(onUnlock, 120); } else setX(0);
     }
-    window.addEventListener("mousemove", move);
-    window.addEventListener("touchmove", move, { passive:false });
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
+    window.addEventListener("mousemove", move); window.addEventListener("touchmove", move, { passive:false });
+    window.addEventListener("mouseup", up); window.addEventListener("touchend", up);
   }
-
   return (
     <div className="scrn" style={{ justifyContent:"flex-end", paddingBottom:40 }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <div style={{ position:"absolute", top:16, right:0 }}>
-          <LangSwitcher lang={lang} setLang={setLang} />
-        </div>
         <div style={{ marginTop:"40vh" }}>
           <Logo />
           <div style={{ color:"#ffa500", fontSize:32, fontWeight:900, marginTop:8 }}>Stapler</div>
-          {userName && (
-            <div style={{ marginTop:6, color:"rgba(255,255,255,0.65)", fontSize:14, fontWeight:600 }}>
-              Guten Tag, {userName}
-            </div>
-          )}
+          {userName && <div style={{ marginTop:6, color:"rgba(255,255,255,0.65)", fontSize:14, fontWeight:600 }}>Guten Tag, {userName}</div>}
         </div>
         <div style={{ flex:1 }}></div>
         <div className="slider-track" ref={trackRef} style={{ marginBottom:18 }}>
@@ -623,28 +260,161 @@ function SliderScreen({ lang, setLang, userName, onUnlock, onChangeUser }) {
             <div className="slider-mark"></div><div className="slider-mark"></div>
           </div>
           <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:24, color:"rgba(255,255,255,0.35)", fontSize:13, fontWeight:700, letterSpacing:1, pointerEvents:"none" }}>
-            {t.sliderLabel}
+            SCHIEBEN →
           </div>
-          <div className="slider-thumb"
-            style={{ left:6 + x, transition: drag ? "none" : "left 0.25s" }}
+          <div className="slider-thumb" style={{ left:6 + x, transition: drag ? "none" : "left 0.25s" }}
             onMouseDown={function(e){ startSlide(e.clientX); }}
             onTouchStart={function(e){ startSlide(e.touches[0].clientX); }}>
             <div className="slider-grip"><span></span><span></span><span></span></div>
           </div>
         </div>
         <button style={{ border:0, background:"transparent", color:"rgba(255,255,255,0.5)", fontWeight:700, fontSize:13, paddingBottom:8 }} onClick={onChangeUser}>
-          {t.changeUser}
+          Anderer Benutzer
         </button>
       </div>
     </div>
   );
 }
 
+// === Stapler Nummer Input ===
+function StaplerInput({ onSelect }) {
+  var _sn = useState(""); var nummer = _sn[0]; var setNummer = _sn[1];
+  var _sl = useState(false); var loading = _sl[0]; var setLoading = _sl[1];
+  var _sf = useState(null); var found = _sf[0]; var setFound = _sf[1];
+  var _snotf = useState(false); var notFound = _snotf[0]; var setNotFound = _snotf[1];
+  var timerRef = useRef(null);
+
+  function lookup(num) {
+    if (!num || num.length < 2) { setFound(null); setNotFound(false); onSelect(null); return; }
+    setLoading(true); setNotFound(false);
+    sbFindForklift(num).then(function(f){
+      setLoading(false);
+      if (f) { setFound(f); setNotFound(false); onSelect(f); }
+      else { setFound(null); setNotFound(true); onSelect({ nummer:num, isUnknown:true }); }
+    });
+  }
+
+  function onChange(e) {
+    var v = e.target.value.replace(/\D/g,"").slice(0,4);
+    setNummer(v); setFound(null); setNotFound(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(function(){ lookup(v); }, 600);
+  }
+
+  var borderClass = found ? "found" : (notFound && nummer.length >= 2 ? "notfound" : "");
+
+  return (
+    <div>
+      <div style={{ position:"relative" }}>
+        <input className={"nummer-big " + borderClass} type="text" inputMode="numeric"
+          value={nummer} onChange={onChange} placeholder="128" maxLength={4} />
+        {loading && (
+          <div style={{ position:"absolute", right:16, top:"50%", transform:"translateY(-50%)", fontSize:20 }}>⏳</div>
+        )}
+      </div>
+
+      {found && (
+        <div className="forklift-card">
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+            <span style={{ fontSize:20 }}>🏗</span>
+            <div style={{ fontWeight:900, fontSize:18, color:"#22c55e" }}>Stapler {found.nummer}</div>
+          </div>
+          <div style={{ fontWeight:800, fontSize:15, marginBottom:6 }}>
+            {found.hersteller || ""} {found.model || ""}
+          </div>
+          <div>
+            {found.standort && <span className="forklift-tag">📍 {found.standort}</span>}
+            {found.baujahr && <span className="forklift-tag">📅 {found.baujahr}</span>}
+            {found.betrieb_std ? <span className="forklift-tag">⏱ {found.betrieb_std} Std</span> : null}
+            {found.uvv_datum && <span className="forklift-tag">🔧 UVV: {found.uvv_datum}</span>}
+            {found.einsatzort && <span className="forklift-tag">{found.einsatzort}</span>}
+            {found.fahrgestell && <span className="forklift-tag">FG: {found.fahrgestell}</span>}
+          </div>
+          {found.aktiv === false && (
+            <div style={{ marginTop:8, color:"#ef4444", fontSize:12, fontWeight:700 }}>⚠️ Als INAKTIV markiert</div>
+          )}
+        </div>
+      )}
+
+      {notFound && nummer.length >= 2 && (
+        <div style={{ marginTop:10, padding:"12px 14px", borderRadius:12, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.3)", fontSize:13, color:"rgba(255,120,120,0.9)" }}>
+          ⚠️ Stapler {nummer} nicht gefunden.<br/>
+          <span style={{ color:"rgba(255,255,255,0.5)", fontSize:12 }}>Meldung wird trotzdem gesendet.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === Standort Picker — плитки + ручной ввод + GPS ===
+function StandortPicker({ value, onChange }) {
+  var _sc = useState(false); var custom = _sc[0]; var setCustom = _sc[1];
+  var _sg = useState(false); var gpsLoading = _sg[0]; var setGpsLoading = _sg[1];
+  var _si = useState(""); var customVal = _si[0]; var setCustomVal = _si[1];
+  var isPreset = LOCATIONS.some(function(l){ return l.id === value; });
+  var isCustomVal = value && !isPreset;
+
+  function detectGPS() {
+    if (!navigator.geolocation) { alert("Geolocation nicht verfügbar"); return; }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      function(p) {
+        var lat = p.coords.latitude; var lon = p.coords.longitude;
+        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&accept-language=de&zoom=14")
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            var a = d.address || {}; var parts = [];
+            if (a.road) parts.push(a.road + (a.house_number ? " " + a.house_number : ""));
+            if (a.city || a.town || a.village || a.suburb) parts.push(a.city || a.town || a.village || a.suburb);
+            if (a.country_code) parts.push((a.country_code + "").toUpperCase());
+            var txt = parts.length ? parts.join(", ") : (lat.toFixed(5) + ", " + lon.toFixed(5));
+            onChange(txt); setCustomVal(txt); setCustom(true); setGpsLoading(false);
+          })
+          .catch(function(){
+            var txt = lat.toFixed(5) + ", " + lon.toFixed(5);
+            onChange(txt); setCustomVal(txt); setCustom(true); setGpsLoading(false);
+          });
+      },
+      function(err){ setGpsLoading(false); alert("Standort: " + err.message); },
+      { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+        {LOCATIONS.map(function(l){
+          return (
+            <button key={l.id} type="button" className={"tile-btn" + (value === l.id ? " active" : "")}
+              onClick={function(){ onChange(l.id); setCustom(false); setCustomVal(""); }}>
+              {l.name}
+            </button>
+          );
+        })}
+        <button type="button" className={"tile-btn" + ((custom || isCustomVal) ? " active" : "")}
+          style={{ gridColumn:"1 / -1" }}
+          onClick={function(){ setCustom(true); }}>
+          ✎ Eigener Standort
+        </button>
+      </div>
+      {(custom || isCustomVal) && (
+        <input className="input-dark" style={{ marginTop:10 }}
+          value={customVal || (isCustomVal ? value : "")}
+          placeholder="Adresse oder Beschreibung eingeben..."
+          onChange={function(e){ setCustomVal(e.target.value); onChange(e.target.value); }}
+        />
+      )}
+      <button type="button" className="gps-btn" disabled={gpsLoading} onClick={detectGPS}>
+        {gpsLoading ? "⏳ Ermittle Standort..." : "📍 GPS — Aktuellen Standort verwenden"}
+      </button>
+    </div>
+  );
+}
+
 // === MAIN FORM ===
-function ReportForm({ lang, setLang, user, onSent }) {
-  var t = getT(lang);
-  var _sloc = useState(""); var loc = _sloc[0]; var setLoc = _sloc[1];
-  var _sfork = useState(""); var fork = _sfork[0]; var setFork = _sfork[1];
+function ReportForm({ user, onSent }) {
+  var _sloc = useState(""); var location = _sloc[0]; var setLocation = _sloc[1];
+  var _sfork = useState(null); var forklift = _sfork[0]; var setForklift = _sfork[1];
   var _surg = useState(""); var urg = _surg[0]; var setUrg = _surg[1];
   var _sdesc = useState(""); var desc = _sdesc[0]; var setDesc = _sdesc[1];
   var _sname = useState(user.name || ""); var contactName = _sname[0]; var setContactName = _sname[1];
@@ -652,21 +422,17 @@ function ReportForm({ lang, setLang, user, onSent }) {
   var _ssend = useState(false); var sending = _ssend[0]; var setSending = _ssend[1];
   var photoRef = useRef(null);
 
-  var forkliftsForLoc = loc
-    ? FORKLIFTS.filter(function(f){ return f.loc === loc; })
-    : FORKLIFTS;
-
-  var canSubmit = loc && fork && urg && desc.trim() && contactName.trim();
+  var locationVal = (typeof location === "string" ? location : "").trim();
+  var forkVal = forklift && (forklift.nummer || forklift.plate || forklift.id);
+  var canSubmit = !!(locationVal && forkVal && urg && desc.trim() && contactName.trim());
 
   function onFiles(e) {
     var files = Array.from(e.target.files || []);
     Promise.all(files.map(function(file){
       return new Promise(function(resolve){
-        var r = new FileReader();
-        r.onload = function(ev){ resolve(ev.target.result); };
-        r.readAsDataURL(file);
+        var r = new FileReader(); r.onload = function(ev){ resolve(ev.target.result); }; r.readAsDataURL(file);
       });
-    })).then(function(results){ setPhotos(photos.concat(results)); });
+    })).then(function(results){ setPhotos((photos || []).concat(results)); });
     e.target.value = "";
   }
 
@@ -674,44 +440,39 @@ function ReportForm({ lang, setLang, user, onSent }) {
     if (!canSubmit || sending) return;
     setSending(true);
     var alertId = "ST" + Date.now();
-    var selectedFork = FORKLIFTS.find(function(f){ return f.id === fork; });
+    var plate = forklift ? (forklift.nummer || forklift.plate || forklift.id || "") : "";
+    var locPreset = LOCATIONS.find(function(l){ return l.id === location; });
+    var locFinal = locPreset ? locPreset.name : locationVal;
     sbInsert("alerts", {
-      id: alertId,
-      type: urg === "urgent" ? "breakdown" : "other",
-      plate: selectedFork ? selectedFork.plate : fork,
-      location: loc,
-      description: desc,
+      id: alertId, type: urg === "urgent" ? "breakdown" : "other",
+      plate: plate, location: locFinal, description: desc,
       urgency: urg === "urgent" ? "urgent" : "normal",
-      sender: contactName,
-      sender_app: "stapler",
-      status: "open"
+      sender: contactName, sender_app: "stapler", status: "open"
     }).then(function(){
       setSending(false);
-      onSent({ alertId:alertId, loc:loc, fork:fork, urg:urg, desc:desc });
-    }).catch(function(e){
-      alert("Fehler: " + (e.message || e));
-      setSending(false);
-    });
+      onSent({ alertId:alertId, location:locFinal, forklift:forklift, urg:urg, desc:desc });
+    }).catch(function(e){ alert("Fehler: " + (e.message || e)); setSending(false); });
   }
 
-  var selectedFork = FORKLIFTS.find(function(f){ return f.id === fork; });
+  var missingItems = [];
+  if (!forkVal) missingItems.push("Stapler-Nummer");
+  if (!locationVal) missingItems.push("Standort");
+  if (!urg) missingItems.push("Dringlichkeit");
+  if (!desc.trim()) missingItems.push("Beschreibung");
+  if (!contactName.trim()) missingItems.push("Name");
 
   return (
     <div style={{ position:"relative", zIndex:2, maxWidth:480, margin:"0 auto",
-      padding:"max(env(safe-area-inset-top),16px) 16px calc(env(safe-area-inset-bottom) + 24px)" }}>
+      padding:"max(env(safe-area-inset-top),16px) 16px calc(env(safe-area-inset-bottom) + 32px)" }}>
       <Bg />
-
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
         <div>
           <Logo small={true} />
           <div style={{ color:"#ffa500", fontSize:16, fontWeight:900, marginTop:2 }}>Stapler</div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <LangSwitcher lang={lang} setLang={setLang} />
-          <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(12,36,76,0.62)", border:"1px solid rgba(255,255,255,0.13)", padding:"7px 10px", borderRadius:12 }}>
-            <div style={{ width:8, height:8, borderRadius:"50%", background:"#22c55e" }}></div>
-            <span style={{ fontSize:12, fontWeight:700 }}>{user.name}</span>
-          </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(12,36,76,0.62)", border:"1px solid rgba(255,255,255,0.13)", padding:"7px 10px", borderRadius:12 }}>
+          <div style={{ width:8, height:8, borderRadius:"50%", background:"#22c55e" }}></div>
+          <span style={{ fontSize:12, fontWeight:700 }}>{user.name}</span>
         </div>
       </div>
 
@@ -719,82 +480,48 @@ function ReportForm({ lang, setLang, user, onSent }) {
         🏗 Stapler <span style={{ color:"#ffa500" }}>Störung</span>
       </div>
 
-      {/* Standort */}
       <div className="glass-panel">
-        <div className="label-cap">🏭 {t.location}</div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-          {LOCATIONS.map(function(l){
-            return (
-              <button key={l.id} className={"tile-btn" + (loc === l.id ? " active" : "")}
-                onClick={function(){ setLoc(l.id); setFork(""); }}>
-                {l.name}
-              </button>
-            );
-          })}
-        </div>
+        <div className="label-cap">🚜 STAPLER NUMMER</div>
+        <div style={{ color:"rgba(255,255,255,0.55)", fontSize:12, marginBottom:10 }}>Dreistellige Nummer eingeben — Daten werden automatisch geladen</div>
+        <StaplerInput onSelect={setForklift} />
       </div>
 
-      {/* Stapler */}
-      {loc && (
-        <div className="glass-panel">
-          <div className="label-cap">🚜 {t.forklift}</div>
-          {forkliftsForLoc.map(function(f){
-            return (
-              <div key={f.id} className={"forklift-row" + (fork === f.id ? " active" : "")}
-                onClick={function(){ setFork(f.id); }}>
-                <div>
-                  <div style={{ fontWeight:800, fontSize:15, color: fork === f.id ? "#ffa500" : "#fff" }}>{f.plate}</div>
-                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", marginTop:2 }}>{f.brand}</div>
-                </div>
-                {fork === f.id && <div style={{ color:"#ffa500", fontSize:20 }}>✓</div>}
-              </div>
-            );
-          })}
-          {forkliftsForLoc.length === 0 && (
-            <div style={{ color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center", padding:12 }}>
-              Kein Stapler für diesen Standort
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Dringlichkeit */}
       <div className="glass-panel">
-        <div className="label-cap">⚡ {t.urgency}</div>
-        <div className={"urg-row" + (urg === "urgent" ? " active-red" : "")}
-          onClick={function(){ setUrg("urgent"); }}>
+        <div className="label-cap">🏭 STANDORT</div>
+        <StandortPicker value={location} onChange={setLocation} />
+      </div>
+
+      <div className="glass-panel">
+        <div className="label-cap">⚡ DRINGLICHKEIT</div>
+        <div className={"urg-row" + (urg === "urgent" ? " active-red" : "")} onClick={function(){ setUrg("urgent"); }}>
           <div className="urg-dot" style={{ background:"#ff3b30" }}></div>
-          <span>{t.urgent}</span>
+          <span>🔴 DRINGEND — Arbeit steht still</span>
         </div>
-        <div className={"urg-row" + (urg === "canwait" ? " active-orange" : "")}
-          onClick={function(){ setUrg("canwait"); }}>
+        <div className={"urg-row" + (urg === "canwait" ? " active-orange" : "")} onClick={function(){ setUrg("canwait"); }}>
           <div className="urg-dot" style={{ background:"#ffa500" }}></div>
-          <span>{t.canWait}</span>
+          <span>🟡 Kann warten</span>
         </div>
       </div>
 
-      {/* Beschreibung */}
       <div className="glass-panel">
-        <div className="label-cap">📝 {t.description} *</div>
+        <div className="label-cap">📝 PROBLEMBESCHREIBUNG *</div>
         <textarea className="textarea-dark" value={desc}
           onChange={function(e){ setDesc(e.target.value); }}
-          placeholder={t.descPh} />
+          placeholder="z.B. Stapler fährt nicht an, Hydraulik defekt, Geräusch beim Fahren..." />
       </div>
 
-      {/* Kontakt */}
       <div className="glass-panel">
-        <div className="label-cap">👤 {t.contact} *</div>
+        <div className="label-cap">👤 IHR NAME / KONTAKT *</div>
         <input className="input-dark" value={contactName}
           onChange={function(e){ setContactName(e.target.value); }}
-          placeholder={t.contactPh} />
+          placeholder="Name und Telefon" />
       </div>
 
-      {/* Fotos */}
       <div className="glass-panel">
-        <div className="label-cap">📷 {t.photo}</div>
+        <div className="label-cap">📷 FOTO (optional)</div>
         <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={onFiles} />
         <button className="photo-box" type="button" onClick={function(){ if (photoRef.current) photoRef.current.click(); }}>
-          📷 {t.photo}
+          📷 Foto aufnehmen
         </button>
         {photos.length > 0 && (
           <div className="photo-grid">
@@ -810,95 +537,73 @@ function ReportForm({ lang, setLang, user, onSent }) {
         )}
       </div>
 
-      <div style={{ marginBottom:8, fontSize:12, color:"rgba(255,255,255,0.45)", textAlign:"center" }}>
-        {t.required}
-      </div>
+      {!canSubmit && missingItems.length > 0 && (
+        <div style={{ marginBottom:10, padding:"10px 14px", borderRadius:10, background:"rgba(255,255,255,0.05)", fontSize:12, color:"rgba(255,255,255,0.45)", textAlign:"center" }}>
+          Noch ausfüllen: {missingItems.join(" · ")}
+        </div>
+      )}
 
       <button
         className={urg === "urgent" ? "btn-danger" : "btn-primary"}
         disabled={!canSubmit || sending}
-        onClick={submit}>
-        {sending ? t.sending : (urg === "urgent" ? t.sendUrgent : t.send)}
+        onClick={submit}
+        style={{ marginBottom:20 }}>
+        {sending ? "Wird gesendet..." : (urg === "urgent" ? "🚨 NOTRUF MELDEN" : "STÖRUNG MELDEN")}
       </button>
     </div>
   );
 }
 
 // === SENT SCREEN ===
-function SentScreen({ lang, setLang, sentData, user, onReset, onLogout }) {
-  var t = getT(lang);
+function SentScreen({ sentData, user, onReset, onLogout }) {
   var _ss = useState("open"); var status = _ss[0]; var setStatus = _ss[1];
   var pollRef = useRef(null);
-
   useEffect(function(){
     pollRef.current = setInterval(function(){
-      sbGetStatus(sentData.alertId).then(function(s){
-        setStatus(s);
-        if (s === "done") clearInterval(pollRef.current);
-      });
+      sbGetStatus(sentData.alertId).then(function(s){ setStatus(s); if (s === "done") clearInterval(pollRef.current); });
     }, 10000);
     return function(){ clearInterval(pollRef.current); };
   }, [sentData.alertId]);
 
-  var selectedFork = FORKLIFTS.find(function(f){ return f.id === sentData.fork; });
-  var selectedLoc  = LOCATIONS.find(function(l){ return l.id === sentData.loc; });
-  var isUrgent = sentData.urg === "urgent";
-
+  var fork = sentData.forklift; var isUrgent = sentData.urg === "urgent";
   var statusInfo = status === "done"
-    ? { text:t.statusDone,    color:"#22c55e", cls:"done"     }
+    ? { text:"✅ Erledigt", color:"#22c55e", cls:"done" }
     : status === "inProgress"
-    ? { text:t.statusProgress, color:"#f59e0b", cls:"progress" }
-    : { text:t.statusWaiting,  color:"#60a5fa", cls:"waiting"  };
+    ? { text:"🔧 Mechaniker arbeitet daran...", color:"#f59e0b", cls:"progress" }
+    : { text:"⏳ Gesendet — warte auf Mechaniker...", color:"#60a5fa", cls:"waiting" };
 
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh", maxWidth:480, margin:"0 auto" }}>
       <Bg />
       <div style={{ position:"relative", zIndex:2, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100vh", padding:"24px 20px" }}>
-        <div style={{ position:"absolute", top:16, right:16 }}>
-          <LangSwitcher lang={lang} setLang={setLang} />
-        </div>
-
         <div style={{ fontSize:80, marginBottom:16 }}>{isUrgent ? "🚨" : "✅"}</div>
-        <div style={{ fontSize:26, fontWeight:900, marginBottom:8, color: isUrgent ? "#ef4444" : "#22c55e" }}>
-          {t.sent}
-        </div>
-        <div style={{ color:"rgba(255,255,255,0.65)", marginBottom:24, textAlign:"center" }}>
-          {t.sentDesc}
-        </div>
-
-        {/* Статус */}
+        <div style={{ fontSize:26, fontWeight:900, marginBottom:8, color: isUrgent ? "#ef4444" : "#22c55e" }}>Gesendet!</div>
+        <div style={{ color:"rgba(255,255,255,0.65)", marginBottom:24, textAlign:"center" }}>Werkstatt wurde benachrichtigt</div>
         <div className={"status-box " + statusInfo.cls} style={{ width:"100%", maxWidth:400 }}>
-          <div style={{ fontSize:22 }}>{status === "done" ? "✅" : status === "inProgress" ? "🔧" : "⏳"}</div>
           <div style={{ fontSize:14, fontWeight:700, color:statusInfo.color }}>{statusInfo.text}</div>
         </div>
-
-        {/* Сводка */}
         <div className="glass-panel" style={{ width:"100%", maxWidth:400 }}>
-          <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>
             <span style={{ padding:"4px 12px", borderRadius:999, fontSize:12, fontWeight:800,
               background: isUrgent ? "rgba(239,68,68,0.2)" : "rgba(255,165,0,0.15)",
               color: isUrgent ? "#ef4444" : "#ffa500",
-              border: "1px solid " + (isUrgent ? "rgba(239,68,68,0.4)" : "rgba(255,165,0,0.4)") }}>
+              border:"1px solid " + (isUrgent ? "rgba(239,68,68,0.4)" : "rgba(255,165,0,0.4)") }}>
               {isUrgent ? "🔴 DRINGEND" : "🟡 Kann warten"}
             </span>
           </div>
-          <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>
-            {selectedFork ? selectedFork.plate : sentData.fork}
-          </div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:13, marginBottom:8 }}>
-            📍 {selectedLoc ? selectedLoc.name : sentData.loc}
-          </div>
-          <div style={{ fontSize:13, lineHeight:1.45, color:"rgba(255,255,255,0.85)" }}>
-            {sentData.desc}
-          </div>
+          {fork && (
+            <div style={{ fontWeight:800, fontSize:16, marginBottom:4 }}>
+              🏗 Stapler {fork.nummer || fork.plate || ""}
+              {fork.hersteller ? " · " + fork.hersteller : ""}
+              {fork.model ? " " + fork.model : ""}
+            </div>
+          )}
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:13, marginBottom:8 }}>📍 {sentData.location}</div>
+          <div style={{ fontSize:13, lineHeight:1.45 }}>{sentData.desc}</div>
         </div>
-
         <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:400 }}>
-          <button className="btn-primary" onClick={onReset}>{t.newReport}</button>
-          <button onClick={onLogout}
-            style={{ border:0, background:"transparent", color:"rgba(255,255,255,0.5)", fontWeight:700, fontSize:13, padding:8 }}>
-            ← Abmelden
-          </button>
+          <button className="btn-primary" onClick={onReset}>Neue Meldung</button>
+          <button onClick={onLogout} style={{ border:0, background:"transparent", color:"rgba(255,255,255,0.5)", fontWeight:700, fontSize:13, padding:8 }}>← Abmelden</button>
         </div>
       </div>
     </div>
@@ -907,7 +612,6 @@ function SentScreen({ lang, setLang, sentData, user, onReset, onLogout }) {
 
 // === ROOT APP ===
 function App() {
-  var _sl = useState("DE"); var lang = _sl[0]; var setLang = _sl[1];
   var _ss = useState("loading"); var stage = _ss[0]; var setStage = _ss[1];
   var _sname = useState(""); var savedName = _sname[0]; var setSavedName = _sname[1];
   var _su = useState(null); var user = _su[0]; var setUser = _su[1];
@@ -924,77 +628,26 @@ function App() {
     setStage("register");
   }, []);
 
-  if (stage === "loading") {
-    return (
-      <div className="scrn" style={{ alignItems:"center", justifyContent:"center" }}>
-        <Bg /><div style={{ position:"relative", zIndex:2 }}><Logo /></div>
-      </div>
-    );
-  }
-
-  if (stage === "register") {
-    return (
-      <ErsteAnmeldung lang={lang} setLang={setLang}
-        onContinue={function(v, n){
-          setSavedName(v + " " + n);
-          setStage("pin");
-        }}
-      />
-    );
-  }
-
-  if (stage === "pin") {
-    return (
-      <PinScreen lang={lang} setLang={setLang}
-        onBack={function(){ setStage("register"); }}
-        onSuccess={function(){
-          var name = savedName || "Stapler";
-          var avatar = name.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase() || "ST";
-          var u = { id:"stapler_" + Date.now(), name:name, avatar:avatar };
-          try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
-          setUser(u);
-          setStage("slider");
-        }}
-      />
-    );
-  }
-
-  if (stage === "slider") {
-    return (
-      <SliderScreen lang={lang} setLang={setLang}
-        userName={savedName}
-        onUnlock={function(){ setStage("form"); }}
-        onChangeUser={function(){
-          try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
-          setSavedName(""); setUser(null); setStage("register");
-        }}
-      />
-    );
-  }
-
-  if (stage === "form" && user) {
-    return (
-      <ReportForm lang={lang} setLang={setLang} user={user}
-        onSent={function(data){
-          setSentData(data);
-          setStage("sent");
-        }}
-      />
-    );
-  }
-
-  if (stage === "sent" && sentData) {
-    return (
-      <SentScreen lang={lang} setLang={setLang}
-        sentData={sentData} user={user}
-        onReset={function(){ setSentData(null); setStage("form"); }}
-        onLogout={function(){
-          setStage("slider");
-        }}
-      />
-    );
-  }
-
+  if (stage === "loading") return <div className="scrn" style={{ alignItems:"center", justifyContent:"center" }}><Bg /><div style={{ position:"relative", zIndex:2 }}><Logo /></div></div>;
+  if (stage === "register") return <ErsteAnmeldung onContinue={function(v,n){ setSavedName(v+" "+n); setStage("pin"); }} />;
+  if (stage === "pin") return (
+    <PinScreen onBack={function(){ setStage("register"); }}
+      onSuccess={function(){
+        var name = savedName || "Stapler";
+        var u = { id:"stapler_" + Date.now(), name:name, avatar:name.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase() };
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
+        setUser(u); setStage("slider");
+      }}
+    />
+  );
+  if (stage === "slider") return (
+    <SliderScreen userName={savedName}
+      onUnlock={function(){ setStage("form"); }}
+      onChangeUser={function(){ try { localStorage.removeItem(SESSION_KEY); } catch(e) {} setSavedName(""); setUser(null); setStage("register"); }}
+    />
+  );
+  if (stage === "form" && user) return <ReportForm user={user} onSent={function(data){ setSentData(data); setStage("sent"); }} />;
+  if (stage === "sent" && sentData) return <SentScreen sentData={sentData} user={user} onReset={function(){ setSentData(null); setStage("form"); }} onLogout={function(){ setStage("slider"); }} />;
   return null;
 }
 
