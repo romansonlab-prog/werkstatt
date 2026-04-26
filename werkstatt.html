@@ -322,7 +322,7 @@
       position:absolute; top:100%; left:0; right:0; margin-top:6px; padding:6px;
       background:#0d1f3d; border:1px solid rgba(255,165,0,0.5);
       border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.6);
-      max-height:250px; overflow:auto; z-index:50;
+      max-height:250px; overflow:auto; z-index:200;
     }
     .dropdown-item { padding:11px 13px; border-radius:8px; cursor:pointer; color:#fff; }
     .dropdown-item:active { background:rgba(255,165,0,0.18); color:#ffa500; }
@@ -1341,7 +1341,7 @@ function NewJob({ vehicles, setVehicles, user, prefill, onClear, onSaved }) {
       )}
 
       {/* п.4: Fahrzeug + Standort выпадающий */}
-      <div className="glass-panel">
+      <div className="glass-panel" style={{ overflow:"visible" }}>
         <div className="panel-title">🚚 Fahrzeug</div>
         <div className="grid2">
           <div>
