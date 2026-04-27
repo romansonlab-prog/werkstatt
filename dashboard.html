@@ -1636,6 +1636,11 @@ function AppShell({ user, onLogout }) {
 
   useEffect(function(){ loadAll(); }, []);
 
+  useEffect(function(){
+    var interval = setInterval(function(){ loadAll(); }, 30000);
+    return function(){ clearInterval(interval); };
+  }, []);
+
   var openAlerts = alerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
   var lowStock = stock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
   var overduePlans = plans.filter(function(p){
