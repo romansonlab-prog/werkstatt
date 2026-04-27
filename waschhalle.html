@@ -306,7 +306,6 @@ function WaschApp({ user, onLogout }) {
     if (!selWashType) { setMsg("Bitte Waschtyp wählen."); return; }
     setSaving(true); setMsg("");
     var payload = {
-      id: "WO"+Date.now(),
       work_date: todayIso(),
       status: "done",
       washer_name: user.name,
@@ -315,8 +314,8 @@ function WaschApp({ user, onLogout }) {
       vehicle_brand: vehBrand || null,
       plate_number: plate.trim() || null,
       fleet_number: fleetNr.trim() || null,
-      wash_type_code: selWashType.code,
-      wash_type_name: selWashType.name_de,
+      wash_type_code: selWashType ? selWashType.code : "manual",
+      wash_type_name: selWashType ? selWashType.name_de : "",
       price_eur: parseFloat(price||"0")||0,
       duration_minutes: parseInt(duration||"0")||0,
       report_text: note.trim()||null,
