@@ -247,6 +247,14 @@ function sbPatch(table, id, body) {
   }).then(function(r){ return r.ok; }).catch(function(){ return false; });
 }
 
+function sbUpsert(table, body) {
+  return fetch(SB_URL + "/rest/v1/" + table, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal,resolution=merge-duplicates" },
+    body:JSON.stringify(body)
+  }).then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
+}
+
 // === PRINT / EXPORT ===
 function printHtml(html, title) {
   var win = window.open("", "_blank");
@@ -1597,6 +1605,388 @@ function genSchichtbericht(jobs, date, mechanics) {
   printHtml(html, "Schichtbericht");
 }
 
+// === EINSTELLUNGEN ===
+function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
+  var _stab = useState("vehicles"); var tab = _stab[0]; var setTab = _stab[1];
+  var _ssav = useState(false); var saving = _ssav[0]; var setSaving = _ssav[1];
+  var _smsg = useState(""); var msg = _smsg[0]; var setMsg = _smsg[1];
+
+  // Vehicle form
+  var _vf = useState({ plate:"", brand:"", model:"", type:"truck", tuev:"", insurance:"", uvv:"", next_service:"", mileage:"" });
+  var vf = _vf[0]; var setVf = _vf[1];
+  // Forklift form
+  var _ff = useState({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true });
+  var ff = _ff[0]; var setFf = _ff[1];
+  // Stock form
+  var _sf = useState({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"" });
+  var sf = _sf[0]; var setSf = _sf[1];
+  // Mechanic form
+  var _mf = useState({ id:"", name:"", rate_per_hour:"25" });
+  var mf = _mf[0]; var setMf = _mf[1];
+
+  var _musers = useState([]); var dbUsers = _musers[0]; var setDbUsers = _musers[1];
+
+  useEffect(function(){
+    sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); });
+  },[]);
+
+  function showMsg(m){ setMsg(m); setTimeout(function(){ setMsg(""); }, 3000); }
+
+  function saveVehicle() {
+    if (!vf.plate.trim()) { showMsg("Kennzeichen ist Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("vehicles", Object.assign({}, vf, {
+      id: vf.plate.toLowerCase().replace(/\s/g,"-"),
+      mileage: parseInt(vf.mileage||"0")||0
+    })).then(function(){ setSaving(false); showMsg("✅ Fahrzeug gespeichert"); setVf({ plate:"", brand:"", model:"", type:"truck", tuev:"", insurance:"", uvv:"", next_service:"", mileage:"" }); onRefresh(); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function saveForklift() {
+    if (!ff.nummer.trim()) { showMsg("Nummer ist Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("forklifts", Object.assign({}, ff, {
+      id: "F"+ff.nummer,
+      baujahr: parseInt(ff.baujahr||"0")||null,
+      betrieb_std: parseInt(ff.betrieb_std||"0")||null,
+      kaufpreis: parseFloat(ff.kaufpreis||"0")||null,
+      leasingrate: parseFloat(ff.leasingrate||"0")||null,
+    })).then(function(){ setSaving(false); showMsg("✅ Stapler gespeichert"); setFf({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true }); onRefresh(); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function saveStock() {
+    if (!sf.name.trim()) { showMsg("Bezeichnung ist Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("stock", { id:"S"+Date.now(), name:sf.name.trim(), unit:sf.unit||"Stk", qty:parseInt(sf.qty||"0")||0, min_qty:parseInt(sf.min_qty||"0")||0, price:parseFloat(sf.price||"0")||null })
+    .then(function(){ setSaving(false); showMsg("✅ Position gespeichert"); setSf({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"" }); onRefresh(); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function saveMechanic() {
+    if (!mf.id.trim() || !mf.name.trim()) { showMsg("ID und Name sind Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("users", { id:mf.id.trim().toLowerCase(), name:mf.name.trim(), avatar:mf.name.trim().split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(), rate_per_hour:parseFloat(mf.rate_per_hour||"25")||25 })
+    .then(function(){ setSaving(false); showMsg("✅ Mechaniker gespeichert"); setMf({ id:"", name:"", rate_per_hour:"25" }); sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); }); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function deleteItem(table, id) {
+    if (!window.confirm("Wirklich löschen?")) return;
+    fetch(SB_URL+"/rest/v1/"+table+"?id=eq."+encodeURIComponent(id), {
+      method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+    }).then(function(){ onRefresh(); sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); }); });
+  }
+
+  var TABS = [
+    { k:"vehicles",   label:"🚛 Fahrzeuge" },
+    { k:"forklifts",  label:"🏗 Stapler" },
+    { k:"stock",      label:"📦 Lager" },
+    { k:"mechanics",  label:"👷 Mechaniker" },
+  ];
+
+  var VEH_TYPE_OPTS = [
+    { k:"truck", l:"LKW" }, { k:"trailer", l:"Auflieger" },
+    { k:"semiTrailer", l:"Sattelauflieger" }, { k:"pkw", l:"PKW" },
+    { k:"van", l:"Transporter" }, { k:"other", l:"Sonstiges" },
+  ];
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <div style={{ fontSize:18, fontWeight:900 }}>Einstellungen</div>
+        {msg && (
+          <div style={{ padding:"8px 14px", borderRadius:10, fontSize:13, fontWeight:700,
+            background: msg.startsWith("✅") ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+            color: msg.startsWith("✅") ? "#22c55e" : "#ef4444",
+            border:"1px solid " + (msg.startsWith("✅") ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)") }}>
+            {msg}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+        {TABS.map(function(t){
+          return <button key={t.k} className={"btn-small "+(tab===t.k?"btn-primary":"btn-outline")} onClick={function(){ setTab(t.k); }}>{t.label}</button>;
+        })}
+      </div>
+
+      {/* FAHRZEUGE */}
+      {tab === "vehicles" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Neues Fahrzeug hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div>
+                <div className="label-cap">Kennzeichen *</div>
+                <input className="inp" style={{ width:"100%" }} value={vf.plate} placeholder="MA-LT 441" onChange={function(e){ setVf(Object.assign({},vf,{plate:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Typ</div>
+                <select className="inp" style={{ width:"100%" }} value={vf.type} onChange={function(e){ setVf(Object.assign({},vf,{type:e.target.value})); }}>
+                  {VEH_TYPE_OPTS.map(function(o){ return <option key={o.k} value={o.k}>{o.l}</option>; })}
+                </select>
+              </div>
+              <div>
+                <div className="label-cap">Marke</div>
+                <input className="inp" style={{ width:"100%" }} value={vf.brand} placeholder="MAN, Mercedes..." onChange={function(e){ setVf(Object.assign({},vf,{brand:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Modell</div>
+                <input className="inp" style={{ width:"100%" }} value={vf.model} placeholder="TGX, Actros..." onChange={function(e){ setVf(Object.assign({},vf,{model:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">TÜV (Datum)</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.tuev} onChange={function(e){ setVf(Object.assign({},vf,{tuev:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Versicherung (Datum)</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.insurance} onChange={function(e){ setVf(Object.assign({},vf,{insurance:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">UVV (Datum)</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.uvv} onChange={function(e){ setVf(Object.assign({},vf,{uvv:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Nächstes Service</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.next_service} onChange={function(e){ setVf(Object.assign({},vf,{next_service:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Kilometerstand</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={vf.mileage} placeholder="0" onChange={function(e){ setVf(Object.assign({},vf,{mileage:e.target.value})); }} />
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveVehicle}>
+              {saving ? "..." : "+ Fahrzeug speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Vorhandene Fahrzeuge ({vehicles.length})</div></div>
+            {vehicles.length === 0
+              ? <div className="empty">Noch keine Fahrzeuge</div>
+              : <table className="tbl">
+                  <thead><tr><th>Kennzeichen</th><th>Typ</th><th>Marke</th><th>TÜV</th><th>UVV</th><th>km</th><th></th></tr></thead>
+                  <tbody>
+                    {vehicles.map(function(v){
+                      return (
+                        <tr key={v.id}>
+                          <td><strong>{v.plate}</strong></td>
+                          <td style={{ fontSize:12 }}>{VEH_TYPE_OPTS.find(function(o){ return o.k===v.type; }) ? VEH_TYPE_OPTS.find(function(o){ return o.k===v.type; }).l : v.type}</td>
+                          <td style={{ fontSize:12 }}>{v.brand||""} {v.model||""}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(v.tuev)||"—"}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(v.uvv)||"—"}</td>
+                          <td style={{ fontSize:12 }}>{v.mileage||"—"}</td>
+                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("vehicles",v.id); }}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* STAPLER */}
+      {tab === "forklifts" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Neuen Stapler hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div>
+                <div className="label-cap">Nummer *</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.nummer} placeholder="128" onChange={function(e){ setFf(Object.assign({},ff,{nummer:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Hersteller</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.hersteller} placeholder="Jungheinrich, Linde..." onChange={function(e){ setFf(Object.assign({},ff,{hersteller:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Modell</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.model} placeholder="EFG 425k" onChange={function(e){ setFf(Object.assign({},ff,{model:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Baujahr</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={ff.baujahr} placeholder="2020" onChange={function(e){ setFf(Object.assign({},ff,{baujahr:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Standort</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.standort} placeholder="HOC1, JDWB..." onChange={function(e){ setFf(Object.assign({},ff,{standort:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Einsatzort</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.einsatzort} placeholder="Kabinentransport..." onChange={function(e){ setFf(Object.assign({},ff,{einsatzort:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Fahrgestellnummer</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.fahrgestell} placeholder="FN542178" onChange={function(e){ setFf(Object.assign({},ff,{fahrgestell:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Betriebsstunden</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={ff.betrieb_std} placeholder="12354" onChange={function(e){ setFf(Object.assign({},ff,{betrieb_std:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">UVV Datum</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={ff.uvv_datum} onChange={function(e){ setFf(Object.assign({},ff,{uvv_datum:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Kaufpreis (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={ff.kaufpreis} placeholder="0.00" onChange={function(e){ setFf(Object.assign({},ff,{kaufpreis:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Leasingrate (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={ff.leasingrate} placeholder="0.00" onChange={function(e){ setFf(Object.assign({},ff,{leasingrate:e.target.value})); }} />
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, paddingTop:20 }}>
+                <input type="checkbox" id="aktiv" checked={ff.aktiv} onChange={function(e){ setFf(Object.assign({},ff,{aktiv:e.target.checked})); }} />
+                <label htmlFor="aktiv" style={{ fontSize:13, fontWeight:600 }}>Aktiv</label>
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveForklift}>
+              {saving ? "..." : "+ Stapler speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Vorhandene Stapler ({forklifts.length})</div></div>
+            {forklifts.length === 0
+              ? <div className="empty">Noch keine Stapler</div>
+              : <table className="tbl">
+                  <thead><tr><th>Nr.</th><th>Hersteller</th><th>Modell</th><th>Standort</th><th>Std</th><th>UVV</th><th>Aktiv</th><th></th></tr></thead>
+                  <tbody>
+                    {forklifts.map(function(f){
+                      return (
+                        <tr key={f.id}>
+                          <td><strong>{f.nummer}</strong></td>
+                          <td style={{ fontSize:12 }}>{f.hersteller||"—"}</td>
+                          <td style={{ fontSize:12 }}>{f.model||"—"}</td>
+                          <td style={{ fontSize:12 }}>{f.standort||"—"}</td>
+                          <td style={{ fontSize:12 }}>{f.betrieb_std||"—"}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(f.uvv_datum)||"—"}</td>
+                          <td><span className={"badge "+(f.aktiv?"badge-green":"badge-gray")}>{f.aktiv?"Ja":"Nein"}</span></td>
+                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("forklifts",f.id); }}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* LAGER */}
+      {tab === "stock" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Neue Lagerposition hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div style={{ gridColumn:"1 / -1" }}>
+                <div className="label-cap">Bezeichnung *</div>
+                <input className="inp" style={{ width:"100%" }} value={sf.name} placeholder="Motoröl 5W-30, Bremsscheibe vorne..." onChange={function(e){ setSf(Object.assign({},sf,{name:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Einheit</div>
+                <select className="inp" style={{ width:"100%" }} value={sf.unit} onChange={function(e){ setSf(Object.assign({},sf,{unit:e.target.value})); }}>
+                  {["Stk","L","kg","m","Paar","Satz","Rolle","Pack"].map(function(u){ return <option key={u} value={u}>{u}</option>; })}
+                </select>
+              </div>
+              <div>
+                <div className="label-cap">Bestand</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={sf.qty} onChange={function(e){ setSf(Object.assign({},sf,{qty:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Mindestbestand</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={sf.min_qty} onChange={function(e){ setSf(Object.assign({},sf,{min_qty:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Preis (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={sf.price} placeholder="0.00" onChange={function(e){ setSf(Object.assign({},sf,{price:e.target.value})); }} />
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveStock}>
+              {saving ? "..." : "+ Position speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Lager ({stock.length} Positionen)</div></div>
+            {stock.length === 0
+              ? <div className="empty">Lager ist leer</div>
+              : <table className="tbl">
+                  <thead><tr><th>Bezeichnung</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th></th></tr></thead>
+                  <tbody>
+                    {stock.map(function(s){
+                      return (
+                        <tr key={s.id}>
+                          <td><strong>{s.name}</strong></td>
+                          <td style={{ color: s.qty<=(s.min_qty||0)?"#ef4444":"#ffa500", fontWeight:700 }}>{s.qty}</td>
+                          <td style={{ fontSize:12 }}>{s.unit||"Stk"}</td>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{s.min_qty||0}</td>
+                          <td style={{ fontSize:12 }}>{s.price?Number(s.price).toFixed(2)+" €":"—"}</td>
+                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("stock",s.id); }}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* MECHANIKER */}
+      {tab === "mechanics" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Mechaniker hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div>
+                <div className="label-cap">ID (eindeutig) *</div>
+                <input className="inp" style={{ width:"100%" }} value={mf.id} placeholder="roman, petr..." onChange={function(e){ setMf(Object.assign({},mf,{id:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Name *</div>
+                <input className="inp" style={{ width:"100%" }} value={mf.name} placeholder="Roman Anokhin" onChange={function(e){ setMf(Object.assign({},mf,{name:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Stundensatz (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={mf.rate_per_hour} placeholder="25" onChange={function(e){ setMf(Object.assign({},mf,{rate_per_hour:e.target.value})); }} />
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveMechanic}>
+              {saving ? "..." : "+ Mechaniker speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Mechaniker ({dbUsers.length})</div></div>
+            {dbUsers.length === 0
+              ? <div className="empty">Noch keine Mechaniker</div>
+              : <table className="tbl">
+                  <thead><tr><th>ID</th><th>Name</th><th>Stundensatz</th><th></th></tr></thead>
+                  <tbody>
+                    {dbUsers.map(function(u){
+                      return (
+                        <tr key={u.id}>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:"monospace" }}>{u.id}</td>
+                          <td><strong>{u.name}</strong></td>
+                          <td style={{ color:"#ffa500", fontWeight:700 }}>{u.rate_per_hour||25} €/h</td>
+                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("users",u.id); }}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
@@ -1659,13 +2049,14 @@ function AppShell({ user, onLogout }) {
     { k:"rechnungen",  ic: IC.receipt,  label:"Rechnungen" },
     { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
     { k:"archiv",      ic: IC.archive,  label:"Archiv" },
+    { k:"settings",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
   ];
 
   var PAGE_TITLES = {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", waschhalle:"Waschhalle",
     lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Rechnungen",
-    wartung:"Wartungsplan", archiv:"Archiv"
+    wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen"
   };
 
   return (
@@ -1736,6 +2127,7 @@ function AppShell({ user, onLogout }) {
           {sec === "rechnungen"  && <Rechnungen invoices={invoices} vehicles={vehicles} jobs={jobs} onRefresh={loadAll} loading={loading} />}
           {sec === "wartung"     && <Wartungsplan plans={plans} vehicles={vehicles} forklifts={forklifts} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={jobs} />}
+          {sec === "settings"    && <Einstellungen vehicles={vehicles} forklifts={forklifts} stock={stock} onRefresh={loadAll} loading={loading} />}
         </div>
       </div>
     </div>
