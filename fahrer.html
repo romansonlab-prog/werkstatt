@@ -8,810 +8,410 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html, body { height:100%; overscroll-behavior:none; }
-    body {
-      background:#0a1730;
-      color:#fff;
-      font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height:100vh; min-height:100dvh;
-    }
-    #root { min-height:100vh; min-height:100dvh; }
-
-    /* Background — same on all screens, exact image */
-    .bg-image {
-      position:fixed; inset:0; z-index:0;
-      background-color: #0a1730;
-      background-image:
-        linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%),
-        url("/bg-truck.png");
-      background-size:cover;
-      background-position:center center;
-      background-repeat:no-repeat;
-      pointer-events:none;
-    }
-
-    .scrn { position:relative; z-index:2; min-height:100vh; min-height:100dvh;
-      padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
-      display:flex; flex-direction:column;
-      max-width:480px; margin:0 auto; width:100%; }
-    /* Tablet/desktop: center the app and add side dim */
-    @media (min-width: 481px) {
-      body::before {
-        content:""; position:fixed; inset:0; z-index:1;
-        background:rgba(0,0,0,0.4); pointer-events:none;
-      }
-      .scrn { box-shadow:0 0 60px rgba(0,0,0,0.6); }
-    }
-    /* Fixed bottom buttons must also respect max-width */
-    .fixed-bottom-bar {
-      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
-      width:100%; max-width:480px; z-index:5;
-      padding:14px 16px calc(env(safe-area-inset-bottom) + 14px);
-      background:linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%);
-    }
-
-    button { font:inherit; color:inherit; cursor:pointer; }
-    input, textarea, select { font:inherit; }
-    textarea { resize:none; }
-    ::placeholder { color:rgba(255,255,255,0.45); }
-
-    .btn-primary {
-      background:linear-gradient(180deg, #ffa500 0%, #ff8c00 100%);
-      color:#0a1730; border:none; border-radius:12px;
-      font-weight:800; padding:18px;
-      box-shadow:0 8px 24px rgba(255,165,0,0.35);
-    }
-    .btn-primary:active { transform:translateY(1px); }
-
-    .btn-back {
-      width:48px; height:48px; border-radius:12px;
-      background:rgba(255,255,255,0.06);
-      border:1px solid rgba(255,255,255,0.14);
-      display:flex; align-items:center; justify-content:center;
-      color:#ffa500;
-    }
-
-    .lang-pill {
-      padding:10px 0; min-width:54px; text-align:center;
-      border:1px solid rgba(255,255,255,0.18);
-      border-radius:14px;
-      font-weight:700; font-size:13px; letter-spacing:0.4px;
-      background:rgba(255,255,255,0.04);
-      color:rgba(255,255,255,0.85);
-      flex-shrink:0;
-    }
-    .lang-pill.active {
-      background:#ffa500; border-color:#ffa500; color:#0a1730;
-      box-shadow:0 6px 18px rgba(255,165,0,0.4);
-    }
-
-    .input-light {
-      width:100%; padding:14px 14px 14px 44px;
-      background:#fff; color:#0a1730;
-      border:1px solid #e5e7eb; border-radius:12px;
-      font-size:16px; outline:none;
-    }
-    .field-icon-light {
-      position:absolute; left:14px; top:50%; transform:translateY(-50%);
-      color:#9aa3b2; font-size:18px;
-    }
-
-    .keypad-btn {
-      width:68px; height:68px; border-radius:50%;
-      background:transparent;
-      border:1.5px solid rgba(255,255,255,0.35);
-      color:#fff; font-size:24px; font-weight:500;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .keypad-btn:active { background:rgba(255,255,255,0.10); }
-
-    .pin-dot { width:14px; height:14px; border-radius:50%;
-      background:rgba(255,255,255,0.20); transition:background 0.15s; }
-    .pin-dot.filled { background:#ffa500; box-shadow:0 0 12px rgba(255,165,0,0.6); }
-    .pin-dot.error { background:#ff3b30; }
-
-    .slider-track {
-      position:relative; height:78px; border-radius:18px;
-      background:rgba(0,0,0,0.45);
-      border:1px solid rgba(255,255,255,0.10);
-      overflow:hidden;
-    }
-    .slider-thumb {
-      position:absolute; top:6px; left:6px;
-      width:66px; height:66px; border-radius:14px;
-      background:linear-gradient(180deg,#ffa500,#ff8c00);
-      box-shadow:0 0 20px rgba(255,165,0,0.7);
-      display:flex; align-items:center; justify-content:center;
-      touch-action:none; cursor:grab;
-    }
-    .slider-grip { display:flex; gap:4px; }
-    .slider-grip span { width:3px; height:22px; background:#0a1730; border-radius:2px; }
-    .slider-marks { position:absolute; inset:0; display:flex;
-      align-items:center; justify-content:space-around; padding:0 90px 0 80px;
-      pointer-events:none; }
-    .slider-mark { width:2px; height:24px; background:rgba(255,255,255,0.2); border-radius:2px; }
-
-    .menu-card {
-      display:flex; align-items:center; gap:14px;
-      padding:18px;
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius:18px;
-      background:rgba(20,40,80,0.55);
-      backdrop-filter:blur(12px);
-      -webkit-backdrop-filter:blur(12px);
-      width:100%;
-    }
-    .menu-card.active {
-      border-color:#ffa500;
-      box-shadow:0 0 0 1px #ffa500, 0 8px 28px rgba(255,165,0,0.25);
-    }
-    .menu-card.danger {
-      border-color:rgba(255,59,48,0.55);
-      background:rgba(60,20,30,0.55);
-    }
-    .menu-card.danger.active {
-      box-shadow:0 0 0 1px #ff3b30, 0 8px 28px rgba(255,59,48,0.25);
-    }
-    .menu-icon {
-      width:54px; height:54px; border-radius:14px;
-      background:rgba(255,165,0,0.10);
-      display:flex; align-items:center; justify-content:center;
-      color:#ffa500; flex-shrink:0;
-    }
-    .menu-card.danger .menu-icon {
-      background:rgba(255,59,48,0.10); color:#ff3b30;
-    }
-
-    /* INSPECTION ROW — fixed columns, never breaks */
-    .insp-row {
-      display:flex; align-items:center;
-      gap:8px;
-      padding:10px;
-      border-radius:12px;
-      background:rgba(20,40,80,0.50);
-      border:1px solid rgba(255,255,255,0.08);
-      margin-bottom:8px;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-    }
-    .insp-tag {
-      width:50px;
-      flex-shrink:0;
-      background:#ffa500; color:#0a1730;
-      font-weight:800; font-size:11px;
-      padding:7px 0; text-align:center; border-radius:8px;
-      letter-spacing:0.5px;
-    }
-    .insp-label {
-      flex:1; min-width:0;
-      font-size:13px; font-weight:600;
-      line-height:1.2;
-      color:#fff;
-    }
-    .insp-btn {
-      width:54px; height:42px;
-      flex-shrink:0;
-      padding:0;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,0.18);
-      background:transparent; color:rgba(255,255,255,0.55);
-      font-weight:700; font-size:13px;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .insp-btn.ok-active {
-      background:rgba(255,165,0,0.18);
-      border-color:#ffa500; color:#ffa500;
-      box-shadow:0 0 0 1px #ffa500;
-    }
-    .insp-btn.fail-active {
-      background:rgba(255,59,48,0.18);
-      border-color:#ff3b30; color:#ff3b30;
-      box-shadow:0 0 0 1px #ff3b30;
-    }
-    .insp-header {
-      display:flex; gap:8px; padding:0 10px 6px;
-      font-size:10px; font-weight:700;
-      color:rgba(255,255,255,0.55);
-      letter-spacing:1.2px;
-    }
-    .insp-header .h-spacer { flex:1; }
-    .insp-header .h-col { width:54px; flex-shrink:0; text-align:center; }
-    .insp-header .h-tag-spacer { width:50px; flex-shrink:0; }
-
-    .photo-box {
-      border:2px dashed rgba(255,165,0,0.45);
-      border-radius:14px; padding:22px;
-      text-align:center; color:rgba(255,255,255,0.7);
-      background:rgba(255,165,0,0.04);
-      width:100%;
-    }
-
-    .progress-box {
-      display:flex; align-items:center; gap:10px;
-      padding:14px;
-      border:1px solid rgba(34,197,94,0.30);
-      background:rgba(34,197,94,0.06);
-      border-radius:12px;
-      color:rgba(255,255,255,0.85); font-weight:600;
-    }
-    .progress-box.warn {
-      border-color:rgba(255,59,48,0.40);
-      background:rgba(255,59,48,0.06);
-    }
-
-    .dropdown-trigger {
-      width:100%; padding:14px 16px;
-      background:rgba(20,40,80,0.50);
-      border:1px solid #ffa500; border-radius:12px;
-      color:#fff; text-align:left;
-      display:flex; justify-content:space-between; align-items:center;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-    }
-    .dropdown-list {
-      position:absolute; top:100%; left:0; right:0;
-      margin-top:6px; padding:6px;
-      background:#0d1f3d;
-      border:1px solid rgba(255,165,0,0.5);
-      border-radius:12px;
-      box-shadow:0 16px 40px rgba(0,0,0,0.6);
-      max-height:280px; overflow:auto; z-index:30;
-    }
-    .dropdown-item {
-      padding:12px 14px; border-radius:8px;
-      color:#fff; cursor:pointer;
-    }
-    .dropdown-item:active, .dropdown-item.active {
-      background:rgba(255,165,0,0.18); color:#ffa500;
-    }
-
-    .urg-row {
-      display:flex; align-items:center; gap:14px;
-      padding:14px 16px; border-radius:12px;
-      border:1px solid rgba(255,255,255,0.10);
-      background:rgba(20,40,80,0.45);
-      font-weight:700;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-    }
-    .urg-row.active-red { border-color:#ff3b30; box-shadow:0 0 0 1px #ff3b30; }
-    .urg-row.active-orange { border-color:#ffa500; box-shadow:0 0 0 1px #ffa500; }
-    .urg-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
-
-    .type-tile {
-      display:flex; align-items:center; gap:10px;
-      padding:14px;
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius:12px;
-      background:rgba(20,40,80,0.45);
-      font-weight:700; color:#fff; font-size:14px;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-    }
-    .type-tile.active {
-      border-color:#ffa500; background:rgba(255,165,0,0.12);
-      box-shadow:0 0 0 1px #ffa500;
-    }
-    .type-tag {
-      background:#ffa500; color:#0a1730;
-      font-weight:800; font-size:10px;
-      padding:5px 7px; border-radius:6px; letter-spacing:0.4px;
-    }
-
-    .textarea-dark {
-      width:100%; padding:14px;
-      background:rgba(20,40,80,0.45);
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius:12px;
-      color:#fff; min-height:96px; outline:none;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-    }
-    .textarea-dark:focus { border-color:#ffa500; }
-
-    .input-dark {
-      width:100%; padding:14px 14px 14px 40px;
-      background:rgba(20,40,80,0.45);
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius:12px; color:#fff; outline:none;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-    }
-    .input-dark:focus { border-color:#ffa500; }
-
-    .geo-btn {
-      width:48px; height:48px; border-radius:12px;
-      background:rgba(255,165,0,0.12);
-      border:1px solid rgba(255,165,0,0.5);
-      color:#ffa500;
-      display:flex; align-items:center; justify-content:center;
-      flex-shrink:0;
-    }
-    .geo-btn:active { background:rgba(255,165,0,0.25); }
-
-    .label-cap {
-      font-size:11px; font-weight:700; color:rgba(255,255,255,0.6);
-      letter-spacing:1.5px; margin-bottom:8px;
-    }
-
-    /* Compact language switcher (top-right corner) */
-    .lang-switch-wrap {
-      position:absolute;
-      top:max(env(safe-area-inset-top), 14px);
-      right:16px;
-      z-index:30;
-    }
-    .lang-switch {
-      position:relative; z-index:25;
-      display:inline-flex; align-items:center; gap:6px;
-      padding:8px 12px;
-      background:rgba(20,40,80,0.65);
-      border:1px solid rgba(255,255,255,0.15);
-      border-radius:10px;
-      color:#fff; font-weight:700; font-size:13px;
-      backdrop-filter:blur(8px);
-      -webkit-backdrop-filter:blur(8px);
-      cursor:pointer;
-    }
-    .lang-switch .arrow { color:#ffa500; font-size:10px; }
-    .lang-menu {
-      position:absolute; top:calc(100% + 6px); right:0;
-      padding:6px;
-      background:#0d1f3d;
-      border:1px solid rgba(255,165,0,0.5);
-      border-radius:12px;
-      box-shadow:0 16px 40px rgba(0,0,0,0.6);
-      display:flex; gap:6px;
-      z-index:50;
-    }
-    .lang-menu button {
-      width:42px; padding:8px 0; text-align:center;
-      border:1px solid rgba(255,255,255,0.18);
-      border-radius:8px; font-weight:700; font-size:12px;
-      background:transparent; color:#fff;
-    }
-    .lang-menu button.active {
-      background:#ffa500; border-color:#ffa500; color:#0a1730;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;overscroll-behavior:none}
+    body{background:#0a1730;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh}
+    #root{min-height:100vh;min-height:100dvh}
+    button{font:inherit;color:inherit;cursor:pointer}
+    input,textarea{font:inherit}
+    textarea{resize:none}
+    ::placeholder{color:rgba(255,255,255,0.45)}
+    .bg-image{position:fixed;inset:0;z-index:0;background-color:#0a1730;background-image:linear-gradient(180deg,rgba(10,23,48,0.35) 0%,rgba(10,23,48,0.7) 60%,rgba(10,23,48,0.92) 100%),url("/bg-truck.png");background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
+    .scrn{position:relative;z-index:2;min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);display:flex;flex-direction:column;max-width:480px;margin:0 auto;width:100%}
+    @media(min-width:481px){body::before{content:"";position:fixed;inset:0;z-index:1;background:rgba(0,0,0,0.4);pointer-events:none}.scrn{box-shadow:0 0 60px rgba(0,0,0,0.6)}}
+    .page-wrap{position:relative;min-height:100vh;min-height:100dvh;padding-bottom:calc(env(safe-area-inset-bottom) + 90px);max-width:480px;margin:0 auto;box-shadow:0 0 60px rgba(0,0,0,0.6)}
+    .fixed-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:10;padding:14px 16px calc(env(safe-area-inset-bottom) + 14px);background:linear-gradient(180deg,transparent,rgba(10,23,48,0.96) 30%)}
+    .btn-primary{background:linear-gradient(180deg,#ffa500,#ff8c00);color:#0a1730;border:none;border-radius:12px;font-weight:800;padding:18px;width:100%;box-shadow:0 8px 24px rgba(255,165,0,0.35);font-size:16px}
+    .btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+    .btn-back{width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center;color:#ffa500}
+    .input-light{width:100%;padding:14px 14px 14px 44px;background:#fff;color:#0a1730;border:1px solid #e5e7eb;border-radius:12px;font-size:16px;outline:none}
+    .input-light:focus{border-color:#ffa500}
+    .field-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9aa3b2;font-size:18px}
+    .keypad-btn{width:68px;height:68px;border-radius:50%;background:transparent;border:1.5px solid rgba(255,255,255,0.35);color:#fff;font-size:24px;font-weight:500;display:flex;align-items:center;justify-content:center}
+    .keypad-btn:active{background:rgba(255,255,255,0.10)}
+    .pin-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.20);transition:background 0.15s}
+    .pin-dot.on{background:#ffa500;box-shadow:0 0 12px rgba(255,165,0,0.6)}
+    .pin-dot.err{background:#ff3b30}
+    .slider-track{position:relative;height:78px;border-radius:18px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.10);overflow:hidden}
+    .slider-thumb{position:absolute;top:6px;left:6px;width:66px;height:66px;border-radius:14px;background:linear-gradient(180deg,#ffa500,#ff8c00);box-shadow:0 0 20px rgba(255,165,0,0.7);display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab;user-select:none}
+    .slider-grip{display:flex;gap:4px}
+    .slider-grip span{width:3px;height:22px;background:#0a1730;border-radius:2px}
+    .slider-marks{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-around;padding:0 90px 0 80px;pointer-events:none}
+    .slider-mark{width:2px;height:24px;background:rgba(255,255,255,0.2);border-radius:2px}
+    .menu-card{display:flex;align-items:center;gap:14px;padding:18px;border:1px solid rgba(255,255,255,0.10);border-radius:18px;background:rgba(20,40,80,0.55);backdrop-filter:blur(12px);width:100%}
+    .menu-card.sel{border-color:#ffa500;box-shadow:0 0 0 1px #ffa500,0 8px 28px rgba(255,165,0,0.25)}
+    .menu-card.danger{border-color:rgba(255,59,48,0.55);background:rgba(60,20,30,0.55)}
+    .menu-card.danger.sel{box-shadow:0 0 0 1px #ff3b30}
+    .menu-icon{width:54px;height:54px;border-radius:14px;background:rgba(255,165,0,0.10);display:flex;align-items:center;justify-content:center;color:#ffa500;flex-shrink:0}
+    .menu-card.danger .menu-icon{background:rgba(255,59,48,0.10);color:#ff3b30}
+    .insp-row{display:flex;align-items:center;gap:8px;padding:10px;border-radius:12px;background:rgba(20,40,80,0.50);border:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
+    .insp-tag{width:50px;flex-shrink:0;background:#ffa500;color:#0a1730;font-weight:800;font-size:11px;padding:7px 0;text-align:center;border-radius:8px;letter-spacing:0.5px}
+    .insp-label{flex:1;min-width:0;font-size:13px;font-weight:600;line-height:1.2}
+    .insp-btn{width:54px;height:42px;flex-shrink:0;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:transparent;color:rgba(255,255,255,0.55);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+    .insp-btn.ok-on{background:rgba(255,165,0,0.18);border-color:#ffa500;color:#ffa500;box-shadow:0 0 0 1px #ffa500}
+    .insp-btn.fail-on{background:rgba(255,59,48,0.18);border-color:#ff3b30;color:#ff3b30;box-shadow:0 0 0 1px #ff3b30}
+    .insp-hd{display:flex;gap:8px;padding:0 10px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:1.2px}
+    .insp-hd .sp{flex:1}.insp-hd .tsp{width:50px;flex-shrink:0}.insp-hd .col{width:54px;flex-shrink:0;text-align:center}
+    .type-tile{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;background:rgba(20,40,80,0.45);font-weight:700;color:#fff;font-size:14px;cursor:pointer}
+    .type-tile.on{border-color:#ffa500;background:rgba(255,165,0,0.12);box-shadow:0 0 0 1px #ffa500}
+    .type-tag{background:#ffa500;color:#0a1730;font-weight:800;font-size:10px;padding:5px 7px;border-radius:6px}
+    .urg-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:rgba(20,40,80,0.45);font-weight:700;cursor:pointer}
+    .urg-row.r{border-color:#ff3b30;box-shadow:0 0 0 1px #ff3b30}
+    .urg-row.o{border-color:#ffa500;box-shadow:0 0 0 1px #ffa500}
+    .urg-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+    .drop-input{width:100%;padding:14px 16px;background:rgba(20,40,80,0.50);border:1px solid #ffa500;border-radius:12px;color:#fff;outline:none;font-size:15px}
+    .drop-input:focus{box-shadow:0 0 0 1px #ffa500}
+    .drop-list{position:absolute;top:100%;left:0;right:0;margin-top:6px;padding:6px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);max-height:260px;overflow-y:auto;z-index:30}
+    .drop-item{padding:12px 14px;border-radius:8px;color:#fff;cursor:pointer}
+    .drop-item:active{background:rgba(255,165,0,0.18);color:#ffa500}
+    .textarea-dark{width:100%;padding:14px;background:rgba(20,40,80,0.45);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;min-height:96px;outline:none}
+    .textarea-dark:focus{border-color:#ffa500}
+    .inp-dark{width:100%;padding:13px 14px;background:rgba(20,40,80,0.45);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;outline:none;font-size:15px}
+    .inp-dark:focus{border-color:#ffa500}
+    .label-cap{font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:1.5px;margin-bottom:8px}
+    .geo-btn{width:48px;height:48px;border-radius:12px;background:rgba(255,165,0,0.12);border:1px solid rgba(255,165,0,0.5);color:#ffa500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .photo-box{border:2px dashed rgba(255,165,0,0.45);border-radius:14px;padding:22px;text-align:center;color:rgba(255,255,255,0.7);background:rgba(255,165,0,0.04);width:100%}
+    .progress-box{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid rgba(34,197,94,0.30);background:rgba(34,197,94,0.06);border-radius:12px;font-weight:600}
+    .progress-box.bad{border-color:rgba(255,59,48,0.40);background:rgba(255,59,48,0.06)}
+    .lang-switch{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(20,40,80,0.65);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
+    .lang-menu{position:absolute;top:calc(100% + 6px);right:0;padding:6px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);display:flex;gap:6px;z-index:50}
+    .lang-menu button{width:42px;padding:8px 0;text-align:center;border:1px solid rgba(255,255,255,0.18);border-radius:8px;font-weight:700;font-size:12px;background:transparent;color:#fff}
+    .lang-menu button.on{background:#ffa500;border-color:#ffa500;color:#0a1730}
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script>
-    window.GLOBAL_LOGO = null;
-  </script>
-  <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+const APP_PIN = "1234";
+const SESS_KEY = "werkflow_fahrer_v3";
+const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
+var LANG_MAP = {"DE":"de","RU":"ru","GB":"en","UA":"uk","RO":"ro","HU":"hu","CZ":"cs"};
 
-const APP_PIN = "5291";
-const APP_STORAGE_KEY = "werkflow_fahrer_v2";
-
-const T = {
-  de:{
-    title:"WerkFlow Fahrer", subtitle:"Hockenheim",
-    inspectTruck:"LKW Inspektion", inspectTrailer:"Auflieger Inspektion",
-    reportBreakdown:"Störung / Unfall", yourName:"Ihr Name", namePh:"Vor- und Nachname",
-    selectTruck:"LKW wählen",
-    selectOrEnter:"Fahrzeug wählen oder eingeben", enterCustom:"Eigenes Kennzeichen eingeben", platePh:"z.B. MA-LT 441", plateLabel:"Kennzeichen / Nr.", selectTrailer:"Auflieger wählen",
-    startInspection:"Inspektion starten", back:"Zurück",
-    defects:"Mängel / Bemerkungen", defectsPh:"Festgestellte Mängel beschreiben...",
-    photo:"Fotos", submit:"Inspektion abschließen",
-    allChecked:"Alle Punkte geprüft", notAllChecked:"Nicht alle Punkte geprüft",
-    done:"Abgeschlossen!", saved:"Bericht gesendet", newInspection:"Neue Inspektion",
-    ok:"Fahrzeug OK", defectsFound:"Mängel festgestellt", okShort:"OK", notOkShort:"Nicht OK", checkedLabel:"geprüft", chooseAction:"Aktion wählen", continueBtn:"Weiter", fleetCheck:"FLOTTEN-CHECK", truckCode:"LKW", trailerCode:"ANH", sosCode:"SOS", translatedAuto:"Deutsch (auto)", statusDone:"Erledigt", statusInProgress:"In Bearbeitung", statusWaitingMechanic:"Gesendet — warte auf Mechaniker...",
-    translating:"Übersetze...", points:"Punkte", translated:"Übersetzt (DE)",
-    breakdownTitle:"Störung melden", breakdownType:"Art der Störung",
-    location:"Standort", locationPh:"Autobahn A6 km 520 / Hockenheim...",
-    description:"Beschreibung", descPh:"Was ist passiert?",
-    urgency:"Dringlichkeit", urgentYes:"SOFORTIGE HILFE", urgentNo:"KANN WARTEN",
-    send:"STORUNG MELDEN", sending:"Wird gesendet...", sent:"Gemeldet!",
-    sentDesc:"Werkstatt und Chef benachrichtigt", newReport:"Neue Meldung",
-    required:"Pflichtfeld", truck:"LKW", trailer:"Auflieger",
-    truckChecks:[
-      {k:"tires",   emoji:"TYR", label:"Reifen und Luftdruck"},
-      {k:"lights",  emoji:"LGT", label:"Beleuchtung"},
-      {k:"brakes",  emoji:"BRK", label:"Bremsen"},
-      {k:"mirrors", emoji:"VIS", label:"Spiegel und Scheiben"},
-      {k:"engine",  emoji:"ENG", label:"Motor / Öl / Wasser"},
-      {k:"fuel",    emoji:"FUEL", label:"Kraftstoff und AdBlue"},
-      {k:"docs",    emoji:"DOC", label:"Fahrzeugpapiere"},
-    ],
-    trailerChecks:[
-      {k:"tires",    emoji:"TYR", label:"Reifen und Luftdruck"},
-      {k:"lights",   emoji:"LGT", label:"Beleuchtung und Blinker"},
-      {k:"body",     emoji:"BOX", label:"Karosserie / Plane"},
-      {k:"coupling", emoji:"CPL", label:"Kupplung und Sattel"},
-      {k:"doors",    emoji:"DR", label:"Türen und Verschlüsse"},
-      {k:"floor",    emoji:"FLR", label:"Ladeboden"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Panne / Defekt"},
-      {k:"accident", emoji:"SOS",label:"Unfall"},
-      {k:"tire",     emoji:"TYR",label:"Reifenpanne"},
-      {k:"other",    emoji:"!",label:"Sonstiges"},
-    ],
-  },
-  ru:{
-    title:"WerkFlow Водитель", subtitle:"Хокенхайм",
-    inspectTruck:"Осмотр LKW", inspectTrailer:"Осмотр полуприцепа",
-    reportBreakdown:"Поломка / Авария", yourName:"Ваше имя", namePh:"Имя и фамилия",
-    selectTruck:"Выбрать LKW",
-    selectOrEnter:"Выбрать или ввести номер", enterCustom:"Ввести свой номер", platePh:"напр. MA-LT 441", plateLabel:"Номер машины", selectTrailer:"Выбрать полуприцеп",
-    startInspection:"Начать осмотр", back:"Назад",
-    defects:"Замечания", defectsPh:"Опишите неисправности...",
-    photo:"Фото", submit:"Завершить осмотр",
-    allChecked:"Все пункты проверены", notAllChecked:"Не все пункты проверены",
-    done:"Завершено!", saved:"Отчёт отправлен", newInspection:"Новый осмотр",
-    ok:"Техника в порядке", defectsFound:"Найдены замечания", okShort:"OK", notOkShort:"Не OK", checkedLabel:"проверено", chooseAction:"Выберите действие", continueBtn:"Далее", fleetCheck:"ПРОВЕРКА ПАРКА", truckCode:"ТЯГ", trailerCode:"П/П", sosCode:"SOS", translatedAuto:"Немецкий (авто)", statusDone:"Выполнено", statusInProgress:"В работе", statusWaitingMechanic:"Отправлено — ждём механика...",
-    translating:"Перевожу...", points:"пунктов", translated:"Переведено (DE)",
-    breakdownTitle:"Сообщить о поломке", breakdownType:"Тип проблемы",
-    location:"Местоположение", locationPh:"Автобан A6 км 520 / Хокенхайм...",
-    description:"Описание", descPh:"Что случилось?",
-    urgency:"Срочность", urgentYes:"НУЖНА ПОМОЩЬ", urgentNo:"МОЖЕТ ПОДОЖДАТЬ",
-    send:"СООБЩИТЬ О ПРОБЛЕМЕ", sending:"Отправляется...", sent:"Отправлено!",
-    sentDesc:"Механики и шеф уведомлены", newReport:"Новое сообщение",
-    required:"обязательное поле", truck:"LKW", trailer:"Полуприцеп",
-    truckChecks:[
-      {k:"tires",   emoji:"TYR", label:"Шины и давление"},
-      {k:"lights",  emoji:"LGT", label:"Освещение"},
-      {k:"brakes",  emoji:"BRK", label:"Тормоза"},
-      {k:"mirrors", emoji:"VIS", label:"Зеркала и стёкла"},
-      {k:"engine",  emoji:"ENG", label:"Двигатель / масло / вода"},
-      {k:"fuel",    emoji:"FUEL", label:"Топливо и AdBlue"},
-      {k:"docs",    emoji:"DOC", label:"Документы"},
-    ],
-    trailerChecks:[
-      {k:"tires",    emoji:"TYR", label:"Шины и давление"},
-      {k:"lights",   emoji:"LGT", label:"Освещение и поворотники"},
-      {k:"body",     emoji:"BOX", label:"Кузов / тент"},
-      {k:"coupling", emoji:"CPL", label:"Сцепка / седло"},
-      {k:"doors",    emoji:"DR", label:"Двери и замки"},
-      {k:"floor",    emoji:"FLR", label:"Пол кузова"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Поломка / неисправность"},
-      {k:"accident", emoji:"SOS",label:"Авария"},
-      {k:"tire",     emoji:"TYR",label:"Прокол шины"},
-      {k:"other",    emoji:"!",label:"Другое"},
-    ],
-  },
-  en:{
-    title:"WerkFlow Driver", subtitle:"Hockenheim",
-    inspectTruck:"Truck Inspection", inspectTrailer:"Trailer Inspection",
-    reportBreakdown:"Report Issue", yourName:"Your name", namePh:"First and last name",
-    selectTruck:"Select truck",
-    selectOrEnter:"Select or enter vehicle", enterCustom:"Enter custom plate", platePh:"e.g. MA-LT 441", plateLabel:"Plate / Nr.", selectTrailer:"Select trailer",
-    startInspection:"Start inspection", back:"Back",
-    defects:"Defects / notes", defectsPh:"Describe defects found...",
-    photo:"Photos", submit:"Complete inspection",
-    allChecked:"All items checked", notAllChecked:"Not all items checked",
-    done:"Done!", saved:"Report sent", newInspection:"New inspection",
-    ok:"Vehicle OK", defectsFound:"Defects found", okShort:"OK", notOkShort:"Not OK", checkedLabel:"checked", chooseAction:"Choose action", continueBtn:"Continue", fleetCheck:"FLEET CHECK", truckCode:"TRK", trailerCode:"TRL", sosCode:"SOS", translatedAuto:"German (auto)", statusDone:"Done", statusInProgress:"In progress", statusWaitingMechanic:"Sent — waiting for mechanic...",
-    translating:"Translating...", points:"points", translated:"Translated (DE)",
-    breakdownTitle:"Report breakdown / accident", breakdownType:"Type of issue",
-    location:"Location", locationPh:"Motorway A6 km 520 / Hockenheim...",
-    description:"Description", descPh:"What happened?",
-    urgency:"Urgency", urgentYes:"IMMEDIATE HELP", urgentNo:"CAN WAIT",
-    send:"REPORT ISSUE", sending:"Sending...", sent:"Reported!",
-    sentDesc:"Workshop and Chef notified", newReport:"New report",
-    required:"required field", truck:"Truck", trailer:"Trailer",
-    truckChecks:[
-      {k:"tires",   emoji:"TYR", label:"Tires and pressure"},
-      {k:"lights",  emoji:"LGT", label:"Lights"},
-      {k:"brakes",  emoji:"BRK", label:"Brakes"},
-      {k:"mirrors", emoji:"VIS", label:"Mirrors and windows"},
-      {k:"engine",  emoji:"ENG", label:"Engine / oil / water"},
-      {k:"fuel",    emoji:"FUEL", label:"Fuel and AdBlue"},
-      {k:"docs",    emoji:"DOC", label:"Documents"},
-    ],
-    trailerChecks:[
-      {k:"tires",    emoji:"TYR", label:"Tires and pressure"},
-      {k:"lights",   emoji:"LGT", label:"Lights and indicators"},
-      {k:"body",     emoji:"BOX", label:"Body / tarpaulin"},
-      {k:"coupling", emoji:"CPL", label:"Coupling and saddle"},
-      {k:"doors",    emoji:"DR", label:"Doors and locks"},
-      {k:"floor",    emoji:"FLR", label:"Load floor"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Breakdown / defect"},
-      {k:"accident", emoji:"SOS",label:"Accident"},
-      {k:"tire",     emoji:"TYR",label:"Flat tire"},
-      {k:"other",    emoji:"!",label:"Other"},
-    ],
-  },
-  uk:{
-    title:"WerkFlow Водій", subtitle:"Хокенхайм",
-    inspectTruck:"Огляд вантажівки", inspectTrailer:"Огляд напівпричепа",
-    reportBreakdown:"Поломка / Аварія", yourName:"Ваше ім'я", namePh:"Ім'я та прізвище",
-    selectTruck:"Обрати вантажівку",
-    selectOrEnter:"Обрати або ввести номер", enterCustom:"Ввести свій номер", platePh:"напр. MA-LT 441", plateLabel:"Номер машини", selectTrailer:"Обрати напівпричіп",
-    startInspection:"Почати огляд", back:"Назад",
-    defects:"Зауваження", defectsPh:"Опишіть несправності...",
-    photo:"Фото", submit:"Завершити огляд",
-    allChecked:"Всі пункти перевірено", notAllChecked:"Не всі пункти перевірено",
-    done:"Завершено!", saved:"Звіт надіслано", newInspection:"Новий огляд",
-    ok:"Техніка в порядку", defectsFound:"Знайдено зауваження", okShort:"OK", notOkShort:"Не OK", checkedLabel:"перевірено", chooseAction:"Оберіть дію", continueBtn:"Далі", fleetCheck:"ПЕРЕВІРКА ПАРКУ", truckCode:"ВАН", trailerCode:"НПП", sosCode:"SOS", translatedAuto:"Німецька (авто)", statusDone:"Виконано", statusInProgress:"В роботі", statusWaitingMechanic:"Надіслано — чекаємо механіка...",
-    translating:"Перекладаю...", points:"пунктів", translated:"Перекладено (DE)",
-    breakdownTitle:"Повідомити про поломку", breakdownType:"Тип проблеми",
-    location:"Місцезнаходження", locationPh:"Автобан A6 км 520...",
-    description:"Опис", descPh:"Що сталося?",
-    urgency:"Терміновість", urgentYes:"ПОТРІБНА ДОПОМОГА", urgentNo:"МОЖЕ ЗАЧЕКАТИ",
-    send:"ПОВІДОМИТИ", sending:"Надсилається...", sent:"Надіслано!",
-    sentDesc:"Механіки та шеф повідомлені", newReport:"Нове повідомлення",
-    required:"обов'язкове поле", truck:"Вантажівка", trailer:"Напівпричіп",
-    truckChecks:[
-      {k:"tires",   emoji:"TYR", label:"Шини та тиск"},
-      {k:"lights",  emoji:"LGT", label:"Освітлення"},
-      {k:"brakes",  emoji:"BRK", label:"Гальма"},
-      {k:"mirrors", emoji:"VIS", label:"Дзеркала та скло"},
-      {k:"engine",  emoji:"ENG", label:"Двигун / масло / вода"},
-      {k:"fuel",    emoji:"FUEL", label:"Пальне та AdBlue"},
-      {k:"docs",    emoji:"DOC", label:"Документи"},
-    ],
-    trailerChecks:[
-      {k:"tires",    emoji:"TYR", label:"Шини та тиск"},
-      {k:"lights",   emoji:"LGT", label:"Освітлення та поворотники"},
-      {k:"body",     emoji:"BOX", label:"Кузов / тент"},
-      {k:"coupling", emoji:"CPL", label:"Зчіпка / сідло"},
-      {k:"doors",    emoji:"DR", label:"Двері та замки"},
-      {k:"floor",    emoji:"FLR", label:"Підлога кузова"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Поломка / несправність"},
-      {k:"accident", emoji:"SOS",label:"Аварія"},
-      {k:"tire",     emoji:"TYR",label:"Прокол шини"},
-      {k:"other",    emoji:"!",label:"Інше"},
-    ],
-  },
-  ro:{
-    title:"WerkFlow Șofer", subtitle:"Hockenheim",
-    inspectTruck:"Inspectie Camion", inspectTrailer:"Inspectie Semiremorca",
-    reportBreakdown:"Raporteaza Problema", yourName:"Numele dvs", namePh:"Prenume Nume",
-    selectTruck:"Selectati camionul",
-    selectOrEnter:"Selectati sau introduceti", enterCustom:"Introduceti numarul", platePh:"ex. MA-LT 441", plateLabel:"Numar / Nr.", selectTrailer:"Selectati semiremorca",
-    startInspection:"Incepe inspectia", back:"Inapoi",
-    defects:"Defecte", defectsPh:"Descrieti defectele...",
-    photo:"Poze", submit:"Finalizeaza inspectia",
-    allChecked:"Toate verificate", notAllChecked:"Nu toate verificate",
-    done:"Gata!", saved:"Raport trimis", newInspection:"Inspectie noua",
-    ok:"Vehicul OK", defectsFound:"Defecte gasite", okShort:"OK", notOkShort:"Nu OK", checkedLabel:"verificat", chooseAction:"Alegeți acțiunea", continueBtn:"Continuă", fleetCheck:"VERIFICARE FLOTĂ", truckCode:"CAM", trailerCode:"REM", sosCode:"SOS", translatedAuto:"Germană (auto)", statusDone:"Finalizat", statusInProgress:"În lucru", statusWaitingMechanic:"Trimis — așteaptă mecanicul...",
-    translating:"Traducere...", points:"puncte", translated:"Tradus (DE)",
-    breakdownTitle:"Raporteaza problema", breakdownType:"Tipul problemei",
-    location:"Locatie", locationPh:"Autostrada A6 km 520...",
-    description:"Descriere", descPh:"Ce s-a intamplat?",
-    urgency:"Urgenta", urgentYes:"AJUTOR IMEDIAT", urgentNo:"POATE ASTEPTA",
-    send:"RAPORTEAZA", sending:"Se trimite...", sent:"Trimis!",
-    sentDesc:"Atelierul si Seful notificati", newReport:"Raport nou",
-    required:"obligatoriu", truck:"Camion", trailer:"Semiremorca",
-    truckChecks:[
-      {k:"tires",emoji:"TYR",label:"Anvelope"},{k:"lights",emoji:"LGT",label:"Iluminat"},
-      {k:"brakes",emoji:"BRK",label:"Frane"},{k:"mirrors",emoji:"VIS",label:"Oglinzi"},
-      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Combustibil"},
-      {k:"docs",emoji:"DOC",label:"Documente"},
-    ],
-    trailerChecks:[
-      {k:"tires",emoji:"TYR",label:"Anvelope"},{k:"lights",emoji:"LGT",label:"Iluminat"},
-      {k:"body",emoji:"BOX",label:"Caroserie"},{k:"coupling",emoji:"CPL",label:"Cuplaj"},
-      {k:"doors",emoji:"DR",label:"Usi"},{k:"floor",emoji:"FLR",label:"Podea"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Pana"},{k:"accident",emoji:"SOS",label:"Accident"},
-      {k:"tire",emoji:"TYR",label:"Cauciuc"},{k:"other",emoji:"!",label:"Altele"},
-    ],
-  },
-  hu:{
-    title:"WerkFlow Sofőr", subtitle:"Hockenheim",
-    inspectTruck:"Teherauto Ellenorzes", inspectTrailer:"Potkocsi Ellenorzes",
-    reportBreakdown:"Problema Bejelentese", yourName:"Az On neve", namePh:"Nev",
-    selectTruck:"Teherauto valasztasa",
-    selectOrEnter:"Valasszon vagy irjon be", enterCustom:"Sajat rendszam", platePh:"pl. MA-LT 441", plateLabel:"Rendszam", selectTrailer:"Potkocsi valasztasa",
-    startInspection:"Ellenorzes kezdese", back:"Vissza",
-    defects:"Hibak", defectsPh:"Irja le a hibakat...",
-    photo:"Kepek", submit:"Ellenorzes befejezese",
-    allChecked:"Minden pont ellenorizve", notAllChecked:"Nem minden pont OK",
-    done:"Kesz!", saved:"Jelentes elkuldve", newInspection:"Uj ellenorzes",
-    ok:"Jarmu rendben", defectsFound:"Hibak talalhatok", okShort:"OK", notOkShort:"Nem OK", checkedLabel:"ellenőrizve", chooseAction:"Művelet választása", continueBtn:"Tovább", fleetCheck:"FLOTTA ELLENŐRZÉS", truckCode:"TGK", trailerCode:"PÓT", sosCode:"SOS", translatedAuto:"Német (auto)", statusDone:"Kész", statusInProgress:"Folyamatban", statusWaitingMechanic:"Elküldve — várakozás szerelőre...",
-    translating:"Forditas...", points:"pont", translated:"Lefordítva (DE)",
-    breakdownTitle:"Meghibasodas bejelentese", breakdownType:"Tipus",
-    location:"Helyszin", locationPh:"A6 autopalya km 520...",
-    description:"Leiras", descPh:"Mi tortent?",
-    urgency:"Surgosseg", urgentYes:"AZONNALI SEGITSEG", urgentNo:"VARHAT",
-    send:"BEJELENTES", sending:"Kuldes...", sent:"Elkuldve!",
-    sentDesc:"Muhely es Fonok ertesitve", newReport:"Uj jelentes",
-    required:"kotelezo", truck:"Teherauto", trailer:"Potkocsi",
-    truckChecks:[
-      {k:"tires",emoji:"TYR",label:"Gumik"},{k:"lights",emoji:"LGT",label:"Vilagitas"},
-      {k:"brakes",emoji:"BRK",label:"Fekek"},{k:"mirrors",emoji:"VIS",label:"Tukrok"},
-      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Uzemanyag"},
-      {k:"docs",emoji:"DOC",label:"Okmanyok"},
-    ],
-    trailerChecks:[
-      {k:"tires",emoji:"TYR",label:"Gumik"},{k:"lights",emoji:"LGT",label:"Vilagitas"},
-      {k:"body",emoji:"BOX",label:"Karosszeria"},{k:"coupling",emoji:"CPL",label:"Kapcsolo"},
-      {k:"doors",emoji:"DR",label:"Ajtok"},{k:"floor",emoji:"FLR",label:"Padlo"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Meghibasodas"},{k:"accident",emoji:"SOS",label:"Baleset"},
-      {k:"tire",emoji:"TYR",label:"Defekt"},{k:"other",emoji:"!",label:"Egyeb"},
-    ],
-  },
-  cs:{
-    title:"WerkFlow Řidič", subtitle:"Hockenheim",
-    inspectTruck:"Kontrola Nakladaku", inspectTrailer:"Kontrola Privese",
-    reportBreakdown:"Nahlasit Problem", yourName:"Vase jmeno", namePh:"Jmeno a prijmeni",
-    selectTruck:"Vyberte nakladak",
-    selectOrEnter:"Vyberte nebo zadejte", enterCustom:"Vlastni SPZ", platePh:"napr. MA-LT 441", plateLabel:"SPZ / Nr.", selectTrailer:"Vyberte prives",
-    startInspection:"Zahajit kontrolu", back:"Zpet",
-    defects:"Zavady", defectsPh:"Popiste zavady...",
-    photo:"Fotky", submit:"Dokoncit kontrolu",
-    allChecked:"Vse zkontrolovano", notAllChecked:"Ne vse zkontrolovano",
-    done:"Hotovo!", saved:"Zprava odeslana", newInspection:"Nova kontrola",
-    ok:"Vozidlo v poradku", defectsFound:"Nalezeny zavady", okShort:"OK", notOkShort:"Není OK", checkedLabel:"zkontrolováno", chooseAction:"Vyberte akci", continueBtn:"Pokračovat", fleetCheck:"KONTROLA FLOTILY", truckCode:"NAK", trailerCode:"PŘÍ", sosCode:"SOS", translatedAuto:"Němčina (auto)", statusDone:"Hotovo", statusInProgress:"Probíhá", statusWaitingMechanic:"Odesláno — čeká se na mechanika...",
-    translating:"Prelozuji...", points:"bodů", translated:"Prelozeno (DE)",
-    breakdownTitle:"Nahlasit poruchu", breakdownType:"Typ problemu",
-    location:"Poloha", locationPh:"Dalnice A6 km 520...",
-    description:"Popis", descPh:"Co se stalo?",
-    urgency:"Nalehavost", urgentYes:"NUTNA POMOC", urgentNo:"MUZE POCKAT",
-    send:"NAHLASIT", sending:"Odesilani...", sent:"Odeslano!",
-    sentDesc:"Dilna a Sef informovani", newReport:"Nova zprava",
-    required:"povinne", truck:"Nakladak", trailer:"Prives",
-    truckChecks:[
-      {k:"tires",emoji:"TYR",label:"Pneumatiky"},{k:"lights",emoji:"LGT",label:"Osvetleni"},
-      {k:"brakes",emoji:"BRK",label:"Brzdy"},{k:"mirrors",emoji:"VIS",label:"Zrcatka"},
-      {k:"engine",emoji:"ENG",label:"Motor"},{k:"fuel",emoji:"FUEL",label:"Palivo"},
-      {k:"docs",emoji:"DOC",label:"Doklady"},
-    ],
-    trailerChecks:[
-      {k:"tires",emoji:"TYR",label:"Pneumatiky"},{k:"lights",emoji:"LGT",label:"Osvetleni"},
-      {k:"body",emoji:"BOX",label:"Karoserie"},{k:"coupling",emoji:"CPL",label:"Spojka"},
-      {k:"doors",emoji:"DR",label:"Dvere"},{k:"floor",emoji:"FLR",label:"Podlaha"},
-    ],
-    types:[
-      {k:"breakdown",emoji:"DEF",label:"Porucha"},{k:"accident",emoji:"SOS",label:"Nehoda"},
-      {k:"tire",emoji:"TYR",label:"Defekt"},{k:"other",emoji:"!",label:"Jine"},
-    ],
-  },
-};;
-
-const TRUCKS = [];
-const TRAILERS = [];
-
-
-const COMMON_T = {
-  de:{ appTitle:"WerkFlow Fahrer", driverLabel:"Fahrer", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ERSTE ANMELDUNG", firstName:"Vorname", lastName:"Nachname", pinLabel:"PIN EINGEBEN", loginBtn:"Anmelden", photoAdd:"Fotos hinzufügen", selectVehiclePh:"Kennzeichen eingeben oder wählen", locationInputPh:"Standort wählen oder eingeben", inspected:"geprüft", faultShort:"Mangel", inspectionWord:"Inspektion", okHeader:"OK", notOkHeader:"NICHT OK" },
-  ru:{ appTitle:"WerkFlow Водитель", driverLabel:"Водитель", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ПЕРВЫЙ ВХОД", firstName:"Имя", lastName:"Фамилия", pinLabel:"ВВЕДИТЕ PIN", loginBtn:"Войти", photoAdd:"Добавить фото", selectVehiclePh:"Введите или выберите номер", locationInputPh:"Выберите или введите место", inspected:"проверено", faultShort:"Замечания", inspectionWord:"Осмотр", okHeader:"OK", notOkHeader:"НЕ OK" },
-  en:{ appTitle:"WerkFlow Driver", driverLabel:"Driver", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"FIRST LOGIN", firstName:"First name", lastName:"Last name", pinLabel:"ENTER PIN", loginBtn:"Login", photoAdd:"Add photos", selectVehiclePh:"Enter or select plate", locationInputPh:"Select or enter location", inspected:"checked", faultShort:"Defect", inspectionWord:"Inspection", okHeader:"OK", notOkHeader:"NOT OK" },
-  uk:{ appTitle:"WerkFlow Водій", driverLabel:"Водій", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ПЕРШИЙ ВХІД", firstName:"Ім'я", lastName:"Прізвище", pinLabel:"ВВЕДІТЬ PIN", loginBtn:"Увійти", photoAdd:"Додати фото", selectVehiclePh:"Введіть або оберіть номер", locationInputPh:"Оберіть або введіть місце", inspected:"перевірено", faultShort:"Зауваження", inspectionWord:"Огляд", okHeader:"OK", notOkHeader:"НЕ OK" },
-  ro:{ appTitle:"WerkFlow Șofer", driverLabel:"Șofer", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"PRIMA AUTENTIFICARE", firstName:"Prenume", lastName:"Nume", pinLabel:"INTRODUCEȚI PIN", loginBtn:"Autentificare", photoAdd:"Adaugă poze", selectVehiclePh:"Introduceți sau selectați numărul", locationInputPh:"Selectați sau introduceți locația", inspected:"verificat", faultShort:"Defect", inspectionWord:"Inspecție", okHeader:"OK", notOkHeader:"NU OK" },
-  hu:{ appTitle:"WerkFlow Sofőr", driverLabel:"Sofőr", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"ELSŐ BEJELENTKEZÉS", firstName:"Keresztnév", lastName:"Vezetéknév", pinLabel:"PIN MEGADÁSA", loginBtn:"Bejelentkezés", photoAdd:"Fotók hozzáadása", selectVehiclePh:"Rendszám megadása vagy választása", locationInputPh:"Hely kiválasztása vagy megadása", inspected:"ellenőrizve", faultShort:"Hiba", inspectionWord:"Ellenőrzés", okHeader:"OK", notOkHeader:"NEM OK" },
-  cs:{ appTitle:"WerkFlow Řidič", driverLabel:"Řidič", poweredBy:"POWERED BY", clientName:"Die LTG - Landauer Transportgesellschaft Doll KG", firstLogin:"PRVNÍ PŘIHLÁŠENÍ", firstName:"Jméno", lastName:"Příjmení", pinLabel:"ZADEJTE PIN", loginBtn:"Přihlásit", photoAdd:"Přidat fotky", selectVehiclePh:"Zadejte nebo vyberte SPZ", locationInputPh:"Vyberte nebo zadejte polohu", inspected:"zkontrolováno", faultShort:"Závada", inspectionWord:"Kontrola", okHeader:"OK", notOkHeader:"NENÍ OK" }
+// ── TRANSLATIONS ──────────────────────────────────────────────────────────────
+var T = {
+de:{
+  label:"Fahrer",reg:"ERSTE ANMELDUNG",fn:"Vorname",ln:"Nachname",cont:"Weiter",pin:"PIN EINGEBEN",login:"Anmelden",
+  inspTruck:"LKW Inspektion",inspTrailer:"Auflieger Inspektion",repBreak:"Störung melden",
+  back:"Zurück",vehPh:"Kennzeichen eingeben oder wählen",brandPh:"Marke / Modell",kmPh:"Kilometerstand (optional)",
+  okH:"OK",nOkH:"NICHT OK",inspected:"geprüft",faultShort:"Mangel",
+  defects:"Mängel / Bemerkungen",defectsPh:"Mängel beschreiben...",
+  photoAdd:"Fotos hinzufügen",submit:"Inspektion abschließen",sending:"Wird gesendet...",
+  sentTitle:"Abgeschlossen!",sentOk:"Bericht gesendet",newInsp:"Neue Inspektion",
+  bdTitle:"Störung melden",bdType:"Art der Störung",
+  locLabel:"Standort",locPh:"Autobahn A6 km 520...",
+  descLabel:"Beschreibung",descPh:"Was ist passiert?",
+  urgLabel:"Dringlichkeit",urgYes:"SOFORTIGE HILFE",urgNo:"KANN WARTEN",
+  sendBtn:"STÖRUNG MELDEN",sentBreak:"Gemeldet!",sentBreakDesc:"Werkstatt benachrichtigt",newRep:"Neue Meldung",req:"Pflichtfeld",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Reifen und Luftdruck"},
+    {k:"lgt",tag:"LGT",label:"Beleuchtung und Blinker"},
+    {k:"bra",tag:"BRA",label:"Bremsen"},
+    {k:"ste",tag:"STE",label:"Lenkung"},
+    {k:"mot",tag:"MOT",label:"Motor und Flüssigkeiten"},
+    {k:"auf",tag:"AUF",label:"Aufbau und Ladungssicherung"},
+    {k:"spi",tag:"SPI",label:"Spiegel und Sicht"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Reifen und Luftdruck"},
+    {k:"lgt",tag:"LGT",label:"Beleuchtung und Blinker"},
+    {k:"box",tag:"BOX",label:"Karosserie / Plane"},
+    {k:"cpl",tag:"CPL",label:"Kupplung und Sattel"},
+    {k:"dr", tag:"DR", label:"Türen und Verschlüsse"},
+    {k:"flr",tag:"FLR",label:"Ladeboden"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Panne / Defekt"},
+    {k:"sos",tag:"SOS",label:"SOS Unfall"},
+    {k:"tyr",tag:"TYR",label:"Reifenpanne"},
+    {k:"oth",tag:"!",  label:"Sonstiges"},
+  ],
+},
+ru:{
+  label:"Водитель",reg:"ПЕРВЫЙ ВХОД",fn:"Имя",ln:"Фамилия",cont:"Далее",pin:"ВВЕДИТЕ PIN",login:"Войти",
+  inspTruck:"Осмотр LKW",inspTrailer:"Осмотр полуприцепа",repBreak:"Поломка / Авария",
+  back:"Назад",vehPh:"Введите или выберите номер",brandPh:"Марка / Модель",kmPh:"Пробег (не обязательно)",
+  okH:"OK",nOkH:"НЕ OK",inspected:"проверено",faultShort:"Замечания",
+  defects:"Замечания",defectsPh:"Опишите неисправности...",
+  photoAdd:"Добавить фото",submit:"Завершить осмотр",sending:"Отправляется...",
+  sentTitle:"Завершено!",sentOk:"Отчёт отправлен",newInsp:"Новый осмотр",
+  bdTitle:"Сообщить о поломке",bdType:"Тип проблемы",
+  locLabel:"Местоположение",locPh:"Автобан A6 км 520...",
+  descLabel:"Описание",descPh:"Что случилось?",
+  urgLabel:"Срочность",urgYes:"НУЖНА ПОМОЩЬ",urgNo:"МОЖЕТ ПОДОЖДАТЬ",
+  sendBtn:"СООБЩИТЬ О ПРОБЛЕМЕ",sentBreak:"Отправлено!",sentBreakDesc:"Механики уведомлены",newRep:"Новое сообщение",req:"обязательное поле",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Шины и давление"},
+    {k:"lgt",tag:"LGT",label:"Освещение"},
+    {k:"bra",tag:"BRA",label:"Тормоза"},
+    {k:"ste",tag:"STE",label:"Рулевое"},
+    {k:"mot",tag:"MOT",label:"Двигатель / масло / вода"},
+    {k:"auf",tag:"AUF",label:"Кузов и крепёж груза"},
+    {k:"spi",tag:"SPI",label:"Зеркала и стёкла"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Шины и давление"},
+    {k:"lgt",tag:"LGT",label:"Освещение и поворотники"},
+    {k:"box",tag:"BOX",label:"Кузов / тент"},
+    {k:"cpl",tag:"CPL",label:"Сцепка / седло"},
+    {k:"dr", tag:"DR", label:"Двери и замки"},
+    {k:"flr",tag:"FLR",label:"Пол кузова"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Поломка / неисправность"},
+    {k:"sos",tag:"SOS",label:"Авария"},
+    {k:"tyr",tag:"TYR",label:"Прокол шины"},
+    {k:"oth",tag:"!",  label:"Другое"},
+  ],
+},
+en:{
+  label:"Driver",reg:"FIRST LOGIN",fn:"First name",ln:"Last name",cont:"Continue",pin:"ENTER PIN",login:"Login",
+  inspTruck:"Truck Inspection",inspTrailer:"Trailer Inspection",repBreak:"Report Issue",
+  back:"Back",vehPh:"Enter or select plate",brandPh:"Brand / Model",kmPh:"Mileage (optional)",
+  okH:"OK",nOkH:"NOT OK",inspected:"checked",faultShort:"Defect",
+  defects:"Defects / notes",defectsPh:"Describe defects...",
+  photoAdd:"Add photos",submit:"Complete inspection",sending:"Sending...",
+  sentTitle:"Done!",sentOk:"Report sent",newInsp:"New inspection",
+  bdTitle:"Report breakdown",bdType:"Type of issue",
+  locLabel:"Location",locPh:"Motorway A6 km 520...",
+  descLabel:"Description",descPh:"What happened?",
+  urgLabel:"Urgency",urgYes:"IMMEDIATE HELP",urgNo:"CAN WAIT",
+  sendBtn:"REPORT ISSUE",sentBreak:"Reported!",sentBreakDesc:"Workshop notified",newRep:"New report",req:"required",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Tires and pressure"},
+    {k:"lgt",tag:"LGT",label:"Lights and indicators"},
+    {k:"bra",tag:"BRA",label:"Brakes"},
+    {k:"ste",tag:"STE",label:"Steering"},
+    {k:"mot",tag:"MOT",label:"Engine and fluids"},
+    {k:"auf",tag:"AUF",label:"Body and cargo securing"},
+    {k:"spi",tag:"SPI",label:"Mirrors and windows"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Tires and pressure"},
+    {k:"lgt",tag:"LGT",label:"Lights and indicators"},
+    {k:"box",tag:"BOX",label:"Body / tarpaulin"},
+    {k:"cpl",tag:"CPL",label:"Coupling and saddle"},
+    {k:"dr", tag:"DR", label:"Doors and locks"},
+    {k:"flr",tag:"FLR",label:"Load floor"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Breakdown / defect"},
+    {k:"sos",tag:"SOS",label:"Accident"},
+    {k:"tyr",tag:"TYR",label:"Flat tire"},
+    {k:"oth",tag:"!",  label:"Other"},
+  ],
+},
+uk:{
+  label:"Водій",reg:"ПЕРШИЙ ВХІД",fn:"Ім'я",ln:"Прізвище",cont:"Далі",pin:"ВВЕДІТЬ PIN",login:"Увійти",
+  inspTruck:"Огляд вантажівки",inspTrailer:"Огляд напівпричепа",repBreak:"Поломка / Аварія",
+  back:"Назад",vehPh:"Введіть або оберіть номер",brandPh:"Марка / Модель",kmPh:"Пробіг (не обов'язково)",
+  okH:"OK",nOkH:"НЕ OK",inspected:"перевірено",faultShort:"Зауваження",
+  defects:"Зауваження",defectsPh:"Опишіть несправності...",
+  photoAdd:"Додати фото",submit:"Завершити огляд",sending:"Надсилається...",
+  sentTitle:"Завершено!",sentOk:"Звіт надіслано",newInsp:"Новий огляд",
+  bdTitle:"Повідомити про поломку",bdType:"Тип проблеми",
+  locLabel:"Місцезнаходження",locPh:"Автобан A6 км 520...",
+  descLabel:"Опис",descPh:"Що сталося?",
+  urgLabel:"Терміновість",urgYes:"ПОТРІБНА ДОПОМОГА",urgNo:"МОЖЕ ЗАЧЕКАТИ",
+  sendBtn:"ПОВІДОМИТИ",sentBreak:"Надіслано!",sentBreakDesc:"Механіки повідомлені",newRep:"Нове повідомлення",req:"обов'язкове",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Шини та тиск"},
+    {k:"lgt",tag:"LGT",label:"Освітлення"},
+    {k:"bra",tag:"BRA",label:"Гальма"},
+    {k:"ste",tag:"STE",label:"Рульове"},
+    {k:"mot",tag:"MOT",label:"Двигун / масло / вода"},
+    {k:"auf",tag:"AUF",label:"Кузов та кріплення вантажу"},
+    {k:"spi",tag:"SPI",label:"Дзеркала та скло"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Шини та тиск"},
+    {k:"lgt",tag:"LGT",label:"Освітлення та поворотники"},
+    {k:"box",tag:"BOX",label:"Кузов / тент"},
+    {k:"cpl",tag:"CPL",label:"Зчіпка / сідло"},
+    {k:"dr", tag:"DR", label:"Двері та замки"},
+    {k:"flr",tag:"FLR",label:"Підлога кузова"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Поломка / несправність"},
+    {k:"sos",tag:"SOS",label:"Аварія"},
+    {k:"tyr",tag:"TYR",label:"Прокол шини"},
+    {k:"oth",tag:"!",  label:"Інше"},
+  ],
+},
+ro:{
+  label:"Șofer",reg:"PRIMA AUTENTIFICARE",fn:"Prenume",ln:"Nume",cont:"Continuă",pin:"INTRODUCEȚI PIN",login:"Autentificare",
+  inspTruck:"Inspecție Camion",inspTrailer:"Inspecție Semiremorcă",repBreak:"Raportează Problema",
+  back:"Înapoi",vehPh:"Introduceți sau selectați numărul",brandPh:"Marcă / Model",kmPh:"Kilometraj (opțional)",
+  okH:"OK",nOkH:"NU OK",inspected:"verificat",faultShort:"Defect",
+  defects:"Defecte",defectsPh:"Descrieți defectele...",
+  photoAdd:"Adaugă poze",submit:"Finalizează inspecția",sending:"Se trimite...",
+  sentTitle:"Gata!",sentOk:"Raport trimis",newInsp:"Inspecție nouă",
+  bdTitle:"Raportează problema",bdType:"Tipul problemei",
+  locLabel:"Locație",locPh:"Autostrada A6 km 520...",
+  descLabel:"Descriere",descPh:"Ce s-a întâmplat?",
+  urgLabel:"Urgență",urgYes:"AJUTOR IMEDIAT",urgNo:"POATE AȘTEPTA",
+  sendBtn:"RAPORTEAZĂ",sentBreak:"Trimis!",sentBreakDesc:"Atelierul notificat",newRep:"Raport nou",req:"obligatoriu",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Anvelope și presiune"},
+    {k:"lgt",tag:"LGT",label:"Iluminat"},
+    {k:"bra",tag:"BRA",label:"Frâne"},
+    {k:"ste",tag:"STE",label:"Direcție"},
+    {k:"mot",tag:"MOT",label:"Motor și lichide"},
+    {k:"auf",tag:"AUF",label:"Caroserie și fixare marfă"},
+    {k:"spi",tag:"SPI",label:"Oglinzi și geamuri"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Anvelope"},{k:"lgt",tag:"LGT",label:"Iluminat"},
+    {k:"box",tag:"BOX",label:"Caroserie"},{k:"cpl",tag:"CPL",label:"Cuplaj"},
+    {k:"dr", tag:"DR", label:"Uși"},{k:"flr",tag:"FLR",label:"Podea"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Pană"},{k:"sos",tag:"SOS",label:"Accident"},
+    {k:"tyr",tag:"TYR",label:"Cauciuc"},{k:"oth",tag:"!",label:"Altele"},
+  ],
+},
+hu:{
+  label:"Sofőr",reg:"ELSŐ BEJELENTKEZÉS",fn:"Keresztnév",ln:"Vezetéknév",cont:"Tovább",pin:"PIN MEGADÁSA",login:"Bejelentkezés",
+  inspTruck:"Tehergépkocsi ellenőrzés",inspTrailer:"Pótkocsi ellenőrzés",repBreak:"Probléma bejelentése",
+  back:"Vissza",vehPh:"Rendszám megadása vagy választása",brandPh:"Márka / Modell",kmPh:"Kilométeróra állás (opcionális)",
+  okH:"OK",nOkH:"NEM OK",inspected:"ellenőrizve",faultShort:"Hiba",
+  defects:"Hibák",defectsPh:"Írja le a hibákat...",
+  photoAdd:"Fotók hozzáadása",submit:"Ellenőrzés befejezése",sending:"Küldés...",
+  sentTitle:"Kész!",sentOk:"Jelentés elküldve",newInsp:"Új ellenőrzés",
+  bdTitle:"Meghibásodás bejelentése",bdType:"Típus",
+  locLabel:"Helyszín",locPh:"A6 autópálya km 520...",
+  descLabel:"Leírás",descPh:"Mi történt?",
+  urgLabel:"Sürgősség",urgYes:"AZONNALI SEGÍTSÉG",urgNo:"VÁRHAT",
+  sendBtn:"BEJELENTÉS",sentBreak:"Elküldve!",sentBreakDesc:"Műhely értesítve",newRep:"Új jelentés",req:"kötelező",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Gumik és nyomás"},{k:"lgt",tag:"LGT",label:"Világítás"},
+    {k:"bra",tag:"BRA",label:"Fékek"},{k:"ste",tag:"STE",label:"Kormányzás"},
+    {k:"mot",tag:"MOT",label:"Motor és folyadékok"},{k:"auf",tag:"AUF",label:"Karosszéria és rakodás"},
+    {k:"spi",tag:"SPI",label:"Tükrök és ablakok"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Gumik"},{k:"lgt",tag:"LGT",label:"Világítás"},
+    {k:"box",tag:"BOX",label:"Karosszéria"},{k:"cpl",tag:"CPL",label:"Kapcsoló"},
+    {k:"dr", tag:"DR", label:"Ajtók"},{k:"flr",tag:"FLR",label:"Padló"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Meghibásodás"},{k:"sos",tag:"SOS",label:"Baleset"},
+    {k:"tyr",tag:"TYR",label:"Defekt"},{k:"oth",tag:"!",label:"Egyéb"},
+  ],
+},
+cs:{
+  label:"Řidič",reg:"PRVNÍ PŘIHLÁŠENÍ",fn:"Jméno",ln:"Příjmení",cont:"Pokračovat",pin:"ZADEJTE PIN",login:"Přihlásit",
+  inspTruck:"Kontrola nákladáku",inspTrailer:"Kontrola přívěsu",repBreak:"Nahlásit problém",
+  back:"Zpět",vehPh:"Zadejte nebo vyberte SPZ",brandPh:"Značka / Model",kmPh:"Stav km (nepovinné)",
+  okH:"OK",nOkH:"NENÍ OK",inspected:"zkontrolováno",faultShort:"Závada",
+  defects:"Závady",defectsPh:"Popište závady...",
+  photoAdd:"Přidat fotky",submit:"Dokončit kontrolu",sending:"Odesílání...",
+  sentTitle:"Hotovo!",sentOk:"Zpráva odeslána",newInsp:"Nová kontrola",
+  bdTitle:"Nahlásit poruchu",bdType:"Typ problému",
+  locLabel:"Poloha",locPh:"Dálnice A6 km 520...",
+  descLabel:"Popis",descPh:"Co se stalo?",
+  urgLabel:"Naléhavost",urgYes:"NUTNÁ POMOC",urgNo:"MŮŽE POČKAT",
+  sendBtn:"NAHLÁSIT",sentBreak:"Odesláno!",sentBreakDesc:"Dílna informována",newRep:"Nová zpráva",req:"povinné",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Pneumatiky a tlak"},{k:"lgt",tag:"LGT",label:"Osvětlení"},
+    {k:"bra",tag:"BRA",label:"Brzdy"},{k:"ste",tag:"STE",label:"Řízení"},
+    {k:"mot",tag:"MOT",label:"Motor a kapaliny"},{k:"auf",tag:"AUF",label:"Karoserie a náklad"},
+    {k:"spi",tag:"SPI",label:"Zrcátka a okna"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Pneumatiky"},{k:"lgt",tag:"LGT",label:"Osvětlení"},
+    {k:"box",tag:"BOX",label:"Karoserie"},{k:"cpl",tag:"CPL",label:"Spojka"},
+    {k:"dr", tag:"DR", label:"Dveře"},{k:"flr",tag:"FLR",label:"Podlaha"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Porucha"},{k:"sos",tag:"SOS",label:"Nehoda"},
+    {k:"tyr",tag:"TYR",label:"Defekt"},{k:"oth",tag:"!",label:"Jiné"},
+  ],
+},
 };
 
-function langKey(L) {
-  // UI uses uppercase codes, T uses lowercase
-  var map = { "DE":"de", "RU":"ru", "GB":"en", "UA":"uk", "RO":"ro", "HU":"hu", "CZ":"cs" };
-  return map[L] || "de";
+function getT(lang) { return T[LANG_MAP[lang]] || T.de; }
+
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+function sbGet(table, q) {
+  return fetch(SB_URL+"/rest/v1/"+table+(q?"?"+q:""), {
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+  }).then(function(r){ return r.ok?r.json():[]; })
+    .then(function(d){ return Array.isArray(d)?d:[]; })
+    .catch(function(){ return []; });
+}
+function sbPost(table, body) {
+  return fetch(SB_URL+"/rest/v1/"+table, {
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal"},
+    body:JSON.stringify(body)
+  }).then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
+}
+function sbPatch(table, col, val, body) {
+  return fetch(SB_URL+"/rest/v1/"+table+"?"+col+"=eq."+encodeURIComponent(val), {
+    method:"PATCH",
+    headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal"},
+    body:JSON.stringify(body)
+  }).then(function(r){ return r.ok; }).catch(function(){ return false; });
+}
+function uploadPhoto(b64, alertId, i) {
+  if (!b64) return Promise.resolve(null);
+  return fetch(b64).then(function(r){ return r.blob(); }).then(function(blob){
+    var ext = blob.type && blob.type.indexOf("png")!==-1?"png":"jpg";
+    var path = "eingang/"+alertId+"/photo_"+i+"."+ext;
+    return fetch(SB_URL+"/storage/v1/object/inspection-photos/"+path, {
+      method:"POST",
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":blob.type||"image/jpeg","x-upsert":"true"},
+      body:blob
+    }).then(function(r){ return r.ok?(SB_URL+"/storage/v1/object/public/inspection-photos/"+path):null; });
+  }).catch(function(){ return null; });
+}
+function uploadAll(photos, alertId) {
+  if (!photos.length) return Promise.resolve([]);
+  return Promise.all(photos.map(function(p,i){ return uploadPhoto(p,alertId,i); }))
+    .then(function(urls){ return urls.filter(Boolean); });
 }
 
-function getT(lang) {
-  var k = langKey(lang);
-  return Object.assign({}, COMMON_T.de, T.de, COMMON_T[k] || {}, T[k] || {});
-}
-
-const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
-
-const TRUCK_CHECKS = [
-  { k:"tyr", emoji:"TYR", label:"Reifen und Luftdruck" },
-  { k:"lgt", emoji:"LGT", label:"Beleuchtung und Blinker" },
-  { k:"bra", emoji:"BRA", label:"Bremsen" },
-  { k:"ste", emoji:"STE", label:"Lenkung" },
-  { k:"mot", emoji:"MOT", label:"Motor und Flüssigkeiten" },
-  { k:"auf", emoji:"AUF", label:"Aufbau und Ladungssicherung" },
-  { k:"spi", emoji:"SPI", label:"Spiegel und Sicht" },
-];
-
-const TRAILER_CHECKS = [
-  { k:"tyr", emoji:"TYR", label:"Reifen und Luftdruck" },
-  { k:"lgt", emoji:"LGT", label:"Beleuchtung und Blinker" },
-  { k:"box", emoji:"BOX", label:"Karosserie / Plane" },
-  { k:"cpl", emoji:"CPL", label:"Kupplung und Sattel" },
-  { k:"dr",  emoji:"DR",  label:"Türen und Verschlüsse" },
-  { k:"flr", emoji:"FLR", label:"Ladeboden" },
-];
-
-const BD_TYPES = [
-  { k:"def", tag:"DEF", label:"Panne / Defekt" },
-  { k:"sos", tag:"SOS", label:"SOS Unfall" },
-  { k:"tyr", tag:"TYR", label:"Reifenpanne" },
-  { k:"oth", tag:"!",   label:"Sonstiges" },
-];
-
-function translateToGerman(text) {
-  // Translation from browser to external AI API was intentionally disabled.
-  // Direct AI calls from frontend are unreliable and unsafe because API keys cannot be protected.
-  // Keep the original driver text; backend/Edge Function can translate it later if needed.
-  return Promise.resolve(text || "");
-}
-
-
-async function sbSelect(table, query) {
-  const url = SB_URL + "/rest/v1/" + table + (query ? "?" + query : "");
-  const res = await fetch(url, {
-    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
-  });
-  if (!res.ok) throw new Error("Supabase select failed");
-  return res.json();
-}
-
-async function sbInsert(table, payload) {
-  const res = await fetch(SB_URL + "/rest/v1/" + table, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SB_KEY,
-      "Authorization": "Bearer " + SB_KEY,
-      "Prefer": "return=representation"
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    var msg = "";
-    try { msg = await res.text(); } catch(e){}
-    throw new Error("Supabase " + table + " insert failed: " + res.status + " " + msg);
-  }
-  return res.json();
-}
-
-async function uploadPhotoToEingang(base64, alertId, index) {
-  if (!base64) return null;
-  try {
-    const res = await fetch(base64);
-    const blob = await res.blob();
-    const ext = blob.type && blob.type.indexOf("png") !== -1 ? "png" : "jpg";
-    const path = "eingang/" + alertId + "/photo_" + index + "." + ext;
-    const up = await fetch(SB_URL + "/storage/v1/object/inspection-photos/" + path, {
-      method: "POST",
-      headers: {
-        "apikey": SB_KEY,
-        "Authorization": "Bearer " + SB_KEY,
-        "Content-Type": blob.type || "image/jpeg",
-        "x-upsert": "true"
-      },
-      body: blob
-    });
-    if (!up.ok) return null;
-    return SB_URL + "/storage/v1/object/public/inspection-photos/" + path;
-  } catch(e) {
-    console.error("photo upload:", e);
-    return null;
-  }
-}
-
-// === Components ===
-
+// ── COMMON ────────────────────────────────────────────────────────────────────
 function Bg() { return <div className="bg-image"></div>; }
 
-
-function Logo({ size = 44 }) {
+function Logo({ size }) {
   return (
-    <div style={{ fontSize:size, fontWeight:900, letterSpacing:-1.5, lineHeight:1 }}>
-      <span style={{ color:"#fff" }}>Werk</span>
-      <span style={{ color:"#ffa500" }}>Flow</span>
+    <div style={{ fontSize:size||44, fontWeight:900, letterSpacing:-1.5, lineHeight:1 }}>
+      <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#ffa500" }}>Flow</span>
     </div>
   );
 }
 
-function FahrerLabel({ size = 32, label = "Fahrer" }) {
-  return <div style={{ fontSize:size, fontWeight:800, color:"#ffa500", marginTop:6 }}>{label}</div>;
+function LangSwitcher({ lang, setLang }) {
+  var _o = useState(false); var open = _o[0]; var setOpen = _o[1];
+  var ref = useRef(null);
+  useEffect(function(){
+    function h(e){ if(ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown",h); document.addEventListener("touchstart",h);
+    return function(){ document.removeEventListener("mousedown",h); document.removeEventListener("touchstart",h); };
+  },[]);
+  return (
+    <div ref={ref} style={{ position:"relative",display:"inline-block" }}>
+      <button className="lang-switch" onClick={function(){ setOpen(!open); }}>
+        <span>🌐</span><span>{lang}</span>
+        <span style={{ color:"#ffa500",fontSize:10,display:"inline-block",transform:open?"rotate(180deg)":"none",transition:"transform 0.2s" }}>▼</span>
+      </button>
+      {open && (
+        <div className="lang-menu">
+          {LANGS.map(function(L){ return <button key={L} className={lang===L?"on":""} onClick={function(){ setLang(L); setOpen(false); }}>{L}</button>; })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function BackBtn({ onClick }) {
   return (
-    <button className="btn-back" onClick={onClick} aria-label="Back">
+    <button className="btn-back" onClick={onClick}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
         <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
@@ -819,40 +419,94 @@ function BackBtn({ onClick }) {
   );
 }
 
-function LangSwitcher({ lang, setLang, inline }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+// ── VEHICLE COMBOBOX ──────────────────────────────────────────────────────────
+function VehicleCombobox({ vehicles, vehicleType, value, onChange, t, allowAll }) {
+  var _p = useState(value&&value.plate?value.plate:""); var plate = _p[0]; var setPlate = _p[1];
+  var _b = useState(value&&value.brand?value.brand:""); var brand = _b[0]; var setBrand = _b[1];
+  var _o = useState(false); var open = _o[0]; var setOpen = _o[1];
+  var ref = useRef(null);
   useEffect(function(){
-    const handler = function(e){
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return function(){
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, []);
-  // Default: absolute top-right of nearest positioned parent
-  // inline=true: just inline (for use inside flex header)
-  const wrapStyle = inline
-    ? { position:"relative", display:"inline-block" }
-    : { position:"absolute", top:"max(env(safe-area-inset-top), 14px)", right:16, zIndex:30 };
+    function h(e){ if(ref.current&&!ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown",h); document.addEventListener("touchstart",h);
+    return function(){ document.removeEventListener("mousedown",h); document.removeEventListener("touchstart",h); };
+  },[]);
+  var list = vehicles.filter(function(v){
+    if(!allowAll && vehicleType && v.type && v.type!==vehicleType) return false;
+    if(!plate.trim()) return true;
+    return ((v.plate||"")+" "+(v.brand||"")).toLowerCase().indexOf(plate.toLowerCase().trim())!==-1;
+  });
+  function pick(v){ setPlate(v.plate); setBrand(v.brand||""); setOpen(false); onChange({plate:v.plate,brand:v.brand||"",id:v.id,isNew:false}); }
+  function commit(){
+    var p=plate.trim(); if(!p){ onChange(null); return; }
+    var ex=vehicles.find(function(v){ return (v.plate||"").toLowerCase()===p.toLowerCase(); });
+    if(ex) onChange({plate:ex.plate,brand:ex.brand||brand,id:ex.id,isNew:false});
+    else onChange({plate:p,brand:brand.trim(),isNew:true});
+  }
   return (
-    <div ref={ref} style={wrapStyle}>
-      <button className="lang-switch" onClick={function(){ setOpen(!open); }}>
-        <span>🌐</span>
-        <span>{lang}</span>
-        <span className="arrow" style={{ transform: open ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>▼</span>
-      </button>
-      {open && (
-        <div className="lang-menu">
-          {LANGS.map(function(L){
+    <div ref={ref} style={{ position:"relative" }}>
+      <input className="drop-input" value={plate}
+        placeholder={t?t.vehPh:"Kennzeichen eingeben..."}
+        onChange={function(e){ setPlate(e.target.value); setOpen(true); }}
+        onFocus={function(){ setOpen(true); }}
+        onBlur={function(){ setTimeout(commit,200); }} />
+      {open && list.length>0 && (
+        <div className="drop-list">
+          {list.slice(0,30).map(function(v){
             return (
-              <button key={L} className={lang === L ? "active" : ""}
-                onClick={function(){ setLang(L); setOpen(false); }}>
-                {L}
-              </button>
+              <div key={v.id||v.plate} className="drop-item"
+                onMouseDown={function(e){ e.preventDefault(); pick(v); }}
+                onTouchStart={function(e){ e.preventDefault(); pick(v); }}>
+                <div style={{ fontWeight:700 }}>{v.plate}</div>
+                {v.brand && <div style={{ fontSize:12,color:"rgba(255,255,255,0.55)" }}>{v.brand}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {plate.trim() && (
+        <input className="drop-input" style={{ marginTop:8,fontSize:14,padding:"10px 16px" }}
+          value={brand} placeholder={t?t.brandPh:"Marke / Modell"}
+          onChange={function(e){ setBrand(e.target.value); }}
+          onBlur={function(){ setTimeout(commit,200); }} />
+      )}
+      {plate.trim() && !vehicles.some(function(v){ return (v.plate||"").toLowerCase()===plate.trim().toLowerCase(); }) && (
+        <div style={{ marginTop:6,color:"rgba(255,255,255,0.55)",fontSize:12,fontWeight:600 }}>
+          + Neues Fahrzeug: <span style={{ color:"#ffa500" }}>{plate.trim()}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PHOTO UPLOAD ──────────────────────────────────────────────────────────────
+function PhotoUpload({ photos, setPhotos, t }) {
+  var ref = useRef(null);
+  function onFiles(e){
+    var files=Array.from(e.target.files||[]);
+    Promise.all(files.map(function(f){
+      return new Promise(function(res){ var r=new FileReader(); r.onload=function(ev){ res(ev.target.result); }; r.readAsDataURL(f); });
+    })).then(function(arr){ setPhotos(photos.concat(arr)); });
+    e.target.value="";
+  }
+  return (
+    <div>
+      <button type="button" onClick={function(){ if(ref.current) ref.current.click(); }}
+        style={{ all:"unset",display:"block",width:"100%",cursor:"pointer" }}>
+        <div className="photo-box">
+          <div style={{ fontSize:24,color:"#ffa500" }}>📷</div>
+          <div style={{ marginTop:6 }}>{t?t.photoAdd:"Fotos hinzufügen"}{photos.length>0?" ("+photos.length+")":""}</div>
+        </div>
+      </button>
+      <input ref={ref} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={onFiles} />
+      {photos.length>0 && (
+        <div style={{ display:"flex",gap:8,marginTop:10,flexWrap:"wrap" }}>
+          {photos.map(function(p,i){
+            return (
+              <div key={i} style={{ position:"relative" }}>
+                <img src={p} alt="" style={{ width:70,height:70,objectFit:"cover",borderRadius:8,border:"1px solid rgba(255,255,255,0.2)" }} />
+                <button type="button" onClick={function(){ setPhotos(photos.filter(function(_,j){ return j!==i; })); }}
+                  style={{ position:"absolute",top:-6,right:-6,width:20,height:20,border:0,borderRadius:"50%",background:"#ef4444",color:"#fff",fontWeight:800,fontSize:12 }}>×</button>
+              </div>
             );
           })}
         </div>
@@ -861,88 +515,44 @@ function LangSwitcher({ lang, setLang, inline }) {
   );
 }
 
-function PrimaryBtn({ children, onClick, disabled, style }) {
-  return (
-    <button className="btn-primary" onClick={onClick} disabled={disabled}
-      style={Object.assign({ width:"100%", opacity: disabled ? 0.5 : 1 }, style || {})}>
-      {children}
-    </button>
-  );
-}
-
-// === SCREEN: Erste Anmeldung ===
-
-function ErsteAnmeldung({ lang, setLang, onContinue }) {
-  const [vorname, setVorname] = useState("");
-  const [nachname, setNachname] = useState("");
-  const t = getT(lang);
-  const ok = vorname.trim() && nachname.trim();
-
+// ── ERSTE ANMELDUNG ───────────────────────────────────────────────────────────
+function ErsteAnmeldung({ lang, setLang, onNext }) {
+  var _v=useState(""); var v=_v[0]; var setV=_v[1];
+  var _n=useState(""); var n=_n[0]; var setN=_n[1];
+  var t=getT(lang); var ok=v.trim()&&n.trim();
   return (
     <div className="scrn">
       <Bg />
-      <div style={{ position:"relative", zIndex:2 }}>
-        <LangSwitcher lang={lang} setLang={setLang} />
-
+      <div style={{ position:"relative",zIndex:2 }}>
+        <div style={{ position:"absolute",top:0,right:0 }}><LangSwitcher lang={lang} setLang={setLang} /></div>
         <div style={{ marginTop:60 }}>
           <Logo size={40} />
-          <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:14 }}>
-            <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.5)",
-              letterSpacing:1.5 }}>{t.poweredBy}</div>
-            <div style={{ width:1, height:32, background:"rgba(255,255,255,0.3)" }}></div>
-            <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", lineHeight:1.4 }}>
-              <span dangerouslySetInnerHTML={{__html: t.clientName.replace("LTG", '<span style=\"color:#ffa500;font-weight:700\">LTG</span>').replace(" - ", " -<br/>")}} />
-            </div>
+          <div style={{ display:"flex",alignItems:"center",gap:12,marginTop:14 }}>
+            <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",letterSpacing:1.5 }}>POWERED BY</div>
+            <div style={{ width:1,height:32,background:"rgba(255,255,255,0.3)" }}></div>
+            <div style={{ fontSize:11,color:"rgba(255,255,255,0.85)",lineHeight:1.4 }}>Die <span style={{ color:"#ffa500",fontWeight:700 }}>LTG</span> - Landauer<br/>Transportgesellschaft Doll KG</div>
           </div>
         </div>
-
-        <FahrerLabel size={38} label={t.driverLabel} />
-        <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.55)",
-          letterSpacing:3, marginTop:6, marginBottom:18 }}>
-          {t.firstLogin}
-        </div>
-
-        <div style={{ background:"#fff", color:"#0a1730", borderRadius:18, padding:22,
-          boxShadow:"0 16px 40px rgba(0,0,0,0.4)" }}>
+        <div style={{ color:"#ffa500",fontSize:36,fontWeight:900,marginTop:20 }}>{t.label}</div>
+        <div style={{ fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.55)",letterSpacing:3,marginTop:6,marginBottom:18 }}>{t.reg}</div>
+        <div style={{ background:"#fff",color:"#0a1730",borderRadius:18,padding:22,boxShadow:"0 16px 40px rgba(0,0,0,0.4)" }}>
           <div style={{ marginBottom:16 }}>
-            <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8, fontSize:14 }}>
-              {t.firstName} <span style={{ color:"#dc2626" }}>*</span>
-            </div>
+            <div style={{ fontWeight:700,color:"#1e3a6b",marginBottom:8,fontSize:14 }}>{t.fn} <span style={{ color:"#dc2626" }}>*</span></div>
             <div style={{ position:"relative" }}>
-              <span className="field-icon-light">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </span>
-              <input type="text" className="input-light" value={vorname}
-                onChange={function(e){ setVorname(e.target.value); }} />
+              <span className="field-icon">👤</span>
+              <input type="text" className="input-light" value={v} onChange={function(e){ setV(e.target.value); }} placeholder="Roman" />
             </div>
           </div>
-
           <div style={{ marginBottom:20 }}>
-            <div style={{ fontWeight:700, color:"#1e3a6b", marginBottom:8, fontSize:14 }}>
-              {t.lastName} <span style={{ color:"#dc2626" }}>*</span>
-            </div>
+            <div style={{ fontWeight:700,color:"#1e3a6b",marginBottom:8,fontSize:14 }}>{t.ln} <span style={{ color:"#dc2626" }}>*</span></div>
             <div style={{ position:"relative" }}>
-              <span className="field-icon-light">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </span>
-              <input type="text" className="input-light" value={nachname}
-                onChange={function(e){ setNachname(e.target.value); }} />
+              <span className="field-icon">👤</span>
+              <input type="text" className="input-light" value={n} onChange={function(e){ setN(e.target.value); }} placeholder="Anokhin" />
             </div>
           </div>
-
-          <button onClick={function(){ if (ok) onContinue(vorname.trim(), nachname.trim()); }}
-            disabled={!ok}
-            style={{ width:"100%", padding:18, background:"#1e3a6b", color:"#fff",
-              border:"none", borderRadius:12, fontSize:17, fontWeight:700,
-              opacity: ok ? 1 : 0.5,
-              display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
-            {t.continueBtn} <span style={{ fontSize:20 }}>→</span>
+          <button onClick={function(){ if(ok) onNext(v.trim(),n.trim()); }} disabled={!ok}
+            style={{ width:"100%",padding:18,background:"#1e3a6b",color:"#fff",border:"none",borderRadius:12,fontSize:17,fontWeight:700,opacity:ok?1:0.5,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
+            {t.cont} <span style={{ fontSize:20 }}>→</span>
           </button>
         </div>
       </div>
@@ -950,148 +560,83 @@ function ErsteAnmeldung({ lang, setLang, onContinue }) {
   );
 }
 
-// === SCREEN: PIN Login ===
-
-function PinLogin({ onSuccess, lang, setLang }) {
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
-  const t = getT(lang);
-
-  const press = function(d) {
-    if (pin.length >= 4) return;
-    setError(false);
-    const next = pin + d;
-    setPin(next);
-    if (next.length === 4) {
-      setTimeout(function(){
-        if (next === APP_PIN) onSuccess();
-        else { setError(true); setTimeout(function(){ setPin(""); setError(false); }, 700); }
-      }, 150);
-    }
-  };
-  const back = function() { setPin(pin.slice(0, -1)); setError(false); };
-  const submit = function() {
-    if (pin === APP_PIN) onSuccess();
-    else { setError(true); setTimeout(function(){ setPin(""); setError(false); }, 700); }
-  };
-
+// ── PIN ───────────────────────────────────────────────────────────────────────
+function PinScreen({ lang, setLang, onOk }) {
+  var _p=useState(""); var p=_p[0]; var setP=_p[1];
+  var _e=useState(false); var err=_e[0]; var setErr=_e[1];
+  var t=getT(lang);
+  function press(d){
+    if(p.length>=4) return; setErr(false);
+    var nx=p+d; setP(nx);
+    if(nx.length===4) setTimeout(function(){ if(nx===APP_PIN) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } },150);
+  }
   return (
-    <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 50px)" }}>
+    <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top),50px)" }}>
       <Bg />
-      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <LangSwitcher lang={lang} setLang={setLang} />
-        <div style={{ marginTop:60 }}>
-          <Logo size={42} />
-          <FahrerLabel size={32} label={t.driverLabel} />
-          <div style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.6)",
-            letterSpacing:3, marginTop:8 }}>
-            {t.pinLabel}
-          </div>
+      <div style={{ position:"relative",zIndex:2,flex:1,display:"flex",flexDirection:"column" }}>
+        <div style={{ position:"absolute",top:0,right:0 }}><LangSwitcher lang={lang} setLang={setLang} /></div>
+        <div style={{ marginTop:60 }}><Logo size={42} /></div>
+        <div style={{ color:"#ffa500",fontSize:32,fontWeight:900,marginTop:8 }}>{t.label}</div>
+        <div style={{ fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.6)",letterSpacing:3,marginTop:8 }}>{t.pin}</div>
+        <div style={{ display:"flex",justifyContent:"center",gap:14,marginTop:24 }}>
+          {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot"+(i<p.length?" on":"")+(err?" err":"")}></div>; })}
         </div>
-
-        <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:24 }}>
-          {[0,1,2,3].map(function(i){
-            return <div key={i}
-              className={"pin-dot" + (i < pin.length ? " filled" : "") + (error ? " error" : "")}></div>;
-          })}
-        </div>
-
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 68px)", gap:14,
-          maxWidth:260, width:"100%", margin:"24px auto 0", justifyContent:"center" }}>
-          {[1,2,3,4,5,6,7,8,9].map(function(d){
-            return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>;
-          })}
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,68px)",gap:14,maxWidth:260,width:"100%",margin:"24px auto 0",justifyContent:"center" }}>
+          {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>; })}
           <div></div>
           <button className="keypad-btn" onClick={function(){ press("0"); }}>0</button>
-          <button className="keypad-btn" onClick={back}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M21 5H8L3 12l5 7h13a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          <button className="keypad-btn" onClick={function(){ setP(function(x){ return x.slice(0,-1); }); setErr(false); }}>⌫</button>
         </div>
-
         <div style={{ flex:1 }}></div>
-
-        <button onClick={submit} disabled={pin.length !== 4}
-          style={{ width:"100%", padding:18, background:"transparent",
-            border:"1.5px solid rgba(255,255,255,0.4)", borderRadius:14,
-            color:"#fff", fontSize:17, fontWeight:600,
-            opacity: pin.length === 4 ? 1 : 0.5,
-            display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-            marginBottom:20 }}>
-          {t.loginBtn} <span style={{ fontSize:20 }}>→</span>
+        <button onClick={function(){ if(p===APP_PIN) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } }}
+          disabled={p.length!==4}
+          style={{ width:"100%",padding:18,background:"transparent",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:14,color:"#fff",fontSize:17,fontWeight:600,opacity:p.length===4?1:0.5,marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
+          {t.login} <span style={{ fontSize:20 }}>→</span>
         </button>
       </div>
     </div>
   );
 }
 
-// === SCREEN: Slider unlock ===
-
-function SliderUnlock({ onUnlock, lang, setLang }) {
-  const [x, setX] = useState(0);
-  const [drag, setDrag] = useState(false);
-  const t = getT(lang);
-  const trackRef = useRef(null);
-  const MAX_REF = useRef(0);
-
-  useEffect(function(){
-    if (trackRef.current) MAX_REF.current = trackRef.current.offsetWidth - 78;
-  }, []);
-
-  const start = function(clientX){
-    setDrag(true);
-    const startX = clientX;
-    let curX = x;
-    const move = function(e){
-      const cx = e.touches ? e.touches[0].clientX : e.clientX;
-      curX = Math.max(0, Math.min(MAX_REF.current, cx - startX + x));
-      setX(curX);
-    };
-    const up = function(){
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("touchmove", move);
-      window.removeEventListener("mouseup", up);
-      window.removeEventListener("touchend", up);
+// ── SLIDER ────────────────────────────────────────────────────────────────────
+function SliderScreen({ lang, setLang, name, onUnlock }) {
+  var _x=useState(0); var x=_x[0]; var setX=_x[1];
+  var _d=useState(false); var drag=_d[0]; var setDrag=_d[1];
+  var ref=useRef(null); var maxR=useRef(0);
+  var t=getT(lang);
+  useEffect(function(){ if(ref.current) maxR.current=ref.current.offsetWidth-78; },[]);
+  function slide(cx0){
+    setDrag(true); var s=cx0,ox=x,cur=ox;
+    function mv(e){ var cx=e.touches?e.touches[0].clientX:e.clientX; cur=Math.max(0,Math.min(maxR.current,cx-s+ox)); setX(cur); }
+    function up(){
+      window.removeEventListener("mousemove",mv); window.removeEventListener("touchmove",mv);
+      window.removeEventListener("mouseup",up); window.removeEventListener("touchend",up);
       setDrag(false);
-      if (curX >= MAX_REF.current * 0.85) {
-        setX(MAX_REF.current);
-        setTimeout(onUnlock, 100);
-      } else {
-        setX(0);
-      }
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("touchmove", move, { passive:false });
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
-  };
-
+      if(cur>=maxR.current*0.85){ setX(maxR.current); setTimeout(onUnlock,100); } else setX(0);
+    }
+    window.addEventListener("mousemove",mv); window.addEventListener("touchmove",mv,{passive:false});
+    window.addEventListener("mouseup",up); window.addEventListener("touchend",up);
+  }
   return (
-    <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top), 60px)" }}>
+    <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top),60px)" }}>
       <Bg />
-      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <LangSwitcher lang={lang} setLang={setLang} />
+      <div style={{ position:"relative",zIndex:2,flex:1,display:"flex",flexDirection:"column" }}>
+        <div style={{ position:"absolute",top:0,right:0 }}><LangSwitcher lang={lang} setLang={setLang} /></div>
         <div style={{ marginTop:80 }}>
           <Logo size={42} />
-          <FahrerLabel size={32} label={t.driverLabel} />
+          <div style={{ color:"#ffa500",fontSize:32,fontWeight:900,marginTop:8 }}>{t.label}</div>
+          {name && <div style={{ color:"rgba(255,255,255,0.6)",fontSize:14,marginTop:6 }}>Guten Tag, {name}</div>}
         </div>
         <div style={{ flex:1 }}></div>
-        <div ref={trackRef} className="slider-track" style={{ marginBottom:30 }}>
+        <div ref={ref} className="slider-track" style={{ marginBottom:30 }}>
           <div className="slider-marks">
-            <div className="slider-mark"></div>
-            <div className="slider-mark"></div>
-            <div className="slider-mark"></div>
-            <div className="slider-mark"></div>
+            <div className="slider-mark"></div><div className="slider-mark"></div>
+            <div className="slider-mark"></div><div className="slider-mark"></div>
           </div>
-          <div className="slider-thumb"
-            style={{ left: 6 + x, transition: drag ? "none" : "left 0.3s ease" }}
-            onMouseDown={function(e){ start(e.clientX); }}
-            onTouchStart={function(e){ start(e.touches[0].clientX); }}>
-            <div className="slider-grip">
-              <span></span><span></span><span></span>
-            </div>
+          <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:24,color:"rgba(255,255,255,0.35)",fontSize:13,fontWeight:700,pointerEvents:"none" }}>SCHIEBEN →</div>
+          <div className="slider-thumb" style={{ left:6+x,transition:drag?"none":"left 0.3s" }}
+            onMouseDown={function(e){ slide(e.clientX); }} onTouchStart={function(e){ slide(e.touches[0].clientX); }}>
+            <div className="slider-grip"><span></span><span></span><span></span></div>
           </div>
         </div>
       </div>
@@ -1099,42 +644,34 @@ function SliderUnlock({ onUnlock, lang, setLang }) {
   );
 }
 
-// === SCREEN: Main Menu ===
-
-function MainMenu({ onPick, lang, setLang }) {
-  const [active, setActive] = useState(null);
-  const t = getT(lang);
-  const pick = function(k){ setActive(k); setTimeout(function(){ onPick(k); }, 150); };
-
+// ── MAIN MENU ─────────────────────────────────────────────────────────────────
+function MainMenu({ lang, setLang, onPick }) {
+  var _a=useState(null); var active=_a[0]; var setActive=_a[1];
+  var t=getT(lang);
+  function pick(k){ setActive(k); setTimeout(function(){ onPick(k); },150); }
   return (
     <div className="scrn">
       <Bg />
-      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
-        <LangSwitcher lang={lang} setLang={setLang} />
+      <div style={{ position:"relative",zIndex:2,flex:1,display:"flex",flexDirection:"column" }}>
+        <div style={{ position:"absolute",top:0,right:0,zIndex:10 }}><LangSwitcher lang={lang} setLang={setLang} /></div>
         <div style={{ marginTop:"34vh" }}>
           <Logo size={40} />
-          <FahrerLabel size={36} label={t.driverLabel} />
+          <div style={{ color:"#ffa500",fontSize:36,fontWeight:900,marginTop:8 }}>{t.label}</div>
         </div>
-
-        <div style={{ marginTop:"auto", paddingBottom:24, display:"flex",
-          flexDirection:"column", gap:14 }}>
-          <button className={"menu-card" + (active === "lkw" ? " active" : "")}
-            onClick={function(){ pick("lkw"); }}>
+        <div style={{ marginTop:"auto",paddingBottom:24,display:"flex",flexDirection:"column",gap:14 }}>
+          <button className={"menu-card"+(active==="lkw"?" sel":"")} onClick={function(){ pick("lkw"); }}>
             <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path d="M14 18V6H1v12h13zM14 9h4l3 3v6h-7M5.5 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18.5 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 18V6H1v12h13zM14 9h4l3 3v6h-7M5.5 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18.5 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <div style={{ flex:1, textAlign:"left" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{t.inspectTruck}</div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>{"7 " + (t.points || "Punkte")}</div>
+            <div style={{ flex:1,textAlign:"left" }}>
+              <div style={{ fontSize:18,fontWeight:800 }}>{t.inspTruck}</div>
+              <div style={{ fontSize:13,color:"rgba(255,255,255,0.55)" }}>7 Punkte</div>
             </div>
-            <span style={{ color: active === "lkw" ? "#ffa500" : "rgba(255,255,255,0.45)", fontSize:22 }}>›</span>
+            <span style={{ color:active==="lkw"?"#ffa500":"rgba(255,255,255,0.4)",fontSize:22 }}>›</span>
           </button>
-
-          <button className={"menu-card" + (active === "auf" ? " active" : "")}
-            onClick={function(){ pick("auf"); }}>
+          <button className={"menu-card"+(active==="auf"?" sel":"")} onClick={function(){ pick("auf"); }}>
             <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -1142,26 +679,23 @@ function MainMenu({ onPick, lang, setLang }) {
                 <circle cx="15" cy="20" r="2" stroke="currentColor" strokeWidth="2"/>
               </svg>
             </div>
-            <div style={{ flex:1, textAlign:"left" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{t.inspectTrailer}</div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>{"6 " + (t.points || "Punkte")}</div>
+            <div style={{ flex:1,textAlign:"left" }}>
+              <div style={{ fontSize:18,fontWeight:800 }}>{t.inspTrailer}</div>
+              <div style={{ fontSize:13,color:"rgba(255,255,255,0.55)" }}>6 Punkte</div>
             </div>
-            <span style={{ color: active === "auf" ? "#ffa500" : "rgba(255,255,255,0.45)", fontSize:22 }}>›</span>
+            <span style={{ color:active==="auf"?"#ffa500":"rgba(255,255,255,0.4)",fontSize:22 }}>›</span>
           </button>
-
-          <button className={"menu-card danger" + (active === "bd" ? " active" : "")}
-            onClick={function(){ pick("bd"); }}>
+          <button className={"menu-card danger"+(active==="bd"?" sel":"")} onClick={function(){ pick("bd"); }}>
             <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <div style={{ flex:1, textAlign:"left" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>{t.reportBreakdown}</div>
-              <div style={{ fontSize:13, color:"#ff8b80" }}>{t.breakdownTitle}</div>
+            <div style={{ flex:1,textAlign:"left" }}>
+              <div style={{ fontSize:18,fontWeight:800 }}>{t.repBreak}</div>
+              <div style={{ fontSize:13,color:"#ff8b80" }}>{t.bdTitle}</div>
             </div>
-            <span style={{ color: active === "bd" ? "#ff3b30" : "rgba(255,140,140,0.55)", fontSize:22 }}>›</span>
+            <span style={{ color:active==="bd"?"#ff3b30":"rgba(255,140,140,0.5)",fontSize:22 }}>›</span>
           </button>
         </div>
       </div>
@@ -1169,670 +703,313 @@ function MainMenu({ onPick, lang, setLang }) {
   );
 }
 
-// === Vehicle Combobox: search + select + free input + save ===
-
-function VehicleCombobox({ vehicles, vehicleType, value, onChange, label, placeholder, allowAll }) {
-  // value = { plate, brand } or null
-  const [open, setOpen] = useState(false);
-  const [plate, setPlate] = useState(value && value.plate ? value.plate : "");
-  const [brand, setBrand] = useState(value && value.brand ? value.brand : "");
-  const [editingBrand, setEditingBrand] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(function(){
-    if (value) {
-      setPlate(value.plate || "");
-      setBrand(value.brand || "");
-    }
-  }, [value]);
+// ── INSPECTION ────────────────────────────────────────────────────────────────
+function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
+  var vType = kind==="lkw"?"truck":"trailer";
+  var t = getT(lang);
+  var items = kind==="lkw" ? t.truckChecks : t.trailerChecks;
+  var _veh=useState([]); var vehicles=_veh[0]; var setVehicles=_veh[1];
+  var _sel=useState(null); var sel=_sel[0]; var setSel=_sel[1];
+  var _chk=useState({}); var chk=_chk[0]; var setChk=_chk[1];
+  var _notes=useState(""); var notes=_notes[0]; var setNotes=_notes[1];
+  var _km=useState(""); var km=_km[0]; var setKm=_km[1];
+  var _ph=useState([]); var photos=_ph[0]; var setPhotos=_ph[1];
+  var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
+  var _done=useState(false); var done=_done[0]; var setDone=_done[1];
+  var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
 
   useEffect(function(){
-    const handler = function(e){
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-        setEditingBrand(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return function(){
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, []);
-
-  // Filter list by typed plate
-  const list = vehicles.filter(function(v){
-    if (!allowAll && v.type && vehicleType && v.type !== vehicleType) return false;
-    if (!plate.trim()) return true;
-    return (v.plate + " " + (v.brand||"")).toLowerCase()
-      .indexOf(plate.toLowerCase().trim()) !== -1;
-  });
-
-  const pickExisting = function(v){
-    setPlate(v.plate);
-    setBrand(v.brand || "");
-    setOpen(false);
-    onChange({ plate: v.plate, brand: v.brand || "", id: v.id, isNew: false });
-  };
-
-  const commit = function(){
-    const p = plate.trim();
-    const b = brand.trim();
-    if (!p) { onChange(null); return; }
-    // Check if matches existing
-    const existing = vehicles.find(function(v){
-      return v.plate.toLowerCase() === p.toLowerCase();
+    sbGet("vehicles","type=eq."+vType+"&select=id,plate,brand,model&order=plate").then(function(rows){
+      setVehicles(rows.map(function(r){ return {id:r.id,plate:r.plate,brand:(r.brand||"")+(r.model?" "+r.model:""),type:vType}; }));
     });
-    if (existing) {
-      onChange({ plate: existing.plate, brand: existing.brand || b, id: existing.id, isNew: false });
-    } else {
-      onChange({ plate: p, brand: b, isNew: true });
-    }
-  };
+  },[vType]);
 
-  return (
-    <div ref={ref} style={{ position:"relative" }}>
-      {label && <div className="label-cap">{label}</div>}
+  var checkedCount=items.filter(function(c){ return chk[c.k]; }).length;
+  var hasFault=items.some(function(c){ return chk[c.k]==="fail"; });
+  var allDone=checkedCount===items.length;
+  function setCheck(k,v){ setChk(function(prev){ var n=Object.assign({},prev); n[k]=v; return n; }); }
 
-      {/* Plate input */}
-      <div style={{ position:"relative" }}>
-        <input
-          className="dropdown-trigger"
-          style={{ paddingRight:40, fontWeight:600 }}
-          placeholder={placeholder || "Kennzeichen eingeben oder wählen"}
-          value={plate}
-          onChange={function(e){ setPlate(e.target.value); setOpen(true); }}
-          onFocus={function(){ setOpen(true); }}
-          onBlur={function(){ setTimeout(commit, 200); }}
-        />
-        <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)",
-          color:"#ffa500", fontSize:14, pointerEvents:"none" }}>▼</span>
-      </div>
-
-      {/* Brand input - shown when plate is entered */}
-      {plate.trim() && (
-        <div style={{ marginTop:8, position:"relative" }}>
-          <input
-            className="dropdown-trigger"
-            style={{ fontWeight:500, fontSize:14, paddingTop:10, paddingBottom:10,
-              borderColor: brand.trim() ? "#ffa500" : "rgba(255,255,255,0.2)" }}
-            placeholder="Marke / Modell (z.B. MAN TGX 18.440)"
-            value={brand}
-            onChange={function(e){ setBrand(e.target.value); }}
-            onBlur={function(){ setTimeout(commit, 200); }}
-          />
-        </div>
-      )}
-
-      {/* Dropdown with existing vehicles */}
-      {open && list.length > 0 && (
-        <div className="dropdown-list">
-          {list.slice(0, 30).map(function(v){
-            return (
-              <div key={v.id || v.plate} className="dropdown-item"
-                onMouseDown={function(e){ e.preventDefault(); pickExisting(v); }}
-                onTouchStart={function(e){ e.preventDefault(); pickExisting(v); }}>
-                <div style={{ fontWeight:700 }}>{v.plate}</div>
-                {v.brand && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{v.brand}</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {plate.trim() && !vehicles.some(function(v){ return (v.plate || "").toLowerCase() === plate.trim().toLowerCase(); }) && (
-        <div style={{ marginTop:8, color:"rgba(255,255,255,0.65)", fontSize:12, fontWeight:600 }}>
-          + Neues Fahrzeug wird beim Senden gespeichert: <span style={{ color:"#ffa500" }}>{plate.trim()}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Helper: ensure vehicle exists in DB (insert if new)
-async function ensureVehicleInDb(plate, brand, vehicleType) {
-  if (!plate) return null;
-  // Check if exists
-  const existing = await sbSelect("vehicles", "plate=eq." + encodeURIComponent(plate) + "&select=*").catch(function(){ return []; });
-  if (existing && existing.length > 0) return existing[0];
-  // Insert new
-  const newId = "v_" + Date.now();
-  try {
-    await sbInsert("vehicles", {
-      id: newId,
-      plate: plate,
-      brand: (brand || "").split(" ")[0] || (brand || ""),
-      model: (brand || "").split(" ").slice(1).join(" "),
-      type: vehicleType || "truck",
-      year: null, mileage: 0,
-      tuev: null, insurance: null, uvv: null,
-      next_service: null, notes: ""
-    });
-    return { id: newId, plate: plate, brand: brand || "", type: vehicleType };
-  } catch(e) {
-    console.error("Could not save vehicle:", e);
-    return { id: newId, plate: plate, brand: brand || "", type: vehicleType };
-  }
-}
-
-// === Photo Upload (CAMERA) ===
-
-function PhotoUpload({ photos, setPhotos, t }) {
-  if (!t) t = { photo: "Fotos" };
-  const fileRef = useRef(null);
-  const handle = function(e){
-    const files = Array.from(e.target.files || []);
-    Promise.all(files.map(function(f){
-      return new Promise(function(res){
-        const r = new FileReader();
-        r.onload = function(ev){ res(ev.target.result); };
-        r.readAsDataURL(f);
-      });
-    })).then(function(arr){ setPhotos(photos.concat(arr)); });
-  };
-  return (
-    <div>
-      <button onClick={function(){ fileRef.current && fileRef.current.click(); }}
-        style={{ all:"unset", display:"block", width:"100%", cursor:"pointer" }}>
-        <div className="photo-box">
-          <div style={{ fontSize:24, color:"#ffa500" }}>📷</div>
-          <div style={{ marginTop:6 }}>
-            {(t.photoAdd || (t.photo + " hinzufügen"))}{photos.length > 0 ? " (" + photos.length + ")" : ""}
-          </div>
-        </div>
-      </button>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple
-        style={{ display:"none" }} onChange={handle} />
-      {photos.length > 0 && (
-        <div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
-          {photos.map(function(p, i){
-            return <img key={i} src={p} alt="" style={{ width:70, height:70,
-              objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)" }} />;
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function localizeChecks(baseItems, translatedItems) {
-  return baseItems.map(function(item, i){
-    var tr = translatedItems && translatedItems[i];
-    return Object.assign({}, item, { label: tr && tr.label ? tr.label : item.label });
-  });
-}
-
-function localizeBreakdownTypes(t) {
-  return BD_TYPES.map(function(item, i){
-    var tr = t.types && t.types[i];
-    return Object.assign({}, item, { label: tr && tr.label ? tr.label : item.label });
-  });
-}
-
-// === SCREEN: Inspection ===
-
-function InspectionScreen({ kind, onBack, driverName, lang, setLang }) {
-  const vehicleType = kind === "lkw" ? "truck" : "trailer";
-  const t = getT(lang);
-  const items = kind === "lkw" ? localizeChecks(TRUCK_CHECKS, t.truckChecks) : localizeChecks(TRAILER_CHECKS, t.trailerChecks);
-  const seedFleet = kind === "lkw" ? TRUCKS : TRAILERS;
-  const [vehicles, setVehicles] = useState(seedFleet.map(function(v){
-    return { id: v.id, plate: v.plate, brand: v.brand, type: vehicleType };
-  }));
-  const [vehSel, setVehSel] = useState(null); // { plate, brand, isNew }
-  const [checks, setChecks] = useState({});
-  const [notes, setNotes] = useState("");
-  const [mileage, setMileage] = useState("");
-  const [photos, setPhotos] = useState([]);
-  const [sending, setSending] = useState(false);
-
-  // Load vehicles from Supabase
-  useEffect(function(){
-    sbSelect("vehicles", "type=eq." + vehicleType + "&select=*&order=plate")
-      .then(function(rows){
-        if (rows && rows.length > 0) {
-          setVehicles(rows.map(function(r){
-            return {
-              id: r.id, plate: r.plate,
-              brand: (r.brand || "") + (r.model ? " " + r.model : ""),
-              type: r.type
-            };
-          }));
-        }
+  function submit(){
+    if(!allDone||!sel||!sel.plate||sending) return;
+    setSending(true); setErrMsg("");
+    var alertId="I"+Date.now();
+    var badItems=items.filter(function(c){ return chk[c.k]==="fail"; }).map(function(c){ return c.label; });
+    var defText=badItems.join(", ");
+    if(notes) defText=defText?defText+" — "+notes:notes;
+    var prefix=vType==="truck"?"LKW":"Auflieger";
+    var saveVeh=sel.isNew
+      ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:vType,mileage:0}).catch(function(){})
+      : Promise.resolve(true);
+    saveVeh
+      .then(function(){ return uploadAll(photos,alertId); })
+      .then(function(urls){
+        return sbPost("alerts",{
+          id:alertId,type:hasFault?"inspection_mangel":"inspection_ok",
+          plate:sel.plate,location:"Werkstatt",
+          description:defText||(prefix+"-Inspektion: "+(hasFault?"Mangel":"OK")),
+          urgency:hasFault?"normal":"info",
+          sender:driverName||"driver",sender_app:"fahrer",
+          status:hasFault?"open":"done",photo_urls:urls
+        }).then(function(){
+          if(km&&parseInt(km)>0&&sel.id&&!sel.isNew) return sbPatch("vehicles","id",sel.id,{mileage:parseInt(km)});
+          return true;
+        });
       })
-      .catch(function(){});
-  }, [vehicleType]);
-  const checkedCount = items.filter(function(it){ return checks[it.k]; }).length;
-  const hasFault = items.some(function(it){ return checks[it.k] === "fail"; });
-  const allDone = checkedCount === items.length;
+      .then(function(){ setSending(false); setDone(true); })
+      .catch(function(e){ setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
+  }
 
-  const submit = async function(){
-    if (!allDone || !vehSel || !vehSel.plate || sending) return;
-    setSending(true);
-    try {
-      // If new vehicle, save to DB
-      if (vehSel.isNew) {
-        await ensureVehicleInDb(vehSel.plate, vehSel.brand, vehicleType);
-      }
-      // Build defects text from failed checks
-      var badItems = items
-        .filter(function(it){ return checks[it.k] === "fail"; })
-        .map(function(it){ return it.label; });
-      var defectsText = badItems.join(", ");
-      if (notes) defectsText = defectsText ? (defectsText + " — " + notes) : notes;
-      var prefix = vehicleType === "truck" ? "LKW" : "Auflieger";
-
-      // Send alert into Werkstatt > Eingang. Photos are stored under inspection-photos/eingang/<alertId>/
-      const alertId = "I" + Date.now();
-      const photoUrls = photos.length
-        ? (await Promise.all(photos.map(function(p, i){ return uploadPhotoToEingang(p, alertId, i); }))).filter(Boolean)
-        : [];
-      await sbInsert("alerts", {
-        id: alertId,
-        type: hasFault ? "inspection_mangel" : "inspection_ok",
-        plate: vehSel.plate,
-        location: "Werkstatt",
-        description: defectsText || (prefix + "-Inspektion: " + (hasFault ? "Mangel" : "OK")),
-        urgency: hasFault ? "normal" : "info",
-        sender: driverName || "driver",
-        sender_app: "fahrer",
-        status: hasFault ? "open" : "done",
-        photos: photoUrls.length,
-        photo_urls: photoUrls
-      });
-
-      // Обновляем пробег если введён
-      if (mileage && parseInt(mileage) > 0 && vehSel && vehSel.id && !vehSel.isNew) {
-        try {
-          await fetch(SB_URL + "/rest/v1/vehicles?id=eq." + encodeURIComponent(vehSel.id), {
-            method: "PATCH",
-            headers: { "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
-            body: JSON.stringify({ mileage: parseInt(mileage) })
-          });
-        } catch(e) { console.warn("mileage update:", e); }
-      }
-
-      onBack();
-    } catch(e) {
-      setSending(false);
-      console.error("Inspection error:", e);
-      alert("Fehler beim Senden: " + (e.message || e));
-    }
-  };
+  if(done){
+    return (
+      <div className="scrn">
+        <Bg />
+        <div style={{ position:"relative",zIndex:2,flex:1,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",textAlign:"center" }}>
+          <div style={{ width:90,height:90,borderRadius:"50%",background:"rgba(34,197,94,0.18)",border:"2px solid #22c55e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,marginBottom:20 }}>✓</div>
+          <div style={{ fontSize:24,fontWeight:800,marginBottom:8 }}>{t.sentTitle}</div>
+          <div style={{ color:"rgba(255,255,255,0.7)",marginBottom:30 }}>{t.sentOk}</div>
+          <button className="btn-primary" style={{ maxWidth:280 }} onClick={onBack}>{t.newInsp}</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
-      paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)",
-      maxWidth:480, margin:"0 auto", boxShadow:"0 0 60px rgba(0,0,0,0.6)" }}>
+    <div className="page-wrap">
       <Bg />
-      <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+      <div style={{ position:"relative",zIndex:2,padding:"max(env(safe-area-inset-top),14px) 16px 0" }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
           <BackBtn onClick={onBack} />
-          <div style={{ marginLeft:"auto" }}>
-            <LangSwitcher lang={lang} setLang={setLang} inline />
-          </div>
+          <LangSwitcher lang={lang} setLang={setLang} />
         </div>
+        <div style={{ fontSize:28,fontWeight:900,lineHeight:1,marginBottom:18 }}>{kind==="lkw"?t.inspTruck:t.inspTrailer}</div>
 
-        <div style={{ marginTop:6 }}>
-          <div style={{ fontSize:30, fontWeight:900, lineHeight:1 }}>
-            {kind === "lkw" ? (t.truck + " ") : (t.trailer + " ")}
-            <span style={{ color:"#ffa500" }}>{t.inspectionWord}</span>
-          </div>
-        </div>
-
-        <div style={{ marginTop:12, marginBottom:10 }}>
-          <VehicleCombobox vehicles={vehicles} vehicleType={vehicleType}
-            value={vehSel} onChange={setVehSel}
-            placeholder={t.selectVehiclePh} />
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">FAHRZEUG</div>
+          <VehicleCombobox vehicles={vehicles} vehicleType={vType} value={sel} onChange={setSel} t={t} />
         </div>
 
         <div style={{ marginBottom:16 }}>
-          <div className="label-cap" style={{ marginBottom:6 }}>KILOMETERSTAND *</div>
+          <div className="label-cap">{(t.kmPh||"Kilometerstand").toUpperCase()}</div>
           <div style={{ position:"relative" }}>
-            <input className="dropdown-trigger" type="text" inputMode="numeric"
-              value={mileage}
-              onChange={function(e){ setMileage(e.target.value.replace(/\D/g,"")); }}
+            <input className="drop-input" type="text" inputMode="numeric" value={km}
               placeholder="z.B. 245000"
-              style={{ paddingRight:50 }} />
-            <span style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:700, pointerEvents:"none" }}>km</span>
+              onChange={function(e){ setKm(e.target.value.replace(/\D/g,"")); }}
+              style={{ paddingRight:46 }} />
+            <span style={{ position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"rgba(255,255,255,0.4)",fontWeight:700,pointerEvents:"none" }}>km</span>
           </div>
         </div>
 
-        <div className="insp-header">
-          <div className="h-tag-spacer"></div>
-          <div className="h-spacer"></div>
-          <div className="h-col">{t.okHeader}</div>
-          <div className="h-col">{t.notOkHeader}</div>
+        <div className="insp-hd">
+          <div className="tsp"></div><div className="sp"></div>
+          <div className="col">{t.okH}</div><div className="col">{t.nOkH}</div>
         </div>
-
-        {items.map(function(it){
+        {items.map(function(c){
           return (
-            <div key={it.k} className="insp-row">
-              <div className="insp-tag">{it.emoji}</div>
-              <div className="insp-label">{it.label}</div>
-              <button className={"insp-btn" + (checks[it.k] === "ok" ? " ok-active" : "")}
-                onClick={function(){ setChecks(Object.assign({}, checks, { [it.k]: "ok" })); }}>
-                ✓
-              </button>
-              <button className={"insp-btn" + (checks[it.k] === "fail" ? " fail-active" : "")}
-                onClick={function(){ setChecks(Object.assign({}, checks, { [it.k]: "fail" })); }}>
-                ✕
-              </button>
+            <div key={c.k} className="insp-row">
+              <div className="insp-tag">{c.tag}</div>
+              <div className="insp-label">{c.label}</div>
+              <button className={"insp-btn"+(chk[c.k]==="ok"?" ok-on":"")} onClick={function(){ setCheck(c.k,"ok"); }}>✓</button>
+              <button className={"insp-btn"+(chk[c.k]==="fail"?" fail-on":"")} onClick={function(){ setCheck(c.k,"fail"); }}>✕</button>
             </div>
           );
         })}
 
-        <div style={{ marginTop:18 }}>
-          <div className="label-cap">{(t.defects || "Mangel / Bemerkungen").toUpperCase()}</div>
-          <textarea className="textarea-dark" placeholder={t.defectsPh}
-            value={notes} onChange={function(e){ setNotes(e.target.value); }} />
+        <div style={{ marginTop:18,marginBottom:14 }}>
+          <div className="label-cap">{t.defects}</div>
+          <textarea className="textarea-dark" placeholder={t.defectsPh} value={notes} onChange={function(e){ setNotes(e.target.value); }} />
         </div>
 
-        <div style={{ marginTop:14 }}>
-          <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
-        </div>
+        <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
 
-        <div className={"progress-box" + (hasFault ? " warn" : "")} style={{ marginTop:14 }}>
-          <span style={{ color: hasFault ? "#ff3b30" : "#22c55e", fontSize:18 }}>
-            {hasFault ? "⚠" : "✓"}
-          </span>
-          <span>{checkedCount}/{items.length} {t.inspected} · {hasFault ? t.faultShort : "OK"}</span>
+        <div className={"progress-box"+(hasFault?" bad":"")} style={{ marginTop:14,marginBottom:8 }}>
+          <span style={{ color:hasFault?"#ff3b30":"#22c55e",fontSize:18 }}>{hasFault?"⚠":"✓"}</span>
+          <span>{checkedCount}/{items.length} {t.inspected}{hasFault?" · "+t.faultShort:""}</span>
         </div>
+        {errMsg && <div style={{ color:"#ef4444",fontSize:13,marginBottom:8,fontWeight:700 }}>{errMsg}</div>}
       </div>
-
-      <div className="fixed-bottom-bar">
-        <PrimaryBtn onClick={submit} disabled={!allDone || !vehSel || !vehSel.plate || !mileage || sending}>
-          {sending ? t.sending : t.submit}
-        </PrimaryBtn>
+      <div className="fixed-bar">
+        <button className="btn-primary" disabled={!allDone||!sel||!sel.plate||sending} onClick={submit}>
+          {sending?t.sending:t.submit}
+        </button>
       </div>
     </div>
   );
 }
 
-// === SCREEN: Breakdown ===
+// ── BREAKDOWN ─────────────────────────────────────────────────────────────────
+function BreakdownScreen({ driverName, lang, setLang, onBack }) {
+  var t=getT(lang);
+  var _veh=useState([]); var vehicles=_veh[0]; var setVehicles=_veh[1];
+  var _sel=useState(null); var sel=_sel[0]; var setSel=_sel[1];
+  var _bt=useState(null); var bType=_bt[0]; var setBType=_bt[1];
+  var _urg=useState(null); var urg=_urg[0]; var setUrg=_urg[1];
+  var _loc=useState(""); var loc=_loc[0]; var setLoc=_loc[1];
+  var _gps=useState(false); var gpsLoad=_gps[0]; var setGpsLoad=_gps[1];
+  var _desc=useState(""); var desc=_desc[0]; var setDesc=_desc[1];
+  var _ph=useState([]); var photos=_ph[0]; var setPhotos=_ph[1];
+  var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
+  var _sent=useState(false); var sent=_sent[0]; var setSent=_sent[1];
+  var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
 
-function BreakdownScreen({ onBack, driverName, lang, setLang }) {
-  const t = getT(lang);
-  const seedFleet = TRUCKS.map(function(v){ return Object.assign({}, v, { type:"truck" }); })
-    .concat(TRAILERS.map(function(v){ return Object.assign({}, v, { type:"trailer" }); }));
-  const [vehicles, setVehicles] = useState(seedFleet);
-  const [vehSel, setVehSel] = useState(null);
-  const [type, setType] = useState(null);
-  const [urg, setUrg] = useState(null);
-  const [loc, setLoc] = useState("");
-  const [locLoading, setLocLoading] = useState(false);
-  const [desc, setDesc] = useState("");
-  const [photos, setPhotos] = useState([]);
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-
-  // Load vehicles from Supabase (all types)
   useEffect(function(){
-    sbSelect("vehicles", "select=*&order=plate")
-      .then(function(rows){
-        if (rows && rows.length > 0) {
-          setVehicles(rows.map(function(r){
-            return {
-              id: r.id, plate: r.plate,
-              brand: (r.brand || "") + (r.model ? " " + r.model : ""),
-              type: r.type
-            };
-          }));
-        }
-      })
-      .catch(function(){});
-  }, []);
+    sbGet("vehicles","select=id,plate,brand,model&order=plate").then(function(rows){
+      setVehicles(rows.map(function(r){ return {id:r.id,plate:r.plate,brand:(r.brand||"")+(r.model?" "+r.model:""),type:r.type}; }));
+    });
+  },[]);
 
-  const ok = vehSel && vehSel.plate && type && urg && loc && desc && driverName;
-
-  const detectLoc = function(){
-    if (!navigator.geolocation) {
-      alert("Geolocation nicht verfügbar");
-      return;
-    }
-    setLocLoading(true);
+  function detectGPS(){
+    if(!navigator.geolocation){ alert("GPS nicht verfügbar"); return; }
+    setGpsLoad(true);
     navigator.geolocation.getCurrentPosition(
       function(p){
-        const lat = p.coords.latitude;
-        const lon = p.coords.longitude;
-        // Reverse geocoding via OpenStreetMap Nominatim
-        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&accept-language=de&zoom=14")
+        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+p.coords.latitude+"&lon="+p.coords.longitude+"&accept-language=de&zoom=14")
           .then(function(r){ return r.json(); })
           .then(function(d){
-            const a = d.address || {};
-            const parts = [];
-            if (a.road) parts.push(a.road + (a.house_number ? " " + a.house_number : ""));
-            if (a.city || a.town || a.village || a.suburb) {
-              parts.push(a.city || a.town || a.village || a.suburb);
-            }
-            if (a.country_code) parts.push((a.country_code + "").toUpperCase());
-            const txt = parts.length ? parts.join(", ") : (lat.toFixed(5) + ", " + lon.toFixed(5));
-            setLoc(txt);
-            setLocLoading(false);
+            var a=d.address||{}; var parts=[];
+            if(a.road) parts.push(a.road+(a.house_number?" "+a.house_number:""));
+            if(a.city||a.town||a.village||a.suburb) parts.push(a.city||a.town||a.village||a.suburb);
+            if(a.country_code) parts.push((a.country_code+"").toUpperCase());
+            setLoc(parts.length?parts.join(", "):(p.coords.latitude.toFixed(5)+", "+p.coords.longitude.toFixed(5)));
+            setGpsLoad(false);
           })
-          .catch(function(){
-            setLoc(lat.toFixed(5) + ", " + lon.toFixed(5));
-            setLocLoading(false);
-          });
+          .catch(function(){ setLoc(p.coords.latitude.toFixed(5)+", "+p.coords.longitude.toFixed(5)); setGpsLoad(false); });
       },
-      function(err){
-        setLocLoading(false);
-        alert("Standort konnte nicht ermittelt werden: " + err.message);
-      },
-      { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+      function(e){ setGpsLoad(false); alert("GPS: "+e.message); },
+      {enableHighAccuracy:true,timeout:10000,maximumAge:0}
     );
-  };
+  }
 
-  const submit = async function(){
-    if (!ok || sending) return;
-    setSending(true);
-    try {
-      if (vehSel && vehSel.isNew) {
-        var asTy = (vehSel.type === "trailer") ? "trailer" : "truck";
-        await ensureVehicleInDb(vehSel.plate, vehSel.brand, asTy);
-      }
-      const alertId = "A" + Date.now();
-      const photoUrls = photos.length
-        ? (await Promise.all(photos.map(function(p, i){ return uploadPhotoToEingang(p, alertId, i); }))).filter(Boolean)
-        : [];
+  var ok=sel&&sel.plate&&bType&&urg&&loc.trim()&&desc.trim();
+  function submit(){
+    if(!ok||sending) return;
+    setSending(true); setErrMsg("");
+    var alertId="A"+Date.now();
+    var saveVeh=sel.isNew
+      ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:"truck",mileage:0}).catch(function(){})
+      : Promise.resolve(true);
+    saveVeh
+      .then(function(){ return uploadAll(photos,alertId); })
+      .then(function(urls){
+        return sbPost("alerts",{
+          id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,
+          urgency:urg==="sofort"?"urgent":"normal",
+          sender:driverName||"driver",sender_app:"fahrer",status:"open",photo_urls:urls
+        });
+      })
+      .then(function(){ setSending(false); setSent(true); })
+      .catch(function(e){ setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
+  }
 
-      await sbInsert("alerts", {
-        id: alertId,
-        type: type,
-        plate: vehSel.plate,
-        location: loc,
-        description: desc,
-        urgency: urg === "sofort" ? "urgent" : "normal",
-        sender: driverName || "driver",
-        sender_app: "fahrer",
-        status: "open",
-        photos: photoUrls.length,
-        photo_urls: photoUrls
-      });
-
-      setSent(true); setSending(false);
-    } catch(e) {
-      setSending(false);
-      console.error("Breakdown error:", e);
-      alert("Fehler beim Senden: " + (e.message || e));
-    }
-  };
-
-  if (sent) {
+  if(sent){
     return (
       <div className="scrn">
         <Bg />
-        <div style={{ position:"relative", zIndex:2, flex:1, display:"flex",
-          flexDirection:"column", justifyContent:"center", alignItems:"center", textAlign:"center" }}>
-          <div style={{ width:90, height:90, borderRadius:"50%",
-            background:"rgba(34,197,94,0.18)", border:"2px solid #22c55e",
-            display:"flex", alignItems:"center", justifyContent:"center", fontSize:42, marginBottom:20 }}>✓</div>
-          <div style={{ fontSize:24, fontWeight:800, marginBottom:8 }}>{t.sent}</div>
-          <div style={{ color:"rgba(255,255,255,0.7)", marginBottom:30 }}>
-            {t.sentDesc}
-          </div>
-          <PrimaryBtn onClick={onBack} style={{ maxWidth:280 }}>{t.newReport || "Zurück zum Menü"}</PrimaryBtn>
+        <div style={{ position:"relative",zIndex:2,flex:1,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",textAlign:"center" }}>
+          <div style={{ width:90,height:90,borderRadius:"50%",background:"rgba(34,197,94,0.18)",border:"2px solid #22c55e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,marginBottom:20 }}>✓</div>
+          <div style={{ fontSize:24,fontWeight:800,marginBottom:8 }}>{t.sentBreak}</div>
+          <div style={{ color:"rgba(255,255,255,0.7)",marginBottom:30 }}>{t.sentBreakDesc}</div>
+          <button className="btn-primary" style={{ maxWidth:280 }} onClick={onBack}>{t.newRep}</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh",
-      paddingBottom:"calc(env(safe-area-inset-bottom) + 90px)",
-      maxWidth:480, margin:"0 auto" }}>
+    <div className="page-wrap">
       <Bg />
-      <div style={{ position:"relative", zIndex:2, padding:"max(env(safe-area-inset-top), 14px) 16px 0" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+      <div style={{ position:"relative",zIndex:2,padding:"max(env(safe-area-inset-top),14px) 16px 0" }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
           <BackBtn onClick={onBack} />
-          <div style={{ marginLeft:"auto" }}>
-            <LangSwitcher lang={lang} setLang={setLang} inline />
+          <LangSwitcher lang={lang} setLang={setLang} />
+        </div>
+        <div style={{ fontSize:28,fontWeight:900,lineHeight:1,marginBottom:18 }}>{t.bdTitle}</div>
+
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">FAHRZEUG *</div>
+          <VehicleCombobox vehicles={vehicles} allowAll={true} value={sel} onChange={setSel} t={t} />
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">{(t.bdType+" *").toUpperCase()}</div>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
+            {t.bdTypes.map(function(bt){
+              return (
+                <div key={bt.k} className={"type-tile"+(bType===bt.k?" on":"")} onClick={function(){ setBType(bt.k); }}>
+                  <span className="type-tag">{bt.tag}</span>
+                  <span style={{ flex:1,fontSize:13 }}>{bt.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div style={{ fontSize:32, fontWeight:900, lineHeight:1, marginTop:6, marginBottom:18 }}>
-          {(t.breakdownTitle || "Störung melden").split(" ")[0]} <span style={{ color:"#ffa500" }}>{(t.breakdownTitle || "Störung melden").split(" ").slice(1).join(" ")}</span>
-        </div>
-
-        <div style={{ marginBottom:18 }}>
-          <VehicleCombobox vehicles={vehicles} allowAll={true}
-            value={vehSel} onChange={setVehSel}
-            label={(t.selectTruck + " / " + t.selectTrailer + " *").toUpperCase()}
-            placeholder={t.selectOrEnter} />
-        </div>
-
-        <div className="label-cap">{(t.breakdownType || "Art der Störung").toUpperCase() + " *"}</div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
-          {localizeBreakdownTypes(t).map(function(bt){
-            return (
-              <div key={bt.k} className={"type-tile" + (type === bt.k ? " active" : "")}
-                onClick={function(){ setType(bt.k); }}
-                style={{ cursor:"pointer" }}>
-                <span className="type-tag">{bt.tag}</span>
-                <span style={{ flex:1 }}>{bt.label}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="label-cap">{(t.urgency || "Dringlichkeit").toUpperCase() + " *"}</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:18 }}>
-          <div onClick={function(){ setUrg("sofort"); }}
-            className={"urg-row" + (urg === "sofort" ? " active-red" : "")}
-            style={{ cursor:"pointer" }}>
-            <div className="urg-dot" style={{ background:"#ff3b30" }}></div>
-            <span>{t.urgentYes}</span>
-          </div>
-          <div onClick={function(){ setUrg("warten"); }}
-            className={"urg-row" + (urg === "warten" ? " active-orange" : "")}
-            style={{ cursor:"pointer" }}>
-            <div className="urg-dot" style={{ background:"#ffa500" }}></div>
-            <span>{t.urgentNo}</span>
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">{(t.urgLabel+" *").toUpperCase()}</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+            <div className={"urg-row"+(urg==="sofort"?" r":"")} onClick={function(){ setUrg("sofort"); }}>
+              <div className="urg-dot" style={{ background:"#ff3b30" }}></div>
+              <span>{t.urgYes}</span>
+            </div>
+            <div className={"urg-row"+(urg==="warten"?" o":"")} onClick={function(){ setUrg("warten"); }}>
+              <div className="urg-dot" style={{ background:"#ffa500" }}></div>
+              <span>{t.urgNo}</span>
+            </div>
           </div>
         </div>
 
-        <div className="label-cap">{(t.location || "Standort").toUpperCase() + " *"}</div>
-        <div style={{ display:"flex", gap:10, marginBottom:18 }}>
-          <div style={{ position:"relative", flex:1 }}>
-            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
-              color:"#9aa3b2", fontSize:18 }}>📍</span>
-            <input className="input-dark" placeholder={t.locationInputPh}
-              value={loc} onChange={function(e){ setLoc(e.target.value); }} />
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">{(t.locLabel+" *").toUpperCase()}</div>
+          <div style={{ display:"flex",gap:10 }}>
+            <input className="inp-dark" style={{ flex:1 }} value={loc}
+              placeholder={t.locPh} onChange={function(e){ setLoc(e.target.value); }} />
+            <button className="geo-btn" onClick={detectGPS} disabled={gpsLoad}>{gpsLoad?"...":"📍"}</button>
           </div>
-          <button className="geo-btn" onClick={detectLoc} disabled={locLoading}>
-            {locLoading ? "..." : "📍"}
-          </button>
         </div>
 
-        <div className="label-cap">{(t.description || "Beschreibung").toUpperCase() + " *"}</div>
-        <textarea className="textarea-dark" placeholder={t.descPh}
-          value={desc} onChange={function(e){ setDesc(e.target.value); }}
-          style={{ marginBottom:14 }} />
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">{(t.descLabel+" *").toUpperCase()}</div>
+          <textarea className="textarea-dark" placeholder={t.descPh} value={desc} onChange={function(e){ setDesc(e.target.value); }} />
+        </div>
 
         <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
-
-        <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", fontSize:13, marginTop:14, marginBottom:14 }}>
-          {"* " + (t.required || "Pflichtfeld")}
-        </div>
+        {errMsg && <div style={{ color:"#ef4444",fontSize:13,marginTop:10,fontWeight:700 }}>{errMsg}</div>}
+        <div style={{ textAlign:"center",color:"rgba(255,255,255,0.4)",fontSize:12,marginTop:14 }}>* {t.req}</div>
       </div>
-
-      <div className="fixed-bottom-bar">
-        <PrimaryBtn onClick={submit} disabled={!ok || sending}>
-          {sending ? t.sending : t.send}
-        </PrimaryBtn>
+      <div className="fixed-bar">
+        <button className="btn-primary" disabled={!ok||sending} onClick={submit}>{sending?t.sending:t.sendBtn}</button>
       </div>
     </div>
   );
 }
 
-// === MAIN APP ===
-
+// ── ROOT ──────────────────────────────────────────────────────────────────────
 function App() {
-  const [stage, setStage] = useState("loading");
-  const [lang, setLangRaw] = useState("DE");
-  const setLang = function(v){
-    setLangRaw(v);
-    try { localStorage.setItem("werkflow_lang", v); } catch(e){}
-  };
-  const [savedName, setSavedName] = useState("");
-  const [screen, setScreen] = useState("menu");
+  var _stg=useState("loading"); var stg=_stg[0]; var setStg=_stg[1];
+  var _lang=useState("DE"); var lang=_lang[0]; var setLangRaw=_lang[1];
+  var _name=useState(""); var name=_name[0]; var setName=_name[1];
+  var _scr=useState("menu"); var scr=_scr[0]; var setScr=_scr[1];
+
+  function setLang(v){ setLangRaw(v); try{ localStorage.setItem("werkflow_fahrer_lang",v); }catch(e){} }
 
   useEffect(function(){
-    try {
-      const savedLang = localStorage.getItem("werkflow_lang");
-      if (savedLang) setLangRaw(savedLang);
-      const n = localStorage.getItem(APP_STORAGE_KEY);
-      if (n) { setSavedName(n); setStage("slider"); }
-      else setStage("register");
-    } catch(e) { setStage("register"); }
-  }, []);
+    try{
+      var sl=localStorage.getItem("werkflow_fahrer_lang"); if(sl) setLangRaw(sl);
+      var sn=localStorage.getItem(SESS_KEY); if(sn){ setName(sn); setStg("slider"); } else setStg("register");
+    }catch(e){ setStg("register"); }
+  },[]);
 
-  if (stage === "loading") return <div className="scrn"><Bg /></div>;
-
-  if (stage === "register") {
-    return <ErsteAnmeldung lang={lang} setLang={setLang}
-      onContinue={function(v, n){
-        setSavedName(v + " " + n);
-        setStage("pin_first");
-      }} />;
-  }
-
-  if (stage === "pin_first") {
-    return <PinLogin lang={lang} setLang={setLang} onSuccess={function(){
-      try { localStorage.setItem(APP_STORAGE_KEY, savedName); } catch(e){}
-      setStage("menu");
-    }} />;
-  }
-
-  if (stage === "slider") {
-    return <SliderUnlock lang={lang} setLang={setLang}
-      onUnlock={function(){ setStage("menu"); }} />;
-  }
-
-  if (screen === "menu") {
-    return <MainMenu lang={lang} setLang={setLang} onPick={function(k){
-      if (k === "lkw") setScreen("insp_lkw");
-      else if (k === "auf") setScreen("insp_auf");
-      else if (k === "bd") setScreen("breakdown");
-    }} />;
-  }
-  if (screen === "insp_lkw") {
-    return <InspectionScreen kind="lkw" driverName={savedName} lang={lang} setLang={setLang}
-      onBack={function(){ setScreen("menu"); }} />;
-  }
-  if (screen === "insp_auf") {
-    return <InspectionScreen kind="auf" driverName={savedName} lang={lang} setLang={setLang}
-      onBack={function(){ setScreen("menu"); }} />;
-  }
-  if (screen === "breakdown") {
-    return <BreakdownScreen lang={lang} setLang={setLang} driverName={savedName}
-      onBack={function(){ setScreen("menu"); }} />;
-  }
+  if(stg==="loading") return <div className="scrn"><Bg /></div>;
+  if(stg==="register") return <ErsteAnmeldung lang={lang} setLang={setLang} onNext={function(v,n){ setName(v+" "+n); setStg("pin"); }} />;
+  if(stg==="pin") return <PinScreen lang={lang} setLang={setLang} onOk={function(){ try{ localStorage.setItem(SESS_KEY,name); }catch(e){} setStg("menu"); }} />;
+  if(stg==="slider") return <SliderScreen lang={lang} setLang={setLang} name={name} onUnlock={function(){ setStg("menu"); }} />;
+  if(scr==="menu") return <MainMenu lang={lang} setLang={setLang} onPick={function(k){ if(k==="lkw") setScr("insp_lkw"); else if(k==="auf") setScr("insp_auf"); else if(k==="bd") setScr("bd"); }} />;
+  if(scr==="insp_lkw") return <InspectionScreen kind="lkw" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
+  if(scr==="insp_auf") return <InspectionScreen kind="auf" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
+  if(scr==="bd") return <BreakdownScreen driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
   return null;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
-  </script>
+</script>
 </body>
 </html>
