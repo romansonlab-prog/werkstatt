@@ -128,6 +128,25 @@ function sbForklift(num) {
   }).then(function(r){ return r.json(); }).then(function(d){ return d && d[0] ? d[0] : null; }).catch(function(){ return null; });
 }
 
+function uploadPhoto(b64, alertId, i) {
+  if (!b64) return Promise.resolve(null);
+  return fetch(b64).then(function(r){ return r.blob(); }).then(function(blob){
+    var ext = blob.type && blob.type.indexOf("png")!==-1 ? "png" : "jpg";
+    var path = "stapler/"+alertId+"/photo_"+i+"."+ext;
+    return fetch(SB_URL+"/storage/v1/object/inspection-photos/"+path, {
+      method:"POST",
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":blob.type||"image/jpeg","x-upsert":"true"},
+      body:blob
+    }).then(function(r){ return r.ok?(SB_URL+"/storage/v1/object/public/inspection-photos/"+path):null; });
+  }).catch(function(){ return null; });
+}
+
+function uploadAll(photos, alertId) {
+  if (!photos || !photos.length) return Promise.resolve([]);
+  return Promise.all(photos.map(function(p,i){ return uploadPhoto(p,alertId,i); }))
+    .then(function(urls){ return urls.filter(Boolean); });
+}
+
 function Bg() { return <div className="bg-image"></div>; }
 
 function Logo({ sm }) {
@@ -435,11 +454,14 @@ function ReportForm({ user, onSent }) {
     var locPreset = LOCS.find(function(l){ return l.id === loc; });
     var locFinal = locPreset ? locPreset.name : locV;
     var plate = fk ? (fk.nummer || fk.plate || fk.id || "") : "";
-    sbPost("alerts", {
-      id:id, type: urg === "urgent" ? "breakdown" : "other",
-      plate:plate, location:locFinal, description:dsc,
-      urgency: urg === "urgent" ? "urgent" : "normal",
-      sender:nm, sender_app:"stapler", status:"open"
+    uploadAll(ph, id).then(function(photoUrls){
+      return sbPost("alerts", {
+        id:id, type: urg === "urgent" ? "breakdown" : "other",
+        plate:plate, location:locFinal, description:dsc,
+        urgency: urg === "urgent" ? "urgent" : "normal",
+        sender:nm, sender_app:"stapler", status:"open",
+        photo_urls: photoUrls
+      });
     }).then(function(){
       setSnd(false);
       onSent({ alertId:id, location:locFinal, forklift:fk, urg:urg, desc:dsc });
