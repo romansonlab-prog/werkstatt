@@ -410,6 +410,12 @@ function WaschApp({ user, onLogout }) {
                     placeholder="optional" />
                 </div>
               </div>
+              <div style={{ marginTop:10 }}>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", marginBottom:5 }}>Marke / Modell</div>
+                <input className="input-dark" value={vehBrand}
+                  onChange={function(e){ setVehBrand(e.target.value); }}
+                  placeholder="z.B. MAN, Mercedes, Linde..." />
+              </div>
             </div>
 
             {/* Waschtyp */}
