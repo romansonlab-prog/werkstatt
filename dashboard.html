@@ -958,6 +958,7 @@ function Inspektion({ inspections, onRefresh, loading }) {
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {ins.acknowledged && <span className="badge badge-blue">✓ Zur Kenntnis</span>}
                       <span className={"badge "+(isMangel?"badge-red":"badge-green")}>
                         {isMangel ? "⚠ "+mangelKeys.length+" Mängel" : "✓ OK"}
                       </span>
@@ -976,9 +977,17 @@ function Inspektion({ inspections, onRefresh, loading }) {
                       )}
                       {ins.note && <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", marginBottom:8 }}>📝 {ins.note}</div>}
                       {photos.length > 0 && (
-                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
                           {photos.slice(0,6).map(function(u,i){ return <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ width:70, height:70, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} /></a>; })}
                         </div>
+                      )}
+                      {!ins.acknowledged && (
+                        <button className="btn-outline btn-small" onClick={function(e){
+                          e.stopPropagation();
+                          sbPatch("inspections", ins.id, { acknowledged:true }).then(function(){ onRefresh(); });
+                        }}>
+                          ✓ Zur Kenntnis genommen
+                        </button>
                       )}
                     </div>
                   )}
@@ -1068,21 +1077,33 @@ function Waschhalle({ washOrders, onRefresh, loading }) {
 }
 
 // === LAGER ===
+var STOCK_CATS = [
+  "Motor & Antrieb","Bremsen & Fahrwerk","Reifen & Räder",
+  "Elektrik & Beleuchtung","Hydraulik","Karosserie & Glas",
+  "Stapler-Teile","Batterien","Verbrauchsmaterial","Werkzeug","Sonstiges"
+];
+
 function Lager({ stock, onRefresh, loading }) {
   var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _sc = useState("all"); var cat = _sc[0]; var setCat = _sc[1];
   var low = stock.filter(function(s){ return s.qty <= (s.min_qty||0); });
-  var filtered = stock.filter(function(s){ return !search || (s.name||"").toLowerCase().includes(search.toLowerCase()); });
+  var filtered = stock.filter(function(s){
+    var matchCat = cat === "all" || (s.category||"Sonstiges") === cat;
+    var matchSearch = !search || (s.name||"").toLowerCase().includes(search.toLowerCase()) || (s.serial_nr||"").toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
 
   function exportStock() {
     var rows = filtered.map(function(s){
       var isLow = s.qty <= (s.min_qty||0);
-      return "<tr><td>"+(s.name||"—")+"</td><td>"+(s.qty||0)+"</td><td>"+(s.unit||"Stk")+"</td>"+
+      return "<tr><td>"+(s.name||"—")+"</td><td>"+(s.category||"—")+"</td><td>"+(s.qty||0)+"</td><td>"+(s.unit||"Stk")+"</td>"+
         "<td>"+(s.min_qty||0)+"</td><td>"+(s.price?Number(s.price).toFixed(2)+" €":"—")+"</td>"+
+        "<td>"+(s.serial_nr||"—")+"</td><td>"+(s.condition==="used"?"Б/У":s.condition==="passau"?"→ Passau":"Neu")+"</td>"+
         "<td style='color:"+(isLow?"#ef4444":"#22c55e")+"'>"+(isLow?"⚠ Nachbestellen":"OK")+"</td></tr>";
     }).join("");
     var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Lager Export</title>"+baseReportStyle()+"</head><body>"+
       "<h1>WerkFlow — Lager</h1><h2>"+filtered.length+" Positionen · "+low.length+" nachzubestellen</h2>"+
-      "<table><thead><tr><th>Bezeichnung</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<table><thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th>Serien-Nr.</th><th>Zustand</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
       "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
     printHtml(html, "Lager Export");
   }
@@ -1105,17 +1126,29 @@ function Lager({ stock, onRefresh, loading }) {
             <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
           </div>
         </div>
-        <input className="inp" style={{ width:"100%", marginBottom:14 }} value={search} placeholder="Suche..." onChange={function(e){ setSearch(e.target.value); }} />
+        <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+          <button className={"btn-small "+(cat==="all"?"btn-primary":"btn-outline")} onClick={function(){ setCat("all"); }}>Alle</button>
+          {STOCK_CATS.map(function(c){
+            return <button key={c} className={"btn-small "+(cat===c?"btn-primary":"btn-outline")} onClick={function(){ setCat(c); }}>{c}</button>;
+          })}
+        </div>
+        <input className="inp" style={{ width:"100%", marginBottom:14 }} value={search} placeholder="Suche Bezeichnung / Serien-Nr..." onChange={function(e){ setSearch(e.target.value); }} />
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>{filtered.length} Positionen</div>
         {filtered.length === 0
           ? <div className="empty">Lager ist leer</div>
           : <table className="tbl">
-              <thead><tr><th>Bezeichnung</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th>Status</th></tr></thead>
+              <thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Serien-Nr.</th><th>Zustand</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th>Status</th></tr></thead>
               <tbody>
                 {filtered.map(function(s){
                   var isLow = s.qty <= (s.min_qty||0);
+                  var cond = s.condition === "used" ? "Б/У" : s.condition === "passau" ? "→ Passau" : "Neu";
+                  var condColor = s.condition === "used" ? "#ffa500" : s.condition === "passau" ? "rgba(255,255,255,0.3)" : "#22c55e";
                   return (
                     <tr key={s.id}>
                       <td><strong>{s.name||"—"}</strong></td>
+                      <td style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>{s.category||"—"}</td>
+                      <td style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.6)" }}>{s.serial_nr||"—"}</td>
+                      <td><span style={{ fontSize:11, fontWeight:700, color:condColor }}>{cond}</span></td>
                       <td><span style={{ fontSize:18, fontWeight:800, color: isLow ? "#ef4444" : "#ffa500" }}>{s.qty||0}</span></td>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{s.unit||"Stk"}</td>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{s.min_qty||0}</td>
@@ -1131,8 +1164,6 @@ function Lager({ stock, onRefresh, loading }) {
     </div>
   );
 }
-
-// === ARCHIV (Aufträge mit Filtern) ===
 function Archiv({ jobs }) {
   var _sd1 = useState(""); var dateFrom = _sd1[0]; var setDateFrom = _sd1[1];
   var _sd2 = useState(""); var dateTo = _sd2[0]; var setDateTo = _sd2[1];
@@ -1605,6 +1636,159 @@ function genSchichtbericht(jobs, date, mechanics) {
   printHtml(html, "Schichtbericht");
 }
 
+// === KONTAKTE ===
+var CONTACT_CATS = ["Mitarbeiter","Lieferanten","Servicepartner","Notfall","Management","Sonstiges"];
+
+function Kontakte({ onRefresh }) {
+  var _sc = useState([]); var contacts = _sc[0]; var setContacts = _sc[1];
+  var _sf = useState("all"); var catF = _sf[0]; var setCatF = _sf[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _se = useState(null); var editItem = _se[0]; var setEditItem = _se[1];
+  var _sl = useState(false); var loading = _sl[0]; var setLoading = _sl[1];
+  var _sm = useState(""); var msg = _sm[0]; var setMsg = _sm[1];
+  var empty = { id:"", name:"", firma:"", phone:"", whatsapp:"", email:"", category:"Mitarbeiter", notes:"" };
+  var _sf2 = useState(empty); var form = _sf2[0]; var setForm = _sf2[1];
+  var _sshow = useState(false); var showForm = _sshow[0]; var setShowForm = _sshow[1];
+
+  function load() {
+    sbGet("contacts","select=*&order=name.asc").then(function(r){ setContacts(r); });
+  }
+  useEffect(function(){ load(); },[]);
+
+  function showMsg(m){ setMsg(m); setTimeout(function(){ setMsg(""); },3000); }
+
+  function save() {
+    if (!form.name.trim()) { showMsg("Name ist Pflicht"); return; }
+    setLoading(true);
+    var payload = Object.assign({}, form, { id: form.id || ("C"+Date.now()) });
+    sbUpsert("contacts", payload).then(function(){ setLoading(false); showMsg("✅ Gespeichert"); setForm(empty); setShowForm(false); setEditItem(null); load(); })
+    .catch(function(e){ setLoading(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function startEdit(c) { setForm(Object.assign({},c)); setEditItem(c.id); setShowForm(true); }
+  function startNew() { setForm(empty); setEditItem(null); setShowForm(true); }
+
+  function del(id) {
+    if (!window.confirm("Kontakt löschen?")) return;
+    fetch(SB_URL+"/rest/v1/contacts?id=eq."+encodeURIComponent(id), {
+      method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+    }).then(function(){ load(); });
+  }
+
+  var list = contacts.filter(function(c){
+    var mc = catF === "all" || c.category === catF;
+    var ms = !search || ((c.name||"")+(c.firma||"")).toLowerCase().includes(search.toLowerCase());
+    return mc && ms;
+  });
+
+  var CAT_ICONS = { Mitarbeiter:"👷", Lieferanten:"🏢", Servicepartner:"🔧", Notfall:"🚨", Management:"👔", Sonstiges:"📋" };
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ fontSize:18, fontWeight:900 }}>Kontakte</div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          {msg && <span style={{ fontSize:12, fontWeight:700, color:msg.startsWith("✅")?"#22c55e":"#ef4444" }}>{msg}</span>}
+          <button className="btn-primary btn-small" onClick={startNew}>+ Neu</button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="panel" style={{ marginBottom:16, borderColor:"rgba(255,165,0,0.3)" }}>
+          <div className="panel-hd">
+            <div className="panel-title">{editItem ? "Kontakt bearbeiten" : "Neuer Kontakt"}</div>
+            <button className="btn-outline btn-small" onClick={function(){ setShowForm(false); setForm(empty); setEditItem(null); }}>✕</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+            <div>
+              <div className="label-cap">Name *</div>
+              <input className="inp" style={{ width:"100%" }} value={form.name} placeholder="Max Mustermann" onChange={function(e){ setForm(Object.assign({},form,{name:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Firma</div>
+              <input className="inp" style={{ width:"100%" }} value={form.firma||""} placeholder="ATU, Bosch..." onChange={function(e){ setForm(Object.assign({},form,{firma:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Telefon</div>
+              <input className="inp" style={{ width:"100%" }} value={form.phone||""} placeholder="+49 621..." onChange={function(e){ setForm(Object.assign({},form,{phone:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">WhatsApp</div>
+              <input className="inp" style={{ width:"100%" }} value={form.whatsapp||""} placeholder="+49 151..." onChange={function(e){ setForm(Object.assign({},form,{whatsapp:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">E-Mail</div>
+              <input className="inp" style={{ width:"100%" }} value={form.email||""} placeholder="name@firma.de" onChange={function(e){ setForm(Object.assign({},form,{email:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Kategorie</div>
+              <select className="inp" style={{ width:"100%" }} value={form.category||"Sonstiges"} onChange={function(e){ setForm(Object.assign({},form,{category:e.target.value})); }}>
+                {CONTACT_CATS.map(function(c){ return <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>; })}
+              </select>
+            </div>
+            <div style={{ gridColumn:"1 / -1" }}>
+              <div className="label-cap">Notizen</div>
+              <input className="inp" style={{ width:"100%" }} value={form.notes||""} placeholder="Öffnungszeiten, Notizen..." onChange={function(e){ setForm(Object.assign({},form,{notes:e.target.value})); }} />
+            </div>
+          </div>
+          <button className="btn-primary" style={{ maxWidth:200 }} disabled={loading} onClick={save}>
+            {loading ? "..." : (editItem ? "💾 Speichern" : "+ Hinzufügen")}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+        <button className={"btn-small "+(catF==="all"?"btn-primary":"btn-outline")} onClick={function(){ setCatF("all"); }}>Alle</button>
+        {CONTACT_CATS.map(function(c){
+          return <button key={c} className={"btn-small "+(catF===c?"btn-primary":"btn-outline")} onClick={function(){ setCatF(c); }}>{CAT_ICONS[c]} {c}</button>;
+        })}
+        <input className="inp" style={{ flex:1, minWidth:180 }} value={search} placeholder="Suche Name / Firma..." onChange={function(e){ setSearch(e.target.value); }} />
+      </div>
+
+      {list.length === 0
+        ? <div className="empty">Keine Kontakte gefunden</div>
+        : <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:12 }}>
+            {list.map(function(c){
+              return (
+                <div key={c.id} className="glass" style={{ padding:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                    <div>
+                      <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
+                      {c.firma && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{c.firma}</div>}
+                      <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.4)", background:"rgba(255,255,255,0.06)", padding:"2px 8px", borderRadius:99 }}>{CAT_ICONS[c.category]} {c.category}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <button className="btn-outline btn-small" onClick={function(){ startEdit(c); }}>✎</button>
+                      <button className="btn-danger btn-small" onClick={function(){ del(c.id); }}>✕</button>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {c.phone && (
+                      <a href={"tel:"+c.phone} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", borderRadius:9, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.3)", color:"#22c55e", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                        📞 {c.phone}
+                      </a>
+                    )}
+                    {c.whatsapp && (
+                      <a href={"https://wa.me/"+c.whatsapp.replace(/[^0-9]/g,"")} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", borderRadius:9, background:"rgba(37,211,102,0.12)", border:"1px solid rgba(37,211,102,0.3)", color:"#25d366", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                        💬 WhatsApp
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={"mailto:"+c.email} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", borderRadius:9, background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.3)", color:"#60a5fa", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                        ✉️ E-Mail
+                      </a>
+                    )}
+                  </div>
+                  {c.notes && <div style={{ marginTop:8, fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.4 }}>{c.notes}</div>}
+                </div>
+              );
+            })}
+          </div>
+      }
+    </div>
+  );
+}
+
 // === EINSTELLUNGEN ===
 function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
   var _stab = useState("vehicles"); var tab = _stab[0]; var setTab = _stab[1];
@@ -1618,11 +1802,13 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
   var _ff = useState({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true });
   var ff = _ff[0]; var setFf = _ff[1];
   // Stock form
-  var _sf = useState({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"" });
+  var _sf = useState({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"", category:"Sonstiges", serial_nr:"", condition:"new" });
   var sf = _sf[0]; var setSf = _sf[1];
-  // Mechanic form
   var _mf = useState({ id:"", name:"", rate_per_hour:"25" });
   var mf = _mf[0]; var setMf = _mf[1];
+  var _editItem = useState(null); var editItem = _editItem[0]; var setEditItem = _editItem[1];
+  var _fSearch = useState(""); var fSearch = _fSearch[0]; var setFSearch = _fSearch[1];
+  var _fLoc = useState(""); var fLoc = _fLoc[0]; var setFLoc = _fLoc[1];
 
   var _musers = useState([]); var dbUsers = _musers[0]; var setDbUsers = _musers[1];
 
@@ -1850,12 +2036,24 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
 
           <div className="panel">
             <div className="panel-hd"><div className="panel-title">Vorhandene Stapler ({forklifts.length})</div></div>
-            {forklifts.length === 0
-              ? <div className="empty">Noch keine Stapler</div>
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+              <input className="inp" style={{ flex:1, minWidth:180 }} value={fSearch} placeholder="Suche Nummer / Modell..." onChange={function(e){ setFSearch(e.target.value); }} />
+              <input className="inp" value={fLoc} placeholder="Filter Standort..." onChange={function(e){ setFLoc(e.target.value); }} style={{ width:160 }} />
+            </div>
+            {forklifts.filter(function(f){
+              var ms = !fSearch || ((f.nummer||"")+(f.hersteller||"")+(f.model||"")).toLowerCase().includes(fSearch.toLowerCase());
+              var ml = !fLoc || (f.standort||"").toLowerCase().includes(fLoc.toLowerCase());
+              return ms && ml;
+            }).length === 0
+              ? <div className="empty">Keine Stapler gefunden</div>
               : <table className="tbl">
                   <thead><tr><th>Nr.</th><th>Hersteller</th><th>Modell</th><th>Standort</th><th>Std</th><th>UVV</th><th>Aktiv</th><th></th></tr></thead>
                   <tbody>
-                    {forklifts.map(function(f){
+                    {forklifts.filter(function(f){
+                      var ms = !fSearch || ((f.nummer||"")+(f.hersteller||"")+(f.model||"")).toLowerCase().includes(fSearch.toLowerCase());
+                      var ml = !fLoc || (f.standort||"").toLowerCase().includes(fLoc.toLowerCase());
+                      return ms && ml;
+                    }).map(function(f){
                       return (
                         <tr key={f.id}>
                           <td><strong>{f.nummer}</strong></td>
@@ -1865,7 +2063,12 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
                           <td style={{ fontSize:12 }}>{f.betrieb_std||"—"}</td>
                           <td style={{ fontSize:12 }}>{fmtDate(f.uvv_datum)||"—"}</td>
                           <td><span className={"badge "+(f.aktiv?"badge-green":"badge-gray")}>{f.aktiv?"Ja":"Nein"}</span></td>
-                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("forklifts",f.id); }}>✕</button></td>
+                          <td>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button className="btn-outline btn-small" onClick={function(){ setFf({ nummer:f.nummer||"", hersteller:f.hersteller||"", model:f.model||"", baujahr:f.baujahr?String(f.baujahr):"", standort:f.standort||"", einsatzort:f.einsatzort||"", fahrgestell:f.fahrgestell||"", betrieb_std:f.betrieb_std?String(f.betrieb_std):"", uvv_datum:f.uvv_datum||"", kaufpreis:f.kaufpreis?String(f.kaufpreis):"", leasingrate:f.leasingrate?String(f.leasingrate):"", aktiv:f.aktiv!==false }); setTab("forklifts"); }}>✎</button>
+                              <button className="btn-danger btn-small" onClick={function(){ deleteItem("forklifts",f.id); }}>✕</button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -1880,11 +2083,19 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
       {tab === "stock" && (
         <div>
           <div className="panel" style={{ marginBottom:16 }}>
-            <div className="panel-hd"><div className="panel-title">Neue Lagerposition hinzufügen</div></div>
+            <div className="panel-hd"><div className="panel-title">{editItem ? "Position bearbeiten" : "Neue Lagerposition"}</div>
+              {editItem && <button className="btn-outline btn-small" onClick={function(){ setSf({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"", category:"Sonstiges", serial_nr:"", condition:"new" }); setSaving(false); var ei = editItem; }}>✕ Abbrechen</button>}
+            </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
               <div style={{ gridColumn:"1 / -1" }}>
                 <div className="label-cap">Bezeichnung *</div>
-                <input className="inp" style={{ width:"100%" }} value={sf.name} placeholder="Motoröl 5W-30, Bremsscheibe vorne..." onChange={function(e){ setSf(Object.assign({},sf,{name:e.target.value})); }} />
+                <input className="inp" style={{ width:"100%" }} value={sf.name} placeholder="Motoröl 5W-30, Bremsscheibe, Reifen Continental 315/70..." onChange={function(e){ setSf(Object.assign({},sf,{name:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Kategorie</div>
+                <select className="inp" style={{ width:"100%" }} value={sf.category||"Sonstiges"} onChange={function(e){ setSf(Object.assign({},sf,{category:e.target.value})); }}>
+                  {STOCK_CATS.map(function(c){ return <option key={c} value={c}>{c}</option>; })}
+                </select>
               </div>
               <div>
                 <div className="label-cap">Einheit</div>
@@ -1904,28 +2115,51 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
                 <div className="label-cap">Preis (€)</div>
                 <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={sf.price} placeholder="0.00" onChange={function(e){ setSf(Object.assign({},sf,{price:e.target.value})); }} />
               </div>
+              <div>
+                <div className="label-cap">Serien-Nr. (für Reifen etc.)</div>
+                <input className="inp" style={{ width:"100%" }} value={sf.serial_nr||""} placeholder="SN123456..." onChange={function(e){ setSf(Object.assign({},sf,{serial_nr:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Zustand</div>
+                <select className="inp" style={{ width:"100%" }} value={sf.condition||"new"} onChange={function(e){ setSf(Object.assign({},sf,{condition:e.target.value})); }}>
+                  <option value="new">Neu</option>
+                  <option value="used">Б/У (gebraucht)</option>
+                  <option value="passau">→ Nach Passau</option>
+                </select>
+              </div>
             </div>
             <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveStock}>
-              {saving ? "..." : "+ Position speichern"}
+              {saving ? "..." : (editItem ? "💾 Aktualisieren" : "+ Position speichern")}
             </button>
           </div>
 
           <div className="panel">
             <div className="panel-hd"><div className="panel-title">Lager ({stock.length} Positionen)</div></div>
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+              {STOCK_CATS.map(function(c){
+                return <button key={c} className={"btn-small "+(sf.category===c?"btn-primary":"btn-outline")} style={{ fontSize:10 }} onClick={function(){}}>{c}</button>;
+              })}
+            </div>
             {stock.length === 0
               ? <div className="empty">Lager ist leer</div>
               : <table className="tbl">
-                  <thead><tr><th>Bezeichnung</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th></th></tr></thead>
+                  <thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Serien-Nr.</th><th>Zustand</th><th>Bestand</th><th>Preis</th><th></th></tr></thead>
                   <tbody>
                     {stock.map(function(s){
                       return (
                         <tr key={s.id}>
                           <td><strong>{s.name}</strong></td>
-                          <td style={{ color: s.qty<=(s.min_qty||0)?"#ef4444":"#ffa500", fontWeight:700 }}>{s.qty}</td>
-                          <td style={{ fontSize:12 }}>{s.unit||"Stk"}</td>
-                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{s.min_qty||0}</td>
+                          <td style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>{s.category||"—"}</td>
+                          <td style={{ fontSize:12, fontFamily:"monospace" }}>{s.serial_nr||"—"}</td>
+                          <td style={{ fontSize:12, color: s.condition==="used"?"#ffa500":s.condition==="passau"?"rgba(255,255,255,0.3)":"#22c55e" }}>{s.condition==="used"?"Б/У":s.condition==="passau"?"→ Passau":"Neu"}</td>
+                          <td style={{ color: s.qty<=(s.min_qty||0)?"#ef4444":"#ffa500", fontWeight:700 }}>{s.qty} {s.unit||"Stk"}</td>
                           <td style={{ fontSize:12 }}>{s.price?Number(s.price).toFixed(2)+" €":"—"}</td>
-                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("stock",s.id); }}>✕</button></td>
+                          <td>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button className="btn-outline btn-small" onClick={function(){ setSf({ name:s.name||"", unit:s.unit||"Stk", qty:String(s.qty||0), min_qty:String(s.min_qty||0), price:s.price?String(s.price):"", category:s.category||"Sonstiges", serial_nr:s.serial_nr||"", condition:s.condition||"new", id:s.id }); }}>✎</button>
+                              <button className="btn-danger btn-small" onClick={function(){ deleteItem("stock",s.id); }}>✕</button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -2049,6 +2283,7 @@ function AppShell({ user, onLogout }) {
     { k:"rechnungen",  ic: IC.receipt,  label:"Rechnungen" },
     { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
     { k:"archiv",      ic: IC.archive,  label:"Archiv" },
+    { k:"kontakte",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
     { k:"settings",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
   ];
 
@@ -2056,7 +2291,7 @@ function AppShell({ user, onLogout }) {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", waschhalle:"Waschhalle",
     lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Rechnungen",
-    wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen"
+    wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen", kontakte:"Kontakte"
   };
 
   return (
@@ -2127,6 +2362,7 @@ function AppShell({ user, onLogout }) {
           {sec === "rechnungen"  && <Rechnungen invoices={invoices} vehicles={vehicles} jobs={jobs} onRefresh={loadAll} loading={loading} />}
           {sec === "wartung"     && <Wartungsplan plans={plans} vehicles={vehicles} forklifts={forklifts} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={jobs} />}
+          {sec === "kontakte"    && <Kontakte onRefresh={loadAll} />}
           {sec === "settings"    && <Einstellungen vehicles={vehicles} forklifts={forklifts} stock={stock} onRefresh={loadAll} loading={loading} />}
         </div>
       </div>
