@@ -1399,7 +1399,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           <div style={{ marginBottom:8 }}>
             <div style={{ display:"flex", gap:10, marginBottom:8 }}>
               <button type="button" className={"chip" + (tireNewCond==="new"?" active":"")} onClick={function(){ setTireNewCond("new"); }}>🟢 Neu</button>
-              <button type="button" className={"chip" + (tireNewCond==="used"?" active":"")} onClick={function(){ setTireNewCond("used"); }}>🟡 Б/У</button>
+              <button type="button" className={"chip" + (tireNewCond==="used"?" active":"")} onClick={function(){ setTireNewCond("used"); }}>🟡 Gebraucht</button>
             </div>
           </div>
           <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)", paddingTop:12 }}>
@@ -1456,7 +1456,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         <div className="modal-back" onClick={function(){ setRechnungModal(false); alert("Bericht gespeichert!"); }}>
           <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
             <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>📋 Lieferschein erfassen</div>
-            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:16 }}>Zapchast' zakrepiti za etim zakazom</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:16 }}>Ersatzteil diesem Auftrag zuordnen</div>
 
             <div className="label-cap">Lieferant (Firma)</div>
             <input className="input-dark" style={{ marginBottom:10 }} value={rSupplier}
