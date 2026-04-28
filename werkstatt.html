@@ -1222,6 +1222,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var _spt = useState("none"); var partsType = _spt[0]; var setPartsType = _spt[1];
   var _ssi = useState([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
   var shopItems = _ssi[0]; var setShopItems = _ssi[1];
+  var _stns = useState(""); var tireNewSn = _stns[0]; var setTireNewSn = _stns[1];
+  var _stos = useState(""); var tireOldSn = _stos[0]; var setTireOldSn = _stos[1];
+  var _stnc = useState("new"); var tireNewCond = _stnc[0]; var setTireNewCond = _stnc[1];
   var _ssav = useState(false); var saving = _ssav[0]; var setSaving = _ssav[1];
   var _srm = useState(false); var rechnungModal = _srm[0]; var setRechnungModal = _srm[1];
   var _srj = useState(null); var savedJobId = _srj[0]; var setSavedJobId = _srj[1];
@@ -1284,6 +1287,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           parts_type: partsType,
           parts_note: partsNote || null,
           parts_items: partsType === "shop" ? JSON.stringify(shopItems) : null,
+          tire_new_sn: workType === "tireChange" && tireNewSn.trim() ? tireNewSn.trim() : null,
+          tire_old_sn: workType === "tireChange" && tireOldSn.trim() ? tireOldSn.trim() : null,
+          tire_condition: workType === "tireChange" ? tireNewCond : null,
           cost: totalCost,
           labor_cost: laborCost,
           parts_cost: partsCost,
@@ -1382,6 +1388,28 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         <textarea className="textarea-dark" value={description} onChange={function(e){ setDescription(e.target.value); }} placeholder="Fehlerbeschreibung eingeben..." />
       </div>
 
+      {workType === "tireChange" && (
+        <div className="glass-panel">
+          <div className="panel-title">🔄 Reifenwechsel — Serien-Nummern</div>
+          <div style={{ marginBottom:12 }}>
+            <div className="label-cap">Neue Reifen — Serien-Nr. (eingebaut)</div>
+            <input className="input-dark" value={tireNewSn} onChange={function(e){ setTireNewSn(e.target.value); }} placeholder="SN123456, SN123457..." />
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Mehrere Nummern mit Komma trennen</div>
+          </div>
+          <div style={{ marginBottom:8 }}>
+            <div style={{ display:"flex", gap:10, marginBottom:8 }}>
+              <button type="button" className={"chip" + (tireNewCond==="new"?" active":"")} onClick={function(){ setTireNewCond("new"); }}>🟢 Neu</button>
+              <button type="button" className={"chip" + (tireNewCond==="used"?" active":"")} onClick={function(){ setTireNewCond("used"); }}>🟡 Б/У</button>
+            </div>
+          </div>
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)", paddingTop:12 }}>
+            <div className="label-cap">Abgezogene Reifen — Serien-Nr.</div>
+            <input className="input-dark" value={tireOldSn} onChange={function(e){ setTireOldSn(e.target.value); }} placeholder="SN789012..." />
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Diese Reifen gehen nach Passau</div>
+          </div>
+        </div>
+      )}
+
       <div className="glass-panel">
         <div className="panel-title">📷 Fotos</div>
         <PhotoCapture photos={photos} setPhotos={setPhotos} />
@@ -1427,20 +1455,20 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       {rechnungModal && (
         <div className="modal-back" onClick={function(){ setRechnungModal(false); alert("Bericht gespeichert!"); }}>
           <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
-            <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>🧾 Rechnung erfassen?</div>
-            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:16 }}>Beleg für die eingekauften Teile speichern</div>
+            <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>📋 Lieferschein erfassen</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:16 }}>Zapchast' zakrepiti za etim zakazom</div>
 
-            <div className="label-cap">Lieferant</div>
+            <div className="label-cap">Lieferant (Firma)</div>
             <input className="input-dark" style={{ marginBottom:10 }} value={rSupplier}
               onChange={function(e){ setRSupplier(e.target.value); }}
               placeholder="z.B. ATU, Bosch Service, Amazon..." />
 
             <div className="grid2" style={{ marginBottom:10 }}>
               <div>
-                <div className="label-cap">Beleg-Nr.</div>
+                <div className="label-cap">Lieferschein-Nr.</div>
                 <input className="input-dark" value={rNr}
                   onChange={function(e){ setRNr(e.target.value); }}
-                  placeholder="Nr. 12345" />
+                  placeholder="LS-12345" />
               </div>
               <div>
                 <div className="label-cap">Datum</div>
@@ -1449,50 +1477,23 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               </div>
             </div>
 
-            <div className="label-cap">Betrag (€)</div>
-            <input className="input-dark" inputMode="decimal" style={{ marginBottom:10 }} value={rAmt}
-              onChange={function(e){ setRAmt(e.target.value.replace(/[^0-9.,]/g,"")); }}
-              placeholder="0.00" />
-
-            <div className="label-cap">Notizen / Teile</div>
-            <textarea className="textarea-dark" style={{ marginBottom:10, minHeight:60 }} value={rNotes}
+            <div className="label-cap">Zapchast' / Bezeichnung</div>
+            <input className="input-dark" style={{ marginBottom:16 }} value={rNotes}
               onChange={function(e){ setRNotes(e.target.value); }}
-              placeholder="Was wurde gekauft?" />
-
-            <div className="label-cap">Beleg-Foto (optional)</div>
-            <input ref={rPhotoRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }}
-              onChange={function(e){
-                var file = e.target.files && e.target.files[0];
-                if (!file) return;
-                var r = new FileReader();
-                r.onload = function(ev){ setRPhoto({ file:file, base64:ev.target.result }); };
-                r.readAsDataURL(file);
-                e.target.value = "";
-              }} />
-            {!rPhoto
-              ? <button className="photo-box" type="button" style={{ marginBottom:12 }}
-                  onClick={function(){ if (rPhotoRef.current) rPhotoRef.current.click(); }}>
-                  📷 Beleg fotografieren
-                </button>
-              : <div style={{ position:"relative", width:80, height:80, marginBottom:12 }}>
-                  <img src={rPhoto.base64} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:10 }} />
-                  <button type="button" onClick={function(){ setRPhoto(null); }}
-                    style={{ position:"absolute", top:-6, right:-6, width:22, height:22, border:0, borderRadius:"50%", background:"#ef4444", color:"#fff", fontWeight:800, fontSize:13 }}>×</button>
-                </div>
-            }
+              placeholder="Was wurde geliefert?" />
 
             <div style={{ display:"flex", gap:10, marginTop:4 }}>
               <button className="btn-primary" type="button" style={{ flex:2 }} disabled={rSaving}
                 onClick={function(){
                   setRSaving(true);
                   var inv = {
-                    id: "INV" + Date.now(),
+                    id: "LS" + Date.now(),
                     date: rDate,
                     supplier_name: rSupplier.trim() || "Unbekannt",
                     invoice_nr: rNr.trim() || null,
                     vehicle_id: vehicle ? vehicle.plate : null,
                     job_id: savedJobId,
-                    total_eur: parseFloat((rAmt||"0").replace(",",".")) || 0,
+                    total_eur: 0,
                     paid: false,
                     notes: rNotes.trim() || null,
                     created_at: new Date().toISOString()
@@ -1501,14 +1502,14 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                     .then(function(){
                       setRSaving(false);
                       setRechnungModal(false);
-                      alert("Bericht + Rechnung gespeichert!");
+                      alert("Bericht + Lieferschein gespeichert!");
                     })
                     .catch(function(e){
-                      alert("Rechnung Fehler: " + (e.message||e));
+                      alert("Fehler: " + (e.message||e));
                       setRSaving(false);
                     });
                 }}>
-                {rSaving ? "Speichert..." : "💾 Rechnung speichern"}
+                {rSaving ? "Speichert..." : "💾 Lieferschein speichern"}
               </button>
               <button className="outline-btn" type="button" style={{ flex:1, padding:14 }}
                 onClick={function(){ setRechnungModal(false); alert("Bericht gespeichert!"); }}>
