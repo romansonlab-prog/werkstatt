@@ -1,15 +1,28 @@
 {
   "name": "WerkFlow Fahrer",
   "short_name": "Fahrer",
-  "description": "WerkFlow Fahrer — Inspektion und Störung melden",
+  "description": "WerkFlow Fahrer \u2014 Inspektion und St\u00f6rung melden",
   "start_url": "/fahrer.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a1730",
   "theme_color": "#1d4ed8",
   "icons": [
-    { "src": "/icons/fahrer-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/fahrer-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/fahrer-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/fahrer-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/fahrer-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/fahrer-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
