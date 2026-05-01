@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest-dashboard.json">
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WerkFlow Dashboard">
+  <link rel="apple-touch-icon" href="/icons/dashboard-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="WerkFlow Dashboard">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WerkFlow Dashboard</title>
@@ -282,7 +291,15 @@ function exportJobs(jobs, title, dateLabel) {
     "<div class='sum-item'><div class='sum-val'>"+totalCost.toFixed(2)+" €</div><div class='sum-lab'>Kosten</div></div></div>"+
     "<table><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
     "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>"+
-    "</body></html>";
+    "
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+      });
+    }
+  </script>
+</body></html>";
   printHtml(html, title);
 }
 
@@ -1098,7 +1115,7 @@ function Lager({ stock, onRefresh, loading }) {
       var isLow = s.qty <= (s.min_qty||0);
       return "<tr><td>"+(s.name||"—")+"</td><td>"+(s.category||"—")+"</td><td>"+(s.qty||0)+"</td><td>"+(s.unit||"Stk")+"</td>"+
         "<td>"+(s.min_qty||0)+"</td><td>"+(s.price?Number(s.price).toFixed(2)+" €":"—")+"</td>"+
-        "<td>"+(s.serial_nr||"—")+"</td><td>"+(s.condition==="used"?"Б/У":s.condition==="passau"?"→ Passau":"Neu")+"</td>"+
+        "<td>"+(s.serial_nr||"—")+"</td><td>"+(s.condition==="used"?"Gebraucht":s.condition==="passau"?"→ Passau":"Neu")+"</td>"+
         "<td style='color:"+(isLow?"#ef4444":"#22c55e")+"'>"+(isLow?"⚠ Nachbestellen":"OK")+"</td></tr>";
     }).join("");
     var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Lager Export</title>"+baseReportStyle()+"</head><body>"+
@@ -1141,7 +1158,7 @@ function Lager({ stock, onRefresh, loading }) {
               <tbody>
                 {filtered.map(function(s){
                   var isLow = s.qty <= (s.min_qty||0);
-                  var cond = s.condition === "used" ? "Б/У" : s.condition === "passau" ? "→ Passau" : "Neu";
+                  var cond = s.condition === "used" ? "Gebraucht" : s.condition === "passau" ? "→ Passau" : "Neu";
                   var condColor = s.condition === "used" ? "#ffa500" : s.condition === "passau" ? "rgba(255,255,255,0.3)" : "#22c55e";
                   return (
                     <tr key={s.id}>
@@ -2123,7 +2140,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
                 <div className="label-cap">Zustand</div>
                 <select className="inp" style={{ width:"100%" }} value={sf.condition||"new"} onChange={function(e){ setSf(Object.assign({},sf,{condition:e.target.value})); }}>
                   <option value="new">Neu</option>
-                  <option value="used">Б/У (gebraucht)</option>
+                  <option value="used">Gebraucht</option>
                   <option value="passau">→ Nach Passau</option>
                 </select>
               </div>
@@ -2151,7 +2168,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
                           <td><strong>{s.name}</strong></td>
                           <td style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>{s.category||"—"}</td>
                           <td style={{ fontSize:12, fontFamily:"monospace" }}>{s.serial_nr||"—"}</td>
-                          <td style={{ fontSize:12, color: s.condition==="used"?"#ffa500":s.condition==="passau"?"rgba(255,255,255,0.3)":"#22c55e" }}>{s.condition==="used"?"Б/У":s.condition==="passau"?"→ Passau":"Neu"}</td>
+                          <td style={{ fontSize:12, color: s.condition==="used"?"#ffa500":s.condition==="passau"?"rgba(255,255,255,0.3)":"#22c55e" }}>{s.condition==="used"?"Gebraucht":s.condition==="passau"?"→ Passau":"Neu"}</td>
                           <td style={{ color: s.qty<=(s.min_qty||0)?"#ef4444":"#ffa500", fontWeight:700 }}>{s.qty} {s.unit||"Stk"}</td>
                           <td style={{ fontSize:12 }}>{s.price?Number(s.price).toFixed(2)+" €":"—"}</td>
                           <td>
