@@ -1746,15 +1746,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
       "</div>" +
       "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Kosten</th><th>Status</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table>" +
-      "
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function(){});
-      });
-    }
-  </script>
-</body></html>";
+      "</body></html>";
 
     var fileName = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
 
@@ -2317,5 +2309,12 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+      });
+    }
+  </script>
 </body>
 </html>
