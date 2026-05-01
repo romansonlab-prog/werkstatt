@@ -373,14 +373,20 @@ function StandortPicker({ value, onChange }) {
   var _c = useState(false); var custom = _c[0]; var setCustom = _c[1];
   var _g = useState(false); var gps = _g[0]; var setGps = _g[1];
   var _cv = useState(""); var cv = _cv[0]; var setCv = _cv[1];
+  var _ga = useState(null); var gpsAcc = _ga[0]; var setGpsAcc = _ga[1];
   var isPreset = LOCS.some(function(l){ return l.id === value; });
   var isCustom = value && !isPreset;
   function detectGPS() {
     if (!navigator.geolocation) { alert("Geolocation nicht verfügbar"); return; }
-    setGps(true);
+    setGps(true); setGpsAcc(null);
     navigator.geolocation.getCurrentPosition(
       function(p) {
-        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + p.coords.latitude + "&lon=" + p.coords.longitude + "&accept-language=de&zoom=18")
+        var lat = p.coords.latitude.toFixed(6);
+        var lon = p.coords.longitude.toFixed(6);
+        var acc = Math.round(p.coords.accuracy);
+        setGpsAcc(acc);
+        var coords = lat + ", " + lon;
+        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&accept-language=de&zoom=18")
           .then(function(r){ return r.json(); })
           .then(function(d){
             var a = d.address || {}; var parts = [];
@@ -389,26 +395,25 @@ function StandortPicker({ value, onChange }) {
             if (a.postcode) parts.push(a.postcode);
             if (a.city || a.town || a.village || a.municipality) parts.push(a.city || a.town || a.village || a.municipality);
             if (a.country_code) parts.push((a.country_code + "").toUpperCase());
-            var coords = p.coords.latitude.toFixed(6) + ", " + p.coords.longitude.toFixed(6);
             var txt = (parts.length ? parts.join(", ") + " | " : "") + coords;
             onChange(txt); setCv(txt); setCustom(true); setGps(false);
           })
           .catch(function(){
-            var txt = p.coords.latitude.toFixed(6) + ", " + p.coords.longitude.toFixed(6);
-            onChange(txt); setCv(txt); setCustom(true); setGps(false);
+            onChange(coords); setCv(coords); setCustom(true); setGps(false);
           });
       },
       function(e){ setGps(false); alert("GPS: " + e.message); },
-      { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+      { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
     );
   }
+  var coordsFromValue = isCustom && value && value.includes("|") ? value.split("|").pop().trim() : (isCustom ? value : "");
   return (
     <div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
         {LOCS.map(function(l){
           return (
             <button key={l.id} type="button" className={"tile-btn" + (value === l.id ? " active" : "")}
-              onClick={function(){ onChange(l.id); setCustom(false); setCv(""); }}>
+              onClick={function(){ onChange(l.id); setCustom(false); setCv(""); setGpsAcc(null); }}>
               {l.name}
             </button>
           );
@@ -429,6 +434,19 @@ function StandortPicker({ value, onChange }) {
       <button type="button" className="gps-btn" disabled={gps} onClick={detectGPS}>
         {gps ? "⏳ Ermittle Standort..." : "📍 GPS — Aktuellen Standort verwenden"}
       </button>
+      {gpsAcc !== null && (
+        <div style={{ marginTop:6, fontSize:12, fontWeight:700,
+          color: gpsAcc <= 50 ? "#22c55e" : gpsAcc <= 200 ? "#ffa500" : "#ef4444" }}>
+          {gpsAcc <= 50 ? "✓ Genau" : gpsAcc <= 200 ? "⚠ Mittel" : "✕ Ungenau"} — ±{gpsAcc}m
+          {coordsFromValue && (
+            <a href={"https://maps.google.com/?q="+coordsFromValue}
+              target="_blank" rel="noreferrer"
+              style={{ marginLeft:10, color:"#60a5fa", textDecoration:"none", fontWeight:700 }}>
+              📌 Google Maps
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
