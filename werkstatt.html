@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest-werkstatt.json">
+  <meta name="theme-color" content="#ff8c00">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WerkFlow Werkstatt">
+  <link rel="apple-touch-icon" href="/icons/werkstatt-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="WerkFlow Werkstatt">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WerkFlow Werkstatt</title>
@@ -1737,7 +1746,15 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
       "</div>" +
       "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Kosten</th><th>Status</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table>" +
-      "</body></html>";
+      "
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+      });
+    }
+  </script>
+</body></html>";
 
     var fileName = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
 
