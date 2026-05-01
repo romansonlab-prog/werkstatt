@@ -1,0 +1,28 @@
+{
+  "name": "WerkFlow Werkstatt",
+  "short_name": "Werkstatt",
+  "description": "WerkFlow Werkstatt \u2014 Auftr\u00e4ge und Reparaturen",
+  "start_url": "/werkstatt.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1730",
+  "theme_color": "#ff8c00",
+  "icons": [
+    {
+      "src": "/werkstatt-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/werkstatt-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/werkstatt-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
