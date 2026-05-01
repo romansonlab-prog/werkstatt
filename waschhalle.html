@@ -86,9 +86,22 @@
     .user-pill{display:flex;align-items:center;gap:8px;background:rgba(12,36,76,0.62);border:1px solid rgba(255,255,255,0.13);padding:7px 10px;border-radius:12px}
     .status-dot{width:8px;height:8px;border-radius:50%;background:#22c55e}
   </style>
+  <link rel="manifest" href="manifest-waschhalle.json" />
+  <meta name="theme-color" content="#0891b2" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Waschhalle" />
 </head>
 <body>
 <div id="root"></div>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('SW:', e); });
+    });
+  }
+</script>
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 

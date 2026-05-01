@@ -1,6 +1,16 @@
-const CACHE = "werkflow-v1";
+const CACHE = "werkflow-v2";
 const ASSETS = [
   "/bg-truck.png",
+  "/dashboard.html",
+  "/werkstatt.html",
+  "/waschhalle.html",
+  "/stapler.html",
+  "/fahrer.html",
+  "/manifest-dashboard.json",
+  "/manifest-werkstatt.json",
+  "/manifest-waschhalle.json",
+  "/manifest-stapler.json",
+  "/manifest-fahrer.json",
 ];
 
 self.addEventListener("install", function(e) {

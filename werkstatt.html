@@ -401,9 +401,22 @@
       100% { box-shadow:0 0 18px rgba(255,59,48,0.7); }
     }
   </style>
+  <link rel="manifest" href="manifest-werkstatt.json" />
+  <meta name="theme-color" content="#ff8c00" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Werkstatt" />
 </head>
 <body>
 <div id="root"></div>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js').catch(function(e){ console.warn('SW:', e); });
+    });
+  }
+</script>
 <script type="text/babel">
 const { useEffect, useRef, useState } = React;
 
