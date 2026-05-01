@@ -385,13 +385,15 @@ function StandortPicker({ value, onChange }) {
           .then(function(d){
             var a = d.address || {}; var parts = [];
             if (a.road) parts.push(a.road + (a.house_number ? " " + a.house_number : ""));
-            if (a.city || a.town || a.village || a.suburb) parts.push(a.city || a.town || a.village || a.suburb);
+            if (a.neighbourhood || a.suburb) parts.push(a.neighbourhood || a.suburb);
+            if (a.postcode) parts.push(a.postcode);
+            if (a.city || a.town || a.village || a.municipality) parts.push(a.city || a.town || a.village || a.municipality);
             if (a.country_code) parts.push((a.country_code + "").toUpperCase());
-            var txt = parts.length ? parts.join(", ") : (p.coords.latitude.toFixed(5) + ", " + p.coords.longitude.toFixed(5));
+            var txt = parts.length ? parts.join(", ") : (p.coords.latitude.toFixed(6) + ", " + p.coords.longitude.toFixed(6));
             onChange(txt); setCv(txt); setCustom(true); setGps(false);
           })
           .catch(function(){
-            var txt = p.coords.latitude.toFixed(5) + ", " + p.coords.longitude.toFixed(5);
+            var txt = p.coords.latitude.toFixed(6) + ", " + p.coords.longitude.toFixed(6);
             onChange(txt); setCv(txt); setCustom(true); setGps(false);
           });
       },
