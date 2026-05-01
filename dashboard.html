@@ -603,6 +603,22 @@ function Eingang({ alerts, onRefresh, loading }) {
                         {fmtDateTime(a.created_at)} · {a.sender||""} · 📍 {a.location||"—"}
                       </div>
                       <div style={{ fontSize:13, color:"rgba(255,255,255,0.8)", lineHeight:1.5 }}>{a.description||"Keine Beschreibung"}</div>
+                      {(function(){
+                        var urls = [];
+                        try { urls = Array.isArray(a.photo_urls) ? a.photo_urls : (typeof a.photo_urls === "string" ? JSON.parse(a.photo_urls||"[]") : []); } catch(e){}
+                        if (!urls.length) return null;
+                        return (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:10 }}>
+                            {urls.map(function(u,i){
+                              return (
+                                <a key={i} href={u} target="_blank" rel="noreferrer">
+                                  <img src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)", display:"block" }} />
+                                </a>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                     {!done && (
                       <button className="btn-outline btn-small no-print" disabled={updating} onClick={function(){ markDone(a.id); }}>
@@ -695,13 +711,16 @@ function Mechaniker({ jobs, onRefresh, loading }) {
                         <thead>
                           <tr>
                             <th>Fahrzeug</th><th>Typ</th><th>Standort</th>
-                            <th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th>
+                            <th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th><th></th>
                           </tr>
                         </thead>
                         <tbody>
                           {mj.map(function(j){
-                            return (
-                              <tr key={j.id}>
+                            var jPhotos = [];
+                            try { jPhotos = Array.isArray(j.photo_urls) ? j.photo_urls : (typeof j.photo_urls==="string" ? JSON.parse(j.photo_urls||"[]") : []); } catch(e){}
+                            var isExpJ = expanded === ("m_"+j.id);
+                            return [
+                              <tr key={j.id} style={{ cursor: jPhotos.length?"pointer":"default" }} onClick={function(){ if(jPhotos.length) setExpanded(isExpJ?null:("m_"+j.id)); }}>
                                 <td><strong>{j.plate||"—"}</strong></td>
                                 <td>{WORK_TYPES[j.work_type]||j.work_type||"—"}</td>
                                 <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{j.location||"—"}</td>
@@ -709,8 +728,20 @@ function Mechaniker({ jobs, onRefresh, loading }) {
                                 <td>{fmtMin(j.work_min||0)}</td>
                                 <td>{j.cost ? Number(j.cost).toFixed(2)+" €" : "—"}</td>
                                 <td>{statusBadge(j.status)}</td>
-                              </tr>
-                            );
+                                <td style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{jPhotos.length?(isExpJ?"▲":"📷 "+jPhotos.length):""}</td>
+                              </tr>,
+                              isExpJ && jPhotos.length > 0 && (
+                                <tr key={j.id+"_ph"}>
+                                  <td colSpan={8} style={{ padding:"10px 14px", background:"rgba(0,0,0,0.2)" }}>
+                                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                                      {jPhotos.map(function(u,i){
+                                        return <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} /></a>;
+                                      })}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            ];
                           })}
                         </tbody>
                       </table>
@@ -1183,6 +1214,7 @@ function Archiv({ jobs }) {
   var _sm = useState(""); var mechF = _sm[0]; var setMechF = _sm[1];
   var _st = useState(""); var typeF = _st[0]; var setTypeF = _st[1];
   var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
 
   var list = jobs;
   if (dateFrom) list = list.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) >= dateFrom; });
@@ -1228,11 +1260,15 @@ function Archiv({ jobs }) {
         {list.length === 0
           ? <div className="empty">Keine Aufträge gefunden</div>
           : <table className="tbl">
-              <thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead>
+              <thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {list.slice(0,200).map(function(j){
-                  return (
-                    <tr key={j.id}>
+                  var archExpKey = "arch_" + j.id;
+                  var isExp = expanded === j.id;
+                  var photos = [];
+                  try { photos = Array.isArray(j.photo_urls) ? j.photo_urls : (typeof j.photo_urls === "string" ? JSON.parse(j.photo_urls||"[]") : []); } catch(e){}
+                  return [
+                    <tr key={j.id} style={{ cursor: photos.length ? "pointer" : "default" }} onClick={function(){ if(photos.length) setExpanded(isExp ? null : j.id); }}>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)", whiteSpace:"nowrap" }}>{j.date||(j.created_at||"").slice(0,10)}</td>
                       <td><strong>{j.plate||"—"}</strong></td>
                       <td style={{ fontSize:12 }}>{j.mechanic||"—"}</td>
@@ -1241,8 +1277,24 @@ function Archiv({ jobs }) {
                       <td style={{ fontSize:12, whiteSpace:"nowrap" }}>{fmtMin(j.work_min||0)}</td>
                       <td style={{ fontSize:12, color:"#ffa500" }}>{j.cost?Number(j.cost).toFixed(2)+" €":"—"}</td>
                       <td>{statusBadge(j.status)}</td>
-                    </tr>
-                  );
+                      <td style={{ color:"rgba(255,255,255,0.35)", fontSize:11 }}>{photos.length ? (isExp ? "▲" : "📷 "+photos.length) : ""}</td>
+                    </tr>,
+                    isExp && photos.length > 0 && (
+                      <tr key={j.id+"_ph"}>
+                        <td colSpan={9} style={{ padding:"10px 14px", background:"rgba(0,0,0,0.2)" }}>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                            {photos.map(function(u,i){
+                              return (
+                                <a key={i} href={u} target="_blank" rel="noreferrer">
+                                  <img src={u} alt="" style={{ width:90, height:90, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)", display:"block" }} />
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  ];
                 })}
               </tbody>
             </table>
