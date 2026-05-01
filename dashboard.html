@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest-dashboard.json">
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WerkFlow Dashboard">
+  <link rel="apple-touch-icon" href="/icons/dashboard-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="WerkFlow Dashboard">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WerkFlow Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;background:#0f1623;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+    #root{min-height:100vh}
+    button{font:inherit;cursor:pointer}
+    input,select,textarea{font:inherit}
+    textarea{resize:none}
+    ::placeholder{color:rgba(255,255,255,0.35)}
+
+    /* LAYOUT */
+    .dash-layout{display:flex;min-height:100vh}
+    .sidebar{width:220px;flex-shrink:0;background:rgba(8,18,40,0.95);border-right:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:30}
+    .sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.07)}
+    .sidebar-logo-text{font-size:28px;font-weight:900;letter-spacing:-1.5px;line-height:1}
+    .sidebar-subtitle{font-size:11px;font-weight:700;color:#ffa500;letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+    .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+    .nav-section{padding:6px 16px 4px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase;margin-top:8px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;border:none;background:transparent;color:rgba(255,255,255,0.6);width:100%;text-align:left;font-size:13px;font-weight:600;border-radius:0;cursor:pointer;position:relative;transition:color 0.15s}
+    .nav-item:hover{color:#fff;background:rgba(255,255,255,0.04)}
+    .nav-item.active{color:#ffa500;background:rgba(255,165,0,0.08)}
+    .nav-item.active::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ffa500;border-radius:0 2px 2px 0}
+    .nav-badge{margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:2px 7px;min-width:20px;text-align:center}
+    .nav-badge.orange{background:#ffa500;color:#0a1730}
+    .sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.07)}
+    .sidebar-user{display:flex;align-items:center;gap:10px}
+    .sidebar-avatar{width:34px;height:34px;border-radius:50%;background:rgba(255,165,0,0.15);border:1px solid rgba(255,165,0,0.35);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#ffa500;flex-shrink:0}
+    .sidebar-name{font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);line-height:1.2}
+    .sidebar-role{font-size:10px;color:rgba(255,255,255,0.4)}
+
+    .main{margin-left:220px;flex:1;min-height:100vh;background:#0f1623}
+    .topbar{height:56px;background:rgba(8,18,40,0.9);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
+    .topbar-title{font-size:16px;font-weight:800;color:#fff}
+    .topbar-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-left:4px}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+    .topbar-refresh{padding:7px 14px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);border-radius:8px;font-size:12px;font-weight:700}
+    .topbar-refresh:hover{border-color:#ffa500;color:#ffa500}
+    .page{padding:24px}
+
+    /* CARDS & PANELS */
+    .glass{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;backdrop-filter:blur(12px)}
+    .panel{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px;margin-bottom:16px}
+    .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .panel-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.8)}
+    .panel-title-lg{font-size:17px;font-weight:900;color:#fff;letter-spacing:-0.5px}
+
+    /* KPI */
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+    .kpi-card{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+    .kpi-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px 0 0 2px}
+    .kpi-card.blue::before{background:#3b82f6}
+    .kpi-card.orange::before{background:#ffa500}
+    .kpi-card.red::before{background:#ef4444}
+    .kpi-card.green::before{background:#22c55e}
+    .kpi-card.purple::before{background:#a855f7}
+    .kpi-icon{font-size:22px;margin-bottom:10px}
+    .kpi-val{font-size:28px;font-weight:900;letter-spacing:-1px;line-height:1}
+    .kpi-label{font-size:11px;color:rgba(255,255,255,0.5);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+    .kpi-sub{font-size:11px;margin-top:4px;font-weight:600}
+
+    /* TABLE */
+    .tbl{width:100%;border-collapse:collapse}
+    .tbl th{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.4);padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);text-align:left;white-space:nowrap}
+    .tbl td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl tr:hover td{background:rgba(255,255,255,0.03)}
+
+    /* BADGES */
+    .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:800}
+    .badge-red{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+    .badge-orange{background:rgba(255,165,0,0.15);color:#ffa500;border:1px solid rgba(255,165,0,0.3)}
+    .badge-green{background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)}
+    .badge-blue{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)}
+    .badge-gray{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.12)}
+    .badge-purple{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3)}
+
+    /* BUTTONS */
+    .btn-primary{background:linear-gradient(180deg,#ffa500,#ff8c00);color:#0a1730;border:none;border-radius:9px;font-weight:800;padding:9px 16px;font-size:13px}
+    .btn-outline{border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.8);border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700}
+    .btn-outline:hover{border-color:#ffa500;color:#ffa500}
+    .btn-danger{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700}
+    .btn-small{padding:5px 11px;border-radius:7px;font-size:11px;font-weight:700}
+
+    /* INPUTS */
+    .inp{background:rgba(9,27,58,0.8);border:1px solid rgba(255,255,255,0.14);border-radius:9px;color:#fff;padding:9px 12px;font-size:13px;outline:none}
+    .inp:focus{border-color:#ffa500}
+    select.inp{appearance:none}
+
+    /* STATUS DOTS */
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+    .dot-green{background:#22c55e}
+    .dot-orange{background:#ffa500}
+    .dot-red{background:#ef4444}
+    .dot-gray{background:rgba(255,255,255,0.3)}
+
+    /* ALERT CARD */
+    .alert-card{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+    .alert-card.urgent{background:rgba(60,10,20,0.8);border-color:rgba(239,68,68,0.4)}
+
+    /* DOC CHIP */
+    .doc-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700}
+    .doc-ok{background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.25)}
+    .doc-warn{background:rgba(255,165,0,0.12);color:#ffa500;border:1px solid rgba(255,165,0,0.25)}
+    .doc-urgent{background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.25)}
+    .doc-none{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.1)}
+
+    /* GRID */
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+    /* LOGIN */
+    .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f1623;padding:20px}
+    .login-box{width:100%;max-width:360px}
+    .login-card{background:rgba(15,30,60,0.9);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:32px 28px;box-shadow:0 24px 60px rgba(0,0,0,0.5)}
+    .pin-row{display:flex;gap:14px;justify-content:center;margin:24px 0}
+    .pin-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.15);transition:background 0.15s}
+    .pin-dot.on{background:#ffa500;box-shadow:0 0 10px rgba(255,165,0,0.5)}
+    .pin-dot.err{background:#ef4444}
+    .keypad{display:grid;grid-template-columns:repeat(3,68px);gap:12px;justify-content:center}
+    .kkey{height:64px;border-radius:50%;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.15);color:#fff;font-size:24px;font-weight:500}
+    .kkey:active{background:rgba(255,255,255,0.12)}
+
+    /* MECHANIC CARD */
+    .mech-card{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px;margin-bottom:12px}
+    .mech-stats{display:flex;gap:20px;margin-top:12px;flex-wrap:wrap}
+    .mech-stat{text-align:center}
+    .mech-stat-val{font-size:22px;font-weight:900;color:#ffa500}
+    .mech-stat-lab{font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar{width:4px;height:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+
+    /* EMPTY STATE */
+    .empty{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.35);font-size:14px}
+
+    /* EXPANDABLE ROW */
+    .expand-row{background:rgba(9,20,48,0.6);border-left:2px solid rgba(255,165,0,0.3);padding:14px 16px;margin-top:2px;border-radius:0 0 10px 10px}
+
+    /* CHART CONTAINER */
+    .chart-wrap{position:relative;height:200px}
+
+    /* MODAL */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+    .modal-box{background:#0d1f3d;border:1px solid rgba(255,255,255,0.15);border-radius:18px;padding:24px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.6)}
+
+    /* PRINT */
+    @media print{
+      .sidebar,.topbar,.no-print{display:none!important}
+      .main{margin-left:0!important}
+      .page{padding:0!important}
+      body{background:#fff!important;color:#000!important}
+      .panel,.kpi-card,.glass,.alert-card,.mech-card{background:#fff!important;border:1px solid #ddd!important;color:#000!important}
+      .panel-title,.kpi-label,.kpi-val,.panel-title-lg{color:#000!important}
+    }
+
+    @media(max-width:900px){
+      .sidebar{transform:translateX(-100%);transition:transform 0.25s}
+      .sidebar.open{transform:translateX(0)}
+      .main{margin-left:0}
+      .kpi-grid{grid-template-columns:1fr 1fr}
+      .g4{grid-template-columns:1fr 1fr}
+      .g3{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+
+const USERS = [
+  { id:"chef",   name:"Chef",             avatar:"CH", pin:"4818", role:"chef" },
+  { id:"jens",   name:"Jens",             avatar:"JE", pin:"9274", role:"fpl"  },
+];
+
+const MECHANICS = [
+  { id:"roman", name:"Roman Anokhin" },
+  { id:"petr",  name:"Petr Lorenz"   },
+];
+
+const WORK_TYPES = {
+  repair:"Reparatur", maintenance:"Wartung / TO", inspection:"Inspektion",
+  tireChange:"Reifenwechsel", wash:"Waschen", emergency:"Notruf"
+};
+
+const VEH_TYPES = {
+  truck:"LKW", semiTrailer:"Auflieger", forklift:"Stapler",
+  trailer:"Anhänger", pkw:"PKW", other:"Sonstiges"
+};
+
+function todayIso() { return new Date().toISOString().slice(0,10); }
+function fmtDate(d) { if (!d) return "—"; try { return new Date(d).toLocaleDateString("de-DE"); } catch(e){ return d; } }
+function fmtDateTime(d) { if (!d) return "—"; try { return new Date(d).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch(e){ return d; } }
+function fmtMin(m) { m=parseInt(m||0)||0; if(!m) return "0 min"; var h=Math.floor(m/60),mm=m%60; return h ? h+"h "+mm+"min" : mm+" min"; }
+function dateDiff(d) { if (!d) return null; return Math.round((new Date(d) - new Date()) / 86400000); }
+
+function docStatus(diff) {
+  if (diff === null) return "none";
+  if (diff < 0) return "expired";
+  if (diff < 30) return "urgent";
+  if (diff < 60) return "warn";
+  return "ok";
+}
+function docColor(st) {
+  if (st === "expired") return "#ef4444";
+  if (st === "urgent")  return "#ef4444";
+  if (st === "warn")    return "#ffa500";
+  if (st === "ok")      return "#22c55e";
+  return "rgba(255,255,255,0.3)";
+}
+function docCls(st) {
+  if (st === "expired" || st === "urgent") return "doc-urgent";
+  if (st === "warn") return "doc-warn";
+  if (st === "ok") return "doc-ok";
+  return "doc-none";
+}
+
+// === Supabase API ===
+function sbGet(table, query) {
+  return fetch(SB_URL + "/rest/v1/" + table + (query ? "?" + query : ""), {
+    headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
+  }).then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(d){ return Array.isArray(d) ? d : []; })
+    .catch(function(){ return []; });
+}
+
+function sbPatch(table, id, body) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?id=eq." + encodeURIComponent(id), {
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
+    body:JSON.stringify(body)
+  }).then(function(r){ return r.ok; }).catch(function(){ return false; });
+}
+
+function sbUpsert(table, body) {
+  return fetch(SB_URL + "/rest/v1/" + table, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal,resolution=merge-duplicates" },
+    body:JSON.stringify(body)
+  }).then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
+}
+
+// === PRINT / EXPORT ===
+function printHtml(html, title) {
+  var win = window.open("", "_blank");
+  if (!win) { alert("Popup blockiert — bitte Popup-Blocker deaktivieren"); return; }
+  win.document.write(html);
+  win.document.close();
+  setTimeout(function(){ win.print(); }, 500);
+}
+
+function baseReportStyle() {
+  return "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:1000px;margin:0 auto}h1{color:#0a1730;margin-bottom:6px}h2{color:#1e4fa0;font-size:14px;margin-bottom:20px;font-weight:400}table{width:100%;border-collapse:collapse;margin-bottom:20px}td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:12px}th{background:#0a1730;color:#fff;font-size:11px;letter-spacing:0.5px}tr:nth-child(even){background:#f8f9fc}.sum{background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:30px}.sum-item{text-align:center}.sum-val{font-size:22px;font-weight:900;color:#0a1730}.sum-lab{font-size:10px;color:#666;text-transform:uppercase;margin-top:2px}@media print{button{display:none}}</style>";
+}
+
+function exportJobs(jobs, title, dateLabel) {
+  var total = jobs.length;
+  var totalMin = jobs.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
+  var totalCost = jobs.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
+  var rows = jobs.map(function(j){
+    return "<tr><td>"+(j.date||"")+"</td><td>"+(j.plate||"—")+"</td><td>"+(j.mechanic||"")+"</td><td>"+(WORK_TYPES[j.work_type]||j.work_type||"")+"</td><td>"+(j.description||"").slice(0,80)+"</td><td>"+fmtMin(j.work_min||0)+"</td><td>"+(j.cost?Number(j.cost).toFixed(2)+" €":"—")+"</td><td>"+statusDE(j.status)+"</td></tr>";
+  }).join("");
+  var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title>"+baseReportStyle()+"</head><body>"+
+    "<h1>WerkFlow — "+title+"</h1><h2>"+dateLabel+"</h2>"+
+    "<div class='sum'><div class='sum-item'><div class='sum-val'>"+total+"</div><div class='sum-lab'>Aufträge</div></div>"+
+    "<div class='sum-item'><div class='sum-val'>"+fmtMin(totalMin)+"</div><div class='sum-lab'>Arbeitszeit</div></div>"+
+    "<div class='sum-item'><div class='sum-val'>"+totalCost.toFixed(2)+" €</div><div class='sum-lab'>Kosten</div></div></div>"+
+    "<table><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+    "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>"+
+    "</body></html>";
+  printHtml(html, title);
+}
+
+function statusDE(s) {
+  if (s === "done") return "✓ Fertig";
+  if (s === "inProgress") return "⚙ In Arbeit";
+  if (s === "paused") return "⏸ Pause";
+  return "○ Neu";
+}
+function statusBadge(s) {
+  if (s === "done")       return <span className="badge badge-green">✓ Fertig</span>;
+  if (s === "inProgress") return <span className="badge badge-orange">⚙ In Arbeit</span>;
+  if (s === "paused")     return <span className="badge badge-blue">⏸ Pause</span>;
+  return <span className="badge badge-gray">○ Neu</span>;
+}
+function urgBadge(u) {
+  if (u === "urgent") return <span className="badge badge-red">🚨 Dringend</span>;
+  return <span className="badge badge-orange">⚠️ Normal</span>;
+}
+
+// === PIN LOGIN ===
+function PinLogin({ onLogin }) {
+  var _su = useState(null); var selUser = _su[0]; var setSelUser = _su[1];
+  var _sp = useState(""); var pin = _sp[0]; var setPin = _sp[1];
+  var _se = useState(false); var err = _se[0]; var setErr = _se[1];
+
+  function press(d) {
+    if (!selUser || pin.length >= 4) return;
+    setErr(false);
+    var next = pin + d; setPin(next);
+    if (next.length === 4) {
+      setTimeout(function(){
+        if (next === selUser.pin) onLogin(selUser);
+        else { setErr(true); setTimeout(function(){ setPin(""); setErr(false); }, 650); }
+      }, 100);
+    }
+  }
+  function del() { setPin(function(p){ return p.slice(0,-1); }); setErr(false); }
+
+  return (
+    <div className="login-wrap">
+      <div className="login-box">
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <div style={{ fontSize:40, fontWeight:900, letterSpacing:-2, lineHeight:1, marginBottom:6 }}>
+            <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#ffa500" }}>Flow</span>
+          </div>
+          <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:3 }}>Dashboard</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:4 }}>Landauer Transportgesellschaft Doll KG</div>
+        </div>
+
+        {!selUser ? (
+          <div className="login-card">
+            <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.6)", textAlign:"center", marginBottom:18 }}>Benutzer wählen</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {USERS.map(function(u){
+                return (
+                  <button key={u.id} onClick={function(){ setSelUser(u); setPin(""); setErr(false); }}
+                    style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:12, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", color:"#fff" }}>
+                    <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:14, color:"#ffa500", flexShrink:0 }}>{u.avatar}</div>
+                    <div style={{ textAlign:"left" }}>
+                      <div style={{ fontWeight:700, fontSize:14 }}>{u.name}</div>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{u.role === "chef" ? "Chef" : "Fuhrparkleiter"}</div>
+                    </div>
+                    <div style={{ marginLeft:"auto", color:"rgba(255,255,255,0.25)", fontSize:18 }}>→</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="login-card">
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+              <button onClick={function(){ setSelUser(null); setPin(""); }} style={{ border:0, background:"transparent", color:"#ffa500", fontSize:13, fontWeight:700 }}>← Zurück</button>
+              <div style={{ flex:1, textAlign:"center", fontWeight:700, fontSize:15 }}>{selUser.name}</div>
+            </div>
+            <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.5)", textAlign:"center", textTransform:"uppercase", letterSpacing:2, marginBottom:4 }}>PIN eingeben</div>
+            <div className="pin-row">
+              {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot" + (i < pin.length ? " on" : "") + (err ? " err" : "")}></div>; })}
+            </div>
+            <div className="keypad">
+              {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="kkey" onClick={function(){ press(String(d)); }}>{d}</button>; })}
+              <div></div>
+              <button className="kkey" onClick={function(){ press("0"); }}>0</button>
+              <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// === ÜBERSICHT ===
+function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections }) {
+  var today = todayIso();
+  var todayJobs = jobs.filter(function(j){ return (j.date || (j.created_at||"").slice(0,10)) === today; });
+  var openAlerts = alerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
+  var urgentAlerts = openAlerts.filter(function(a){ return (a.urgency||"").includes("urgent"); });
+
+  var allVeh = vehicles.concat(forklifts || []);
+  var docProblems = allVeh.filter(function(v){
+    var diffs = [v.tuev, v.insurance, v.uvv, v.next_service, v.uvv_datum].filter(Boolean).map(dateDiff);
+    return diffs.some(function(d){ return d !== null && d < 30; });
+  });
+
+  var todayWash = (washOrders||[]).filter(function(o){ return (o.work_date||"") === today; });
+  var washRev = todayWash.reduce(function(s,o){ return s + (Number(o.price_eur)||0); }, 0);
+
+  var last7 = [];
+  for (var i = 6; i >= 0; i--) {
+    var d = new Date(); d.setDate(d.getDate() - i);
+    var iso = d.toISOString().slice(0,10);
+    var count = jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) === iso; }).length;
+    last7.push({ date:iso, label: d.toLocaleDateString("de-DE",{weekday:"short"}), count:count });
+  }
+
+  var barRef = useRef(null);
+  var chartRef = useRef(null);
+  useEffect(function(){
+    if (!barRef.current) return;
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(barRef.current, {
+      type:"bar",
+      data:{
+        labels: last7.map(function(d){ return d.label; }),
+        datasets:[{ data: last7.map(function(d){ return d.count; }),
+          backgroundColor:"rgba(255,165,0,0.6)", borderColor:"#ffa500", borderWidth:1, borderRadius:6 }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:"rgba(255,255,255,0.5)",font:{size:11}},grid:{display:false}},
+          y:{ticks:{color:"rgba(255,255,255,0.5)",font:{size:11},stepSize:1},grid:{color:"rgba(255,255,255,0.06)"}} } }
+    });
+    return function(){ if (chartRef.current) chartRef.current.destroy(); };
+  }, [jobs.length]);
+
+  var workTypeCount = {};
+  todayJobs.forEach(function(j){ workTypeCount[j.work_type] = (workTypeCount[j.work_type]||0)+1; });
+
+  var topProblems = {};
+  jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) >= new Date(Date.now()-30*86400000).toISOString().slice(0,10); })
+    .forEach(function(j){ if (j.plate) topProblems[j.plate] = (topProblems[j.plate]||0)+1; });
+  var topArr = Object.keys(topProblems).sort(function(a,b){ return topProblems[b]-topProblems[a]; }).slice(0,5);
+
+  return (
+    <div>
+      <div className="kpi-grid">
+        <div className="kpi-card orange">
+          <div className="kpi-icon">🔧</div>
+          <div className="kpi-val">{todayJobs.length}</div>
+          <div className="kpi-label">Aufträge heute</div>
+          <div className="kpi-sub" style={{ color:"#ffa500" }}>{todayJobs.filter(function(j){ return j.status==="done"; }).length} erledigt</div>
+        </div>
+        <div className="kpi-card red">
+          <div className="kpi-icon">🚨</div>
+          <div className="kpi-val">{openAlerts.length}</div>
+          <div className="kpi-label">Offene Meldungen</div>
+          <div className="kpi-sub" style={{ color:"#ef4444" }}>{urgentAlerts.length} dringend</div>
+        </div>
+        <div className="kpi-card" style={{ borderLeft:"3px solid #ef4444" }}>
+          <div className="kpi-icon">⚠️</div>
+          <div className="kpi-val">{docProblems.length}</div>
+          <div className="kpi-label">Dokumente &lt; 30 Tage</div>
+          <div className="kpi-sub" style={{ color:"rgba(255,255,255,0.5)" }}>TÜV / UVV / Versicherung</div>
+        </div>
+        <div className="kpi-card green">
+          <div className="kpi-icon">🚿</div>
+          <div className="kpi-val">{todayWash.length}</div>
+          <div className="kpi-label">Wäschen heute</div>
+          <div className="kpi-sub" style={{ color:"#22c55e" }}>{washRev.toFixed(2)} €</div>
+        </div>
+      </div>
+
+      <div className="g2">
+        <div className="panel">
+          <div className="panel-hd">
+            <div className="panel-title">Aufträge letzte 7 Tage</div>
+          </div>
+          <div className="chart-wrap">
+            <canvas ref={barRef}></canvas>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-hd"><div className="panel-title">Arbeitsarten heute</div></div>
+          {Object.keys(workTypeCount).length === 0
+            ? <div className="empty">Keine Aufträge heute</div>
+            : Object.keys(workTypeCount).map(function(k){
+                return (
+                  <div key={k} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                    <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{WORK_TYPES[k]||k}</div>
+                    <div style={{ fontWeight:800, color:"#ffa500", fontSize:16 }}>{workTypeCount[k]}</div>
+                    <div style={{ width:80, height:6, borderRadius:3, background:"rgba(255,255,255,0.08)", overflow:"hidden" }}>
+                      <div style={{ height:"100%", background:"#ffa500", width:(workTypeCount[k]/todayJobs.length*100)+"%", borderRadius:3 }}></div>
+                    </div>
+                  </div>
+                );
+              })
+          }
+        </div>
+      </div>
+
+      <div className="g2">
+        <div className="panel">
+          <div className="panel-hd">
+            <div className="panel-title">🚨 Letzte Meldungen</div>
+          </div>
+          {openAlerts.length === 0
+            ? <div className="empty">✅ Keine offenen Meldungen</div>
+            : openAlerts.slice(0,5).map(function(a){
+                var urg = (a.urgency||"").includes("urgent");
+                return (
+                  <div key={a.id} className={"alert-card" + (urg ? " urgent" : "")} style={{ marginBottom:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                      {urgBadge(a.urgency)}
+                      <strong>{a.plate||"—"}</strong>
+                      <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>· {a.sender||""} · {fmtDateTime(a.created_at)}</span>
+                    </div>
+                    <div style={{ fontSize:12, marginTop:6, color:"rgba(255,255,255,0.7)" }}>{(a.description||"").slice(0,80)}</div>
+                  </div>
+                );
+              })
+          }
+        </div>
+
+        <div className="panel">
+          <div className="panel-hd"><div className="panel-title">🔥 Top Problemfahrzeuge (30 Tage)</div></div>
+          {topArr.length === 0
+            ? <div className="empty">Keine Daten</div>
+            : topArr.map(function(plate, i){
+                return (
+                  <div key={plate} style={{ display:"flex", alignItems:"center", gap:12, padding:"9px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ width:24, height:24, borderRadius:"50%", background:"rgba(255,165,0,0.15)", color:"#ffa500", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:12 }}>{i+1}</div>
+                    <div style={{ flex:1, fontWeight:700 }}>{plate}</div>
+                    <div style={{ fontWeight:800, color:"#ef4444" }}>{topProblems[plate]}x</div>
+                  </div>
+                );
+              })
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === EINGANG ===
+function Eingang({ alerts, onRefresh, loading }) {
+  var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
+  var _su = useState(false); var updating = _su[0]; var setUpdating = _su[1];
+
+  var list = alerts.filter(function(a){ return a.status !== "rejected"; });
+  if (filter === "open")   list = list.filter(function(a){ return a.status !== "done"; });
+  if (filter === "urgent") list = list.filter(function(a){ return (a.urgency||"").includes("urgent"); });
+  if (filter === "done")   list = list.filter(function(a){ return a.status === "done"; });
+  if (filter === "fahrer") list = list.filter(function(a){ return a.sender_app === "fahrer"; });
+  if (filter === "stapler") list = list.filter(function(a){ return a.sender_app === "stapler"; });
+
+  function markDone(id) {
+    setUpdating(true);
+    sbPatch("alerts", id, { status:"done" }).then(function(){ setUpdating(false); onRefresh(); });
+  }
+
+  function exportAlerts() {
+    var rows = list.map(function(a){
+      return "<tr><td>"+fmtDateTime(a.created_at)+"</td><td>"+(a.plate||"—")+"</td><td>"+(a.sender_app||"")+"</td><td>"+(a.sender||"")+"</td><td>"+((a.urgency||"").includes("urgent")?"🚨 Dringend":"Normal")+"</td><td>"+(a.description||"").slice(0,80)+"</td><td>"+(a.status||"")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Eingang Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Eingang</h1><h2>"+list.length+" Meldungen</h2>"+
+      "<table><thead><tr><th>Datum/Zeit</th><th>Fahrzeug</th><th>Quelle</th><th>Sender</th><th>Dringlichkeit</th><th>Beschreibung</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Eingang Export");
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Eingang</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportAlerts}>📄 Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading ? "..." : "↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
+          {[["all","Alle"],["open","Offen"],["urgent","Dringend"],["fahrer","Fahrer"],["stapler","Stapler"],["done","Erledigt"]].map(function(f){
+            return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")}>{f[1]}</button>;
+          })}
+        </div>
+        {list.length === 0
+          ? <div className="empty">Keine Meldungen</div>
+          : list.map(function(a){
+              var urg = (a.urgency||"").includes("urgent");
+              var done = a.status === "done";
+              return (
+                <div key={a.id} className={"alert-card" + (urg && !done ? " urgent" : "")} style={{ opacity: done ? 0.55 : 1 }}>
+                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, flexWrap:"wrap" }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:6 }}>
+                        {urgBadge(a.urgency)}
+                        <strong style={{ fontSize:16 }}>{a.plate||"Ohne KZ"}</strong>
+                        <span className={"badge " + (a.sender_app==="stapler"?"badge-purple":"badge-blue")}>{a.sender_app||"—"}</span>
+                        {done && <span className="badge badge-green">✓ Erledigt</span>}
+                        {a.taken_by_name && <span className="badge badge-gray">🔒 {a.taken_by_name}</span>}
+                      </div>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:6 }}>
+                        {fmtDateTime(a.created_at)} · {a.sender||""} · 📍 {a.location||"—"}
+                      </div>
+                      <div style={{ fontSize:13, color:"rgba(255,255,255,0.8)", lineHeight:1.5 }}>{a.description||"Keine Beschreibung"}</div>
+                    </div>
+                    {!done && (
+                      <button className="btn-outline btn-small no-print" disabled={updating} onClick={function(){ markDone(a.id); }}>
+                        ✓ Erledigt
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+        }
+      </div>
+    </div>
+  );
+}
+
+// === MECHANIKER ===
+function Mechaniker({ jobs, onRefresh, loading }) {
+  var _sd = useState(todayIso()); var date = _sd[0]; var setDate = _sd[1];
+  var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
+
+  function mechJobs(mechId) {
+    return jobs.filter(function(j){
+      var d = j.date || (j.created_at||"").slice(0,10);
+      return j.mechanic === mechId && (!date || d === date);
+    });
+  }
+
+  function exportMech(mech) {
+    var mj = mechJobs(mech.id);
+    exportJobs(mj, "Bericht — " + mech.name, fmtDate(date));
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Mechaniker</div>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <input type="date" className="inp" value={date} onChange={function(e){ setDate(e.target.value); }} />
+            <button className="btn-outline btn-small" onClick={function(){ setDate(""); }}>Alle</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading ? "..." : "↻"}</button>
+          </div>
+        </div>
+
+        {MECHANICS.map(function(mech){
+          var mj = mechJobs(mech.id);
+          var done = mj.filter(function(j){ return j.status==="done"; }).length;
+          var inProgress = mj.filter(function(j){ return j.status==="inProgress"; }).length;
+          var paused = mj.filter(function(j){ return j.status==="paused"; }).length;
+          var totalMin = mj.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
+          var totalCost = mj.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
+          var isExp = expanded === mech.id;
+
+          return (
+            <div key={mech.id} className="mech-card">
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ width:42, height:42, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:14, color:"#ffa500" }}>
+                    {mech.name.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight:800, fontSize:15 }}>{mech.name}</div>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", marginTop:2 }}>
+                      {inProgress > 0 && <span style={{ color:"#22c55e" }}>● In Arbeit</span>}
+                      {inProgress === 0 && paused > 0 && <span style={{ color:"#ffa500" }}>● Pause</span>}
+                      {inProgress === 0 && paused === 0 && <span>○ Verfügbar</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="mech-stats">
+                  <div className="mech-stat"><div className="mech-stat-val">{mj.length}</div><div className="mech-stat-lab">Aufträge</div></div>
+                  <div className="mech-stat"><div className="mech-stat-val" style={{ color:"#22c55e" }}>{done}</div><div className="mech-stat-lab">Fertig</div></div>
+                  <div className="mech-stat"><div className="mech-stat-val">{fmtMin(totalMin)}</div><div className="mech-stat-lab">Arbeitszeit</div></div>
+                  <div className="mech-stat"><div className="mech-stat-val">{totalCost.toFixed(0)} €</div><div className="mech-stat-lab">Kosten</div></div>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button className="btn-outline btn-small no-print" onClick={function(){ exportMech(mech); }}>📄 Export</button>
+                  <button className="btn-outline btn-small" onClick={function(){ setExpanded(isExp ? null : mech.id); }}>
+                    {isExp ? "▲" : "▼"}
+                  </button>
+                </div>
+              </div>
+
+              {isExp && (
+                <div style={{ marginTop:14 }}>
+                  {mj.length === 0
+                    ? <div className="empty" style={{ padding:"16px 0" }}>Keine Aufträge {date ? "am " + fmtDate(date) : ""}</div>
+                    : <table className="tbl">
+                        <thead>
+                          <tr>
+                            <th>Fahrzeug</th><th>Typ</th><th>Standort</th>
+                            <th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mj.map(function(j){
+                            return (
+                              <tr key={j.id}>
+                                <td><strong>{j.plate||"—"}</strong></td>
+                                <td>{WORK_TYPES[j.work_type]||j.work_type||"—"}</td>
+                                <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{j.location||"—"}</td>
+                                <td style={{ fontSize:12, maxWidth:200, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{j.description||"—"}</td>
+                                <td>{fmtMin(j.work_min||0)}</td>
+                                <td>{j.cost ? Number(j.cost).toFixed(2)+" €" : "—"}</td>
+                                <td>{statusBadge(j.status)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                  }
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// === TECHNIK ===
+function Technik({ vehicles, forklifts, jobs }) {
+  var _st = useState("truck"); var vtype = _st[0]; var setVtype = _st[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _sd = useState(""); var dateF = _sd[0]; var setDateF = _sd[1];
+  var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
+  var _sf = useState(false); var onlyProblems = _sf[0]; var setOnlyProblems = _sf[1];
+
+  var TABS = [
+    { k:"truck",      label:"🚛 LKW",       types:["truck"] },
+    { k:"trailer",    label:"🚜 Auflieger",  types:["semiTrailer","trailer"] },
+    { k:"pkw",        label:"🚗 PKW",        types:["pkw"] },
+    { k:"forklift",   label:"🏗 Stapler",    types:["forklift","__forklifts__"] },
+  ];
+
+  var activeTab = TABS.find(function(t){ return t.k === vtype; }) || TABS[0];
+  var isFork = vtype === "forklift";
+
+  var rawList = isFork ? (forklifts||[]) : vehicles.filter(function(v){ return activeTab.types.includes(v.type); });
+
+  var list = rawList.filter(function(v){
+    if (!search) return true;
+    return ((v.plate||"")+(v.brand||"")+(v.model||"")+(v.nummer||"")).toLowerCase().includes(search.toLowerCase());
+  });
+
+  if (onlyProblems) {
+    list = list.filter(function(v){
+      var fields = isFork ? [v.uvv_datum] : [v.tuev, v.insurance, v.uvv, v.next_service];
+      return fields.filter(Boolean).some(function(d){ return dateDiff(d) !== null && dateDiff(d) < 30; });
+    });
+  }
+
+  function vehJobs(plate) {
+    return jobs.filter(function(j){
+      var ok = (j.plate||"") === plate;
+      if (dateF) ok = ok && (j.date||(j.created_at||"").slice(0,10)) === dateF;
+      return ok;
+    });
+  }
+
+  function worstDocStatus(v) {
+    var fields = isFork ? [v.uvv_datum] : [v.tuev, v.insurance, v.uvv, v.next_service];
+    var diffs = fields.filter(Boolean).map(dateDiff);
+    if (!diffs.length) return "none";
+    var mn = Math.min.apply(null, diffs.filter(function(x){ return x !== null; }));
+    if (mn < 0) return "expired";
+    if (mn < 30) return "urgent";
+    if (mn < 60) return "warn";
+    return "ok";
+  }
+
+  function exportTechnik() {
+    var rows = list.map(function(v){
+      var ws = worstDocStatus(v);
+      return "<tr><td>"+(v.plate||v.nummer||"—")+"</td><td>"+(v.brand||v.hersteller||"")+" "+(v.model||"")+"</td>"+
+        "<td>"+(v.tuev||v.uvv_datum||"—")+"</td><td>"+(v.insurance||"—")+"</td><td>"+(v.uvv||"—")+"</td>"+
+        "<td>"+(v.next_service||"—")+"</td><td style='color:"+docColor(ws)+"'>"+ws.toUpperCase()+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Technik Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Technik: "+activeTab.label+"</h1><h2>"+list.length+" Fahrzeuge</h2>"+
+      "<table><thead><tr><th>Kennzeichen</th><th>Marke/Modell</th><th>TÜV/UVV</th><th>Versicherung</th><th>UVV</th><th>Wartung</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Technik Export");
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Technik</div>
+          <button className="btn-outline btn-small no-print" onClick={exportTechnik}>📄 Export</button>
+        </div>
+
+        <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+          {TABS.map(function(t){
+            return <button key={t.k} onClick={function(){ setVtype(t.k); setSearch(""); setExpanded(null); }} className={"btn-small " + (vtype===t.k ? "btn-primary" : "btn-outline")}>{t.label}</button>;
+          })}
+        </div>
+
+        <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+          <input className="inp" style={{ flex:1, minWidth:200 }} value={search} placeholder="Suche: Kennzeichen, Marke..." onChange={function(e){ setSearch(e.target.value); }} />
+          <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
+          <button className={"btn-small " + (onlyProblems ? "btn-primary" : "btn-outline")} onClick={function(){ setOnlyProblems(!onlyProblems); }}>
+            ⚠️ Nur Probleme
+          </button>
+        </div>
+
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:12 }}>{list.length} Fahrzeuge</div>
+
+        {list.length === 0
+          ? <div className="empty">Keine Fahrzeuge gefunden</div>
+          : <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Kennzeichen</th>
+                  {!isFork && <th>Marke / Modell</th>}
+                  {isFork && <th>Modell</th>}
+                  {!isFork && <th>TÜV</th>}
+                  {!isFork && <th>Versicherung</th>}
+                  <th>UVV</th>
+                  {!isFork && <th>Wartung</th>}
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map(function(v){
+                  var plate = v.plate || v.nummer || v.id;
+                  var ws = worstDocStatus(v);
+                  var isExp = expanded === plate;
+                  var vj = vehJobs(plate);
+
+                  function DocChip({ d }) {
+                    if (!d) return <span className="doc-chip doc-none">—</span>;
+                    var diff = dateDiff(d);
+                    var st = docStatus(diff);
+                    var cls = docCls(st);
+                    return (
+                      <span className={"doc-chip " + cls}>
+                        {fmtDate(d)}
+                        {diff !== null && diff < 60 && <span> ({diff < 0 ? Math.abs(diff)+"d !" : diff+"d"})</span>}
+                      </span>
+                    );
+                  }
+
+                  return [
+                    <tr key={plate} style={{ cursor:"pointer" }} onClick={function(){ setExpanded(isExp?null:plate); }}>
+                      <td><strong>{plate}</strong></td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.65)" }}>{(v.brand||v.hersteller||"")+" "+(v.model||"")}</td>
+                      {!isFork && <td><DocChip d={v.tuev} /></td>}
+                      {!isFork && <td><DocChip d={v.insurance} /></td>}
+                      <td><DocChip d={v.uvv || v.uvv_datum} /></td>
+                      {!isFork && <td><DocChip d={v.next_service} /></td>}
+                      <td>
+                        <span className={"badge " + (ws==="expired"||ws==="urgent"?"badge-red":ws==="warn"?"badge-orange":ws==="ok"?"badge-green":"badge-gray")}>
+                          {ws==="expired"?"Abgelaufen":ws==="urgent"?"Dringend":ws==="warn"?"Bald":ws==="ok"?"OK":"—"}
+                        </span>
+                      </td>
+                      <td style={{ color:"rgba(255,255,255,0.4)", fontSize:12 }}>{isExp ? "▲" : "▼"}</td>
+                    </tr>,
+                    isExp && (
+                      <tr key={plate+"_exp"}>
+                        <td colSpan={isFork ? 5 : 8} style={{ padding:0 }}>
+                          <div className="expand-row">
+                            <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginBottom:10 }}>
+                              {v.mileage && <span style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>🛣 {v.mileage} km</span>}
+                              {v.baujahr && <span style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>📅 {v.baujahr}</span>}
+                              {v.standort && <span style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>📍 {v.standort}</span>}
+                              {v.einsatzort && <span style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{v.einsatzort}</span>}
+                              {v.fahrgestell && <span style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>FG: {v.fahrgestell}</span>}
+                              {isFork && v.betrieb_std && <span style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>⏱ {v.betrieb_std} Std</span>}
+                            </div>
+                            <div style={{ fontSize:12, color:"rgba(255,165,0,0.8)", marginBottom:6, fontWeight:700 }}>
+                              Aufträge{dateF ? " am "+fmtDate(dateF) : ""}: {vj.length}
+                            </div>
+                            {vj.slice(0,5).map(function(j){
+                              return (
+                                <div key={j.id} style={{ fontSize:12, padding:"5px 0", borderBottom:"1px solid rgba(255,255,255,0.05)", display:"flex", gap:10, flexWrap:"wrap" }}>
+                                  <span style={{ color:"rgba(255,255,255,0.5)" }}>{j.date||""}</span>
+                                  <span>{WORK_TYPES[j.work_type]||j.work_type||"—"}</span>
+                                  <span style={{ color:"rgba(255,255,255,0.5)" }}>{(j.description||"").slice(0,60)}</span>
+                                  <span style={{ marginLeft:"auto" }}>{fmtMin(j.work_min||0)}</span>
+                                  {statusBadge(j.status)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  ];
+                })}
+              </tbody>
+            </table>
+        }
+      </div>
+    </div>
+  );
+}
+
+// === INSPEKTION ===
+function Inspektion({ inspections, onRefresh, loading }) {
+  var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
+  var _sd = useState(""); var dateF = _sd[0]; var setDateF = _sd[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
+
+  var list = inspections;
+  if (filter === "mangel") list = list.filter(function(i){ return i.status==="mangel"; });
+  if (filter === "ok")     list = list.filter(function(i){ return i.status==="ok"; });
+  if (dateF) list = list.filter(function(i){ return (i.created_at||"").slice(0,10) === dateF; });
+  if (search) list = list.filter(function(i){ return ((i.plate||"")+(i.driver||"")).toLowerCase().includes(search.toLowerCase()); });
+
+  function exportInsp() {
+    var rows = list.map(function(i){
+      var mangel = {}; try { mangel=JSON.parse(i.mangel||"{}"); } catch(e){}
+      var mangelKeys = Object.keys(mangel).filter(function(k){ return mangel[k]; });
+      return "<tr><td>"+fmtDateTime(i.created_at)+"</td><td>"+(i.plate||"—")+"</td><td>"+(i.driver||"—")+"</td>"+
+        "<td style='color:"+(i.status==="mangel"?"#ef4444":"#22c55e")+"'>"+(i.status==="mangel"?"⚠ "+mangelKeys.length+" Mängel":"✓ OK")+"</td>"+
+        "<td>"+(i.note||"—")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Inspektion Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Inspektion</h1><h2>"+list.length+" Einträge</h2>"+
+      "<table><thead><tr><th>Datum/Zeit</th><th>Fahrzeug</th><th>Fahrer</th><th>Ergebnis</th><th>Bemerkungen</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Inspektion Export");
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Inspektion</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportInsp}>📄 Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading ? "..." : "↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+          {[["all","Alle"],["mangel","Mit Mängeln"],["ok","OK"]].map(function(f){
+            return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small "+(filter===f[0]?"btn-primary":"btn-outline")}>{f[1]}</button>;
+          })}
+          <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
+          <input className="inp" value={search} placeholder="Suche Kennzeichen / Fahrer..." onChange={function(e){ setSearch(e.target.value); }} style={{ flex:1, minWidth:180 }} />
+        </div>
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:10 }}>{list.length} Einträge</div>
+        {list.length === 0
+          ? <div className="empty">Keine Einträge gefunden</div>
+          : list.map(function(ins){
+              var isMangel = ins.status === "mangel";
+              var isExp = expanded === ins.id;
+              var mangel = {}; try { mangel=JSON.parse(ins.mangel||"{}"); } catch(e){}
+              var checks = {}; try { checks=JSON.parse(ins.checks||"{}"); } catch(e){}
+              var mangelKeys = Object.keys(mangel).filter(function(k){ return mangel[k]; });
+              var photos = []; try { photos=JSON.parse(ins.photos||"[]"); } catch(e){}
+              return (
+                <div key={ins.id} className={"alert-card" + (isMangel ? " urgent" : "")}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer" }} onClick={function(){ setExpanded(isExp?null:ins.id); }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:20 }}>{ins.type==="truck"?"🚛":"🚜"}</span>
+                      <div>
+                        <div style={{ fontWeight:700 }}>{ins.plate||"—"} {ins.brand ? "· "+ins.brand : ""}</div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{ins.driver||"—"} · {fmtDateTime(ins.created_at)}</div>
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {ins.acknowledged && <span className="badge badge-blue">✓ Zur Kenntnis</span>}
+                      <span className={"badge "+(isMangel?"badge-red":"badge-green")}>
+                        {isMangel ? "⚠ "+mangelKeys.length+" Mängel" : "✓ OK"}
+                      </span>
+                      <span style={{ color:"rgba(255,255,255,0.4)", fontSize:12 }}>{isExp?"▲":"▼"}</span>
+                    </div>
+                  </div>
+                  {isExp && (
+                    <div className="expand-row" style={{ marginTop:10 }}>
+                      {mangelKeys.length > 0 && (
+                        <div style={{ marginBottom:10 }}>
+                          <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Mängel:</div>
+                          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                            {mangelKeys.map(function(k){ return <span key={k} className="badge badge-red">{k}</span>; })}
+                          </div>
+                        </div>
+                      )}
+                      {ins.note && <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", marginBottom:8 }}>📝 {ins.note}</div>}
+                      {photos.length > 0 && (
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
+                          {photos.slice(0,6).map(function(u,i){ return <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ width:70, height:70, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} /></a>; })}
+                        </div>
+                      )}
+                      {!ins.acknowledged && (
+                        <button className="btn-outline btn-small" onClick={function(e){
+                          e.stopPropagation();
+                          sbPatch("inspections", ins.id, { acknowledged:true }).then(function(){ onRefresh(); });
+                        }}>
+                          ✓ Zur Kenntnis genommen
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+        }
+      </div>
+    </div>
+  );
+}
+
+// === WASCHHALLE ===
+function Waschhalle({ washOrders, onRefresh, loading }) {
+  var _sd = useState(todayIso()); var dateF = _sd[0]; var setDateF = _sd[1];
+
+  var list = washOrders.filter(function(o){
+    if (!dateF) return true;
+    return (o.work_date||"") === dateF;
+  });
+  var finished = list.filter(function(o){ return ["done","archived"].includes(o.status); });
+  var open = list.filter(function(o){ return !["done","archived","cancelled"].includes(o.status); });
+  var revenue = finished.reduce(function(s,o){ return s+(Number(o.price_eur)||0); }, 0);
+  var totalMin = finished.reduce(function(s,o){ return s+(Number(o.duration_minutes)||0); }, 0);
+
+  function exportWash() {
+    var rows = list.map(function(o){
+      return "<tr><td>"+(o.work_date||"")+"</td><td>"+(o.plate_number||"—")+"</td>"+
+        "<td>"+(o.vehicle_type||"")+"</td><td>"+(o.wash_type_name||o.wash_type_code||"")+"</td>"+
+        "<td>"+(o.price_eur?Number(o.price_eur).toFixed(2)+" €":"—")+"</td>"+
+        "<td>"+(o.duration_minutes?o.duration_minutes+" min":"—")+"</td>"+
+        "<td>"+(o.status||"")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Waschhalle Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Waschhalle</h1><h2>"+fmtDate(dateF)+" · "+list.length+" Aufträge · "+revenue.toFixed(2)+" €</h2>"+
+      "<div class='sum'><div class='sum-item'><div class='sum-val'>"+list.length+"</div><div class='sum-lab'>Gesamt</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+finished.length+"</div><div class='sum-lab'>Erledigt</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+revenue.toFixed(2)+" €</div><div class='sum-lab'>Einnahmen</div></div></div>"+
+      "<table><thead><tr><th>Datum</th><th>Kennzeichen</th><th>Typ</th><th>Waschtyp</th><th>Preis</th><th>Zeit</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Waschhalle Export");
+  }
+
+  return (
+    <div>
+      <div className="kpi-grid" style={{ gridTemplateColumns:"repeat(4,1fr)" }}>
+        <div className="kpi-card blue"><div className="kpi-icon">🚿</div><div className="kpi-val">{list.length}</div><div className="kpi-label">Aufträge</div></div>
+        <div className="kpi-card green"><div className="kpi-icon">✅</div><div className="kpi-val">{finished.length}</div><div className="kpi-label">Erledigt</div></div>
+        <div className="kpi-card orange"><div className="kpi-icon">💶</div><div className="kpi-val">{revenue.toFixed(2)} €</div><div className="kpi-label">Einnahmen</div></div>
+        <div className="kpi-card" style={{ borderLeft:"3px solid #60a5fa" }}><div className="kpi-icon">⏱</div><div className="kpi-val">{fmtMin(totalMin)}</div><div className="kpi-label">Gesamtzeit</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Waschhalle</div>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
+            <button className="btn-outline btn-small" onClick={function(){ setDateF(""); }}>Alle</button>
+            <button className="btn-outline btn-small no-print" onClick={exportWash}>📄 Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+        {list.length === 0
+          ? <div className="empty">Keine Aufträge {dateF ? "am "+fmtDate(dateF) : ""}</div>
+          : <table className="tbl">
+              <thead><tr><th>Datum</th><th>Kennzeichen</th><th>Fahrzeugtyp</th><th>Waschtyp</th><th>Preis</th><th>Zeit</th><th>Mitarbeiter</th><th>Status</th></tr></thead>
+              <tbody>
+                {list.map(function(o){
+                  return (
+                    <tr key={o.id}>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{o.work_date||""}</td>
+                      <td><strong>{o.plate_number||"—"}</strong></td>
+                      <td style={{ fontSize:12 }}>{o.vehicle_type||"—"}</td>
+                      <td>{o.wash_type_name||o.wash_type_code||"—"}</td>
+                      <td style={{ color:"#ffa500", fontWeight:700 }}>{o.price_eur?Number(o.price_eur).toFixed(2)+" €":"—"}</td>
+                      <td style={{ fontSize:12 }}>{o.duration_minutes?o.duration_minutes+" min":"—"}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{o.worker_name||o.worker_id||"—"}</td>
+                      <td><span className={"badge "+(["done","archived"].includes(o.status)?"badge-green":o.status==="cancelled"?"badge-red":"badge-orange")}>{o.status||"—"}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+      </div>
+    </div>
+  );
+}
+
+// === LAGER ===
+var STOCK_CATS = [
+  "Motor & Antrieb","Bremsen & Fahrwerk","Reifen & Räder",
+  "Elektrik & Beleuchtung","Hydraulik","Karosserie & Glas",
+  "Stapler-Teile","Batterien","Verbrauchsmaterial","Werkzeug","Sonstiges"
+];
+
+function Lager({ stock, onRefresh, loading }) {
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _sc = useState("all"); var cat = _sc[0]; var setCat = _sc[1];
+  var low = stock.filter(function(s){ return s.qty <= (s.min_qty||0); });
+  var filtered = stock.filter(function(s){
+    var matchCat = cat === "all" || (s.category||"Sonstiges") === cat;
+    var matchSearch = !search || (s.name||"").toLowerCase().includes(search.toLowerCase()) || (s.serial_nr||"").toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  function exportStock() {
+    var rows = filtered.map(function(s){
+      var isLow = s.qty <= (s.min_qty||0);
+      return "<tr><td>"+(s.name||"—")+"</td><td>"+(s.category||"—")+"</td><td>"+(s.qty||0)+"</td><td>"+(s.unit||"Stk")+"</td>"+
+        "<td>"+(s.min_qty||0)+"</td><td>"+(s.price?Number(s.price).toFixed(2)+" €":"—")+"</td>"+
+        "<td>"+(s.serial_nr||"—")+"</td><td>"+(s.condition==="used"?"Gebraucht":s.condition==="passau"?"→ Passau":"Neu")+"</td>"+
+        "<td style='color:"+(isLow?"#ef4444":"#22c55e")+"'>"+(isLow?"⚠ Nachbestellen":"OK")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Lager Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Lager</h1><h2>"+filtered.length+" Positionen · "+low.length+" nachzubestellen</h2>"+
+      "<table><thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th>Serien-Nr.</th><th>Zustand</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Lager Export");
+  }
+
+  return (
+    <div>
+      {low.length > 0 && (
+        <div className="panel" style={{ borderColor:"rgba(239,68,68,0.3)", background:"rgba(60,10,20,0.7)", marginBottom:16 }}>
+          <div className="panel-hd"><div className="panel-title" style={{ color:"#ef4444" }}>⚠️ Nachbestellen erforderlich ({low.length})</div></div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {low.map(function(s){ return <span key={s.id} className="badge badge-red">{s.name}: {s.qty} {s.unit||"Stk"}</span>; })}
+          </div>
+        </div>
+      )}
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Lager</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportStock}>📄 Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+          <button className={"btn-small "+(cat==="all"?"btn-primary":"btn-outline")} onClick={function(){ setCat("all"); }}>Alle</button>
+          {STOCK_CATS.map(function(c){
+            return <button key={c} className={"btn-small "+(cat===c?"btn-primary":"btn-outline")} onClick={function(){ setCat(c); }}>{c}</button>;
+          })}
+        </div>
+        <input className="inp" style={{ width:"100%", marginBottom:14 }} value={search} placeholder="Suche Bezeichnung / Serien-Nr..." onChange={function(e){ setSearch(e.target.value); }} />
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>{filtered.length} Positionen</div>
+        {filtered.length === 0
+          ? <div className="empty">Lager ist leer</div>
+          : <table className="tbl">
+              <thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Serien-Nr.</th><th>Zustand</th><th>Bestand</th><th>Einheit</th><th>Minimum</th><th>Preis</th><th>Status</th></tr></thead>
+              <tbody>
+                {filtered.map(function(s){
+                  var isLow = s.qty <= (s.min_qty||0);
+                  var cond = s.condition === "used" ? "Gebraucht" : s.condition === "passau" ? "→ Passau" : "Neu";
+                  var condColor = s.condition === "used" ? "#ffa500" : s.condition === "passau" ? "rgba(255,255,255,0.3)" : "#22c55e";
+                  return (
+                    <tr key={s.id}>
+                      <td><strong>{s.name||"—"}</strong></td>
+                      <td style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>{s.category||"—"}</td>
+                      <td style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.6)" }}>{s.serial_nr||"—"}</td>
+                      <td><span style={{ fontSize:11, fontWeight:700, color:condColor }}>{cond}</span></td>
+                      <td><span style={{ fontSize:18, fontWeight:800, color: isLow ? "#ef4444" : "#ffa500" }}>{s.qty||0}</span></td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{s.unit||"Stk"}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{s.min_qty||0}</td>
+                      <td style={{ fontSize:12 }}>{s.price?Number(s.price).toFixed(2)+" €":"—"}</td>
+                      <td><span className={"badge "+(isLow?"badge-red":"badge-green")}>{isLow?"⚠ Nachbestellen":"OK"}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+      </div>
+    </div>
+  );
+}
+function Archiv({ jobs }) {
+  var _sd1 = useState(""); var dateFrom = _sd1[0]; var setDateFrom = _sd1[1];
+  var _sd2 = useState(""); var dateTo = _sd2[0]; var setDateTo = _sd2[1];
+  var _sm = useState(""); var mechF = _sm[0]; var setMechF = _sm[1];
+  var _st = useState(""); var typeF = _st[0]; var setTypeF = _st[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+
+  var list = jobs;
+  if (dateFrom) list = list.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) >= dateFrom; });
+  if (dateTo)   list = list.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) <= dateTo; });
+  if (mechF)    list = list.filter(function(j){ return j.mechanic === mechF; });
+  if (typeF)    list = list.filter(function(j){ return j.work_type === typeF; });
+  if (search)   list = list.filter(function(j){ return ((j.plate||"")+(j.description||"")+(j.location||"")).toLowerCase().includes(search.toLowerCase()); });
+
+  var totalCost = list.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
+  var totalMin  = list.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
+
+  function doExport() {
+    var label = dateFrom || dateTo ? (fmtDate(dateFrom)||"Anfang")+" — "+(fmtDate(dateTo)||"heute") : "Alle Aufträge";
+    exportJobs(list, "Archiv — Aufträge", label);
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Archiv</div>
+          <button className="btn-outline btn-small no-print" onClick={doExport}>📄 Export</button>
+        </div>
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:14, alignItems:"center" }}>
+          <input type="date" className="inp" value={dateFrom} onChange={function(e){ setDateFrom(e.target.value); }} placeholder="Von" />
+          <input type="date" className="inp" value={dateTo} onChange={function(e){ setDateTo(e.target.value); }} placeholder="Bis" />
+          <select className="inp" value={mechF} onChange={function(e){ setMechF(e.target.value); }}>
+            <option value="">Alle Mechaniker</option>
+            {MECHANICS.map(function(m){ return <option key={m.id} value={m.id}>{m.name}</option>; })}
+          </select>
+          <select className="inp" value={typeF} onChange={function(e){ setTypeF(e.target.value); }}>
+            <option value="">Alle Typen</option>
+            {Object.keys(WORK_TYPES).map(function(k){ return <option key={k} value={k}>{WORK_TYPES[k]}</option>; })}
+          </select>
+          <input className="inp" style={{ flex:1, minWidth:180 }} value={search} placeholder="Suche KZ / Beschreibung..." onChange={function(e){ setSearch(e.target.value); }} />
+          <button className="btn-outline btn-small" onClick={function(){ setDateFrom(""); setDateTo(""); setMechF(""); setTypeF(""); setSearch(""); }}>✕ Reset</button>
+        </div>
+        <div style={{ display:"flex", gap:20, marginBottom:14, fontSize:13, color:"rgba(255,255,255,0.6)" }}>
+          <span>{list.length} Aufträge</span>
+          <span>⏱ {fmtMin(totalMin)}</span>
+          <span>💶 {totalCost.toFixed(2)} €</span>
+        </div>
+        {list.length === 0
+          ? <div className="empty">Keine Aufträge gefunden</div>
+          : <table className="tbl">
+              <thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead>
+              <tbody>
+                {list.slice(0,200).map(function(j){
+                  return (
+                    <tr key={j.id}>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)", whiteSpace:"nowrap" }}>{j.date||(j.created_at||"").slice(0,10)}</td>
+                      <td><strong>{j.plate||"—"}</strong></td>
+                      <td style={{ fontSize:12 }}>{j.mechanic||"—"}</td>
+                      <td style={{ fontSize:12 }}>{WORK_TYPES[j.work_type]||j.work_type||"—"}</td>
+                      <td style={{ fontSize:12, maxWidth:180, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", color:"rgba(255,255,255,0.65)" }}>{j.description||"—"}</td>
+                      <td style={{ fontSize:12, whiteSpace:"nowrap" }}>{fmtMin(j.work_min||0)}</td>
+                      <td style={{ fontSize:12, color:"#ffa500" }}>{j.cost?Number(j.cost).toFixed(2)+" €":"—"}</td>
+                      <td>{statusBadge(j.status)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+        {list.length > 200 && <div style={{ textAlign:"center", fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:8 }}>Zeige erste 200 — Filter verwenden für genauere Suche</div>}
+      </div>
+    </div>
+  );
+}
+
+// === SVG ICONS ===
+var IC = {
+  home:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>,
+  inbox:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22,12 16,12 14,15 10,15 8,12 2,12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>,
+  wrench:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>,
+  truck:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16,8 20,8 23,11 23,16 16,16 16,8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+  search:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  droplet:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>,
+  box:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+  archive:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="21,8 21,21 3,21 3,8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
+  euro:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10h12M4 14h12M19.5 9a6.5 6.5 0 100 6"/></svg>,
+  receipt:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="6" x2="12" y2="6"/></svg>,
+  calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  report:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>,
+};
+
+// === KOSTEN ===
+function Kosten({ jobs, invoices, vehicles, forklifts }) {
+  var _sp = useState("month"); var period = _sp[0]; var setPeriod = _sp[1];
+
+  function periodStart() {
+    var d = new Date();
+    if (period === "month") { d.setDate(1); return d.toISOString().slice(0,10); }
+    if (period === "quarter") { d.setMonth(Math.floor(d.getMonth()/3)*3, 1); return d.toISOString().slice(0,10); }
+    if (period === "year") { d.setMonth(0,1); return d.toISOString().slice(0,10); }
+    return "";
+  }
+
+  var start = periodStart();
+  var filtered = start ? jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) >= start; }) : jobs;
+  var filtInv = start ? invoices.filter(function(i){ return (i.date||"") >= start; }) : invoices;
+
+  var totalLabor = filtered.reduce(function(s,j){ return s+(Number(j.labor_cost)||0); }, 0);
+  var totalParts = filtered.reduce(function(s,j){ return s+(Number(j.parts_cost)||0); }, 0);
+  var totalInv   = filtInv.reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+  var totalAll   = totalLabor + totalParts + totalInv;
+
+  var byVeh = {};
+  filtered.forEach(function(j){
+    if (!j.plate) return;
+    if (!byVeh[j.plate]) byVeh[j.plate] = { labor:0, parts:0, jobs:0, min:0 };
+    byVeh[j.plate].labor += Number(j.labor_cost)||0;
+    byVeh[j.plate].parts += Number(j.parts_cost)||0;
+    byVeh[j.plate].jobs++;
+    byVeh[j.plate].min += parseInt(j.work_min||0)||0;
+  });
+  var topVeh = Object.keys(byVeh).sort(function(a,b){
+    return (byVeh[b].labor+byVeh[b].parts) - (byVeh[a].labor+byVeh[a].parts);
+  }).slice(0,10);
+
+  var byMech = {};
+  filtered.forEach(function(j){
+    if (!j.mechanic) return;
+    if (!byMech[j.mechanic]) byMech[j.mechanic] = { labor:0, jobs:0, min:0 };
+    byMech[j.mechanic].labor += Number(j.labor_cost)||0;
+    byMech[j.mechanic].jobs++;
+    byMech[j.mechanic].min += parseInt(j.work_min||0)||0;
+  });
+
+  var byType = {};
+  filtered.forEach(function(j){
+    var t = j.work_type||"other";
+    if (!byType[t]) byType[t] = { cost:0, jobs:0 };
+    byType[t].cost += (Number(j.labor_cost)||0)+(Number(j.parts_cost)||0);
+    byType[t].jobs++;
+  });
+
+  function exportKosten() {
+    var rows = topVeh.map(function(p){
+      var v = byVeh[p];
+      return "<tr><td>"+p+"</td><td>"+(v.labor.toFixed(2))+" €</td><td>"+(v.parts.toFixed(2))+" €</td><td>"+((v.labor+v.parts).toFixed(2))+" €</td><td>"+v.jobs+"</td><td>"+fmtMin(v.min)+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Kostenanalyse</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Kostenanalyse</h1><h2>Zeitraum: "+fmtDate(start)+" — heute</h2>"+
+      "<div class='sum'><div class='sum-item'><div class='sum-val'>"+totalAll.toFixed(2)+" €</div><div class='sum-lab'>Gesamt</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+totalLabor.toFixed(2)+" €</div><div class='sum-lab'>Lohnkosten</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+totalParts.toFixed(2)+" €</div><div class='sum-lab'>Ersatzteile</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+totalInv.toFixed(2)+" €</div><div class='sum-lab'>Rechnungen</div></div></div>"+
+      "<h2 style='margin-bottom:10px'>Kosten je Fahrzeug</h2>"+
+      "<table><thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Gesamt</th><th>Aufträge</th><th>Arbeitszeit</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Kostenanalyse");
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:8, marginBottom:20, alignItems:"center" }}>
+        <div style={{ fontSize:18, fontWeight:900, flex:1 }}>Kostenanalyse</div>
+        {[["month","Monat"],["quarter","Quartal"],["year","Jahr"],["all","Gesamt"]].map(function(p){
+          return <button key={p[0]} className={"btn-small "+(period===p[0]?"btn-primary":"btn-outline")} onClick={function(){ setPeriod(p[0]); }}>{p[1]}</button>;
+        })}
+        <button className="btn-outline btn-small no-print" onClick={exportKosten}>Export</button>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="kpi-card orange"><div className="kpi-icon" style={{ fontSize:18 }}>∑</div><div className="kpi-val">{totalAll.toFixed(0)} €</div><div className="kpi-label">Gesamtkosten</div></div>
+        <div className="kpi-card blue"><div className="kpi-icon" style={{ fontSize:18 }}>⏱</div><div className="kpi-val">{totalLabor.toFixed(0)} €</div><div className="kpi-label">Lohnkosten</div></div>
+        <div className="kpi-card purple"><div className="kpi-icon" style={{ fontSize:18 }}>⚙</div><div className="kpi-val">{totalParts.toFixed(0)} €</div><div className="kpi-label">Ersatzteile</div></div>
+        <div className="kpi-card green"><div className="kpi-icon" style={{ fontSize:18 }}>🧾</div><div className="kpi-val">{totalInv.toFixed(0)} €</div><div className="kpi-label">Rechnungen</div></div>
+      </div>
+
+      <div className="g2">
+        <div className="panel">
+          <div className="panel-hd"><div className="panel-title">Kosten je Fahrzeug (Top 10)</div></div>
+          {topVeh.length === 0 ? <div className="empty">Keine Daten</div> :
+            <table className="tbl">
+              <thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Gesamt</th><th>Aufträge</th></tr></thead>
+              <tbody>
+                {topVeh.map(function(p){
+                  var v = byVeh[p];
+                  var total = v.labor + v.parts;
+                  return (
+                    <tr key={p}>
+                      <td><strong>{p}</strong></td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{v.labor.toFixed(2)} €</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{v.parts.toFixed(2)} €</td>
+                      <td style={{ color:"#ffa500", fontWeight:700 }}>{total.toFixed(2)} €</td>
+                      <td style={{ fontSize:12 }}>{v.jobs}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          }
+        </div>
+
+        <div className="panel">
+          <div className="panel-hd"><div className="panel-title">Kosten je Mechaniker</div></div>
+          {Object.keys(byMech).length === 0 ? <div className="empty">Keine Daten</div> :
+            Object.keys(byMech).map(function(id){
+              var m = byMech[id];
+              return (
+                <div key={id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ flex:1, fontWeight:700, fontSize:13 }}>{id}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{m.jobs} Auftr. · {fmtMin(m.min)}</div>
+                  <div style={{ fontWeight:800, color:"#ffa500", minWidth:70, textAlign:"right" }}>{m.labor.toFixed(2)} €</div>
+                </div>
+              );
+            })
+          }
+          <div style={{ marginTop:14 }}>
+            <div className="panel-title" style={{ marginBottom:10 }}>Kosten je Arbeitstyp</div>
+            {Object.keys(byType).map(function(t){
+              var x = byType[t];
+              return (
+                <div key={t} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                  <div style={{ flex:1, fontSize:12 }}>{WORK_TYPES[t]||t}</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{x.jobs}x</div>
+                  <div style={{ fontWeight:700, color:"#ffa500", fontSize:13, minWidth:70, textAlign:"right" }}>{x.cost.toFixed(2)} €</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === RECHNUNGEN ===
+function Rechnungen({ invoices, vehicles, jobs, onRefresh, loading }) {
+  var _sd = useState(""); var dateF = _sd[0]; var setDateF = _sd[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _sp = useState("all"); var paidF = _sp[0]; var setPaidF = _sp[1];
+
+  var list = invoices;
+  if (dateF) list = list.filter(function(i){ return (i.date||"") === dateF; });
+  if (paidF === "paid")   list = list.filter(function(i){ return i.paid; });
+  if (paidF === "unpaid") list = list.filter(function(i){ return !i.paid; });
+  if (search) list = list.filter(function(i){ return ((i.supplier_name||"")+(i.invoice_nr||"")+(i.vehicle_id||"")+(i.notes||"")).toLowerCase().includes(search.toLowerCase()); });
+
+  var total = list.reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+  var unpaid = list.filter(function(i){ return !i.paid; }).reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+
+  function exportInv() {
+    var rows = list.map(function(i){
+      return "<tr><td>"+(i.date||"")+"</td><td>"+(i.supplier_name||"—")+"</td><td>"+(i.invoice_nr||"—")+"</td>"+
+        "<td>"+(i.vehicle_id||"—")+"</td><td style='font-weight:700'>"+(i.total_eur?Number(i.total_eur).toFixed(2)+" €":"—")+"</td>"+
+        "<td style='color:"+(i.paid?"#22c55e":"#ef4444")+"'>"+(i.paid?"✓ Bezahlt":"Offen")+"</td>"+
+        "<td>"+(i.notes||"")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Rechnungen Export</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Rechnungen</h1>"+
+      "<div class='sum'><div class='sum-item'><div class='sum-val'>"+list.length+"</div><div class='sum-lab'>Gesamt</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+total.toFixed(2)+" €</div><div class='sum-lab'>Betrag</div></div>"+
+      "<div class='sum-item'><div class='sum-val'>"+unpaid.toFixed(2)+" €</div><div class='sum-lab'>Offen</div></div></div>"+
+      "<table><thead><tr><th>Datum</th><th>Lieferant</th><th>Beleg-Nr.</th><th>Fahrzeug</th><th>Betrag</th><th>Status</th><th>Notizen</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Rechnungen Export");
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:14, marginBottom:16 }}>
+        <div className="kpi-card orange" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{list.length}</div><div className="kpi-label">Rechnungen</div></div>
+        <div className="kpi-card blue" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{total.toFixed(2)} €</div><div className="kpi-label">Gesamt</div></div>
+        <div className="kpi-card red" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{unpaid.toFixed(2)} €</div><div className="kpi-label">Offene Beträge</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Rechnungen</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportInv}>Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+          {[["all","Alle"],["unpaid","Offen"],["paid","Bezahlt"]].map(function(f){
+            return <button key={f[0]} className={"btn-small "+(paidF===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setPaidF(f[0]); }}>{f[1]}</button>;
+          })}
+          <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
+          <input className="inp" style={{ flex:1, minWidth:180 }} value={search} placeholder="Suche Lieferant / Beleg-Nr. / Fahrzeug..." onChange={function(e){ setSearch(e.target.value); }} />
+        </div>
+        {list.length === 0
+          ? <div className="empty">Keine Rechnungen gefunden</div>
+          : <table className="tbl">
+              <thead><tr><th>Datum</th><th>Lieferant</th><th>Beleg-Nr.</th><th>Fahrzeug</th><th>Auftrag</th><th>Betrag</th><th>Status</th><th>Notizen</th></tr></thead>
+              <tbody>
+                {list.map(function(i){
+                  return (
+                    <tr key={i.id}>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{fmtDate(i.date)}</td>
+                      <td style={{ fontWeight:700 }}>{i.supplier_name||"—"}</td>
+                      <td style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.65)" }}>{i.invoice_nr||"—"}</td>
+                      <td style={{ fontSize:12 }}>{i.vehicle_id||"—"}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{i.job_id ? i.job_id.slice(0,10)+"..." : "—"}</td>
+                      <td style={{ fontWeight:800, color:"#ffa500" }}>{i.total_eur?Number(i.total_eur).toFixed(2)+" €":"—"}</td>
+                      <td><span className={"badge "+(i.paid?"badge-green":"badge-red")}>{i.paid?"✓ Bezahlt":"Offen"}</span></td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{(i.notes||"").slice(0,40)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+      </div>
+    </div>
+  );
+}
+
+// === WARTUNGSPLAN ===
+function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
+  var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
+
+  var allVeh = vehicles.concat(forklifts||[]);
+
+  function planStatus(p) {
+    var today = new Date();
+    var byDate = p.next_service_date ? Math.round((new Date(p.next_service_date) - today) / 86400000) : null;
+    if (byDate !== null) {
+      if (byDate < 0) return "expired";
+      if (byDate < 14) return "urgent";
+      if (byDate < 30) return "warn";
+    }
+    return "ok";
+  }
+
+  var list = plans;
+  if (filter === "expired") list = list.filter(function(p){ return planStatus(p) === "expired"; });
+  if (filter === "urgent")  list = list.filter(function(p){ return ["expired","urgent"].includes(planStatus(p)); });
+  if (filter === "warn")    list = list.filter(function(p){ return ["expired","urgent","warn"].includes(planStatus(p)); });
+
+  var expiredCount = plans.filter(function(p){ return planStatus(p) === "expired"; }).length;
+  var urgentCount  = plans.filter(function(p){ return planStatus(p) === "urgent"; }).length;
+  var warnCount    = plans.filter(function(p){ return planStatus(p) === "warn"; }).length;
+
+  function exportPlan() {
+    var rows = list.map(function(p){
+      var st = planStatus(p);
+      var diff = p.next_service_date ? Math.round((new Date(p.next_service_date)-new Date())/86400000) : null;
+      return "<tr><td>"+(p.vehicle_plate||p.vehicle_id||"—")+"</td>"+
+        "<td>"+(p.interval_days?" alle "+p.interval_days+" Tage":"—")+"</td>"+
+        "<td>"+(p.interval_km?" alle "+p.interval_km+" km":"—")+"</td>"+
+        "<td>"+(fmtDate(p.last_service_date)||"—")+"</td>"+
+        "<td>"+(fmtDate(p.next_service_date)||"—")+"</td>"+
+        "<td>"+(diff!==null?(diff<0?Math.abs(diff)+" Tage überfällig":diff+" Tage"):"—")+"</td>"+
+        "<td style='color:"+docColor(st)+"'>"+st.toUpperCase()+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Wartungsplan</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Wartungsplan</h1>"+
+      "<table><thead><tr><th>Fahrzeug</th><th>Intervall (Zeit)</th><th>Intervall (km)</th><th>Letztes TO</th><th>Nächstes TO</th><th>In/Vor</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Wartungsplan");
+  }
+
+  return (
+    <div>
+      <div className="g3" style={{ marginBottom:16 }}>
+        <div className="kpi-card red"><div style={{ fontSize:22, fontWeight:900 }}>{expiredCount}</div><div className="kpi-label">Überfällig</div></div>
+        <div className="kpi-card orange"><div style={{ fontSize:22, fontWeight:900 }}>{urgentCount}</div><div className="kpi-label">Dringend (&lt;14 Tage)</div></div>
+        <div className="kpi-card" style={{ borderLeft:"3px solid #ffa500" }}><div style={{ fontSize:22, fontWeight:900 }}>{warnCount}</div><div className="kpi-label">Bald fällig (&lt;30 Tage)</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Wartungsplan</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportPlan}>Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+          {[["all","Alle"],["urgent","Dringend"],["warn","Bald fällig"],["expired","Überfällig"]].map(function(f){
+            return <button key={f[0]} className={"btn-small "+(filter===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setFilter(f[0]); }}>{f[1]}</button>;
+          })}
+        </div>
+        {list.length === 0
+          ? <div className="empty">{plans.length === 0 ? "Noch keine Wartungspläne — Daten in Supabase eintragen" : "Keine Einträge für diesen Filter"}</div>
+          : <table className="tbl">
+              <thead><tr><th>Fahrzeug</th><th>Letztes TO</th><th>Nächstes TO</th><th>Intervall</th><th>Fälligkeit</th><th>Status</th></tr></thead>
+              <tbody>
+                {list.map(function(p){
+                  var st = planStatus(p);
+                  var diff = p.next_service_date ? Math.round((new Date(p.next_service_date)-new Date())/86400000) : null;
+                  var veh = allVeh.find(function(v){ return (v.plate||v.nummer||"") === (p.vehicle_plate||""); });
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{ fontWeight:700 }}>{p.vehicle_plate||p.vehicle_id||"—"}</div>
+                        {veh && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{veh.brand||veh.hersteller||""} {veh.model||""}</div>}
+                      </td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{fmtDate(p.last_service_date)||"—"}</td>
+                      <td style={{ fontWeight:700 }}>{fmtDate(p.next_service_date)||"—"}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
+                        {p.interval_days ? p.interval_days+"d" : ""}{p.interval_days && p.interval_km ? " / " : ""}{p.interval_km ? p.interval_km+"km" : ""}
+                      </td>
+                      <td>
+                        {diff !== null
+                          ? <span style={{ fontWeight:700, color: diff<0?"#ef4444":diff<14?"#ef4444":diff<30?"#ffa500":"#22c55e" }}>
+                              {diff < 0 ? Math.abs(diff)+"d überfällig" : "in "+diff+"d"}
+                            </span>
+                          : "—"
+                        }
+                      </td>
+                      <td>
+                        <span className={"badge "+(st==="expired"||st==="urgent"?"badge-red":st==="warn"?"badge-orange":"badge-green")}>
+                          {st==="expired"?"Überfällig":st==="urgent"?"Dringend":st==="warn"?"Bald":"OK"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+        }
+        <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
+          💡 Wartungspläne werden in Supabase → Tabelle <strong style={{ color:"rgba(255,255,255,0.6)" }}>maintenance_plans</strong> gepflegt.
+          Felder: vehicle_plate, interval_days, interval_km, last_service_date, next_service_date
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === SCHICHTBERICHT ===
+function genSchichtbericht(jobs, date, mechanics) {
+  var dateLabel = fmtDate(date) || "Heute";
+  var allMechSections = mechanics.map(function(mech){
+    var mj = jobs.filter(function(j){ return j.mechanic === mech.id && (j.date||(j.created_at||"").slice(0,10)) === date; });
+    var totalMin  = mj.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
+    var totalCost = mj.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
+    var done = mj.filter(function(j){ return j.status==="done"; }).length;
+    if (mj.length === 0) return "";
+    var rows = mj.map(function(j){
+      return "<tr><td style='font-weight:700'>"+(j.plate||"—")+"</td>"+
+        "<td>"+(WORK_TYPES[j.work_type]||j.work_type||"—")+"</td>"+
+        "<td>"+(j.location||"—")+"</td>"+
+        "<td style='max-width:200px'>"+(j.description||"").slice(0,80)+"</td>"+
+        "<td>"+fmtMin(j.work_min||0)+"</td>"+
+        "<td style='font-weight:700;color:#d97706'>"+(j.cost?Number(j.cost).toFixed(2)+" €":"—")+"</td>"+
+        "<td style='color:"+(j.status==="done"?"#16a34a":"#d97706")+"'>"+(j.status==="done"?"✓ Fertig":"⚙ In Arbeit")+"</td></tr>";
+    }).join("");
+    return "<div style='margin-bottom:28px;page-break-inside:avoid'>"+
+      "<h2 style='color:#1a3a6b;margin-bottom:4px'>"+mech.name+"</h2>"+
+      "<p style='color:#64748b;font-size:13px;margin-bottom:10px'>"+mj.length+" Aufträge · "+done+" erledigt · "+fmtMin(totalMin)+" · "+totalCost.toFixed(2)+" €</p>"+
+      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead>"+
+      "<tbody>"+rows+"</tbody></table></div>";
+  }).join("");
+
+  var allJobs = jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) === date; });
+  var grand = { jobs:allJobs.length, min:allJobs.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); },0), cost:allJobs.reduce(function(s,j){ return s+(Number(j.cost)||0); },0) };
+
+  var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Schichtbericht "+dateLabel+"</title>"+baseReportStyle()+
+    "</head><body>"+
+    "<h1 style='margin-bottom:4px'>WerkFlow — Schichtbericht</h1>"+
+    "<h2 style='margin-bottom:20px'>"+dateLabel+" · LTG Werkstatt</h2>"+
+    "<div class='sum'>"+
+    "<div class='sum-item'><div class='sum-val'>"+grand.jobs+"</div><div class='sum-lab'>Aufträge gesamt</div></div>"+
+    "<div class='sum-item'><div class='sum-val'>"+fmtMin(grand.min)+"</div><div class='sum-lab'>Arbeitszeit</div></div>"+
+    "<div class='sum-item'><div class='sum-val'>"+grand.cost.toFixed(2)+" €</div><div class='sum-lab'>Gesamtkosten</div></div>"+
+    "</div>"+
+    allMechSections+
+    "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>"+
+    "</body></html>";
+  printHtml(html, "Schichtbericht");
+}
+
+// === KONTAKTE ===
+var CONTACT_CATS = ["Mitarbeiter","Lieferanten","Servicepartner","Notfall","Management","Sonstiges"];
+
+function Kontakte({ onRefresh }) {
+  var _sc = useState([]); var contacts = _sc[0]; var setContacts = _sc[1];
+  var _sf = useState("all"); var catF = _sf[0]; var setCatF = _sf[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _se = useState(null); var editItem = _se[0]; var setEditItem = _se[1];
+  var _sl = useState(false); var loading = _sl[0]; var setLoading = _sl[1];
+  var _sm = useState(""); var msg = _sm[0]; var setMsg = _sm[1];
+  var empty = { id:"", name:"", firma:"", phone:"", whatsapp:"", email:"", category:"Mitarbeiter", notes:"" };
+  var _sf2 = useState(empty); var form = _sf2[0]; var setForm = _sf2[1];
+  var _sshow = useState(false); var showForm = _sshow[0]; var setShowForm = _sshow[1];
+
+  function load() {
+    sbGet("contacts","select=*&order=name.asc").then(function(r){ setContacts(r); });
+  }
+  useEffect(function(){ load(); },[]);
+
+  function showMsg(m){ setMsg(m); setTimeout(function(){ setMsg(""); },3000); }
+
+  function save() {
+    if (!form.name.trim()) { showMsg("Name ist Pflicht"); return; }
+    setLoading(true);
+    var payload = Object.assign({}, form, { id: form.id || ("C"+Date.now()) });
+    sbUpsert("contacts", payload).then(function(){ setLoading(false); showMsg("✅ Gespeichert"); setForm(empty); setShowForm(false); setEditItem(null); load(); })
+    .catch(function(e){ setLoading(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function startEdit(c) { setForm(Object.assign({},c)); setEditItem(c.id); setShowForm(true); }
+  function startNew() { setForm(empty); setEditItem(null); setShowForm(true); }
+
+  function del(id) {
+    if (!window.confirm("Kontakt löschen?")) return;
+    fetch(SB_URL+"/rest/v1/contacts?id=eq."+encodeURIComponent(id), {
+      method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+    }).then(function(){ load(); });
+  }
+
+  var list = contacts.filter(function(c){
+    var mc = catF === "all" || c.category === catF;
+    var ms = !search || ((c.name||"")+(c.firma||"")).toLowerCase().includes(search.toLowerCase());
+    return mc && ms;
+  });
+
+  var CAT_ICONS = { Mitarbeiter:"👷", Lieferanten:"🏢", Servicepartner:"🔧", Notfall:"🚨", Management:"👔", Sonstiges:"📋" };
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ fontSize:18, fontWeight:900 }}>Kontakte</div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          {msg && <span style={{ fontSize:12, fontWeight:700, color:msg.startsWith("✅")?"#22c55e":"#ef4444" }}>{msg}</span>}
+          <button className="btn-primary btn-small" onClick={startNew}>+ Neu</button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="panel" style={{ marginBottom:16, borderColor:"rgba(255,165,0,0.3)" }}>
+          <div className="panel-hd">
+            <div className="panel-title">{editItem ? "Kontakt bearbeiten" : "Neuer Kontakt"}</div>
+            <button className="btn-outline btn-small" onClick={function(){ setShowForm(false); setForm(empty); setEditItem(null); }}>✕</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+            <div>
+              <div className="label-cap">Name *</div>
+              <input className="inp" style={{ width:"100%" }} value={form.name} placeholder="Max Mustermann" onChange={function(e){ setForm(Object.assign({},form,{name:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Firma</div>
+              <input className="inp" style={{ width:"100%" }} value={form.firma||""} placeholder="ATU, Bosch..." onChange={function(e){ setForm(Object.assign({},form,{firma:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Telefon</div>
+              <input className="inp" style={{ width:"100%" }} value={form.phone||""} placeholder="+49 621..." onChange={function(e){ setForm(Object.assign({},form,{phone:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">WhatsApp</div>
+              <input className="inp" style={{ width:"100%" }} value={form.whatsapp||""} placeholder="+49 151..." onChange={function(e){ setForm(Object.assign({},form,{whatsapp:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">E-Mail</div>
+              <input className="inp" style={{ width:"100%" }} value={form.email||""} placeholder="name@firma.de" onChange={function(e){ setForm(Object.assign({},form,{email:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Kategorie</div>
+              <select className="inp" style={{ width:"100%" }} value={form.category||"Sonstiges"} onChange={function(e){ setForm(Object.assign({},form,{category:e.target.value})); }}>
+                {CONTACT_CATS.map(function(c){ return <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>; })}
+              </select>
+            </div>
+            <div style={{ gridColumn:"1 / -1" }}>
+              <div className="label-cap">Notizen</div>
+              <input className="inp" style={{ width:"100%" }} value={form.notes||""} placeholder="Öffnungszeiten, Notizen..." onChange={function(e){ setForm(Object.assign({},form,{notes:e.target.value})); }} />
+            </div>
+          </div>
+          <button className="btn-primary" style={{ maxWidth:200 }} disabled={loading} onClick={save}>
+            {loading ? "..." : (editItem ? "💾 Speichern" : "+ Hinzufügen")}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+        <button className={"btn-small "+(catF==="all"?"btn-primary":"btn-outline")} onClick={function(){ setCatF("all"); }}>Alle</button>
+        {CONTACT_CATS.map(function(c){
+          return <button key={c} className={"btn-small "+(catF===c?"btn-primary":"btn-outline")} onClick={function(){ setCatF(c); }}>{CAT_ICONS[c]} {c}</button>;
+        })}
+        <input className="inp" style={{ flex:1, minWidth:180 }} value={search} placeholder="Suche Name / Firma..." onChange={function(e){ setSearch(e.target.value); }} />
+      </div>
+
+      {list.length === 0
+        ? <div className="empty">Keine Kontakte gefunden</div>
+        : <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:12 }}>
+            {list.map(function(c){
+              return (
+                <div key={c.id} className="glass" style={{ padding:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                    <div>
+                      <div style={{ fontWeight:800, fontSize:15 }}>{c.name}</div>
+                      {c.firma && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{c.firma}</div>}
+                      <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.4)", background:"rgba(255,255,255,0.06)", padding:"2px 8px", borderRadius:99 }}>{CAT_ICONS[c.category]} {c.category}</span>
+                    </div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <button className="btn-outline btn-small" onClick={function(){ startEdit(c); }}>✎</button>
+                      <button className="btn-danger btn-small" onClick={function(){ del(c.id); }}>✕</button>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {c.phone && (
+                      <a href={"tel:"+c.phone} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", borderRadius:9, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.3)", color:"#22c55e", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                        📞 {c.phone}
+                      </a>
+                    )}
+                    {c.whatsapp && (
+                      <a href={"https://wa.me/"+c.whatsapp.replace(/[^0-9]/g,"")} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", borderRadius:9, background:"rgba(37,211,102,0.12)", border:"1px solid rgba(37,211,102,0.3)", color:"#25d366", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                        💬 WhatsApp
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={"mailto:"+c.email} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 12px", borderRadius:9, background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.3)", color:"#60a5fa", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                        ✉️ E-Mail
+                      </a>
+                    )}
+                  </div>
+                  {c.notes && <div style={{ marginTop:8, fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.4 }}>{c.notes}</div>}
+                </div>
+              );
+            })}
+          </div>
+      }
+    </div>
+  );
+}
+
+// === EINSTELLUNGEN ===
+function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
+  var _stab = useState("vehicles"); var tab = _stab[0]; var setTab = _stab[1];
+  var _ssav = useState(false); var saving = _ssav[0]; var setSaving = _ssav[1];
+  var _smsg = useState(""); var msg = _smsg[0]; var setMsg = _smsg[1];
+
+  // Vehicle form
+  var _vf = useState({ plate:"", brand:"", model:"", type:"truck", tuev:"", insurance:"", uvv:"", next_service:"", mileage:"" });
+  var vf = _vf[0]; var setVf = _vf[1];
+  // Forklift form
+  var _ff = useState({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true });
+  var ff = _ff[0]; var setFf = _ff[1];
+  // Stock form
+  var _sf = useState({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"", category:"Sonstiges", serial_nr:"", condition:"new" });
+  var sf = _sf[0]; var setSf = _sf[1];
+  var _mf = useState({ id:"", name:"", rate_per_hour:"25" });
+  var mf = _mf[0]; var setMf = _mf[1];
+  var _editItem = useState(null); var editItem = _editItem[0]; var setEditItem = _editItem[1];
+  var _fSearch = useState(""); var fSearch = _fSearch[0]; var setFSearch = _fSearch[1];
+  var _fLoc = useState(""); var fLoc = _fLoc[0]; var setFLoc = _fLoc[1];
+
+  var _musers = useState([]); var dbUsers = _musers[0]; var setDbUsers = _musers[1];
+
+  useEffect(function(){
+    sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); });
+  },[]);
+
+  function showMsg(m){ setMsg(m); setTimeout(function(){ setMsg(""); }, 3000); }
+
+  function saveVehicle() {
+    if (!vf.plate.trim()) { showMsg("Kennzeichen ist Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("vehicles", Object.assign({}, vf, {
+      id: vf.plate.toLowerCase().replace(/\s/g,"-"),
+      mileage: parseInt(vf.mileage||"0")||0
+    })).then(function(){ setSaving(false); showMsg("✅ Fahrzeug gespeichert"); setVf({ plate:"", brand:"", model:"", type:"truck", tuev:"", insurance:"", uvv:"", next_service:"", mileage:"" }); onRefresh(); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function saveForklift() {
+    if (!ff.nummer.trim()) { showMsg("Nummer ist Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("forklifts", Object.assign({}, ff, {
+      id: "F"+ff.nummer,
+      baujahr: parseInt(ff.baujahr||"0")||null,
+      betrieb_std: parseInt(ff.betrieb_std||"0")||null,
+      kaufpreis: parseFloat(ff.kaufpreis||"0")||null,
+      leasingrate: parseFloat(ff.leasingrate||"0")||null,
+    })).then(function(){ setSaving(false); showMsg("✅ Stapler gespeichert"); setFf({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true }); onRefresh(); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function saveStock() {
+    if (!sf.name.trim()) { showMsg("Bezeichnung ist Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("stock", { id:"S"+Date.now(), name:sf.name.trim(), unit:sf.unit||"Stk", qty:parseInt(sf.qty||"0")||0, min_qty:parseInt(sf.min_qty||"0")||0, price:parseFloat(sf.price||"0")||null })
+    .then(function(){ setSaving(false); showMsg("✅ Position gespeichert"); setSf({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"" }); onRefresh(); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function saveMechanic() {
+    if (!mf.id.trim() || !mf.name.trim()) { showMsg("ID und Name sind Pflicht"); return; }
+    setSaving(true);
+    sbUpsert("users", { id:mf.id.trim().toLowerCase(), name:mf.name.trim(), avatar:mf.name.trim().split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(), rate_per_hour:parseFloat(mf.rate_per_hour||"25")||25 })
+    .then(function(){ setSaving(false); showMsg("✅ Mechaniker gespeichert"); setMf({ id:"", name:"", rate_per_hour:"25" }); sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); }); })
+    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+
+  function deleteItem(table, id) {
+    if (!window.confirm("Wirklich löschen?")) return;
+    fetch(SB_URL+"/rest/v1/"+table+"?id=eq."+encodeURIComponent(id), {
+      method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+    }).then(function(){ onRefresh(); sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); }); });
+  }
+
+  var TABS = [
+    { k:"vehicles",   label:"🚛 Fahrzeuge" },
+    { k:"forklifts",  label:"🏗 Stapler" },
+    { k:"stock",      label:"📦 Lager" },
+    { k:"mechanics",  label:"👷 Mechaniker" },
+  ];
+
+  var VEH_TYPE_OPTS = [
+    { k:"truck", l:"LKW" }, { k:"trailer", l:"Auflieger" },
+    { k:"semiTrailer", l:"Sattelauflieger" }, { k:"pkw", l:"PKW" },
+    { k:"van", l:"Transporter" }, { k:"other", l:"Sonstiges" },
+  ];
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <div style={{ fontSize:18, fontWeight:900 }}>Einstellungen</div>
+        {msg && (
+          <div style={{ padding:"8px 14px", borderRadius:10, fontSize:13, fontWeight:700,
+            background: msg.startsWith("✅") ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+            color: msg.startsWith("✅") ? "#22c55e" : "#ef4444",
+            border:"1px solid " + (msg.startsWith("✅") ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)") }}>
+            {msg}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+        {TABS.map(function(t){
+          return <button key={t.k} className={"btn-small "+(tab===t.k?"btn-primary":"btn-outline")} onClick={function(){ setTab(t.k); }}>{t.label}</button>;
+        })}
+      </div>
+
+      {/* FAHRZEUGE */}
+      {tab === "vehicles" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Neues Fahrzeug hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div>
+                <div className="label-cap">Kennzeichen *</div>
+                <input className="inp" style={{ width:"100%" }} value={vf.plate} placeholder="MA-LT 441" onChange={function(e){ setVf(Object.assign({},vf,{plate:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Typ</div>
+                <select className="inp" style={{ width:"100%" }} value={vf.type} onChange={function(e){ setVf(Object.assign({},vf,{type:e.target.value})); }}>
+                  {VEH_TYPE_OPTS.map(function(o){ return <option key={o.k} value={o.k}>{o.l}</option>; })}
+                </select>
+              </div>
+              <div>
+                <div className="label-cap">Marke</div>
+                <input className="inp" style={{ width:"100%" }} value={vf.brand} placeholder="MAN, Mercedes..." onChange={function(e){ setVf(Object.assign({},vf,{brand:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Modell</div>
+                <input className="inp" style={{ width:"100%" }} value={vf.model} placeholder="TGX, Actros..." onChange={function(e){ setVf(Object.assign({},vf,{model:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">TÜV (Datum)</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.tuev} onChange={function(e){ setVf(Object.assign({},vf,{tuev:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Versicherung (Datum)</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.insurance} onChange={function(e){ setVf(Object.assign({},vf,{insurance:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">UVV (Datum)</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.uvv} onChange={function(e){ setVf(Object.assign({},vf,{uvv:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Nächstes Service</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={vf.next_service} onChange={function(e){ setVf(Object.assign({},vf,{next_service:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Kilometerstand</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={vf.mileage} placeholder="0" onChange={function(e){ setVf(Object.assign({},vf,{mileage:e.target.value})); }} />
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveVehicle}>
+              {saving ? "..." : "+ Fahrzeug speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Vorhandene Fahrzeuge ({vehicles.length})</div></div>
+            {vehicles.length === 0
+              ? <div className="empty">Noch keine Fahrzeuge</div>
+              : <table className="tbl">
+                  <thead><tr><th>Kennzeichen</th><th>Typ</th><th>Marke</th><th>TÜV</th><th>UVV</th><th>km</th><th></th></tr></thead>
+                  <tbody>
+                    {vehicles.map(function(v){
+                      return (
+                        <tr key={v.id}>
+                          <td><strong>{v.plate}</strong></td>
+                          <td style={{ fontSize:12 }}>{VEH_TYPE_OPTS.find(function(o){ return o.k===v.type; }) ? VEH_TYPE_OPTS.find(function(o){ return o.k===v.type; }).l : v.type}</td>
+                          <td style={{ fontSize:12 }}>{v.brand||""} {v.model||""}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(v.tuev)||"—"}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(v.uvv)||"—"}</td>
+                          <td style={{ fontSize:12 }}>{v.mileage||"—"}</td>
+                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("vehicles",v.id); }}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* STAPLER */}
+      {tab === "forklifts" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Neuen Stapler hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div>
+                <div className="label-cap">Nummer *</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.nummer} placeholder="128" onChange={function(e){ setFf(Object.assign({},ff,{nummer:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Hersteller</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.hersteller} placeholder="Jungheinrich, Linde..." onChange={function(e){ setFf(Object.assign({},ff,{hersteller:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Modell</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.model} placeholder="EFG 425k" onChange={function(e){ setFf(Object.assign({},ff,{model:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Baujahr</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={ff.baujahr} placeholder="2020" onChange={function(e){ setFf(Object.assign({},ff,{baujahr:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Standort</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.standort} placeholder="HOC1, JDWB..." onChange={function(e){ setFf(Object.assign({},ff,{standort:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Einsatzort</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.einsatzort} placeholder="Kabinentransport..." onChange={function(e){ setFf(Object.assign({},ff,{einsatzort:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Fahrgestellnummer</div>
+                <input className="inp" style={{ width:"100%" }} value={ff.fahrgestell} placeholder="FN542178" onChange={function(e){ setFf(Object.assign({},ff,{fahrgestell:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Betriebsstunden</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={ff.betrieb_std} placeholder="12354" onChange={function(e){ setFf(Object.assign({},ff,{betrieb_std:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">UVV Datum</div>
+                <input type="date" className="inp" style={{ width:"100%" }} value={ff.uvv_datum} onChange={function(e){ setFf(Object.assign({},ff,{uvv_datum:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Kaufpreis (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={ff.kaufpreis} placeholder="0.00" onChange={function(e){ setFf(Object.assign({},ff,{kaufpreis:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Leasingrate (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={ff.leasingrate} placeholder="0.00" onChange={function(e){ setFf(Object.assign({},ff,{leasingrate:e.target.value})); }} />
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:10, paddingTop:20 }}>
+                <input type="checkbox" id="aktiv" checked={ff.aktiv} onChange={function(e){ setFf(Object.assign({},ff,{aktiv:e.target.checked})); }} />
+                <label htmlFor="aktiv" style={{ fontSize:13, fontWeight:600 }}>Aktiv</label>
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveForklift}>
+              {saving ? "..." : "+ Stapler speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Vorhandene Stapler ({forklifts.length})</div></div>
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+              <input className="inp" style={{ flex:1, minWidth:180 }} value={fSearch} placeholder="Suche Nummer / Modell..." onChange={function(e){ setFSearch(e.target.value); }} />
+              <input className="inp" value={fLoc} placeholder="Filter Standort..." onChange={function(e){ setFLoc(e.target.value); }} style={{ width:160 }} />
+            </div>
+            {forklifts.filter(function(f){
+              var ms = !fSearch || ((f.nummer||"")+(f.hersteller||"")+(f.model||"")).toLowerCase().includes(fSearch.toLowerCase());
+              var ml = !fLoc || (f.standort||"").toLowerCase().includes(fLoc.toLowerCase());
+              return ms && ml;
+            }).length === 0
+              ? <div className="empty">Keine Stapler gefunden</div>
+              : <table className="tbl">
+                  <thead><tr><th>Nr.</th><th>Hersteller</th><th>Modell</th><th>Standort</th><th>Std</th><th>UVV</th><th>Aktiv</th><th></th></tr></thead>
+                  <tbody>
+                    {forklifts.filter(function(f){
+                      var ms = !fSearch || ((f.nummer||"")+(f.hersteller||"")+(f.model||"")).toLowerCase().includes(fSearch.toLowerCase());
+                      var ml = !fLoc || (f.standort||"").toLowerCase().includes(fLoc.toLowerCase());
+                      return ms && ml;
+                    }).map(function(f){
+                      return (
+                        <tr key={f.id}>
+                          <td><strong>{f.nummer}</strong></td>
+                          <td style={{ fontSize:12 }}>{f.hersteller||"—"}</td>
+                          <td style={{ fontSize:12 }}>{f.model||"—"}</td>
+                          <td style={{ fontSize:12 }}>{f.standort||"—"}</td>
+                          <td style={{ fontSize:12 }}>{f.betrieb_std||"—"}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(f.uvv_datum)||"—"}</td>
+                          <td><span className={"badge "+(f.aktiv?"badge-green":"badge-gray")}>{f.aktiv?"Ja":"Nein"}</span></td>
+                          <td>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button className="btn-outline btn-small" onClick={function(){ setFf({ nummer:f.nummer||"", hersteller:f.hersteller||"", model:f.model||"", baujahr:f.baujahr?String(f.baujahr):"", standort:f.standort||"", einsatzort:f.einsatzort||"", fahrgestell:f.fahrgestell||"", betrieb_std:f.betrieb_std?String(f.betrieb_std):"", uvv_datum:f.uvv_datum||"", kaufpreis:f.kaufpreis?String(f.kaufpreis):"", leasingrate:f.leasingrate?String(f.leasingrate):"", aktiv:f.aktiv!==false }); setTab("forklifts"); }}>✎</button>
+                              <button className="btn-danger btn-small" onClick={function(){ deleteItem("forklifts",f.id); }}>✕</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* LAGER */}
+      {tab === "stock" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">{editItem ? "Position bearbeiten" : "Neue Lagerposition"}</div>
+              {editItem && <button className="btn-outline btn-small" onClick={function(){ setSf({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"", category:"Sonstiges", serial_nr:"", condition:"new" }); setSaving(false); var ei = editItem; }}>✕ Abbrechen</button>}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div style={{ gridColumn:"1 / -1" }}>
+                <div className="label-cap">Bezeichnung *</div>
+                <input className="inp" style={{ width:"100%" }} value={sf.name} placeholder="Motoröl 5W-30, Bremsscheibe, Reifen Continental 315/70..." onChange={function(e){ setSf(Object.assign({},sf,{name:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Kategorie</div>
+                <select className="inp" style={{ width:"100%" }} value={sf.category||"Sonstiges"} onChange={function(e){ setSf(Object.assign({},sf,{category:e.target.value})); }}>
+                  {STOCK_CATS.map(function(c){ return <option key={c} value={c}>{c}</option>; })}
+                </select>
+              </div>
+              <div>
+                <div className="label-cap">Einheit</div>
+                <select className="inp" style={{ width:"100%" }} value={sf.unit} onChange={function(e){ setSf(Object.assign({},sf,{unit:e.target.value})); }}>
+                  {["Stk","L","kg","m","Paar","Satz","Rolle","Pack"].map(function(u){ return <option key={u} value={u}>{u}</option>; })}
+                </select>
+              </div>
+              <div>
+                <div className="label-cap">Bestand</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={sf.qty} onChange={function(e){ setSf(Object.assign({},sf,{qty:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Mindestbestand</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={sf.min_qty} onChange={function(e){ setSf(Object.assign({},sf,{min_qty:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Preis (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={sf.price} placeholder="0.00" onChange={function(e){ setSf(Object.assign({},sf,{price:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Serien-Nr. (für Reifen etc.)</div>
+                <input className="inp" style={{ width:"100%" }} value={sf.serial_nr||""} placeholder="SN123456..." onChange={function(e){ setSf(Object.assign({},sf,{serial_nr:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Zustand</div>
+                <select className="inp" style={{ width:"100%" }} value={sf.condition||"new"} onChange={function(e){ setSf(Object.assign({},sf,{condition:e.target.value})); }}>
+                  <option value="new">Neu</option>
+                  <option value="used">Gebraucht</option>
+                  <option value="passau">→ Nach Passau</option>
+                </select>
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveStock}>
+              {saving ? "..." : (editItem ? "💾 Aktualisieren" : "+ Position speichern")}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Lager ({stock.length} Positionen)</div></div>
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
+              {STOCK_CATS.map(function(c){
+                return <button key={c} className={"btn-small "+(sf.category===c?"btn-primary":"btn-outline")} style={{ fontSize:10 }} onClick={function(){}}>{c}</button>;
+              })}
+            </div>
+            {stock.length === 0
+              ? <div className="empty">Lager ist leer</div>
+              : <table className="tbl">
+                  <thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Serien-Nr.</th><th>Zustand</th><th>Bestand</th><th>Preis</th><th></th></tr></thead>
+                  <tbody>
+                    {stock.map(function(s){
+                      return (
+                        <tr key={s.id}>
+                          <td><strong>{s.name}</strong></td>
+                          <td style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>{s.category||"—"}</td>
+                          <td style={{ fontSize:12, fontFamily:"monospace" }}>{s.serial_nr||"—"}</td>
+                          <td style={{ fontSize:12, color: s.condition==="used"?"#ffa500":s.condition==="passau"?"rgba(255,255,255,0.3)":"#22c55e" }}>{s.condition==="used"?"Gebraucht":s.condition==="passau"?"→ Passau":"Neu"}</td>
+                          <td style={{ color: s.qty<=(s.min_qty||0)?"#ef4444":"#ffa500", fontWeight:700 }}>{s.qty} {s.unit||"Stk"}</td>
+                          <td style={{ fontSize:12 }}>{s.price?Number(s.price).toFixed(2)+" €":"—"}</td>
+                          <td>
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button className="btn-outline btn-small" onClick={function(){ setSf({ name:s.name||"", unit:s.unit||"Stk", qty:String(s.qty||0), min_qty:String(s.min_qty||0), price:s.price?String(s.price):"", category:s.category||"Sonstiges", serial_nr:s.serial_nr||"", condition:s.condition||"new", id:s.id }); }}>✎</button>
+                              <button className="btn-danger btn-small" onClick={function(){ deleteItem("stock",s.id); }}>✕</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* MECHANIKER */}
+      {tab === "mechanics" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Mechaniker hinzufügen</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              <div>
+                <div className="label-cap">ID (eindeutig) *</div>
+                <input className="inp" style={{ width:"100%" }} value={mf.id} placeholder="roman, petr..." onChange={function(e){ setMf(Object.assign({},mf,{id:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Name *</div>
+                <input className="inp" style={{ width:"100%" }} value={mf.name} placeholder="Roman Anokhin" onChange={function(e){ setMf(Object.assign({},mf,{name:e.target.value})); }} />
+              </div>
+              <div>
+                <div className="label-cap">Stundensatz (€)</div>
+                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={mf.rate_per_hour} placeholder="25" onChange={function(e){ setMf(Object.assign({},mf,{rate_per_hour:e.target.value})); }} />
+              </div>
+            </div>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveMechanic}>
+              {saving ? "..." : "+ Mechaniker speichern"}
+            </button>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Mechaniker ({dbUsers.length})</div></div>
+            {dbUsers.length === 0
+              ? <div className="empty">Noch keine Mechaniker</div>
+              : <table className="tbl">
+                  <thead><tr><th>ID</th><th>Name</th><th>Stundensatz</th><th></th></tr></thead>
+                  <tbody>
+                    {dbUsers.map(function(u){
+                      return (
+                        <tr key={u.id}>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:"monospace" }}>{u.id}</td>
+                          <td><strong>{u.name}</strong></td>
+                          <td style={{ color:"#ffa500", fontWeight:700 }}>{u.rate_per_hour||25} €/h</td>
+                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("users",u.id); }}>✕</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === APP SHELL ===
+function AppShell({ user, onLogout }) {
+  var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
+  var _sj = useState([]); var jobs = _sj[0]; var setJobs = _sj[1];
+  var _sa = useState([]); var alerts = _sa[0]; var setAlerts = _sa[1];
+  var _sv = useState([]); var vehicles = _sv[0]; var setVehicles = _sv[1];
+  var _sfk = useState([]); var forklifts = _sfk[0]; var setForklifts = _sfk[1];
+  var _sst = useState([]); var stock = _sst[0]; var setStock = _sst[1];
+  var _swash = useState([]); var washOrders = _swash[0]; var setWashOrders = _swash[1];
+  var _sins = useState([]); var inspections = _sins[0]; var setInspections = _sins[1];
+  var _sinv = useState([]); var invoices = _sinv[0]; var setInvoices = _sinv[1];
+  var _splans = useState([]); var plans = _splans[0]; var setPlans = _splans[1];
+  var _sload = useState(false); var loading = _sload[0]; var setLoading = _sload[1];
+  var _sdb = useState(null); var dbOk = _sdb[0]; var setDbOk = _sdb[1];
+  var _sshift = useState(todayIso()); var shiftDate = _sshift[0]; var setShiftDate = _sshift[1];
+
+  function loadAll() {
+    setLoading(true);
+    Promise.all([
+      sbGet("jobs",               "select=*&order=created_at.desc&limit=500"),
+      sbGet("alerts",             "select=*&order=created_at.desc&limit=200"),
+      sbGet("vehicles",           "select=*&order=plate.asc&limit=500"),
+      sbGet("forklifts",          "select=*&order=nummer.asc&limit=200"),
+      sbGet("stock",              "select=*&order=name.asc&limit=300"),
+      sbGet("wash_orders",        "select=*&order=created_at.desc&limit=300"),
+      sbGet("inspections",        "select=*&order=created_at.desc&limit=300"),
+      sbGet("invoices",           "select=*&order=date.desc&limit=300"),
+      sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
+    ]).then(function(r){
+      setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
+      setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
+      setInvoices(r[7]); setPlans(r[8]);
+      setDbOk(true); setLoading(false);
+    }).catch(function(e){ console.error(e); setDbOk(false); setLoading(false); });
+  }
+
+  useEffect(function(){ loadAll(); }, []);
+
+  useEffect(function(){
+    var interval = setInterval(function(){ loadAll(); }, 30000);
+    return function(){ clearInterval(interval); };
+  }, []);
+
+  var openAlerts = alerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
+  var lowStock = stock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
+  var overduePlans = plans.filter(function(p){
+    if (!p.next_service_date) return false;
+    return Math.round((new Date(p.next_service_date)-new Date())/86400000) < 14;
+  }).length;
+
+  var NAV = [
+    { k:"uebersicht",  ic: IC.home,     label:"Übersicht" },
+    { k:"eingang",     ic: IC.inbox,    label:"Eingang",      badge: openAlerts.length },
+    { k:"mechaniker",  ic: IC.wrench,   label:"Mechaniker" },
+    { k:"technik",     ic: IC.truck,    label:"Technik" },
+    { k:"inspektion",  ic: IC.search,   label:"Inspektion" },
+    { k:"waschhalle",  ic: IC.droplet,  label:"Waschhalle" },
+    { k:"lager",       ic: IC.box,      label:"Lager",         badge: lowStock, badgeCls:"orange" },
+    { k:"kosten",      ic: IC.euro,     label:"Kosten" },
+    { k:"rechnungen",  ic: IC.receipt,  label:"Rechnungen" },
+    { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
+    { k:"archiv",      ic: IC.archive,  label:"Archiv" },
+    { k:"kontakte",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
+    { k:"settings",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
+  ];
+
+  var PAGE_TITLES = {
+    uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
+    technik:"Technik — Fuhrpark", inspektion:"Inspektion", waschhalle:"Waschhalle",
+    lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Rechnungen",
+    wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen", kontakte:"Kontakte"
+  };
+
+  return (
+    <div className="dash-layout">
+      <div className="sidebar">
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-text">
+            <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#ffa500" }}>Flow</span>
+          </div>
+          <div className="sidebar-subtitle">Dashboard</div>
+        </div>
+        <div className="sidebar-nav">
+          {NAV.map(function(n){
+            return (
+              <button key={n.k} className={"nav-item" + (sec===n.k ? " active" : "")} onClick={function(){ setSec(n.k); }}>
+                <span style={{ display:"flex", alignItems:"center", flexShrink:0 }}>{n.ic}</span>
+                <span>{n.label}</span>
+                {n.badge > 0 && <span className={"nav-badge " + (n.badgeCls||"")}>{n.badge}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">{user.avatar}</div>
+            <div>
+              <div className="sidebar-name">{user.name}</div>
+              <div className="sidebar-role">{user.role==="chef"?"Chef":"Fuhrparkleiter"}</div>
+            </div>
+          </div>
+          <div style={{ marginTop:12, display:"flex", gap:6, alignItems:"center" }}>
+            <input type="date" className="inp" style={{ flex:1, fontSize:11, padding:"5px 8px" }} value={shiftDate} onChange={function(e){ setShiftDate(e.target.value); }} />
+            <button onClick={function(){ genSchichtbericht(jobs, shiftDate, MECHANICS); }}
+              style={{ flexShrink:0, padding:"5px 10px", border:"1px solid rgba(255,165,0,0.35)", background:"rgba(255,165,0,0.08)", color:"#ffa500", borderRadius:8, fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>
+              {IC.report} Schicht
+            </button>
+          </div>
+          <button onClick={onLogout} style={{ marginTop:8, width:"100%", padding:"7px", border:"1px solid rgba(255,255,255,0.12)", background:"transparent", color:"rgba(255,255,255,0.5)", borderRadius:8, fontSize:12, fontWeight:700 }}>
+            ↩ Abmelden
+          </button>
+        </div>
+      </div>
+
+      <div className="main">
+        <div className="topbar">
+          <div style={{ display:"flex", alignItems:"center", color:"rgba(255,255,255,0.6)" }}>
+            {NAV.find(function(n){ return n.k===sec; }) && NAV.find(function(n){ return n.k===sec; }).ic}
+          </div>
+          <div className="topbar-title" style={{ marginLeft:8 }}>{PAGE_TITLES[sec]||sec}</div>
+          <div style={{ fontSize:12, color: dbOk===false?"#ef4444":dbOk===true?"#22c55e":"#ffa500", marginLeft:8 }}>
+            {dbOk===false?"● Fehler":dbOk===true?"● Online":"● Lädt"}
+          </div>
+          <div className="topbar-right">
+            <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>{new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"})}</span>
+            <button className="topbar-refresh no-print" onClick={loadAll}>{loading ? "⏳" : "↻ Aktualisieren"}</button>
+          </div>
+        </div>
+
+        <div className="page">
+          {sec === "uebersicht"  && <Uebersicht jobs={jobs} alerts={alerts} vehicles={vehicles} forklifts={forklifts} washOrders={washOrders} inspections={inspections} />}
+          {sec === "eingang"     && <Eingang alerts={alerts} onRefresh={loadAll} loading={loading} />}
+          {sec === "mechaniker"  && <Mechaniker jobs={jobs} onRefresh={loadAll} loading={loading} />}
+          {sec === "technik"     && <Technik vehicles={vehicles} forklifts={forklifts} jobs={jobs} />}
+          {sec === "inspektion"  && <Inspektion inspections={inspections} onRefresh={loadAll} loading={loading} />}
+          {sec === "waschhalle"  && <Waschhalle washOrders={washOrders} onRefresh={loadAll} loading={loading} />}
+          {sec === "lager"       && <Lager stock={stock} onRefresh={loadAll} loading={loading} />}
+          {sec === "kosten"      && <Kosten jobs={jobs} invoices={invoices} vehicles={vehicles} forklifts={forklifts} />}
+          {sec === "rechnungen"  && <Rechnungen invoices={invoices} vehicles={vehicles} jobs={jobs} onRefresh={loadAll} loading={loading} />}
+          {sec === "wartung"     && <Wartungsplan plans={plans} vehicles={vehicles} forklifts={forklifts} onRefresh={loadAll} loading={loading} />}
+          {sec === "archiv"      && <Archiv jobs={jobs} />}
+          {sec === "kontakte"    && <Kontakte onRefresh={loadAll} />}
+          {sec === "settings"    && <Einstellungen vehicles={vehicles} forklifts={forklifts} stock={stock} onRefresh={loadAll} loading={loading} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === ROOT ===
+function App() {
+  var _su = useState(null); var user = _su[0]; var setUser = _su[1];
+  try {
+    var saved = localStorage.getItem("werkflow_dash_user");
+    if (saved && !user) {
+      var u = JSON.parse(saved);
+      if (u && u.id) { setTimeout(function(){ setUser(u); }, 0); }
+    }
+  } catch(e) {}
+
+  if (!user) {
+    return <PinLogin onLogin={function(u){
+      try { localStorage.setItem("werkflow_dash_user", JSON.stringify(u)); } catch(e) {}
+      setUser(u);
+    }} />;
+  }
+  return <AppShell user={user} onLogout={function(){
+    try { localStorage.removeItem("werkflow_dash_user"); } catch(e) {}
+    setUser(null);
+  }} />;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function() {
+        navigator.serviceWorker.register("/sw.js").catch(function(){});
+      });
+    }
+  </script>
+</body>
+</html>

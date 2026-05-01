@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest-werkstatt.json">
+  <meta name="theme-color" content="#ff8c00">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WerkFlow Werkstatt">
+  <link rel="apple-touch-icon" href="/icons/werkstatt-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="WerkFlow Werkstatt">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>WerkFlow Werkstatt</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { height:100%; overscroll-behavior:none; }
+    body {
+      background:#0a1730;
+      color:#fff;
+      font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height:100vh; min-height:100dvh;
+    }
+    #root { min-height:100vh; min-height:100dvh; }
+
+    .bg-image {
+      position:fixed; inset:0; z-index:0;
+      background-color:#0a1730;
+      background-image:
+        linear-gradient(180deg, rgba(10,23,48,0.35) 0%, rgba(10,23,48,0.7) 60%, rgba(10,23,48,0.92) 100%),
+        url("./bg-truck.png");
+      background-size:cover;
+      background-position:center center;
+      background-repeat:no-repeat;
+      pointer-events:none;
+    }
+
+    .scrn {
+      position:relative; z-index:2; min-height:100vh; min-height:100dvh;
+      padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+      display:flex; flex-direction:column;
+      max-width:480px; margin:0 auto; width:100%;
+    }
+    @media (min-width:481px) {
+      body::before {
+        content:""; position:fixed; inset:0; z-index:1;
+        background:rgba(0,0,0,0.4); pointer-events:none;
+      }
+      .scrn { box-shadow:0 0 60px rgba(0,0,0,0.6); }
+    }
+
+    .fixed-bottom-bar {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:5;
+      padding:14px 16px calc(env(safe-area-inset-bottom) + 14px);
+      background:linear-gradient(180deg, transparent, rgba(10,23,48,0.95) 30%);
+    }
+
+    button { font:inherit; color:inherit; cursor:pointer; }
+    input, textarea, select { font:inherit; }
+    textarea { resize:none; }
+    ::placeholder { color:rgba(255,255,255,0.45); }
+
+    .btn-primary {
+      background:linear-gradient(180deg, #ffa500 0%, #ff8c00 100%);
+      color:#0a1730; border:none; border-radius:12px;
+      font-weight:800; padding:18px; width:100%;
+      box-shadow:0 8px 24px rgba(255,165,0,0.35); font-size:16px;
+    }
+    .btn-primary:active { transform:translateY(1px); }
+    .btn-primary:disabled { opacity:0.5; }
+
+    .btn-back {
+      width:48px; height:48px; border-radius:12px;
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.14);
+      display:flex; align-items:center; justify-content:center;
+      color:#ffa500;
+    }
+
+    .input-light {
+      width:100%; padding:14px 14px 14px 44px;
+      background:#fff; color:#0a1730;
+      border:1px solid #e5e7eb; border-radius:12px;
+      font-size:16px; outline:none;
+    }
+    .input-light:focus { border-color:#ffa500; }
+
+    .keypad-btn {
+      width:70px; height:70px; border-radius:50%;
+      background:rgba(3,12,28,0.18);
+      border:1.5px solid rgba(255,255,255,0.35);
+      color:#fff; font-size:28px; font-weight:500;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .keypad-btn:active { background:rgba(255,255,255,0.10); }
+
+    .pin-dot { width:14px; height:14px; border-radius:50%;
+      background:rgba(255,255,255,0.20); transition:background 0.15s; }
+    .pin-dot.filled { background:#ffa500; box-shadow:0 0 12px rgba(255,165,0,0.6); }
+    .pin-dot.error { background:#ff3b30; }
+
+    .slider-track {
+      position:relative; height:78px; border-radius:18px;
+      background:rgba(0,0,0,0.45);
+      border:1px solid rgba(255,255,255,0.10);
+      overflow:hidden;
+    }
+    .slider-thumb {
+      position:absolute; top:6px; left:6px;
+      width:66px; height:66px; border-radius:14px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      box-shadow:0 0 20px rgba(255,165,0,0.7);
+      display:flex; align-items:center; justify-content:center;
+      touch-action:none; cursor:grab; user-select:none;
+    }
+    .slider-grip { display:flex; gap:4px; }
+    .slider-grip span { width:3px; height:22px; background:#0a1730; border-radius:2px; }
+    .slider-marks { position:absolute; inset:0; display:flex;
+      align-items:center; justify-content:space-around; padding:0 90px 0 80px;
+      pointer-events:none; }
+    .slider-mark { width:2px; height:24px; background:rgba(255,255,255,0.2); border-radius:2px; }
+
+    .slider-alerts { margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+    .slider-alert-urgent {
+      display:flex; gap:12px; align-items:center;
+      padding:12px 14px; border-radius:14px;
+      background:rgba(90,20,33,0.72);
+      border:1px solid rgba(255,59,48,0.55);
+      backdrop-filter:blur(12px);
+    }
+    .slider-alert-normal {
+      display:flex; gap:12px; align-items:center;
+      padding:12px 14px; border-radius:14px;
+      background:rgba(50,30,0,0.72);
+      border:1px solid rgba(255,165,0,0.45);
+      backdrop-filter:blur(12px);
+    }
+
+    .label-cap {
+      font-size:11px; font-weight:700; color:rgba(255,255,255,0.6);
+      letter-spacing:1.5px; margin-bottom:8px;
+    }
+
+    .input-dark {
+      width:100%; padding:13px 14px;
+      background:rgba(9,27,58,0.74);
+      border:1px solid rgba(255,255,255,0.16);
+      border-radius:12px; color:#fff; outline:none; font-size:15px;
+    }
+    .input-dark:focus { border-color:#ffa500; box-shadow:0 0 0 1px rgba(255,165,0,0.45); }
+
+    .select-dark {
+      width:100%; padding:13px 14px;
+      background:rgba(9,27,58,0.74);
+      border:1px solid rgba(255,255,255,0.16);
+      border-radius:12px; color:#fff; outline:none; font-size:15px;
+      appearance:none;
+    }
+    .select-dark:focus { border-color:#ffa500; }
+
+    .textarea-dark {
+      width:100%; padding:13px 14px;
+      background:rgba(9,27,58,0.74);
+      border:1px solid rgba(255,255,255,0.16);
+      border-radius:12px; color:#fff; min-height:90px; outline:none; font-size:15px;
+    }
+    .textarea-dark:focus { border-color:#ffa500; }
+
+    .glass-panel {
+      background:rgba(15,39,78,0.64);
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:16px; padding:16px; margin-bottom:13px;
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    }
+    .panel-title {
+      display:flex; align-items:center; gap:10px; margin-bottom:12px;
+      font-size:13px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+      color:rgba(255,255,255,0.85);
+    }
+
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip {
+      border:1px solid rgba(255,255,255,0.18);
+      background:rgba(9,27,58,0.72);
+      color:#fff; border-radius:999px; padding:9px 14px;
+      font-size:13px; font-weight:700;
+    }
+    .chip.active {
+      border-color:#ffa500; background:#ffa500; color:#0a1730;
+      box-shadow:0 4px 14px rgba(255,165,0,0.3);
+    }
+
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+    .photo-box {
+      border:2px dashed rgba(255,165,0,0.45); border-radius:14px; padding:20px;
+      text-align:center; color:rgba(255,255,255,0.7);
+      background:rgba(255,165,0,0.04); width:100%; font-weight:700;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+    .photo-thumb {
+      position:relative; aspect-ratio:1/1; overflow:hidden;
+      border-radius:10px; border:1px solid rgba(255,255,255,0.18); background:#061326;
+    }
+    .photo-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .photo-thumb button {
+      position:absolute; right:4px; top:4px;
+      width:22px; height:22px; border:0; border-radius:50%;
+      background:rgba(0,0,0,0.75); color:#fff; font-weight:800; font-size:13px;
+    }
+
+    .timer-card {
+      border:1px solid rgba(255,255,255,0.16);
+      background:rgba(9,27,58,0.72); border-radius:14px; padding:14px;
+    }
+    .timer-label { color:rgba(255,255,255,0.62); font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:4px; }
+    .timer-time { font-size:28px; font-weight:800; letter-spacing:-1px; margin-bottom:10px; }
+    .mini-btn {
+      padding:8px 12px; border-radius:9px; font-size:12px; font-weight:700;
+      border:1px solid rgba(255,255,255,0.22); background:transparent; color:#fff;
+    }
+    .mini-btn.start { border-color:#22c55e; color:#22c55e; }
+    .mini-btn.stop  { border-color:#ef4444; color:#ef4444; }
+    .mini-btn.pause { border-color:#ffa500; color:#ffa500; }
+
+    .alert-card {
+      background:rgba(15,39,78,0.64); border:1px solid rgba(255,255,255,0.14);
+      border-radius:16px; padding:16px; margin-bottom:12px; backdrop-filter:blur(10px);
+    }
+    .alert-card.urgent { background:rgba(70,15,25,0.72); border-color:rgba(255,59,48,0.55); }
+    .badge {
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      font-size:11px; font-weight:800; letter-spacing:0.5px;
+    }
+    .badge.red    { background:rgba(239,68,68,0.2);   color:#ef4444; border:1px solid rgba(239,68,68,0.4); }
+    .badge.orange { background:rgba(255,165,0,0.15);  color:#ffa500; border:1px solid rgba(255,165,0,0.4); }
+    .badge.green  { background:rgba(34,197,94,0.15);  color:#22c55e; border:1px solid rgba(34,197,94,0.4); }
+    .badge.blue   { background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); }
+    .badge.gray   { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.18); }
+
+    .meta { font-size:12px; color:rgba(255,255,255,0.55); font-weight:500; }
+
+    .save-btn {
+      width:100%; padding:18px; border:none; border-radius:14px;
+      background:linear-gradient(180deg,#ffa500,#ff8c00);
+      color:#0a1730; font-size:17px; font-weight:800;
+      box-shadow:0 8px 24px rgba(255,165,0,0.35);
+      margin-top:6px; margin-bottom:20px;
+    }
+    .save-btn:disabled { opacity:0.5; }
+
+    .outline-btn {
+      width:100%; border:1.5px solid rgba(255,255,255,0.25);
+      background:rgba(8,24,50,0.3); color:#fff; border-radius:12px;
+      padding:14px; font-size:15px; font-weight:700;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+
+    .page-title {
+      font-size:34px; font-weight:900; line-height:1.05;
+      letter-spacing:-1.2px; margin:4px 0 16px;
+    }
+
+    .emergency-strip {
+      margin-bottom:14px; padding:12px 14px; border-radius:15px;
+      border:1px solid rgba(255,59,48,0.58); background:rgba(80,18,31,0.74);
+      display:flex; align-items:center; gap:10px;
+      backdrop-filter:blur(12px); cursor:pointer;
+    }
+    .emergency-count {
+      margin-left:auto; min-width:28px; height:25px;
+      border-radius:999px; background:#ff3b30; color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:800;
+    }
+
+    .user-pill {
+      display:flex; align-items:center; gap:8px;
+      border:1px solid rgba(255,255,255,0.13);
+      background:rgba(12,36,76,0.62); padding:8px 10px;
+      border-radius:14px; backdrop-filter:blur(12px);
+    }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:#22c55e; }
+
+    .nav-wrap {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+      width:100%; max-width:480px; z-index:20;
+      background:rgba(10,23,48,0.97);
+      border-top:1px solid rgba(255,255,255,0.10);
+      padding:8px 6px calc(env(safe-area-inset-bottom) + 8px);
+    }
+    .nav { display:flex; }
+    .nav-btn {
+      flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      padding:6px 2px; border:none; background:transparent;
+      color:rgba(255,255,255,0.45); font-size:10px; font-weight:700; letter-spacing:0.3px;
+    }
+    .nav-btn.active { color:#ffa500; }
+    .nav-ico { font-size:22px; position:relative; }
+
+    .app-wrap {
+      position:relative; z-index:2; max-width:480px; margin:0 auto;
+      padding:0 16px calc(env(safe-area-inset-bottom) + 90px);
+      min-height:100vh; min-height:100dvh;
+    }
+    .app-top {
+      padding:max(env(safe-area-inset-top),16px) 0 12px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+
+    .modal-back {
+      position:fixed; inset:0; z-index:100;
+      background:rgba(0,0,0,0.65); display:flex;
+      align-items:center; justify-content:center;
+      padding:20px;
+    }
+    .modal {
+      width:100%; max-width:440px; background:#0d1f3d;
+      border:1px solid rgba(255,255,255,0.18);
+      border-radius:22px;
+      padding:24px 20px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.6);
+      max-height:90vh; overflow-y:auto;
+    }
+
+    .dropdown-list {
+      position:absolute; top:100%; left:0; right:0; margin-top:6px; padding:6px;
+      background:#0d1f3d; border:1px solid rgba(255,165,0,0.5);
+      border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.6);
+      max-height:250px; overflow:auto; z-index:200;
+    }
+    .dropdown-item { padding:11px 13px; border-radius:8px; cursor:pointer; color:#fff; }
+    .dropdown-item:active { background:rgba(255,165,0,0.18); color:#ffa500; }
+
+    .white-card {
+      margin-top:28px; background:#fff; color:#0a1730;
+      border-radius:24px; padding:28px 24px;
+      box-shadow:0 22px 60px rgba(0,0,0,0.45);
+    }
+    .light-label { color:#102d62; font-size:16px; font-weight:800; margin-bottom:10px; }
+    .light-field { position:relative; margin-bottom:22px; }
+    .light-field-icon {
+      position:absolute; left:14px; top:50%; transform:translateY(-50%);
+      color:#8a94a7; font-size:18px; pointer-events:none;
+    }
+    .blue-btn {
+      width:100%; border:0; border-radius:13px; padding:17px;
+      background:#082b66; color:#fff; font-size:17px; font-weight:800;
+      display:flex; align-items:center; justify-content:center; gap:12px;
+    }
+    .blue-btn:disabled { opacity:0.5; }
+
+    .powered { display:flex; align-items:center; gap:12px; margin-top:14px; }
+    .powered-small { font-size:10px; font-weight:800; color:rgba(255,255,255,0.62); letter-spacing:1.9px; text-transform:uppercase; }
+    .powered-line { width:1px; height:34px; background:rgba(255,255,255,0.42); }
+    .powered-name { font-size:12px; line-height:1.35; font-weight:700; color:rgba(255,255,255,0.92); }
+
+    .lager-row {
+      display:flex; align-items:center; gap:10px; padding:12px 14px;
+      border-radius:12px; background:rgba(9,27,58,0.74);
+      border:1px solid rgba(255,255,255,0.1); margin-bottom:8px;
+    }
+    .lager-name { flex:1; font-weight:700; font-size:14px; }
+    .lager-qty { font-size:20px; font-weight:800; color:#ffa500; min-width:32px; text-align:center; }
+    .lager-unit { font-size:11px; color:rgba(255,255,255,0.55); margin-left:2px; }
+    .lager-low { color:#ef4444; }
+
+    .stock-select-row {
+      display:flex; align-items:center; gap:8px; padding:10px 0;
+      border-bottom:1px solid rgba(255,255,255,0.07);
+    }
+
+    .pause-reason-box {
+      background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.3);
+      border-radius:12px; padding:12px; margin-top:10px;
+    }
+
+    /* Teile-Typ Kachel */
+    .parts-type-btn {
+      flex:1; padding:14px 8px; border-radius:13px;
+      border:1px solid rgba(255,255,255,0.14);
+      background:rgba(9,27,58,0.72); color:#fff;
+      font-size:12px; font-weight:700; text-align:center; line-height:1.3;
+    }
+    .parts-type-btn.active {
+      border-color:#ffa500; background:rgba(255,165,0,0.12);
+      color:#ffa500; box-shadow:0 0 0 1px #ffa500;
+    }
+
+    /* Alarm-Badge auf Slider-Screen */
+    .alarm-badge {
+      display:flex; align-items:center; justify-content:center;
+      width:90px; height:90px; border-radius:50%;
+      background:rgba(180,20,30,0.85);
+      border:3px solid #ff3b30;
+      box-shadow:0 0 32px rgba(255,59,48,0.7);
+      font-size:38px; font-weight:900; color:#fff;
+      margin:0 auto;
+      animation: pulse-red 1.6s infinite;
+    }
+    @keyframes pulse-red {
+      0%   { box-shadow:0 0 18px rgba(255,59,48,0.7); }
+      50%  { box-shadow:0 0 42px rgba(255,59,48,0.95); }
+      100% { box-shadow:0 0 18px rgba(255,59,48,0.7); }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useEffect, useRef, useState } = React;
+
+const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
+const APP_PIN = "3847";
+const SESSION_KEY = "werkflow_werkstatt_user_v2";
+
+const USERS = [
+  { id:"roman", name:"Roman Anokhin", avatar:"RA" },
+  { id:"petr",  name:"Petr Lorenz",   avatar:"PL" },
+  { id:"jens",  name:"Jens",          avatar:"JE" }
+];
+
+const VEHICLE_TYPES = [
+  ["truck","LKW"],
+  ["semiTrailer","Sattelauflieger"],
+  ["forklift","Stapler"],
+  ["trailer","Anhänger"],
+  ["pkw","PKW"],
+  ["other","Sonstiges"]
+];
+
+const WORK_TYPES = [
+  ["repair","Reparatur"],
+  ["maintenance","Wartung / TO"],
+  ["inspection","Inspektion"],
+  ["tireChange","Reifenwechsel"],
+  ["wash","Waschen"],
+  ["emergency","Notruf"]
+];
+
+// п.4: Standort Liste
+const LOCATIONS = ["Werkstatt","HOC 1","HOC 2","HOC 3","HOC 4","HOC 5","John Deere Bruchsal","Heidelberg, DE"];
+
+// п.5: Teile-Typen
+const PARTS_TYPES = [
+  { k:"none",   label:"Ohne\nTeile",   icon:"—"  },
+  { k:"lager",  label:"Neu aus\nLager",icon:"📦" },
+  { k:"used",   label:"B/U\nTeil",     icon:"♻️" },
+  { k:"shop",   label:"Aus dem\nLaden",icon:"🛒" }
+];
+
+function todayIso() { return new Date().toISOString().slice(0,10); }
+function timeHM(x) {
+  try { return new Date(x).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); }
+  catch(e) { return ""; }
+}
+function dateDMY(x) {
+  try { return new Date(x).toLocaleDateString("de-DE"); }
+  catch(e) { return x || ""; }
+}
+function fmtMin(m) {
+  m = parseInt(m || 0, 10) || 0;
+  if (!m) return "0 min";
+  var h = Math.floor(m / 60);
+  var mm = m % 60;
+  return h ? h + "h " + mm + "min" : mm + " min";
+}
+function fmtSec(s) {
+  s = parseInt(s || 0, 10) || 0;
+  var h = Math.floor(s / 3600);
+  var mn = Math.floor((s % 3600) / 60);
+  var sec = s % 60;
+  return h
+    ? h + ":" + String(mn).padStart(2,"0") + ":" + String(sec).padStart(2,"0")
+    : String(mn).padStart(2,"0") + ":" + String(sec).padStart(2,"0");
+}
+function labelFrom(list, value) {
+  var row = list.find(function(x) { return x[0] === value; });
+  return row ? row[1] : (value || "");
+}
+function normalizeUrls(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === "string") {
+    try {
+      var p = JSON.parse(v);
+      return Array.isArray(p) ? p.filter(Boolean) : [];
+    } catch(e) { return v ? [v] : []; }
+  }
+  return [];
+}
+
+// === Supabase API (только .then/.catch) ===
+function sbSelect(table, query) {
+  var url = SB_URL + "/rest/v1/" + table + (query ? "?" + query : "");
+  return fetch(url, {
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(t) { throw new Error(table + ": " + t); });
+    return res.json();
+  }).then(function(json) { return Array.isArray(json) ? json : []; });
+}
+
+function sbInsert(table, payload, minimal) {
+  return fetch(SB_URL + "/rest/v1/" + table, {
+    method:"POST",
+    headers: {
+      "Content-Type":"application/json",
+      "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY,
+      "Prefer": minimal ? "return=minimal" : "return=representation"
+    },
+    body: JSON.stringify(payload)
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(t) { throw new Error(table + " insert: " + t); });
+    return minimal ? true : res.json();
+  });
+}
+
+function sbPatch(table, id, payload) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?id=eq." + encodeURIComponent(id), {
+    method:"PATCH",
+    headers: {
+      "Content-Type":"application/json",
+      "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY,
+      "Prefer":"return=minimal"
+    },
+    body: JSON.stringify(payload)
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(t) { throw new Error(table + " patch: " + t); });
+    return true;
+  });
+}
+
+function sbUploadPhoto(path, file) {
+  return fetch(SB_URL + "/storage/v1/object/inspection-photos/" + path, {
+    method:"POST",
+    headers: {
+      "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY,
+      "Content-Type": file.type || "image/jpeg", "x-upsert":"true"
+    },
+    body: file
+  }).then(function(res) {
+    if (!res.ok) return null;
+    return SB_URL + "/storage/v1/object/public/inspection-photos/" + path;
+  }).catch(function() { return null; });
+}
+
+function uploadAllPhotos(jobId, photos) {
+  if (!photos || !photos.length) return Promise.resolve([]);
+  var promises = photos.map(function(p, i) {
+    if (!p.file) return Promise.resolve(null);
+    var ext = (p.file.name || "photo.jpg").split(".").pop() || "jpg";
+    var path = "jobs/" + jobId + "/" + Date.now() + "_" + i + "." + ext;
+    return sbUploadPhoto(path, p.file);
+  });
+  return Promise.all(promises).then(function(urls) { return urls.filter(Boolean); });
+}
+
+function ensureVehicle(vehicle, vehicles, setVehicles) {
+  if (!vehicle || !vehicle.plate) return Promise.resolve(null);
+  var exists = (vehicles || []).find(function(v) {
+    return (v.plate || "").toLowerCase() === vehicle.plate.toLowerCase();
+  });
+  if (exists) return Promise.resolve(exists);
+  var row = {
+    id:"V" + Date.now(), plate:vehicle.plate, brand:vehicle.brand || "",
+    type:vehicle.type || "other", created_at:new Date().toISOString()
+  };
+  return sbInsert("vehicles", row, true).then(function() {
+    setVehicles(function(prev) { return [row].concat(prev || []); });
+    return row;
+  }).catch(function(e) { console.warn("vehicle insert:", e); return null; });
+}
+
+// === BASE COMPONENTS ===
+function Bg() { return React.createElement("div", { className:"bg-image" }); }
+
+function Logo({ small }) {
+  var sz = small ? 26 : 42;
+  return (
+    <div style={{ fontSize:sz, fontWeight:900, letterSpacing:-1.5, lineHeight:1 }}>
+      <span style={{ color:"#fff" }}>Werk</span><span style={{ color:"#ffa500" }}>Flow</span>
+    </div>
+  );
+}
+
+function Powered() {
+  return (
+    <div className="powered">
+      <div className="powered-small">POWERED BY</div>
+      <div className="powered-line"></div>
+      <div className="powered-name">Die <span style={{ color:"#ffa500", fontWeight:900 }}>LTG</span> - Landauer<br/>Transportgesellschaft Doll KG</div>
+    </div>
+  );
+}
+
+function BackBtn({ onClick }) {
+  return (
+    <button className="btn-back" onClick={onClick}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </button>
+  );
+}
+
+// === п.1+п.3: Erste Anmeldung — стрелка назад ведёт НА ЭТОТ ЖЕ экран (некуда идти), кнопка скрыта ===
+function ErsteAnmeldung({ onContinue }) {
+  var _s0 = useState(""); var vorname = _s0[0]; var setVorname = _s0[1];
+  var _s1 = useState(""); var nachname = _s1[0]; var setNachname = _s1[1];
+  var ok = vorname.trim() && nachname.trim();
+
+  return (
+    <div className="scrn">
+      <Bg />
+      <div style={{ position:"relative", zIndex:2, paddingTop:54 }}>
+        <Logo />
+        <Powered />
+        <div style={{ marginTop:50, color:"#ffa500", fontSize:38, fontWeight:900, lineHeight:1 }}>Werkstatt</div>
+        <div style={{ marginTop:12, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>Erste Anmeldung</div>
+        <div className="white-card">
+          <div className="light-label">Vorname <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div className="light-field">
+            <span className="light-field-icon">👤</span>
+            <input className="input-light" value={vorname} onChange={function(e){ setVorname(e.target.value); }} placeholder="Roman" />
+          </div>
+          <div className="light-label">Nachname <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div className="light-field" style={{ marginBottom:26 }}>
+            <span className="light-field-icon">👤</span>
+            <input className="input-light" value={nachname} onChange={function(e){ setNachname(e.target.value); }} placeholder="Anokhin" />
+          </div>
+          <button className="blue-btn" disabled={!ok} style={{ opacity: ok ? 1 : 0.5 }} onClick={function(){
+            if (ok) onContinue(vorname.trim(), nachname.trim());
+          }}>
+            Weiter <span style={{ fontSize:24 }}>→</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === п.1: PIN — только при первой регистрации, потом только слайдер ===
+// п.3: стрелка "назад" → возврат на ErsteAnmeldung
+function PinScreen({ onSuccess, onBack }) {
+  var _s0 = useState(""); var pin = _s0[0]; var setPin = _s0[1];
+  var _s1 = useState(false); var err = _s1[0]; var setErr = _s1[1];
+
+  function press(d) {
+    if (pin.length >= 4) return;
+    setErr(false);
+    var next = pin + d;
+    setPin(next);
+    if (next.length === 4) {
+      setTimeout(function() {
+        if (next === APP_PIN) { onSuccess(); }
+        else {
+          setErr(true);
+          setTimeout(function() { setPin(""); setErr(false); }, 650);
+        }
+      }, 120);
+    }
+  }
+
+  function del() { setPin(function(p) { return p.slice(0,-1); }); setErr(false); }
+
+  return (
+    <div className="scrn">
+      <Bg />
+      <div style={{ position:"relative", zIndex:2, paddingTop:54 }}>
+        {/* п.3: стрелка назад → на ErsteAnmeldung */}
+        <BackBtn onClick={onBack} />
+      </div>
+      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:24 }}>
+        <Logo />
+        <Powered />
+        <div style={{ marginTop:40, color:"#ffa500", fontSize:36, fontWeight:900 }}>Werkstatt</div>
+        <div style={{ marginTop:10, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>PIN eingeben</div>
+        <div style={{ display:"flex", gap:18, margin:"28px 0 32px" }}>
+          {[0,1,2,3].map(function(i) {
+            return <div key={i} className={"pin-dot" + (i < pin.length ? " filled" : "") + (err ? " error" : "")}></div>;
+          })}
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 70px)", gap:16, justifyContent:"center" }}>
+          {[1,2,3,4,5,6,7,8,9].map(function(d) {
+            return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>;
+          })}
+          <div></div>
+          <button className="keypad-btn" onClick={function(){ press("0"); }}>0</button>
+          <button className="keypad-btn" onClick={del}>⌫</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === п.2: Slider — большой значок аларм с цифрой ===
+function SliderScreen({ userName, alerts, onUnlock, onChangeUser }) {
+  var _sx = useState(0); var x = _sx[0]; var setX = _sx[1];
+  var _sd = useState(false); var drag = _sd[0]; var setDrag = _sd[1];
+  var trackRef = useRef(null);
+  var maxRef = useRef(0);
+
+  useEffect(function() {
+    if (trackRef.current) maxRef.current = trackRef.current.offsetWidth - 78;
+  }, []);
+
+  function startSlide(clientX) {
+    setDrag(true);
+    var start = clientX;
+    var oldX = x;
+    var cur = oldX;
+    function move(e) {
+      var cx = e.touches ? e.touches[0].clientX : e.clientX;
+      cur = Math.max(0, Math.min(maxRef.current, cx - start + oldX));
+      setX(cur);
+    }
+    function up() {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchend", up);
+      setDrag(false);
+      if (cur >= maxRef.current * 0.82) {
+        setX(maxRef.current);
+        setTimeout(function() { onUnlock(); }, 120);
+      } else { setX(0); }
+    }
+    window.addEventListener("mousemove", move);
+    window.addEventListener("touchmove", move, { passive:false });
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+  }
+
+  var openAlerts = (alerts || []).filter(function(a) { return a.status !== "done"; });
+  var urgentCount = openAlerts.filter(function(a) { return (a.urgency || "").includes("urgent"); }).length;
+
+  return (
+    <div className="scrn" style={{ justifyContent:"flex-end", paddingBottom:40 }}>
+      <Bg />
+      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column" }}>
+        <div style={{ marginTop:"28vh", textAlign:"center" }}>
+          <Logo />
+          <div style={{ color:"#ffa500", fontSize:32, fontWeight:900, marginTop:8 }}>Werkstatt</div>
+          {userName && (
+            <div style={{ marginTop:6, color:"rgba(255,255,255,0.65)", fontSize:14, fontWeight:600 }}>
+              Guten Tag, {userName}
+            </div>
+          )}
+        </div>
+
+        {/* п.2: только Alarm-Badge с цифрой */}
+        {openAlerts.length > 0 && (
+          <div style={{ textAlign:"center", marginTop:28 }}>
+            <div className="alarm-badge">
+              {openAlerts.length}
+            </div>
+            <div style={{ marginTop:10, fontSize:12, fontWeight:800, color:"rgba(255,255,255,0.6)", textTransform:"uppercase", letterSpacing:1.2 }}>
+              {urgentCount > 0
+                ? urgentCount + " DRINGEND · " + (openAlerts.length - urgentCount) + " NORMAL"
+                : openAlerts.length + " Meldung" + (openAlerts.length !== 1 ? "en" : "") + " offen"
+              }
+            </div>
+          </div>
+        )}
+
+        <div style={{ flex:1 }}></div>
+
+        <div className="slider-track" ref={trackRef} style={{ marginBottom:18 }}>
+          <div className="slider-marks">
+            <div className="slider-mark"></div>
+            <div className="slider-mark"></div>
+            <div className="slider-mark"></div>
+            <div className="slider-mark"></div>
+          </div>
+          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:24, color:"rgba(255,255,255,0.35)", fontSize:13, fontWeight:700, letterSpacing:1, pointerEvents:"none" }}>
+            SCHIEBEN →
+          </div>
+          <div
+            className="slider-thumb"
+            style={{ left:6 + x, transition: drag ? "none" : "left 0.25s" }}
+            onMouseDown={function(e){ startSlide(e.clientX); }}
+            onTouchStart={function(e){ startSlide(e.touches[0].clientX); }}
+          >
+            <div className="slider-grip"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+
+        <button style={{ border:0, background:"transparent", color:"rgba(255,255,255,0.5)", fontWeight:700, fontSize:13, paddingBottom:8 }} onClick={onChangeUser}>
+          Anderer Benutzer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// === PhotoCapture & RemotePhotos ===
+function PhotoCapture({ photos, setPhotos }) {
+  var ref = useRef(null);
+  function onFiles(e) {
+    var files = Array.from(e.target.files || []);
+    Promise.all(files.map(function(file) {
+      return new Promise(function(resolve) {
+        var r = new FileReader();
+        r.onload = function(ev) { resolve({ file:file, base64:ev.target.result }); };
+        r.readAsDataURL(file);
+      });
+    })).then(function(arr) { setPhotos((photos || []).concat(arr)); });
+    e.target.value = "";
+  }
+  return (
+    <div>
+      <input ref={ref} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={onFiles} />
+      <button className="photo-box" type="button" onClick={function(){ if (ref.current) ref.current.click(); }}>
+        📷 Foto aufnehmen
+      </button>
+      {photos.length > 0 && (
+        <div className="photo-grid">
+          {photos.map(function(p, i) {
+            return (
+              <div className="photo-thumb" key={i}>
+                <img src={p.base64} alt="" />
+                <button type="button" onClick={function(){ setPhotos(photos.filter(function(_,idx){ return idx !== i; })); }}>×</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RemotePhotos({ urls }) {
+  var list = normalizeUrls(urls);
+  if (!list.length) return null;
+  return (
+    <div className="photo-grid" style={{ marginTop:10 }}>
+      {list.slice(0,6).map(function(u, i) {
+        return (
+          <a className="photo-thumb" href={u} target="_blank" rel="noreferrer" key={i}>
+            <img src={u} alt="" />
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+// === VehicleInput ===
+function VehicleInput({ vehicles, value, onChange, vehicleType }) {
+  var _sp = useState(value && value.plate ? value.plate : ""); var plate = _sp[0]; var setPlate = _sp[1];
+  var _sb = useState(value && value.brand ? value.brand : ""); var brand = _sb[0]; var setBrand = _sb[1];
+  var _so = useState(false); var open = _so[0]; var setOpen = _so[1];
+
+  useEffect(function() {
+    setPlate(value && value.plate ? value.plate : "");
+    setBrand(value && value.brand ? value.brand : "");
+  }, [value && value.plate]);
+
+  var filtered = (vehicles || [])
+    .filter(function(v) { return !vehicleType || vehicleType === "other" || !v.type || v.type === vehicleType; })
+    .filter(function(v) { return ((v.plate || "") + " " + (v.brand || "")).toLowerCase().includes(plate.toLowerCase()); })
+    .slice(0, 8);
+
+  function commit(p, b) {
+    var clean = (p !== undefined ? p : plate).trim();
+    if (!clean) { onChange(null); return; }
+    var existing = (vehicles || []).find(function(v) { return (v.plate || "").toLowerCase() === clean.toLowerCase(); });
+    if (existing) onChange({ id:existing.id, plate:existing.plate, brand:existing.brand || "", type:existing.type || vehicleType, isNew:false });
+    else onChange({ plate:clean, brand:(b !== undefined ? b : brand).trim(), type:vehicleType || "other", isNew:true });
+  }
+
+  return (
+    <div style={{ position:"relative" }}>
+      <input className="input-dark" value={plate} placeholder="Kennzeichen eingeben oder wählen"
+        onFocus={function(){ setOpen(true); }}
+        onChange={function(e){ setPlate(e.target.value); setOpen(true); }}
+        onBlur={function(){ setTimeout(function(){ commit(); setOpen(false); }, 180); }}
+      />
+      {plate.trim() && (
+        <input className="input-dark" style={{ marginTop:8 }} value={brand} placeholder="Marke / Modell (optional)"
+          onChange={function(e){ setBrand(e.target.value); }}
+          onBlur={function(){ commit(); }}
+        />
+      )}
+      {open && filtered.length > 0 && (
+        <div className="dropdown-list">
+          {filtered.map(function(v) {
+            return (
+              <div key={v.id || v.plate} className="dropdown-item"
+                onMouseDown={function(){
+                  setPlate(v.plate || ""); setBrand(v.brand || "");
+                  onChange({ id:v.id, plate:v.plate, brand:v.brand || "", type:v.type || vehicleType, isNew:false });
+                  setOpen(false);
+                }}>
+                <div style={{ fontWeight:800 }}>{v.plate}</div>
+                <div className="meta">{v.brand || labelFrom(VEHICLE_TYPES, v.type)}</div>
+              </div>
+            );
+          })}
+          {plate.trim() && !filtered.some(function(v){ return (v.plate || "").toLowerCase() === plate.toLowerCase(); }) && (
+            <div className="dropdown-item" style={{ color:"#ffa500", fontWeight:800 }}>+ Neues Fahrzeug: {plate}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === п.6: TimerBox с паузой и описанием ===
+function TimerBox({ label, value, setValue, withPause }) {
+  var _sa = useState(false); var active = _sa[0]; var setActive = _sa[1];
+  var _ss = useState(0); var sec = _ss[0]; var setSec = _ss[1];
+  var _spaused = useState(false); var paused = _spaused[0]; var setPaused = _spaused[1];
+  var _spm = useState(false); var pauseModal = _spm[0]; var setPauseModal = _spm[1];
+  var _spr = useState(""); var pauseReason = _spr[0]; var setPauseReason = _spr[1];
+  var _splog = useState([]); var pauseLog = _splog[0]; var setPauseLog = _splog[1];
+  var _smm = useState(false); var manual = _smm[0]; var setManual = _smm[1];
+  var _sh = useState(""); var h = _sh[0]; var setH = _sh[1];
+  var _sm = useState(""); var m = _sm[0]; var setM = _sm[1];
+
+  useEffect(function() {
+    if (!active || paused) return;
+    var id = setInterval(function() { setSec(function(s) { return s + 1; }); }, 1000);
+    return function() { clearInterval(id); };
+  }, [active, paused]);
+
+  function start() { setActive(true); setPaused(false); }
+
+  function stop() {
+    setActive(false); setPaused(false);
+    var min = Math.max(1, Math.round(sec / 60));
+    setValue((value || 0) + min);
+    setSec(0);
+  }
+
+  function requestPause() { setPauseModal(true); setPauseReason(""); }
+
+  function confirmPause() {
+    if (!pauseReason.trim()) { alert("Bitte Grund angeben."); return; }
+    setPaused(true);
+    setPauseLog(pauseLog.concat([{ time: new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}), reason:pauseReason }]));
+    setPauseModal(false); setPauseReason("");
+  }
+
+  function resume() { setPaused(false); }
+
+  function applyManual() {
+    var hh = parseInt(h || "0", 10) || 0;
+    var mm = parseInt(m || "0", 10) || 0;
+    if (mm < 0 || mm > 59) { alert("Ungültige Minuten."); return; }
+    var total = hh * 60 + mm;
+    if (total > 24 * 60) { alert("Maximal 24 Stunden."); return; }
+    setValue(total); setManual(false); setH(""); setM("");
+  }
+
+  var running = active && !paused;
+  var statusColor = running ? "#22c55e" : (paused ? "#ffa500" : "#fff");
+
+  return (
+    <div className="timer-card">
+      <div className="timer-label">{label}</div>
+      <div className="timer-time" style={{ color:statusColor }}>
+        {active ? fmtSec(sec) : fmtMin(value)}
+        {paused && <span style={{ fontSize:13, marginLeft:8, fontWeight:700, color:"#ffa500" }}>PAUSE</span>}
+      </div>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        {!active && (
+          <button className="mini-btn start" type="button" onClick={start}>▶ Start</button>
+        )}
+        {running && withPause && (
+          <button className="mini-btn pause" type="button" onClick={requestPause}>⏸ Pause</button>
+        )}
+        {running && (
+          <button className="mini-btn stop" type="button" onClick={stop}>■ Stop</button>
+        )}
+        {paused && (
+          <button className="mini-btn start" type="button" onClick={resume}>▶ Weiter</button>
+        )}
+        {paused && (
+          <button className="mini-btn stop" type="button" onClick={stop}>■ Stop</button>
+        )}
+        {!active && (
+          <button className="mini-btn" type="button" onClick={function(){ setManual(true); }}>✎ Manuell</button>
+        )}
+        {!!value && !active && (
+          <button className="mini-btn" type="button" onClick={function(){ setValue(0); setSec(0); }}>↺ Reset</button>
+        )}
+      </div>
+
+      {pauseLog.length > 0 && (
+        <div style={{ marginTop:10 }}>
+          {pauseLog.map(function(p, i) {
+            return (
+              <div key={i} style={{ fontSize:11, color:"rgba(255,165,0,0.75)", marginTop:3 }}>
+                ⏸ {p.time} — {p.reason}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {pauseModal && (
+        <div className="modal-back" onClick={function(){ setPauseModal(false); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:18, fontWeight:800, marginBottom:12 }}>⏸ Pause — Grund angeben</div>
+            <textarea className="textarea-dark" value={pauseReason}
+              onChange={function(e){ setPauseReason(e.target.value); }}
+              placeholder="z.B. Warte auf Ersatzteil, Mittagspause, Kundengespräch..."
+              style={{ minHeight:80, marginBottom:14 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn-primary" type="button" style={{ flex:1 }} onClick={confirmPause}>Bestätigen</button>
+              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }} onClick={function(){ setPauseModal(false); }}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {manual && (
+        <div className="modal-back" onClick={function(){ setManual(false); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:20, fontWeight:800, marginBottom:14 }}>Zeit manuell erfassen</div>
+            <div className="grid2">
+              <input className="input-dark" inputMode="numeric" value={h} placeholder="Stunden" onChange={function(e){ setH(e.target.value.replace(/\D/g,"")); }} />
+              <input className="input-dark" inputMode="numeric" value={m} placeholder="Minuten" onChange={function(e){ setM(e.target.value.replace(/\D/g,"")); }} />
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:14 }}>
+              <button className="btn-primary" type="button" style={{ flex:1 }} onClick={applyManual}>Übernehmen</button>
+              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }} onClick={function(){ setManual(false); }}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === п.5: TeilePicker — 4 типа + несколько позиций из магазина ===
+function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
+
+  function addShopItem() {
+    setShopItems(shopItems.concat([{
+      id: "SI" + Date.now(),
+      lieferschein:"", datum:todayIso(),
+      typ:"", name:"", preis:""
+    }]));
+  }
+
+  function updateShopItem(id, field, val) {
+    setShopItems(shopItems.map(function(s) {
+      return s.id === id ? Object.assign({}, s, { [field]:val }) : s;
+    }));
+  }
+
+  function removeShopItem(id) {
+    setShopItems(shopItems.filter(function(s) { return s.id !== id; }));
+  }
+
+  return (
+    <div>
+      {/* 4 кнопки типа */}
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        {PARTS_TYPES.map(function(pt) {
+          return (
+            <button key={pt.k} type="button"
+              className={"parts-type-btn" + (partsType === pt.k ? " active" : "")}
+              onClick={function(){ setPartsType(pt.k); }}>
+              <div style={{ fontSize:20, marginBottom:4 }}>{pt.icon}</div>
+              <div style={{ whiteSpace:"pre-line", fontSize:11 }}>{pt.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Neu aus Lager — заглушка */}
+      {partsType === "lager" && (
+        <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(255,165,0,0.07)", border:"1px solid rgba(255,165,0,0.25)", color:"rgba(255,255,255,0.65)", fontSize:13, lineHeight:1.5 }}>
+          📦 Lagerverwaltung wird als eigenes Modul <strong>lager.html</strong> entwickelt.<br/>
+          Hier später: Auswahl direkt aus Lagerbestand mit Autobuchung.
+        </div>
+      )}
+
+      {/* Gebraucht — заглушка */}
+      {partsType === "used" && (
+        <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.2)", color:"rgba(255,255,255,0.65)", fontSize:13 }}>
+          ♻️ Gebrauchtteil wird verwendet. Keine weitere Erfassung notwendig.
+        </div>
+      )}
+
+      {/* Aus dem Laden — свободный ввод, несколько позиций */}
+      {partsType === "shop" && (
+        <div>
+          {shopItems.map(function(item, idx) {
+            return (
+              <div key={item.id} style={{ background:"rgba(9,27,58,0.72)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:14, marginBottom:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                  <div style={{ fontSize:12, fontWeight:800, color:"#ffa500", letterSpacing:0.5 }}>POSITION {idx + 1}</div>
+                  {shopItems.length > 1 && (
+                    <button type="button" onClick={function(){ removeShopItem(item.id); }}
+                      style={{ border:0, background:"transparent", color:"#ef4444", fontWeight:800, fontSize:16 }}>✕</button>
+                  )}
+                </div>
+                <div className="grid2" style={{ marginBottom:8 }}>
+                  <div>
+                    <div className="label-cap">Lieferschein-Nr.</div>
+                    <input className="input-dark" value={item.lieferschein} placeholder="Nr. 12345"
+                      onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
+                  </div>
+                  <div>
+                    <div className="label-cap">Datum</div>
+                    <input type="date" className="input-dark" value={item.datum}
+                      onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
+                  </div>
+                </div>
+                <div className="label-cap">Teiletyp</div>
+                <input className="input-dark" value={item.typ} placeholder="z.B. Bremsscheibe, Ölfilter, Schraube..."
+                  style={{ marginBottom:8 }}
+                  onChange={function(e){ updateShopItem(item.id, "typ", e.target.value); }} />
+                <div className="label-cap">Bezeichnung / Artikelnummer</div>
+                <input className="input-dark" value={item.name} placeholder="Name oder Artikelnr."
+                  style={{ marginBottom:8 }}
+                  onChange={function(e){ updateShopItem(item.id, "name", e.target.value); }} />
+                <div className="label-cap">Preis (€)</div>
+                <input className="input-dark" inputMode="decimal" value={item.preis} placeholder="0.00"
+                  onChange={function(e){ updateShopItem(item.id, "preis", e.target.value.replace(/[^0-9.,]/g,"")); }} />
+              </div>
+            );
+          })}
+          <button className="outline-btn" type="button" onClick={addShopItem} style={{ marginTop:4 }}>
+            + Weiteres Teil hinzufügen
+          </button>
+          {shopItems.length > 0 && (
+            <div style={{ marginTop:8, color:"rgba(255,255,255,0.5)", fontSize:12 }}>
+              Gesamt: {shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis || "0").replace(",",".")) || 0); }, 0).toFixed(2)} €
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === StandortPicker — плитки как Arbeitstyp ===
+function StandortPicker({ value, onChange }) {
+  var _sc = useState(false); var custom = _sc[0]; var setCustom = _sc[1];
+  var _si = useState(""); var customVal = _si[0]; var setCustomVal = _si[1];
+
+  var isCustom = value && !LOCATIONS.includes(value);
+
+  function pick(l) {
+    if (l === "__custom__") {
+      setCustom(true);
+      setCustomVal(isCustom ? value : "");
+    } else {
+      onChange(l);
+      setCustom(false);
+    }
+  }
+
+  var allItems = LOCATIONS.concat(["__custom__"]);
+
+  return (
+    <div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+        {allItems.map(function(l) {
+          var isCustomBtn = l === "__custom__";
+          var isActive = isCustomBtn ? (custom || isCustom) : value === l;
+          return (
+            <button key={l} type="button"
+              onClick={function(){ pick(l); }}
+              style={{
+                padding:"10px 14px", borderRadius:999,
+                border: isActive ? "1px solid #ffa500" : "1px solid rgba(255,255,255,0.18)",
+                background: isActive ? "#ffa500" : "rgba(9,27,58,0.72)",
+                color: isActive ? "#0a1730" : "#fff",
+                fontSize:13, fontWeight:700,
+                boxShadow: isActive ? "0 4px 14px rgba(255,165,0,0.3)" : "none"
+              }}>
+              {isCustomBtn ? (isCustom ? ("✎ " + value) : "✎ Eigener...") : l}
+            </button>
+          );
+        })}
+      </div>
+      {(custom || isCustom) && (
+        <div style={{ display:"flex", gap:8, marginTop:10 }}>
+          <input
+            className="input-dark"
+            style={{ flex:1 }}
+            value={customVal !== "" ? customVal : (isCustom ? value : "")}
+            placeholder="Eigenen Standort eingeben..."
+            onChange={function(e){ setCustomVal(e.target.value); }}
+            onBlur={function(){ if (customVal.trim()) { onChange(customVal.trim()); setCustom(false); } }}
+          />
+          <button type="button" className="mini-btn start"
+            onClick={function(){ if (customVal.trim()) { onChange(customVal.trim()); setCustom(false); } }}>
+            ✓
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === NEW JOB FORM ===
+function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved }) {
+  var _svt = useState(prefill && prefill.vehicle_type ? prefill.vehicle_type : "truck");
+  var vehicleType = _svt[0]; var setVehicleType = _svt[1];
+  var _sveh = useState(prefill && prefill.plate ? { plate:prefill.plate, brand:"", type:"truck", isNew:false } : null);
+  var vehicle = _sveh[0]; var setVehicle = _sveh[1];
+  var _sloc = useState(prefill && prefill.location ? prefill.location : "Werkstatt");
+  var location = _sloc[0]; var setLocation = _sloc[1];
+  var _swt = useState(prefill && prefill.work_type ? prefill.work_type : "repair");
+  var workType = _swt[0]; var setWorkType = _swt[1];
+  var _sdesc = useState(prefill && prefill.description ? prefill.description : "");
+  var description = _sdesc[0]; var setDescription = _sdesc[1];
+  var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
+  var _stt = useState(0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
+  var _stb = useState(0); var travelBack = _stb[0]; var setTravelBack = _stb[1];
+  var _swm = useState(0); var workMin = _swm[0]; var setWorkMin = _swm[1];
+  var _scoll = useState(false); var colleague = _scoll[0]; var setColleague = _scoll[1];
+  var _scn = useState(""); var colleagueName = _scn[0]; var setColleagueName = _scn[1];
+  // п.5: Teile
+  var _spt = useState("none"); var partsType = _spt[0]; var setPartsType = _spt[1];
+  var _ssi = useState([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+  var shopItems = _ssi[0]; var setShopItems = _ssi[1];
+  var _stns = useState(""); var tireNewSn = _stns[0]; var setTireNewSn = _stns[1];
+  var _stos = useState(""); var tireOldSn = _stos[0]; var setTireOldSn = _stos[1];
+  var _stnc = useState("new"); var tireNewCond = _stnc[0]; var setTireNewCond = _stnc[1];
+  var _ssav = useState(false); var saving = _ssav[0]; var setSaving = _ssav[1];
+  var _srm = useState(false); var rechnungModal = _srm[0]; var setRechnungModal = _srm[1];
+  var _srj = useState(null); var savedJobId = _srj[0]; var setSavedJobId = _srj[1];
+  var _rsupp = useState(""); var rSupplier = _rsupp[0]; var setRSupplier = _rsupp[1];
+  var _rnr = useState(""); var rNr = _rnr[0]; var setRNr = _rnr[1];
+  var _ramt = useState(""); var rAmt = _ramt[0]; var setRAmt = _ramt[1];
+  var _rdate = useState(todayIso()); var rDate = _rdate[0]; var setRDate = _rdate[1];
+  var _rnotes = useState(""); var rNotes = _rnotes[0]; var setRNotes = _rnotes[1];
+  var _rphoto = useState(null); var rPhoto = _rphoto[0]; var setRPhoto = _rphoto[1];
+  var _rsav = useState(false); var rSaving = _rsav[0]; var setRSaving = _rsav[1];
+  var rPhotoRef = useRef(null);
+
+  useEffect(function() {
+    if (!prefill) return;
+    setVehicleType(prefill.vehicle_type || prefill.vehicleType || "truck");
+    setVehicle({ plate:prefill.plate || "", brand:"", type:prefill.vehicle_type || "truck", isNew:false });
+    setLocation(prefill.location || "Werkstatt");
+    setWorkType(prefill.work_type || "emergency");
+    setDescription(prefill.description || prefill.note || "");
+  }, [prefill && prefill.id]);
+
+  function save() {
+    if (!vehicle || !vehicle.plate) { alert("Bitte Fahrzeug eingeben."); return; }
+    setSaving(true);
+    var jobId = "J" + Date.now();
+
+    var partsNote = "";
+    var partsCost = 0;
+    if (partsType === "shop") {
+      var shopValid = shopItems.filter(function(i){ return i.name.trim() || i.typ.trim(); });
+      partsNote = shopValid.map(function(i){
+        return [i.typ, i.name, i.lieferschein ? "LS:" + i.lieferschein : "", i.datum, i.preis ? i.preis + " EUR" : ""].filter(Boolean).join(" | ");
+      }).join("\n");
+      partsCost = shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis || "0").replace(",",".")) || 0); }, 0);
+    } else if (partsType === "used") {
+      partsNote = "Gebrauchtteil";
+    } else if (partsType === "lager") {
+      partsNote = "Neu aus Lager (Buchung folgt)";
+    }
+
+    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles)
+      .then(function() { return uploadAllPhotos(jobId, photos); })
+      .then(function(photoUrls) {
+        var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
+        var totalCost = laborCost + partsCost;
+        var payload = {
+          id: jobId,
+          mechanic: user.id || "roman",
+          colleague: colleague ? (colleagueName || "Kollege") : null,
+          vehicle_type: vehicleType,
+          plate: vehicle.plate,
+          location: location,
+          work_type: workType,
+          description: description,
+          status: workMin > 0 ? "done" : "inProgress",
+          date: todayIso(),
+          travel_to_min: travelTo,
+          travel_back_min: travelBack,
+          work_min: workMin,
+          parts_type: partsType,
+          parts_note: partsNote || null,
+          parts_items: partsType === "shop" ? JSON.stringify(shopItems) : null,
+          tire_new_sn: workType === "tireChange" && tireNewSn.trim() ? tireNewSn.trim() : null,
+          tire_old_sn: workType === "tireChange" && tireOldSn.trim() ? tireOldSn.trim() : null,
+          tire_condition: workType === "tireChange" ? tireNewCond : null,
+          cost: totalCost,
+          labor_cost: laborCost,
+          parts_cost: partsCost,
+          photos: photoUrls.length,
+          photo_urls: photoUrls,
+          source: prefill ? "eingang" : "werkstatt",
+          alert_id: prefill && prefill.id ? prefill.id : null,
+          incoming_photo_urls: prefill ? normalizeUrls(prefill.photo_urls) : [],
+          created_at: new Date().toISOString()
+        };
+        return sbInsert("jobs", payload, true);
+      })
+      .then(function() {
+        if (prefill && prefill.id) {
+          return sbPatch("alerts", prefill.id, { status:"done" }).catch(function(e){ console.warn(e); });
+        }
+        return Promise.resolve();
+      })
+      .then(function() {
+        var jid = jobId;
+        setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
+        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+        if (onClear) onClear();
+        if (onSaved) onSaved();
+        setSaving(false);
+        // Предлагаем сохранить накладную если были запчасти из магазина
+        if (partsType === "shop" && shopItems.some(function(i){ return i.name.trim() || i.lieferschein.trim(); })) {
+          setSavedJobId(jid);
+          var firstItem = shopItems[0];
+          setRSupplier("");
+          setRNr(firstItem.lieferschein || "");
+          setRAmt(shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis||"0").replace(",",".")) || 0); }, 0).toFixed(2));
+          setRDate(todayIso());
+          setRNotes(shopItems.map(function(i){ return i.typ + " " + i.name; }).filter(function(x){ return x.trim(); }).join(", "));
+          setRechnungModal(true);
+        } else {
+          alert("Bericht gespeichert!");
+        }
+      })
+      .catch(function(e) {
+        console.error(e);
+        alert("Fehler: " + (e.message || e));
+        setSaving(false);
+      });
+  }
+
+  return (
+    <div>
+      <div className="page-title">Neuer <span style={{ color:"#ffa500" }}>Auftrag</span></div>
+
+      {prefill && (
+        <div className="alert-card urgent" style={{ marginBottom:14 }}>
+          <div className="badge red" style={{ marginBottom:8 }}>Aus Eingang übernommen</div>
+          <div style={{ fontSize:18, fontWeight:800, marginTop:6 }}>{prefill.plate || "Ohne Kennzeichen"}</div>
+          <div className="meta" style={{ marginTop:5 }}>📍 {prefill.location || "kein Standort"}</div>
+          <div style={{ marginTop:8, whiteSpace:"pre-wrap", fontSize:14 }}>{prefill.description || prefill.note}</div>
+          <RemotePhotos urls={prefill.photo_urls} />
+          <button className="outline-btn" type="button" style={{ marginTop:10, padding:12 }} onClick={onClear}>Vorlage entfernen</button>
+        </div>
+      )}
+
+      {/* п.4: Fahrzeug + Standort выпадающий */}
+      <div className="glass-panel">
+        <div className="panel-title">🚚 Fahrzeug</div>
+        <div className="grid2">
+          <div>
+            <div className="label-cap">Fahrzeugtyp</div>
+            <select className="select-dark" value={vehicleType} onChange={function(e){
+              setVehicleType(e.target.value);
+              if (vehicle) setVehicle(Object.assign({}, vehicle, { type:e.target.value }));
+            }}>
+              {VEHICLE_TYPES.map(function(vt) { return <option key={vt[0]} value={vt[0]}>{vt[1]}</option>; })}
+            </select>
+          </div>
+          <div>
+            <div className="label-cap">Kennzeichen / Nr.</div>
+            <VehicleInput vehicles={vehicles} value={vehicle} onChange={setVehicle} vehicleType={vehicleType} />
+          </div>
+        </div>
+        <div className="label-cap" style={{ marginTop:10 }}>Standort</div>
+        <StandortPicker value={location} onChange={setLocation} />
+      </div>
+
+      <div className="glass-panel">
+        <div className="panel-title">🔧 Arbeitstyp</div>
+        <div className="chips">
+          {WORK_TYPES.map(function(wt) {
+            return (
+              <button key={wt[0]} className={"chip" + (workType === wt[0] ? " active" : "")} type="button" onClick={function(){ setWorkType(wt[0]); }}>
+                {wt[1]}
+              </button>
+            );
+          })}
+        </div>
+        <div className="label-cap" style={{ marginTop:14 }}>Fehlerbeschreibung</div>
+        <textarea className="textarea-dark" value={description} onChange={function(e){ setDescription(e.target.value); }} placeholder="Fehlerbeschreibung eingeben..." />
+      </div>
+
+      {workType === "tireChange" && (
+        <div className="glass-panel">
+          <div className="panel-title">🔄 Reifenwechsel — Serien-Nummern</div>
+          <div style={{ marginBottom:12 }}>
+            <div className="label-cap">Neue Reifen — Serien-Nr. (eingebaut)</div>
+            <input className="input-dark" value={tireNewSn} onChange={function(e){ setTireNewSn(e.target.value); }} placeholder="SN123456, SN123457..." />
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Mehrere Nummern mit Komma trennen</div>
+          </div>
+          <div style={{ marginBottom:8 }}>
+            <div style={{ display:"flex", gap:10, marginBottom:8 }}>
+              <button type="button" className={"chip" + (tireNewCond==="new"?" active":"")} onClick={function(){ setTireNewCond("new"); }}>🟢 Neu</button>
+              <button type="button" className={"chip" + (tireNewCond==="used"?" active":"")} onClick={function(){ setTireNewCond("used"); }}>🟡 Gebraucht</button>
+            </div>
+          </div>
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)", paddingTop:12 }}>
+            <div className="label-cap">Abgezogene Reifen — Serien-Nr.</div>
+            <input className="input-dark" value={tireOldSn} onChange={function(e){ setTireOldSn(e.target.value); }} placeholder="SN789012..." />
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Diese Reifen gehen nach Passau</div>
+          </div>
+        </div>
+      )}
+
+      <div className="glass-panel">
+        <div className="panel-title">📷 Fotos</div>
+        <PhotoCapture photos={photos} setPhotos={setPhotos} />
+      </div>
+
+      {/* п.5: Teile & Material */}
+      <div className="glass-panel">
+        <div className="panel-title">📦 Teile &amp; Material</div>
+        <TeilePicker partsType={partsType} setPartsType={setPartsType} shopItems={shopItems} setShopItems={setShopItems} />
+      </div>
+
+      <div className="glass-panel">
+        <div className="panel-title">👥 Mechaniker</div>
+        <div className="grid2">
+          <button type="button" className={"chip" + (!colleague ? " active" : "")} onClick={function(){ setColleague(false); }}>👤 Allein</button>
+          <button type="button" className={"chip" + (colleague ? " active" : "")} onClick={function(){ setColleague(true); }}>👥 Mit Kollegen</button>
+        </div>
+        {colleague && (
+          <select className="select-dark" style={{ marginTop:10 }} value={colleagueName} onChange={function(e){ setColleagueName(e.target.value); }}>
+            <option value="">Kollege wählen</option>
+            {USERS.filter(function(u) { return u.id !== user.id; }).map(function(u) {
+              return <option key={u.id} value={u.name}>{u.name}</option>;
+            })}
+          </select>
+        )}
+      </div>
+
+      {/* п.6: Таймер Arbeitszeit с паузой */}
+      <div className="glass-panel">
+        <div className="panel-title">⏱ Zeiten</div>
+        <div className="grid2">
+          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} withPause={false} />
+          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} withPause={false} />
+        </div>
+        <div style={{ height:10 }}></div>
+        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} withPause={true} />
+      </div>
+
+      <button className="save-btn" type="button" disabled={saving} onClick={save}>
+        {saving ? "Speichert..." : "💾 BERICHT SPEICHERN"}
+      </button>
+
+      {rechnungModal && (
+        <div className="modal-back" onClick={function(){ setRechnungModal(false); alert("Bericht gespeichert!"); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>📋 Lieferschein erfassen</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:16 }}>Ersatzteil diesem Auftrag zuordnen</div>
+
+            <div className="label-cap">Lieferant (Firma)</div>
+            <input className="input-dark" style={{ marginBottom:10 }} value={rSupplier}
+              onChange={function(e){ setRSupplier(e.target.value); }}
+              placeholder="z.B. ATU, Bosch Service, Amazon..." />
+
+            <div className="grid2" style={{ marginBottom:10 }}>
+              <div>
+                <div className="label-cap">Lieferschein-Nr.</div>
+                <input className="input-dark" value={rNr}
+                  onChange={function(e){ setRNr(e.target.value); }}
+                  placeholder="LS-12345" />
+              </div>
+              <div>
+                <div className="label-cap">Datum</div>
+                <input type="date" className="input-dark" value={rDate}
+                  onChange={function(e){ setRDate(e.target.value); }} />
+              </div>
+            </div>
+
+            <div className="label-cap">Zapchast' / Bezeichnung</div>
+            <input className="input-dark" style={{ marginBottom:16 }} value={rNotes}
+              onChange={function(e){ setRNotes(e.target.value); }}
+              placeholder="Was wurde geliefert?" />
+
+            <div style={{ display:"flex", gap:10, marginTop:4 }}>
+              <button className="btn-primary" type="button" style={{ flex:2 }} disabled={rSaving}
+                onClick={function(){
+                  setRSaving(true);
+                  var inv = {
+                    id: "LS" + Date.now(),
+                    date: rDate,
+                    supplier_name: rSupplier.trim() || "Unbekannt",
+                    invoice_nr: rNr.trim() || null,
+                    vehicle_id: vehicle ? vehicle.plate : null,
+                    job_id: savedJobId,
+                    total_eur: 0,
+                    paid: false,
+                    notes: rNotes.trim() || null,
+                    created_at: new Date().toISOString()
+                  };
+                  sbInsert("invoices", inv, true)
+                    .then(function(){
+                      setRSaving(false);
+                      setRechnungModal(false);
+                      alert("Bericht + Lieferschein gespeichert!");
+                    })
+                    .catch(function(e){
+                      alert("Fehler: " + (e.message||e));
+                      setRSaving(false);
+                    });
+                }}>
+                {rSaving ? "Speichert..." : "💾 Lieferschein speichern"}
+              </button>
+              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }}
+                onClick={function(){ setRechnungModal(false); alert("Bericht gespeichert!"); }}>
+                Überspringen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === Звук алерта (Web Audio API, без файлов) ===
+function playAlertSound() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.18, 0.36].forEach(function(t) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.15);
+    });
+  } catch(e) {}
+}
+
+// === EINGANG (с taken_by, Ablehnen, Zurückstellen) ===
+function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh }) {
+  var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
+  var _smodal = useState(null); var modal = _smodal[0]; var setModal = _smodal[1];
+  var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
+
+  var open = (alerts || []).filter(function(a) {
+    return a.status !== "done" && a.status !== "rejected";
+  });
+
+  function handleAction(a, action) {
+    setModal({ alert:a, action:action });
+    setReason("");
+  }
+
+  function confirmAction() {
+    var a = modal.alert;
+    var action = modal.action;
+    if ((action === "reject" || action === "defer") && !reason.trim()) {
+      alert("Bitte Grund angeben.");
+      return;
+    }
+    setUpdating(true);
+    var patch = {};
+    if (action === "take") {
+      patch = { taken_by: user.id, taken_by_name: user.name };
+    } else if (action === "reject") {
+      patch = { status:"rejected", reject_reason: reason };
+    } else if (action === "defer") {
+      patch = { status:"pending", reject_reason: reason };
+    }
+    sbPatch("alerts", a.id, patch)
+      .then(function() { setUpdating(false); setModal(null); onRefresh(); })
+      .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
+  }
+
+  function doCreate(a) {
+    // При создании заказа — блокируем алерт для других
+    sbPatch("alerts", a.id, { taken_by: user.id, taken_by_name: user.name })
+      .catch(function(){});
+    onCreate(a);
+  }
+
+  return (
+    <div>
+      <div className="page-title">Ein<span style={{ color:"#ffa500" }}>gang</span></div>
+      <button className="outline-btn" type="button" style={{ marginBottom:14, padding:13 }} onClick={onRefresh}>
+        {loading ? "Lädt..." : "↻ Aktualisieren"}
+      </button>
+      {open.length === 0 && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>
+          ✅ Keine neuen Meldungen
+        </div>
+      )}
+      {open.map(function(a) {
+        var urgent = (a.urgency || "").includes("urgent") || (a.type || "").includes("accident");
+        var takenByMe = a.taken_by === user.id;
+        var takenByOther = a.taken_by && a.taken_by !== user.id;
+        var isPending = a.status === "pending";
+        return (
+          <div key={a.id} className={"alert-card" + (urgent ? " urgent" : "") + (takenByOther ? "" : "")}
+            style={{ opacity: takenByOther ? 0.55 : 1 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+              <span className={urgent ? "badge red" : (isPending ? "badge gray" : "badge orange")}>
+                {urgent ? "🚨 DRINGEND" : isPending ? "⏸ ZURÜCKGESTELLT" : "⚠️ MELDUNG"}
+              </span>
+              <strong style={{ fontSize:17 }}>{a.plate || "Ohne Kennzeichen"}</strong>
+              {takenByMe && <span className="badge green">✓ Ich</span>}
+              {takenByOther && <span className="badge gray">🔒 {a.taken_by_name || a.taken_by}</span>}
+            </div>
+            <div className="meta">
+              von {a.sender_app === "stapler" ? "Stapler" : "Fahrer"} · {a.created_at ? timeHM(a.created_at) : ""} · {a.sender || ""}
+            </div>
+            <div className="meta" style={{ marginTop:6 }}>📍 {a.location || "kein Standort"}</div>
+            <div style={{ fontSize:14, lineHeight:1.45, marginTop:10, whiteSpace:"pre-wrap" }}>
+              {a.description || a.note || "Keine Beschreibung"}
+            </div>
+            <RemotePhotos urls={a.photo_urls} />
+            {a.reject_reason && (
+              <div style={{ marginTop:8, fontSize:12, color:"rgba(255,165,0,0.7)", fontStyle:"italic" }}>
+                Grund: {a.reject_reason}
+              </div>
+            )}
+
+            {!takenByOther && (
+              <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+                <button className="save-btn" type="button"
+                  style={{ flex:2, marginTop:0, marginBottom:0, padding:14, fontSize:14 }}
+                  onClick={function(){ doCreate(a); }}>
+                  + Auftrag erstellen
+                </button>
+                <button type="button"
+                  style={{ flex:1, padding:14, borderRadius:12, border:"1px solid rgba(255,165,0,0.4)", background:"transparent", color:"#ffa500", fontWeight:700, fontSize:13 }}
+                  onClick={function(){ handleAction(a, "defer"); }}>
+                  ⏸ Später
+                </button>
+                <button type="button"
+                  style={{ flex:1, padding:14, borderRadius:12, border:"1px solid rgba(239,68,68,0.4)", background:"transparent", color:"#ef4444", fontWeight:700, fontSize:13 }}
+                  onClick={function(){ handleAction(a, "reject"); }}>
+                  ✕ Ablehnen
+                </button>
+              </div>
+            )}
+            {takenByOther && (
+              <div style={{ marginTop:10, padding:"10px 14px", borderRadius:10, background:"rgba(255,255,255,0.05)", fontSize:13, color:"rgba(255,255,255,0.5)", textAlign:"center" }}>
+                🔒 Übernommen von {a.taken_by_name || a.taken_by}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {modal && (
+        <div className="modal-back" onClick={function(){ setModal(null); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:18, fontWeight:800, marginBottom:8 }}>
+              {modal.action === "reject" ? "✕ Ablehnen" : "⏸ Zurückstellen"}
+            </div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.6)", marginBottom:14 }}>
+              {modal.alert.plate} · {modal.alert.description ? modal.alert.description.slice(0,60) : ""}
+            </div>
+            <div className="label-cap">Grund *</div>
+            <textarea className="textarea-dark" value={reason}
+              onChange={function(e){ setReason(e.target.value); }}
+              placeholder={modal.action === "reject" ? "Warum abgelehnt?" : "Warum zurückgestellt?"}
+              style={{ minHeight:80, marginBottom:14 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn-primary" type="button" style={{ flex:1 }} disabled={updating} onClick={confirmAction}>
+                {updating ? "..." : "Bestätigen"}
+              </button>
+              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }} onClick={function(){ setModal(null); }}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === MEINE AUFTRÄGE ===
+function MeineAuftraege({ jobs, user, onRefresh, loading }) {
+  var _spause = useState(null); var pauseTarget = _spause[0]; var setPauseTarget = _spause[1];
+  var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
+  var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
+
+  var myJobs = (jobs || [])
+    .filter(function(j) { return j.mechanic === (user && user.id); })
+    .filter(function(j) { return j.status !== "done"; });
+
+  // Все заказы механика за сегодня (включая done) для экспорта
+  var todayJobs = (jobs || []).filter(function(j) {
+    return j.mechanic === (user && user.id) &&
+      (j.date || (j.created_at || "").slice(0,10)) === todayIso();
+  });
+
+  function exportDay() {
+    var date = todayIso();
+    var totalMin = todayJobs.reduce(function(s,j){ return s + (j.work_min || 0); }, 0);
+    var totalCost = todayJobs.reduce(function(s,j){ return s + (Number(j.cost) || 0); }, 0);
+    var rows = todayJobs.map(function(j) {
+      var statusDE = j.status === "done" ? "Fertig" : j.status === "inProgress" ? "In Arbeit" : j.status === "paused" ? "Pause" : "Neu";
+      return "<tr>" +
+        "<td>" + (j.plate || "—") + "</td>" +
+        "<td>" + (labelFrom(WORK_TYPES, j.work_type) || "") + "</td>" +
+        "<td>" + (j.location || "") + "</td>" +
+        "<td>" + (j.description ? j.description.slice(0,80) : "") + "</td>" +
+        "<td>" + fmtMin(j.work_min || 0) + "</td>" +
+        "<td>" + fmtMin((j.travel_to_min||0)+(j.travel_back_min||0)) + "</td>" +
+        "<td>" + (j.cost ? Number(j.cost).toFixed(2) + " €" : "—") + "</td>" +
+        "<td style='color:" + (j.status === "done" ? "green" : "orange") + ";font-weight:bold'>" + statusDE + "</td>" +
+        "</tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+      "<title>Tagesbericht " + date + "</title>" +
+      "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:900px;margin:0 auto}" +
+      "h1{color:#0a1730;margin-bottom:4px}h2{color:#555;font-size:14px;font-weight:normal;margin-bottom:20px}" +
+      "table{width:100%;border-collapse:collapse;margin-bottom:20px}" +
+      "td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:13px}" +
+      "th{background:#0a1730;color:#fff;font-size:12px;letter-spacing:0.5px}" +
+      "tr:nth-child(even){background:#f8f9fc}" +
+      ".summary{display:flex;gap:24px;background:#f0f4ff;border-radius:12px;padding:16px 20px;margin-bottom:24px}" +
+      ".sum-item{text-align:center}.sum-val{font-size:24px;font-weight:900;color:#0a1730}" +
+      ".sum-lab{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}" +
+      "</style></head><body>" +
+      "<h1>WerkFlow — Tagesbericht</h1>" +
+      "<h2>" + user.name + " · " + dateDMY(date) + "</h2>" +
+      "<div class='summary'>" +
+      "<div class='sum-item'><div class='sum-val'>" + todayJobs.length + "</div><div class='sum-lab'>Aufträge</div></div>" +
+      "<div class='sum-item'><div class='sum-val'>" + fmtMin(totalMin) + "</div><div class='sum-lab'>Arbeitszeit</div></div>" +
+      "<div class='sum-item'><div class='sum-val'>" + totalCost.toFixed(2) + " €</div><div class='sum-lab'>Gesamtkosten</div></div>" +
+      "</div>" +
+      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Kosten</th><th>Status</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table></body></html>";
+
+    var fileName = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
+
+    // Web Share API — системный диалог "Поделиться" на мобильных
+    if (navigator.share && navigator.canShare) {
+      var blob = new Blob([html], { type:"text/html" });
+      var file = new File([blob], fileName, { type:"text/html" });
+      if (navigator.canShare({ files:[file] })) {
+        navigator.share({
+          title: "Tagesbericht " + user.name + " · " + dateDMY(date),
+          text: "WerkFlow Tagesbericht: " + todayJobs.length + " Aufträge, " + fmtMin(totalMin) + ", " + totalCost.toFixed(2) + " €",
+          files: [file]
+        }).catch(function(e){
+          if (e.name !== "AbortError") fallbackDownload(html, fileName);
+        });
+        return;
+      }
+    }
+    // Fallback: обычное скачивание (десктоп или старые браузеры)
+    fallbackDownload(html, fileName);
+  }
+
+  function fallbackDownload(html, fileName) {
+    var blob = new Blob([html], { type:"text/html" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function changeStatus(job, newStatus, pauseNote) {
+    setUpdating(true);
+    var patch = { status:newStatus };
+    if (pauseNote) patch.pause_note = pauseNote;
+    if (newStatus === "done") patch.finished_at = new Date().toISOString();
+    sbPatch("jobs", job.id, patch)
+      .then(function() { setUpdating(false); if (onRefresh) onRefresh(); })
+      .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
+  }
+
+  function confirmPause() {
+    if (!reason.trim()) { alert("Bitte Grund angeben."); return; }
+    changeStatus(pauseTarget, "paused", reason);
+    setPauseTarget(null); setReason("");
+  }
+
+  function statusLabel(s) {
+    if (s === "inProgress") return { text:"In Arbeit", cls:"green" };
+    if (s === "paused")     return { text:"Pause",    cls:"orange" };
+    return { text:"Neu", cls:"blue" };
+  }
+
+  return (
+    <div>
+      <div className="page-title">Meine <span style={{ color:"#ffa500" }}>Aufträge</span></div>
+      <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+        <button className="outline-btn" type="button" style={{ padding:13 }} onClick={onRefresh}>
+          {loading ? "Lädt..." : "↻ Aktualisieren"}
+        </button>
+        <button type="button" onClick={exportDay}
+          style={{ flexShrink:0, padding:"13px 16px", borderRadius:12, border:"1px solid rgba(255,165,0,0.5)", background:"rgba(255,165,0,0.08)", color:"#ffa500", fontWeight:700, fontSize:13, whiteSpace:"nowrap" }}>
+          📄 Tagesbericht
+        </button>
+      </div>
+      {todayJobs.length > 0 && (
+        <div style={{ marginBottom:12, padding:"10px 14px", borderRadius:12, background:"rgba(255,255,255,0.05)", fontSize:12, color:"rgba(255,255,255,0.55)", display:"flex", gap:16 }}>
+          <span>Heute: {todayJobs.length} Aufträge</span>
+          <span>⏱ {fmtMin(todayJobs.reduce(function(s,j){ return s + (j.work_min||0); },0))}</span>
+          <span>💶 {todayJobs.reduce(function(s,j){ return s + (Number(j.cost)||0); },0).toFixed(2)} €</span>
+        </div>
+      )}
+      {myJobs.length === 0 && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>Keine offenen Aufträge</div>
+      )}
+      {myJobs.map(function(j) {
+        var sl = statusLabel(j.status);
+        var isNew    = j.status !== "inProgress" && j.status !== "paused";
+        var isActive = j.status === "inProgress";
+        var isPaused = j.status === "paused";
+        return (
+          <div key={j.id} className="alert-card">
+            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:8 }}>
+              <div>
+                <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || "Ohne Kennzeichen"}</div>
+                <div className="meta" style={{ marginTop:4 }}>📍 {j.location || "Werkstatt"} · {labelFrom(WORK_TYPES, j.work_type)}</div>
+              </div>
+              <span className={"badge " + sl.cls}>{sl.text}</span>
+            </div>
+            {j.description && <div style={{ fontSize:13, lineHeight:1.4, marginBottom:8, whiteSpace:"pre-wrap" }}>{j.description}</div>}
+            {j.pause_note && (
+              <div className="pause-reason-box">
+                <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,165,0,0.8)", marginBottom:4 }}>PAUSE-GRUND</div>
+                <div style={{ fontSize:13 }}>{j.pause_note}</div>
+              </div>
+            )}
+            <div className="meta" style={{ marginTop:8 }}>⏱ {fmtMin(j.work_min || 0)} · Fahrt: {fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))}</div>
+            <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+              {isNew && <button className="mini-btn start" type="button" disabled={updating} onClick={function(){ changeStatus(j, "inProgress"); }}>▶ Starten</button>}
+              {isActive && <button className="mini-btn pause" type="button" disabled={updating} onClick={function(){ setPauseTarget(j); setReason(""); }}>⏸ Pause</button>}
+              {isPaused && <button className="mini-btn start" type="button" disabled={updating} onClick={function(){ changeStatus(j, "inProgress"); }}>▶ Weiter</button>}
+              {(isActive || isPaused) && (
+                <button className="mini-btn stop" type="button" disabled={updating}
+                  onClick={function(){ if (window.confirm("Auftrag als erledigt markieren?")) changeStatus(j, "done"); }}>
+                  ■ Fertig
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {pauseTarget && (
+        <div className="modal-back" onClick={function(){ setPauseTarget(null); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:18, fontWeight:800, marginBottom:14 }}>⏸ Pause — Grund angeben</div>
+            <div style={{ color:"rgba(255,255,255,0.65)", fontSize:13, marginBottom:10 }}>
+              {pauseTarget.plate} · {labelFrom(WORK_TYPES, pauseTarget.work_type)}
+            </div>
+            <textarea className="textarea-dark" value={reason}
+              onChange={function(e){ setReason(e.target.value); }}
+              placeholder="Grund der Pause (z.B. Ersatzteil fehlt, Mittagspause...)"
+              style={{ minHeight:80, marginBottom:14 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn-primary" type="button" style={{ flex:1 }} onClick={confirmPause}>Bestätigen</button>
+              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }} onClick={function(){ setPauseTarget(null); }}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === LAGER ===
+function Lager({ stock, loading, onRefresh }) {
+  var lowItems = stock.filter(function(s) { return s.qty <= (s.min_qty || 0); });
+  return (
+    <div>
+      <div className="page-title">La<span style={{ color:"#ffa500" }}>ger</span></div>
+      <button className="outline-btn" type="button" style={{ marginBottom:14, padding:13 }} onClick={onRefresh}>
+        {loading ? "Lädt..." : "↻ Aktualisieren"}
+      </button>
+      {lowItems.length > 0 && (
+        <div className="alert-card urgent" style={{ marginBottom:14 }}>
+          <div className="badge red" style={{ marginBottom:8 }}>⚠️ Nachbestellen erforderlich</div>
+          {lowItems.map(function(s) {
+            return <div key={s.id} style={{ fontSize:13, marginTop:4, color:"rgba(255,120,120,0.9)" }}>• {s.name}: noch {s.qty} {s.unit} (Min: {s.min_qty})</div>;
+          })}
+        </div>
+      )}
+      {stock.length === 0 && !loading && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>
+          Lager ist leer. Tabelle "stock" befüllen.
+        </div>
+      )}
+      {stock.map(function(s) {
+        var low = s.qty <= (s.min_qty || 0);
+        return (
+          <div key={s.id} className="lager-row" style={{ borderColor: low ? "rgba(239,68,68,0.45)" : "rgba(255,255,255,0.1)" }}>
+            <div className="lager-name" style={{ color: low ? "#ef4444" : "#fff" }}>{s.name}</div>
+            {s.price ? <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginRight:4 }}>{Number(s.price).toFixed(2)} €</div> : null}
+            <div className={"lager-qty" + (low ? " lager-low" : "")}>{s.qty}</div>
+            <div className="lager-unit">{s.unit || "Stk"}</div>
+          </div>
+        );
+      })}
+      <div style={{ marginTop:20, padding:14, borderRadius:14, background:"rgba(255,165,0,0.06)", border:"1px solid rgba(255,165,0,0.2)", color:"rgba(255,255,255,0.5)", fontSize:12, lineHeight:1.5 }}>
+        💡 Vollständige Lagerverwaltung kommt als lager.html
+      </div>
+    </div>
+  );
+}
+
+// === ARCHIV (с просмотром фото) ===
+function Archiv({ jobs }) {
+  var _sd = useState(""); var filterDate = _sd[0]; var setFilterDate = _sd[1];
+  var _sp = useState(null); var photoJob = _sp[0]; var setPhotoJob = _sp[1];
+
+  var done = (jobs || []).filter(function(j) { return j.status === "done"; });
+  var filtered = filterDate
+    ? done.filter(function(j) { return (j.date || (j.created_at || "").slice(0,10)) === filterDate; })
+    : done;
+
+  function exportReport() {
+    var date = todayIso();
+    var rows = filtered.slice(0,200).map(function(j) {
+      return "<tr><td>" + (dateDMY(j.date || j.created_at) || "") + "</td><td>" + (j.plate || "") + "</td><td>" + (j.mechanic || "") + "</td><td>" + (labelFrom(WORK_TYPES, j.work_type) || "") + "</td><td>" + (j.description || "") + "</td><td>" + fmtMin(j.work_min || 0) + "</td><td>" + (j.cost ? Number(j.cost).toFixed(2) + " €" : "—") + "</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>WerkFlow Bericht</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#222}h1{color:#0a1730}table{width:100%;border-collapse:collapse}td,th{padding:8px 10px;border-bottom:1px solid #ddd;text-align:left}th{background:#0a1730;color:#fff}</style></head><body><h1>WerkFlow Werkstatt — Bericht</h1><p>Exportiert: " + date + "</p><table><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th></tr></thead><tbody>" + rows + "</tbody></table></body></html>";
+    var blob = new Blob([html], { type:"text/html" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "WerkFlow_Bericht_" + date + ".html"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div>
+      <div className="page-title">Ar<span style={{ color:"#ffa500" }}>chiv</span></div>
+      <div style={{ display:"flex", gap:10, marginBottom:14, alignItems:"center" }}>
+        <input type="date" className="input-dark" style={{ flex:1 }} value={filterDate} onChange={function(e){ setFilterDate(e.target.value); }} />
+        {filterDate && <button className="mini-btn" type="button" onClick={function(){ setFilterDate(""); }}>✕</button>}
+        <button className="mini-btn" type="button" onClick={exportReport} style={{ borderColor:"#ffa500", color:"#ffa500", whiteSpace:"nowrap" }}>📄 Export</button>
+      </div>
+      <div style={{ color:"rgba(255,255,255,0.45)", fontSize:12, marginBottom:10 }}>
+        {filtered.length} Aufträge {filterDate ? "am " + filterDate : "gesamt"}
+      </div>
+      {filtered.length === 0 && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>Keine erledigten Aufträge</div>
+      )}
+      {filtered.map(function(j) {
+        var photoUrls = normalizeUrls(j.photo_urls);
+        var incomingUrls = normalizeUrls(j.incoming_photo_urls);
+        var allUrls = photoUrls.concat(incomingUrls);
+        return (
+          <div key={j.id} className="alert-card">
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+              <div>
+                <div style={{ fontWeight:800, fontSize:16 }}>{j.plate || "Ohne KZ"}</div>
+                <div className="meta" style={{ marginTop:4 }}>{dateDMY(j.date || j.created_at)} · {labelFrom(WORK_TYPES, j.work_type)}</div>
+              </div>
+              <span className="badge green">✓ Fertig</span>
+            </div>
+            {j.description && (
+              <div style={{ fontSize:13, marginTop:8, whiteSpace:"pre-wrap" }}>
+                {j.description.slice(0,120)}{j.description.length > 120 ? "..." : ""}
+              </div>
+            )}
+            {j.parts_note && (
+              <div style={{ marginTop:6, fontSize:12, color:"rgba(255,165,0,0.75)" }}>
+                📦 {j.parts_note.slice(0,80)}
+              </div>
+            )}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8, flexWrap:"wrap", gap:6 }}>
+              <div className="meta">
+                ⏱ {fmtMin(j.work_min || 0)} · 👤 {j.mechanic || ""}
+                {j.cost ? " · 💶 " + Number(j.cost).toFixed(2) + " €" : ""}
+              </div>
+              {allUrls.length > 0 && (
+                <button type="button"
+                  style={{ border:"1px solid rgba(255,255,255,0.2)", background:"transparent", color:"rgba(255,255,255,0.7)", borderRadius:8, padding:"5px 10px", fontSize:12, fontWeight:700 }}
+                  onClick={function(){ setPhotoJob(j); }}>
+                  📷 {allUrls.length} Foto{allUrls.length !== 1 ? "s" : ""}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {photoJob && (
+        <div className="modal-back" onClick={function(){ setPhotoJob(null); }}>
+          <div className="modal" style={{ maxHeight:"85vh", overflowY:"auto" }} onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+              <div style={{ fontWeight:800, fontSize:17 }}>📷 Fotos — {photoJob.plate}</div>
+              <button type="button" onClick={function(){ setPhotoJob(null); }}
+                style={{ border:0, background:"transparent", color:"rgba(255,255,255,0.6)", fontSize:22, fontWeight:700 }}>×</button>
+            </div>
+            {normalizeUrls(photoJob.photo_urls).length > 0 && (
+              <div>
+                <div className="label-cap">Fotos vom Mechaniker</div>
+                <div className="photo-grid">
+                  {normalizeUrls(photoJob.photo_urls).map(function(u, i) {
+                    return (
+                      <a key={i} className="photo-thumb" href={u} target="_blank" rel="noreferrer">
+                        <img src={u} alt="" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {normalizeUrls(photoJob.incoming_photo_urls).length > 0 && (
+              <div style={{ marginTop:14 }}>
+                <div className="label-cap">Fotos vom Fahrer</div>
+                <div className="photo-grid">
+                  {normalizeUrls(photoJob.incoming_photo_urls).map(function(u, i) {
+                    return (
+                      <a key={i} className="photo-thumb" href={u} target="_blank" rel="noreferrer">
+                        <img src={u} alt="" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {normalizeUrls(photoJob.photo_urls).length === 0 && normalizeUrls(photoJob.incoming_photo_urls).length === 0 && (
+              <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", padding:20 }}>Keine Fotos</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === BOTTOM NAV ===
+function BottomNav({ tab, setTab, alertCount }) {
+  var items = [["new","➕","Auftrag"],["eingang","📥","Eingang"],["jobs","📋","Meine"],["lager","📦","Lager"],["archiv","🗃️","Archiv"]];
+  return (
+    <div className="nav-wrap">
+      <div className="nav">
+        {items.map(function(item) {
+          var k = item[0]; var ico = item[1]; var label = item[2];
+          return (
+            <button key={k} type="button" className={"nav-btn" + (tab === k ? " active" : "")} onClick={function(){ setTab(k); }}>
+              <span className="nav-ico">
+                {ico}
+                {k === "eingang" && alertCount > 0 && (
+                  <span style={{ position:"absolute", right:-10, top:-8, background:"#ff3b30", color:"#fff", borderRadius:99, fontSize:10, fontWeight:800, minWidth:17, height:17, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    {alertCount}
+                  </span>
+                )}
+              </span>
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// === APP SHELL ===
+function AppShell({ user, onLogout }) {
+  var _stab = useState("new"); var tab = _stab[0]; var setTab = _stab[1];
+  var _sjobs = useState([]); var jobs = _sjobs[0]; var setJobs = _sjobs[1];
+  var _salerts = useState([]); var alerts = _salerts[0]; var setAlerts = _salerts[1];
+  var _svehicles = useState([]); var vehicles = _svehicles[0]; var setVehicles = _svehicles[1];
+  var _sstock = useState([]); var stock = _sstock[0]; var setStock = _sstock[1];
+  var _susers = useState([]); var dbUsers = _susers[0]; var setDbUsers = _susers[1];
+  var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
+  var _sprefill = useState(null); var prefill = _sprefill[0]; var setPrefill = _sprefill[1];
+  var _sdbOk = useState(null); var dbOk = _sdbOk[0]; var setDbOk = _sdbOk[1];
+  var prevAlertCount = useRef(0);
+  var wsRef = useRef(null);
+
+  function loadAll() {
+    setLoading(true);
+    Promise.all([
+      sbSelect("jobs","select=*&order=created_at.desc&limit=300"),
+      sbSelect("alerts","select=*&order=created_at.desc&limit=100"),
+      sbSelect("vehicles","select=*&order=plate.asc&limit=500"),
+      sbSelect("stock","select=*&order=name.asc&limit=200"),
+      sbSelect("users","select=*")
+    ]).then(function(results) {
+      setJobs(results[0]);
+      var newAlerts = results[1].map(function(a){ return Object.assign({},a,{photo_urls:normalizeUrls(a.photo_urls)}); });
+      var newOpen = newAlerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
+      if (newOpen.length > prevAlertCount.current && prevAlertCount.current >= 0) {
+        playAlertSound();
+      }
+      prevAlertCount.current = newOpen.length;
+      setAlerts(newAlerts);
+      setVehicles(results[2]);
+      setStock(results[3]);
+      if (results[4] && results[4].length) setDbUsers(results[4]);
+      setDbOk(true); setLoading(false);
+    }).catch(function(e) {
+      console.error(e); setDbOk(false); setLoading(false);
+    });
+  }
+
+  // Realtime подписка на alerts
+  useEffect(function() {
+    loadAll();
+    // Supabase Realtime через WebSocket
+    try {
+      var wsUrl = SB_URL.replace("https://","wss://") + "/realtime/v1/websocket?apikey=" + SB_KEY + "&vsn=1.0.0";
+      var ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      ws.onopen = function() {
+        ws.send(JSON.stringify({ topic:"realtime:public:alerts", event:"phx_join", payload:{}, ref:"1" }));
+      };
+      ws.onmessage = function(e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.event === "INSERT" || msg.event === "UPDATE") {
+            playAlertSound();
+            loadAll();
+          }
+        } catch(err) {}
+      };
+      ws.onerror = function() {};
+    } catch(e) {}
+
+    // Fallback: polling каждые 30 сек
+    var poll = setInterval(function() { loadAll(); }, 30000);
+    return function() {
+      clearInterval(poll);
+      try { if (wsRef.current) wsRef.current.close(); } catch(e) {}
+    };
+  }, []);
+
+  // Ставка текущего механика
+  var myRate = 0;
+  var dbUser = dbUsers.find(function(u){ return u.id === user.id; });
+  if (dbUser && dbUser.rate_per_hour) myRate = Number(dbUser.rate_per_hour) || 0;
+
+  var openAlerts = alerts.filter(function(a) { return a.status !== "done" && a.status !== "rejected"; });
+
+  function createFromAlert(a) {
+    setPrefill(Object.assign({},a,{
+      vehicle_type: a.vehicle_type || a.vehicleType || "truck",
+      work_type:"emergency",
+      photo_urls:normalizeUrls(a.photo_urls)
+    }));
+    setTab("new");
+  }
+
+  return (
+    <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh", maxWidth:480, margin:"0 auto" }}>
+      <Bg />
+      <div className="app-wrap">
+        <div className="app-top">
+          <div>
+            <Logo small={true} />
+            <div style={{ color:"#ffa500", fontSize:18, fontWeight:900, marginTop:2 }}>Werkstatt</div>
+          </div>
+          <div className="user-pill">
+            <div className="status-dot" style={{ background: dbOk === false ? "#ff3b30" : dbOk === true ? "#22c55e" : "#ffa500" }}></div>
+            <span style={{ fontSize:12, fontWeight:700 }}>{user.name}</span>
+            <button type="button" onClick={onLogout} style={{ border:0, background:"rgba(255,255,255,0.08)", color:"#fff", padding:"5px 8px", borderRadius:9, fontSize:12, fontWeight:700 }}>↩</button>
+          </div>
+        </div>
+
+        {openAlerts.length > 0 && (
+          <div className="emergency-strip" onClick={function(){ setTab("eingang"); }}>
+            <div style={{ fontSize:20 }}>🚨</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:800, fontSize:14 }}>Neue Meldungen: {openAlerts.length}</div>
+              <div className="meta" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                {openAlerts[0].plate || ""}{openAlerts[0].description ? " · " + openAlerts[0].description.slice(0,40) : ""}
+              </div>
+            </div>
+            <div className="emergency-count">{openAlerts.length}</div>
+          </div>
+        )}
+
+        {tab === "new" && (
+          <NewJob vehicles={vehicles} setVehicles={setVehicles}
+            user={user} userRate={myRate}
+            prefill={prefill}
+            onClear={function(){ setPrefill(null); }}
+            onSaved={loadAll}
+          />
+        )}
+        {tab === "eingang" && (
+          <Eingang alerts={alerts} user={user} onCreate={createFromAlert} loading={loading} onRefresh={loadAll} />
+        )}
+        {tab === "jobs" && (
+          <MeineAuftraege jobs={jobs} user={user} onRefresh={loadAll} loading={loading} />
+        )}
+        {tab === "lager" && (
+          <Lager stock={stock} loading={loading} onRefresh={loadAll} />
+        )}
+        {tab === "archiv" && (
+          <Archiv jobs={jobs} />
+        )}
+      </div>
+      <BottomNav tab={tab} setTab={setTab} alertCount={openAlerts.length} />
+    </div>
+  );
+}
+
+// === ROOT APP ===
+function App() {
+  var _sstage = useState("loading"); var stage = _sstage[0]; var setStage = _sstage[1];
+  var _sname = useState(""); var savedName = _sname[0]; var setSavedName = _sname[1];
+  var _suser = useState(null); var user = _suser[0]; var setUser = _suser[1];
+  var _salerts = useState([]); var alerts = _salerts[0]; var setAlerts = _salerts[1];
+
+  useEffect(function() {
+    sbSelect("alerts","select=*&order=created_at.desc&limit=30")
+      .then(function(a){ setAlerts(a.map(function(x){ return Object.assign({},x,{photo_urls:normalizeUrls(x.photo_urls)}); })); })
+      .catch(function(){});
+
+    try {
+      var saved = localStorage.getItem(SESSION_KEY);
+      if (saved) {
+        var u = JSON.parse(saved);
+        if (u && u.name) {
+          setSavedName(u.name);
+          setUser(u);
+          // п.1: уже зарегистрирован → сразу слайдер, PIN не показываем
+          setStage("slider");
+          return;
+        }
+      }
+    } catch(e) {}
+    setStage("register");
+  }, []);
+
+  if (stage === "loading") {
+    return (
+      <div className="scrn" style={{ alignItems:"center", justifyContent:"center" }}>
+        <Bg />
+        <div style={{ position:"relative", zIndex:2 }}><Logo /></div>
+      </div>
+    );
+  }
+
+  if (stage === "register") {
+    return (
+      <ErsteAnmeldung onContinue={function(v, n) {
+        setSavedName(v + " " + n);
+        setStage("pin");
+      }} />
+    );
+  }
+
+  // п.1: PIN только после регистрации (первый раз)
+  // п.3: стрелка назад в PinScreen → обратно на ErsteAnmeldung
+  if (stage === "pin") {
+    return (
+      <PinScreen
+        onBack={function(){ setStage("register"); }}
+        onSuccess={function() {
+          var name = savedName || "Werkstatt";
+          var avatar = name.split(" ").map(function(w){ return w[0] || ""; }).join("").slice(0,2).toUpperCase() || "WK";
+          var knownUser = USERS.find(function(u){ return name.toLowerCase().includes(u.id); });
+          var u = knownUser || { id:"roman", name:name, avatar:avatar };
+          try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
+          setUser(u);
+          setStage("slider");
+        }}
+      />
+    );
+  }
+
+  if (stage === "slider") {
+    return (
+      <SliderScreen
+        userName={savedName}
+        alerts={alerts}
+        onUnlock={function(){ setStage("app"); }}
+        onChangeUser={function() {
+          try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          setSavedName(""); setUser(null); setStage("register");
+        }}
+      />
+    );
+  }
+
+  if (stage === "app" && user) {
+    return (
+      <AppShell
+        user={user}
+        onLogout={function() {
+          // Выход → обратно на слайдер (не удаляем сессию, просто идём на slider)
+          setStage("slider");
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+
+
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function() {
+        navigator.serviceWorker.register("/sw.js").catch(function(){});
+      });
+    }
+  </script>
+</body>
+</html>
