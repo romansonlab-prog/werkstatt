@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest-fahrer.json">
+  <meta name="theme-color" content="#1d4ed8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WerkFlow Fahrer">
+  <link rel="apple-touch-icon" href="/icons/fahrer-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="WerkFlow Fahrer">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WerkFlow Fahrer</title>
@@ -743,17 +752,42 @@ function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
     saveVeh
       .then(function(){ return uploadAll(photos,alertId); })
       .then(function(urls){
-        return sbPost("alerts",{
-          id:alertId,type:hasFault?"inspection_mangel":"inspection_ok",
-          plate:sel.plate,location:"Werkstatt",
-          description:defText||(prefix+"-Inspektion: "+(hasFault?"Mangel":"OK")),
-          urgency:hasFault?"normal":"info",
-          sender:driverName||"driver",sender_app:"fahrer",
-          status:hasFault?"open":"done",photo_urls:urls
+        var checksObj = {}; items.forEach(function(c){ checksObj[c.k]=chk[c.k]||"ok"; });
+        var mangelObj = {}; items.forEach(function(c){ if(chk[c.k]==="fail") mangelObj[c.k]=c.label; });
+        return sbPost("inspections",{
+          id:alertId,
+          plate:sel.plate,
+          brand:sel.brand||null,
+          type:vType,
+          driver:driverName||"driver",
+          status:hasFault?"mangel":"ok",
+          checks:JSON.stringify(checksObj),
+          mangel:JSON.stringify(mangelObj),
+          note:notes||null,
+          photos:JSON.stringify(urls),
+          mileage:km?parseInt(km):null,
+          created_at:new Date().toISOString()
         }).then(function(){
           if(km&&parseInt(km)>0&&sel.id&&!sel.isNew) return sbPatch("vehicles","id",sel.id,{mileage:parseInt(km)});
           return true;
         });
+      })
+      .then(function(){
+        // Если есть мангели — дополнительно шлём алерт в Eingang механикам
+        if(hasFault){
+          return sbPost("alerts",{
+            id:"IA"+Date.now(),
+            type:"inspection_mangel",
+            plate:sel.plate,
+            location:"Werkstatt",
+            description:defText||(prefix+"-Inspektion: Mangel"),
+            urgency:"normal",
+            sender:driverName||"driver",
+            sender_app:"fahrer",
+            status:"open"
+          }).catch(function(){});
+        }
+        return true;
       })
       .then(function(){ setSending(false); setDone(true); })
       .catch(function(e){ setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
@@ -1011,5 +1045,13 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+      });
+    }
+  </script>
 </body>
 </html>
