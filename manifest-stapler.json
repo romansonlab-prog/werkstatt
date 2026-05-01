@@ -1,7 +1,6 @@
 {
   "name": "WerkFlow Stapler",
   "short_name": "Stapler",
-  "description": "WerkFlow Stapler \u2014 St\u00f6rungsmeldung Flurf\u00f6rderzeuge",
   "start_url": "/stapler.html",
   "display": "standalone",
   "orientation": "portrait",

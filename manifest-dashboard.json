@@ -1,7 +1,6 @@
 {
   "name": "WerkFlow Dashboard",
   "short_name": "Dashboard",
-  "description": "WerkFlow Dashboard \u2014 Fuhrpark \u00dcbersicht",
   "start_url": "/dashboard.html",
   "display": "standalone",
   "orientation": "landscape",

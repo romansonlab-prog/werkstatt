@@ -1,7 +1,6 @@
 {
   "name": "WerkFlow Fahrer",
   "short_name": "Fahrer",
-  "description": "WerkFlow Fahrer \u2014 Inspektion und St\u00f6rung melden",
   "start_url": "/fahrer.html",
   "display": "standalone",
   "orientation": "portrait",

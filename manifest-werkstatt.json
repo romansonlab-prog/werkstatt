@@ -1,7 +1,6 @@
 {
   "name": "WerkFlow Werkstatt",
   "short_name": "Werkstatt",
-  "description": "WerkFlow Werkstatt \u2014 Auftr\u00e4ge und Reparaturen",
   "start_url": "/werkstatt.html",
   "display": "standalone",
   "orientation": "portrait",

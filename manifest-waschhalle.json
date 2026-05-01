@@ -1,7 +1,6 @@
 {
   "name": "WerkFlow Waschhalle",
   "short_name": "Waschhalle",
-  "description": "WerkFlow Waschhalle \u2014 Waschauftr\u00e4ge erfassen",
   "start_url": "/waschhalle.html",
   "display": "standalone",
   "orientation": "portrait",
