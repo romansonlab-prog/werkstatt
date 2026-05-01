@@ -291,15 +291,7 @@ function exportJobs(jobs, title, dateLabel) {
     "<div class='sum-item'><div class='sum-val'>"+totalCost.toFixed(2)+" €</div><div class='sum-lab'>Kosten</div></div></div>"+
     "<table><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
     "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>"+
-    "
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function(){});
-      });
-    }
-  </script>
-</body></html>";
+    "</body></html>";
   printHtml(html, title);
 }
 
@@ -2412,5 +2404,12 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function() {
+        navigator.serviceWorker.register("/sw.js").catch(function(){});
+      });
+    }
+  </script>
 </body>
 </html>
