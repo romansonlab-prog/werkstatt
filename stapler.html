@@ -389,7 +389,8 @@ function StandortPicker({ value, onChange }) {
             if (a.postcode) parts.push(a.postcode);
             if (a.city || a.town || a.village || a.municipality) parts.push(a.city || a.town || a.village || a.municipality);
             if (a.country_code) parts.push((a.country_code + "").toUpperCase());
-            var txt = parts.length ? parts.join(", ") : (p.coords.latitude.toFixed(6) + ", " + p.coords.longitude.toFixed(6));
+            var coords = p.coords.latitude.toFixed(6) + ", " + p.coords.longitude.toFixed(6);
+            var txt = (parts.length ? parts.join(", ") + " | " : "") + coords;
             onChange(txt); setCv(txt); setCustom(true); setGps(false);
           })
           .catch(function(){

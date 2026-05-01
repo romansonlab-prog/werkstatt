@@ -900,7 +900,10 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
     setGpsLoad(true);
     navigator.geolocation.getCurrentPosition(
       function(p){
-        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+p.coords.latitude+"&lon="+p.coords.longitude+"&accept-language=de&zoom=18")
+        var lat = p.coords.latitude.toFixed(6);
+        var lon = p.coords.longitude.toFixed(6);
+        var coords = lat+", "+lon;
+        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lon+"&accept-language=de&zoom=18")
           .then(function(r){ return r.json(); })
           .then(function(d){
             var a=d.address||{}; var parts=[];
@@ -909,14 +912,14 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
             if(a.postcode) parts.push(a.postcode);
             if(a.city||a.town||a.village||a.municipality) parts.push(a.city||a.town||a.village||a.municipality);
             if(a.country_code) parts.push((a.country_code+"").toUpperCase());
-            var coords = p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6);
-            setLoc(parts.length?parts.join(", "):coords);
+            var result = (parts.length ? parts.join(", ")+" | " : "") + coords;
+            setLoc(result);
             setGpsLoad(false);
           })
-          .catch(function(){ setLoc(p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6)); setGpsLoad(false); });
+          .catch(function(){ setLoc(coords); setGpsLoad(false); });
       },
       function(e){ setGpsLoad(false); alert("GPS: "+e.message); },
-      {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+      {enableHighAccuracy:true,timeout:15000,maximumAge:0}
     );
   }
 
