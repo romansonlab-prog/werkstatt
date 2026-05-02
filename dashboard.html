@@ -757,14 +757,55 @@ function Eingang({ alerts, onRefresh, loading }) {
   }
 
   function exportAlerts() {
+    var date = new Date().toLocaleDateString("de-DE", {weekday:"long", day:"2-digit", month:"long", year:"numeric"});
+    var dringend = list.filter(function(a){ return (a.urgency||"").includes("urgent"); }).length;
+    var erledigt = list.filter(function(a){ return a.status==="done"; }).length;
     var rows = list.map(function(a){
-      return "<tr><td>"+fmtDateTime(a.created_at)+"</td><td>"+(a.plate||"—")+"</td><td>"+(a.sender_app||"")+"</td><td>"+(a.sender||"")+"</td><td>"+((a.urgency||"").includes("urgent")?"🚨 Dringend":"Normal")+"</td><td>"+(a.description||"").slice(0,80)+"</td><td>"+(a.status||"")+"</td></tr>";
+      var urg = (a.urgency||"").includes("urgent") ? "🚨 Dringend" : "Normal";
+      var status = a.status === "done" ? "✓ Erledigt" : a.status === "inProgress" ? "In Bearbeitung" : "Offen";
+      var src = a.sender_app === "stapler" ? "Stapler" : a.sender_app === "fahrer" ? "Fahrer" : (a.sender_app||"—");
+      return "<tr style='border-bottom:1px solid #eee'>" +
+        "<td style='color:#666;white-space:nowrap'>"+fmtDateTime(a.created_at)+"</td>" +
+        "<td><strong style='font-size:15px;letter-spacing:1px'>"+( a.plate||"—")+"</strong></td>" +
+        "<td>"+src+"</td>" +
+        "<td>"+( a.sender||"—")+"</td>" +
+        "<td style='color:"+(( a.urgency||"").includes("urgent")?"#c0392b":"#27ae60")+"'>"+urg+"</td>" +
+        "<td style='max-width:300px'>"+( a.description||"—")+"</td>" +
+        "<td style='color:"+(a.status==="done"?"#27ae60":"#e67e22")+"'>"+status+"</td>" +
+        "</tr>";
     }).join("");
-    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Eingang Export</title>"+baseReportStyle()+"</head><body>"+
-      "<h1>WerkFlow — Eingang</h1><h2>"+list.length+" Meldungen</h2>"+
-      "<table><thead><tr><th>Datum/Zeit</th><th>Fahrzeug</th><th>Quelle</th><th>Sender</th><th>Dringlichkeit</th><th>Beschreibung</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
-      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
-    printHtml(html, "Eingang Export");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+      "<title>WerkFlow — Eingang Bericht</title>" +
+      "<style>"+
+        "body{font-family:Arial,sans-serif;padding:32px;color:#222;max-width:1100px;margin:0 auto}"+
+        "h1{color:#0a1730;font-size:28px;margin:0 0 4px}"+
+        ".sub{color:#666;font-size:14px;margin-bottom:24px}"+
+        ".summary{display:flex;gap:32px;background:#f4f6fb;border-radius:10px;padding:16px 24px;margin-bottom:24px}"+
+        ".sum-item{text-align:center}"+
+        ".sum-val{font-size:26px;font-weight:900;color:#0a1730}"+
+        ".sum-lab{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}"+
+        "table{width:100%;border-collapse:collapse;margin-bottom:24px}"+
+        "th{background:#0a1730;color:#fff;font-size:12px;font-weight:700;padding:10px 14px;text-align:left;letter-spacing:0.5px}"+
+        "td{padding:11px 14px;font-size:13px;vertical-align:top}"+
+        "tr:nth-child(even) td{background:#f8f9fc}"+
+        ".footer{font-size:12px;color:#aaa;border-top:1px solid #eee;padding-top:12px;margin-top:8px}"+
+        "@media print{.no-print{display:none}}"+
+      "</style></head><body>"+
+      "<h1>WerkFlow — Eingangsbericht</h1>"+
+      "<div class='sub'>Erstellt am: "+date+" &nbsp;·&nbsp; Gefiltert: "+list.length+" Meldungen</div>"+
+      "<div class='summary'>"+
+        "<div class='sum-item'><div class='sum-val'>"+list.length+"</div><div class='sum-lab'>Meldungen gesamt</div></div>"+
+        "<div class='sum-item'><div class='sum-val' style='color:#c0392b'>"+dringend+"</div><div class='sum-lab'>Dringend</div></div>"+
+        "<div class='sum-item'><div class='sum-val' style='color:#27ae60'>"+erledigt+"</div><div class='sum-lab'>Erledigt</div></div>"+
+        "<div class='sum-item'><div class='sum-val' style='color:#e67e22'>"+(list.length-erledigt)+"</div><div class='sum-lab'>Offen</div></div>"+
+      "</div>"+
+      "<table><thead><tr>"+
+        "<th>Datum / Uhrzeit</th><th>Fahrzeug</th><th>Quelle</th><th>Fahrer / Sender</th><th>Dringlichkeit</th><th>Beschreibung</th><th>Status</th>"+
+      "</tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<div class='footer'>WerkFlow Betriebsmanagementsystem &nbsp;·&nbsp; Automatisch generiert</div>"+
+      "<button class='no-print' onclick='window.print()' style='margin-top:16px;background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / Als PDF speichern</button>"+
+      "</body></html>";
+    printHtml(html, "Eingangsbericht");
   }
 
   return (
@@ -1055,29 +1096,55 @@ function Mechaniker({ jobs, onRefresh, loading }) {
           var isExp = expanded === mech.id;
 
           return (
-            <div key={mech.id} className="mech-card">
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                  <div style={{ width:42, height:42, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:14, color:"#ffa500" }}>
+            <div key={mech.id} style={{
+              borderBottom:"1px solid rgba(255,255,255,0.07)",
+              padding:"20px 0",
+              background: inProgress > 0 ? "rgba(34,197,94,0.03)" : "transparent"
+            }}>
+              {/* ЗАГОЛОВОК МЕХАНИКА - горизонтальная строка */}
+              <div style={{
+                display:"grid",
+                gridTemplateColumns:"220px 1fr 1fr 1fr 1fr 140px",
+                alignItems:"center",
+                gap:0
+              }}>
+                {/* ИМЯ */}
+                <div style={{ display:"flex", alignItems:"center", gap:12, paddingRight:16 }}>
+                  <div style={{ width:46, height:46, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"2px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:16, color:"#ffa500", flexShrink:0 }}>
                     {mech.name.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontWeight:800, fontSize:15 }}>{mech.name}</div>
-                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", marginTop:2 }}>
-                      {inProgress > 0 && <span style={{ color:"#22c55e" }}>● In Arbeit</span>}
-                      {inProgress === 0 && paused > 0 && <span style={{ color:"#ffa500" }}>● Pause</span>}
-                      {inProgress === 0 && paused === 0 && <span>○ Verfügbar</span>}
+                    <div style={{ fontWeight:600, fontSize:17, color:"#fff" }}>{mech.name}</div>
+                    <div style={{ fontSize:13, marginTop:3 }}>
+                      {inProgress > 0 && <span style={{ color:"#22c55e", fontWeight:600 }}>● In Arbeit</span>}
+                      {inProgress === 0 && paused > 0 && <span style={{ color:"#ffa500", fontWeight:600 }}>● Pause</span>}
+                      {inProgress === 0 && paused === 0 && <span style={{ color:"rgba(255,255,255,0.4)" }}>○ Verfügbar</span>}
                     </div>
                   </div>
                 </div>
-                <div className="mech-stats">
-                  <div className="mech-stat"><div className="mech-stat-val">{mj.length}</div><div className="mech-stat-lab">Aufträge</div></div>
-                  <div className="mech-stat"><div className="mech-stat-val" style={{ color:"#22c55e" }}>{done}</div><div className="mech-stat-lab">Fertig</div></div>
-                  <div className="mech-stat"><div className="mech-stat-val">{fmtMin(totalMin)}</div><div className="mech-stat-lab">Arbeitszeit</div></div>
-                  <div className="mech-stat"><div className="mech-stat-val">{totalCost.toFixed(0)} €</div><div className="mech-stat-lab">Kosten</div></div>
+                {/* AUFTRÄGE */}
+                <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
+                  <div style={{ fontSize:28, fontWeight:700, color:"#ffa500", lineHeight:1 }}>{mj.length}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Aufträge</div>
                 </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button className="btn-outline btn-small no-print" onClick={function(){ exportMech(mech); }}>📄 Export</button>
+                {/* FERTIG */}
+                <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
+                  <div style={{ fontSize:28, fontWeight:700, color:"#22c55e", lineHeight:1 }}>{done}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Fertig</div>
+                </div>
+                {/* ARBEITSZEIT */}
+                <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
+                  <div style={{ fontSize:22, fontWeight:700, color:"#fff", lineHeight:1 }}>{fmtMin(totalMin)}</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Arbeitszeit</div>
+                </div>
+                {/* KOSTEN */}
+                <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
+                  <div style={{ fontSize:22, fontWeight:700, color:"#ffa500", lineHeight:1 }}>{totalCost.toFixed(0)} €</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Kosten</div>
+                </div>
+                {/* КНОПКИ */}
+                <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 0 0 20px", display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  <button className="btn-outline btn-small no-print" onClick={function(){ exportMech(mech); }}>📄</button>
                   <button className="btn-outline btn-small" onClick={function(){ setExpanded(isExp ? null : mech.id); }}>
                     {isExp ? "▲" : "▼"}
                   </button>
