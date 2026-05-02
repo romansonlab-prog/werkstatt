@@ -1929,7 +1929,7 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
 
   var totalLabor = filtered.reduce(function(s,j){ return s+(Number(j.labor_cost)||0); }, 0);
   var totalParts = filtered.reduce(function(s,j){ return s+(Number(j.parts_cost)||0); }, 0);
-  var totalInv   = filtInv.reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+  var totalInv   = filtInv.reduce(function(s,i){ return s+(Number(i.amount)||0); }, 0);
   var totalAll   = totalLabor + totalParts + totalInv;
 
   var byVeh = {};
@@ -2058,72 +2058,154 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
 function Rechnungen({ invoices, vehicles, jobs, onRefresh, loading }) {
   var _sd = useState(""); var dateF = _sd[0]; var setDateF = _sd[1];
   var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
-  var _sp = useState("all"); var paidF = _sp[0]; var setPaidF = _sp[1];
+  var _sf = useState("all"); var statusF = _sf[0]; var setStatusF = _sf[1];
+  var _su = useState(false); var updating = _su[0]; var setUpdating = _su[1];
 
   var list = invoices;
   if (dateF) list = list.filter(function(i){ return (i.date||"") === dateF; });
-  if (paidF === "paid")   list = list.filter(function(i){ return i.paid; });
-  if (paidF === "unpaid") list = list.filter(function(i){ return !i.paid; });
-  if (search) list = list.filter(function(i){ return ((i.supplier_name||"")+(i.invoice_nr||"")+(i.vehicle_id||"")+(i.notes||"")).toLowerCase().includes(search.toLowerCase()); });
+  if (statusF === "confirmed") list = list.filter(function(i){ return i.paid; });
+  if (statusF === "pending")   list = list.filter(function(i){ return !i.paid; });
+  if (search) list = list.filter(function(i){
+    var mechName = i.mechanic || (jobs.find(function(j){ return j.id===i.job_id; })||{}).mechanic || "";
+    return ((i.supplier||"")+(i.invoice_nr||"")+(i.vehicle_id||"")+(i.items||"")+mechName)
+      .toLowerCase().includes(search.toLowerCase());
+  });
 
-  var total = list.reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
-  var unpaid = list.filter(function(i){ return !i.paid; }).reduce(function(s,i){ return s+(Number(i.total_eur)||0); }, 0);
+  var total = list.reduce(function(s,i){ return s+(Number(i.amount)||0); }, 0);
+  var pending = list.filter(function(i){ return !i.paid; });
+  var pendingTotal = pending.reduce(function(s,i){ return s+(Number(i.amount)||0); }, 0);
 
-  function exportInv() {
+  function markConfirmed(id, val) {
+    setUpdating(true);
+    sbPatch("invoices", id, { paid: val })
+      .then(function(){ setUpdating(false); onRefresh(); })
+      .catch(function(){ setUpdating(false); });
+  }
+
+  function exportLS() {
+    var date = new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"long",year:"numeric"});
     var rows = list.map(function(i){
-      return "<tr><td>"+(i.date||"")+"</td><td>"+(i.supplier_name||"—")+"</td><td>"+(i.invoice_nr||"—")+"</td>"+
-        "<td>"+(i.vehicle_id||"—")+"</td><td style='font-weight:700'>"+(i.total_eur?Number(i.total_eur).toFixed(2)+" €":"—")+"</td>"+
-        "<td style='color:"+(i.paid?"#22c55e":"#ef4444")+"'>"+(i.paid?"✓ Bezahlt":"Offen")+"</td>"+
-        "<td>"+(i.notes||"")+"</td></tr>";
+      var status = i.paid ? "<span style='color:#27ae60;font-weight:700'>✓ Rechnung erhalten</span>" : "<span style='color:#e67e22;font-weight:700'>⏳ Ausstehend</span>";
+      return "<tr><td>"+(i.date?new Date(i.date).toLocaleDateString("de-DE"):"—")+"</td>"+
+        "<td><strong>"+(i.invoice_nr||"—")+"</strong></td>"+
+        "<td>"+(i.supplier||"—")+"</td>"+
+        "<td>"+(i.vehicle_id||"—")+"</td>"+
+        "<td>"+(i.items||"—").slice(0,60)+"</td>"+
+        "<td style='font-weight:700;text-align:right'>"+(i.amount?Number(i.amount).toFixed(2)+" €":"—")+"</td>"+
+        "<td>"+status+"</td></tr>";
     }).join("");
-    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Rechnungen Export</title>"+baseReportStyle()+"</head><body>"+
-      "<h1>WerkFlow — Rechnungen</h1>"+
-      "<div class='sum'><div class='sum-item'><div class='sum-val'>"+list.length+"</div><div class='sum-lab'>Gesamt</div></div>"+
-      "<div class='sum-item'><div class='sum-val'>"+total.toFixed(2)+" €</div><div class='sum-lab'>Betrag</div></div>"+
-      "<div class='sum-item'><div class='sum-val'>"+unpaid.toFixed(2)+" €</div><div class='sum-lab'>Offen</div></div></div>"+
-      "<table><thead><tr><th>Datum</th><th>Lieferant</th><th>Beleg-Nr.</th><th>Fahrzeug</th><th>Betrag</th><th>Status</th><th>Notizen</th></tr></thead><tbody>"+rows+"</tbody></table>"+
-      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
-    printHtml(html, "Rechnungen Export");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Lieferschein-Übersicht</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Lieferschein-Übersicht</h1>"+
+      "<div class='sub'>Erstellt am: "+date+"</div>"+
+      "<div class='summary'>"+
+        "<div class='sum-item'><div class='sum-val'>"+list.length+"</div><div class='sum-lab'>Lieferscheine</div></div>"+
+        "<div class='sum-item'><div class='sum-val'>"+total.toFixed(2)+" €</div><div class='sum-lab'>Gesamtbetrag</div></div>"+
+        "<div class='sum-item'><div class='sum-val' style='color:#e67e22'>"+pending.length+"</div><div class='sum-lab'>Rechnung ausstehend</div></div>"+
+        "<div class='sum-item'><div class='sum-val' style='color:#e67e22'>"+pendingTotal.toFixed(2)+" €</div><div class='sum-lab'>Offener Betrag</div></div>"+
+      "</div>"+
+      "<table><thead><tr><th>Datum</th><th>Lieferschein-Nr.</th><th>Lieferant</th><th>Fahrzeug</th><th>Beschreibung</th><th style='text-align:right'>Betrag</th><th>Status</th></tr></thead>"+
+      "<tbody>"+rows+"</tbody></table>"+
+      "<div class='footer'>WerkFlow Betriebsmanagementsystem · Automatisch generiert</div>"+
+      "<button class='no-print' onclick='window.print()' style='margin-top:16px;background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>"+
+      "</body></html>";
+    printHtml(html, "Lieferschein-Übersicht");
   }
 
   return (
     <div>
-      <div style={{ display:"flex", gap:14, marginBottom:16 }}>
-        <div className="kpi-card orange" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{list.length}</div><div className="kpi-label">Rechnungen</div></div>
-        <div className="kpi-card blue" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{total.toFixed(2)} €</div><div className="kpi-label">Gesamt</div></div>
-        <div className="kpi-card red" style={{ flex:1 }}><div style={{ fontSize:22, fontWeight:900 }}>{unpaid.toFixed(2)} €</div><div className="kpi-label">Offene Beträge</div></div>
+      {/* KPI */}
+      <div style={{ display:"flex", gap:12, marginBottom:16 }}>
+        <div className="kpi-card orange" style={{ flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Lieferscheine gesamt</div>
+          <div style={{ fontSize:30, fontWeight:700 }}>{list.length}</div>
+        </div>
+        <div className="kpi-card" style={{ flex:1, borderLeft:"3px solid #ffa500" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Gesamtbetrag</div>
+          <div style={{ fontSize:30, fontWeight:700, color:"#ffa500" }}>{total.toFixed(2)} €</div>
+        </div>
+        <div className="kpi-card red" style={{ flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Rechnung ausstehend</div>
+          <div style={{ fontSize:30, fontWeight:700, color:"#ef4444" }}>{pending.length}</div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginTop:4 }}>{pendingTotal.toFixed(2)} €</div>
+        </div>
       </div>
+
       <div className="panel">
         <div className="panel-hd">
-          <div className="panel-title-lg">Rechnungen</div>
+          <div className="panel-title-lg">Lieferscheine</div>
           <div style={{ display:"flex", gap:8 }}>
-            <button className="btn-outline btn-small no-print" onClick={exportInv}>Export</button>
+            <button className="btn-outline btn-small no-print" onClick={exportLS}>📄 Export</button>
             <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
           </div>
         </div>
-        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
-          {[["all","Alle"],["unpaid","Offen"],["paid","Bezahlt"]].map(function(f){
-            return <button key={f[0]} className={"btn-small "+(paidF===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setPaidF(f[0]); }}>{f[1]}</button>;
+
+        {/* Фильтры */}
+        <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+          {[["all","Alle"],["pending","Ausstehend"],["confirmed","Erhalten"]].map(function(f){
+            return (
+              <button key={f[0]} className={"btn-small "+(statusF===f[0]?"btn-primary":"btn-outline")}
+                onClick={function(){ setStatusF(f[0]); }}>
+                {f[1]}
+              </button>
+            );
           })}
-          <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
-          <input className="inp" style={{ flex:1, minWidth:180 }} value={search} placeholder="Suche Lieferant / Beleg-Nr. / Fahrzeug..." onChange={function(e){ setSearch(e.target.value); }} />
+          <input type="date" className="inp" value={dateF}
+            onChange={function(e){ setDateF(e.target.value); }} />
+          <input className="inp" style={{ flex:1, minWidth:200 }} value={search}
+            placeholder="Suche: Lieferant, LS-Nr., Fahrzeug, Mechaniker, Zapchast..."
+            onChange={function(e){ setSearch(e.target.value); }} />
         </div>
+
+        {/* Таблица */}
         {list.length === 0
-          ? <div className="empty">Keine Rechnungen gefunden</div>
+          ? <div className="empty">Keine Lieferscheine gefunden</div>
           : <table className="tbl">
-              <thead><tr><th>Datum</th><th>Lieferant</th><th>Beleg-Nr.</th><th>Fahrzeug</th><th>Auftrag</th><th>Betrag</th><th>Status</th><th>Notizen</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ width:110 }}>Datum</th>
+                  <th style={{ width:150 }}>Lieferschein-Nr.</th>
+                  <th>Lieferant</th>
+                  <th style={{ width:120 }}>Fahrzeug</th>
+                  <th>Beschreibung</th>
+                  <th style={{ width:110 }}>Mechaniker</th>
+                  <th style={{ width:110 }}>Betrag</th>
+                  <th style={{ width:160 }}>Rechnung</th>
+                </tr>
+              </thead>
               <tbody>
                 {list.map(function(i){
+                  var confirmed = !!i.paid;
                   return (
                     <tr key={i.id}>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{fmtDate(i.date)}</td>
-                      <td style={{ fontWeight:700 }}>{i.supplier_name||"—"}</td>
-                      <td style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.65)" }}>{i.invoice_nr||"—"}</td>
-                      <td style={{ fontSize:12 }}>{i.vehicle_id||"—"}</td>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{i.job_id ? i.job_id.slice(0,10)+"..." : "—"}</td>
-                      <td style={{ fontWeight:800, color:"#ffa500" }}>{i.total_eur?Number(i.total_eur).toFixed(2)+" €":"—"}</td>
-                      <td><span className={"badge "+(i.paid?"badge-green":"badge-red")}>{i.paid?"✓ Bezahlt":"Offen"}</span></td>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{(i.notes||"").slice(0,40)}</td>
+                      <td style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>
+                        {i.date ? new Date(i.date).toLocaleDateString("de-DE") : "—"}
+                      </td>
+                      <td style={{ fontFamily:"monospace", fontWeight:700, fontSize:14, letterSpacing:0.5 }}>
+                        {i.invoice_nr||"—"}
+                      </td>
+                      <td style={{ fontWeight:600 }}>{i.supplier||"—"}</td>
+                      <td style={{ fontSize:13 }}>{i.vehicle_id||"—"}</td>
+                      <td style={{ fontSize:13, color:"rgba(255,255,255,0.6)" }}>
+                        {(i.items||"—").slice(0,50)}
+                      </td>
+                      <td style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>
+                        {i.mechanic || (jobs.find(function(j){ return j.id===i.job_id; })||{}).mechanic || "—"}
+                      </td>
+                      <td style={{ fontWeight:700, color:"#ffa500", fontSize:15 }}>
+                        {i.amount ? Number(i.amount).toFixed(2)+" €" : "—"}
+                      </td>
+                      <td>
+                        <button disabled={updating}
+                          onClick={function(){ markConfirmed(i.id, !confirmed); }}
+                          style={{
+                            fontSize:12, padding:"5px 12px", borderRadius:8, cursor:"pointer", fontWeight:700,
+                            border: confirmed ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,165,0,0.4)",
+                            background: confirmed ? "rgba(34,197,94,0.1)" : "rgba(255,165,0,0.08)",
+                            color: confirmed ? "#22c55e" : "#ffa500"
+                          }}>
+                          {confirmed ? "✓ Erhalten" : "⏳ Ausstehend"}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -2935,7 +3017,7 @@ function AppShell({ user, onLogout }) {
     { k:"waschhalle",  ic: IC.droplet,  label:"Waschhalle" },
     { k:"lager",       ic: IC.box,      label:"Lager",         badge: lowStock, badgeCls:"orange" },
     { k:"kosten",      ic: IC.euro,     label:"Kosten" },
-    { k:"rechnungen",  ic: IC.receipt,  label:"Rechnungen" },
+    { k:"rechnungen",  ic: IC.receipt,  label:"Lieferscheine" },
     { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
     { k:"archiv",      ic: IC.archive,  label:"Archiv" },
     { k:"kontakte",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
@@ -2945,7 +3027,7 @@ function AppShell({ user, onLogout }) {
   var PAGE_TITLES = {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", waschhalle:"Waschhalle",
-    lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Rechnungen",
+    lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Lieferscheine",
     wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen", kontakte:"Kontakte"
   };
 

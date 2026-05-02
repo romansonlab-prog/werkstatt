@@ -1527,13 +1527,14 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                   var inv = {
                     id: "LS" + Date.now(),
                     date: rDate,
-                    supplier_name: rSupplier.trim() || "Unbekannt",
+                    supplier: rSupplier.trim() || "Unbekannt",
                     invoice_nr: rNr.trim() || null,
                     vehicle_id: vehicle ? vehicle.plate : null,
                     job_id: savedJobId,
-                    total_eur: 0,
+                    amount: partsCost || shopItems.reduce(function(s,i){ return s+(parseFloat((i.preis||"0").replace(",","."))||0); }, 0),
                     paid: false,
-                    notes: rNotes.trim() || null,
+                    items: rNotes.trim() || shopItems.filter(function(i){ return i.name.trim(); }).map(function(i){ return i.name; }).join(", ") || null,
+                    mechanic: user.name || user.id || null,
                     created_at: new Date().toISOString()
                   };
                   sbInsert("invoices", inv, true)
