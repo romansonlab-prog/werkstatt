@@ -603,7 +603,7 @@ function Eingang({ alerts, onRefresh, loading }) {
   }
 
   return (
-    <div>
+    <div style={{ position:"relative" }}>
       <div style={{ background:"rgba(15,30,60,0.7)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:14, padding:"20px 28px 0 28px", marginBottom:16 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
           <div style={{ fontSize:22, fontWeight:900, color:"#fff", letterSpacing:-0.5 }}>
@@ -747,8 +747,6 @@ function Eingang({ alerts, onRefresh, loading }) {
         }
       </div>
     </div>
-
-    {/* МОДАЛЬНОЕ ОКНО ОПИСАНИЯ */}
     {selectedAlert && (
       <div onClick={function(){ setSelectedAlert(null); }} style={{
         position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200,
@@ -759,7 +757,6 @@ function Eingang({ alerts, onRefresh, loading }) {
           borderRadius:20, padding:36, maxWidth:680, width:"100%",
           boxShadow:"0 24px 60px rgba(0,0,0,0.6)"
         }}>
-          {/* Заголовок */}
           <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
             {urgBadge(selectedAlert.urgency)}
             <span style={{ fontSize:26, fontWeight:900, letterSpacing:2, fontFamily:"monospace" }}>
@@ -769,23 +766,19 @@ function Eingang({ alerts, onRefresh, loading }) {
               {fmtDateTime(selectedAlert.created_at)} · {selectedAlert.sender||""}
             </span>
           </div>
-          {/* Перевод */}
           <div style={{ fontSize:22, fontWeight:600, color:"#fff", lineHeight:1.6, marginBottom:16 }}>
             {translations[selectedAlert.id] || selectedAlert.description || "—"}
           </div>
-          {/* Оригинал */}
           {translations[selectedAlert.id] && translations[selectedAlert.id] !== selectedAlert.description && (
             <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontStyle:"italic", marginBottom:20, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
               Original: {selectedAlert.description}
             </div>
           )}
-          {/* Локация */}
           {selectedAlert.location && (
             <div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>
               📍 {selectedAlert.location}
             </div>
           )}
-          {/* Кнопка закрыть */}
           <button onClick={function(){ setSelectedAlert(null); }} style={{
             fontSize:15, padding:"10px 32px", borderRadius:10, fontWeight:700,
             background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
@@ -794,6 +787,7 @@ function Eingang({ alerts, onRefresh, loading }) {
         </div>
       </div>
     )}
+    </div>
   );
 }
 
