@@ -1,4 +1,4 @@
-const CACHE = "werkflow-v2";
+const CACHE = "werkflow-v3";
 const ASSETS = [
   "/bg-truck.png",
   "/dashboard.html",
