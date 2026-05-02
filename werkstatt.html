@@ -1560,29 +1560,40 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               <button className="btn-primary" type="button" style={{ flex:2 }} disabled={rSaving}
                 onClick={function(){
                   setRSaving(true);
-                  var inv = {
-                    id: "LS" + Date.now(),
-                    date: rDate,
-                    supplier: rSupplier.trim() || "Unbekannt",
-                    invoice_nr: rNr.trim() || null,
-                    vehicle_id: vehicle ? vehicle.plate : null,
-                    job_id: savedJobId,
-                    amount: partsCost || shopItems.reduce(function(s,i){ return s+(parseFloat((i.preis||"0").replace(",","."))||0); }, 0),
-                    paid: false,
-                    items: rNotes.trim() || shopItems.filter(function(i){ return i.name.trim(); }).map(function(i){ return i.name; }).join(", ") || null,
-                    mechanic: user.name || user.id || null,
-                    created_at: new Date().toISOString()
-                  };
-                  sbInsert("invoices", inv, true)
-                    .then(function(){
-                      setRSaving(false);
-                      setRechnungModal(false);
-                      alert("Bericht + Lieferschein gespeichert!");
-                    })
-                    .catch(function(e){
-                      alert("Fehler: " + (e.message||e));
-                      setRSaving(false);
-                    });
+                  try {
+                    var amt = parseFloat((rAmt || "0").toString().replace(",","."));
+                    if (!isFinite(amt)) {
+                      amt = shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis||"0").replace(",","."))||0); }, 0);
+                    }
+                    var inv = {
+                      id: "LS" + Date.now(),
+                      date: rDate,
+                      supplier: rSupplier.trim() || "Unbekannt",
+                      invoice_nr: rNr.trim() || null,
+                      vehicle_id: vehicle ? vehicle.plate : null,
+                      job_id: savedJobId,
+                      amount: amt,
+                      paid: false,
+                      items: rNotes.trim() || shopItems.filter(function(i){ return i.name.trim(); }).map(function(i){ return i.name; }).join(", ") || null,
+                      mechanic: user.name || user.id || null,
+                      created_at: new Date().toISOString()
+                    };
+                    sbInsert("invoices", inv, true)
+                      .then(function(){
+                        setRSaving(false);
+                        setRechnungModal(false);
+                        alert("Bericht + Lieferschein gespeichert!");
+                      })
+                      .catch(function(e){
+                        console.error("Lieferschein insert error:", e);
+                        alert("Fehler beim Speichern: " + (e.message||e));
+                        setRSaving(false);
+                      });
+                  } catch (err) {
+                    console.error("Lieferschein build error:", err);
+                    alert("Fehler: " + (err.message || err));
+                    setRSaving(false);
+                  }
                 }}>
                 {rSaving ? "Speichert..." : "💾 Lieferschein speichern"}
               </button>
