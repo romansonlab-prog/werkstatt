@@ -622,31 +622,67 @@ function Eingang({ alerts, onRefresh, loading }) {
             return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")} style={{ fontSize:14, padding:"6px 18px" }}>{f[1]}</button>;
           })}
         </div>
-        {/* ЗАГОЛОВКИ КОЛОНОК */}
-        {list.length > 0 && (
-          <div style={{
-            display:"grid",
-            gridTemplateColumns:"100px 120px 140px 1fr 150px 1fr 100px 100px",
-            borderBottom:"1px solid rgba(255,255,255,0.15)",
-            paddingBottom:8,
-            marginBottom:0,
-            gap:0
-          }}>
-            {["Priorität","Zeit","Fahrzeug","Beschreibung","Fahrer","Standort","Mech.","Aktion"].map(function(h,i){
-              return (
-                <div key={i} style={{
-                  fontSize:11, fontWeight:800, color:"rgba(255,255,255,0.35)",
-                  textTransform:"uppercase", letterSpacing:1,
-                  padding:"0 12px",
-                  borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.07)" : "none"
-                }}>{h}</div>
-              );
-            })}
-          </div>
-        )}
         {list.length === 0
           ? <div className="empty">Keine Meldungen</div>
-          : list.map(function(a, idx){
+          : (function(){
+              // группируем по дням
+              var groups = [];
+              var groupMap = {};
+              list.forEach(function(a){
+                var day = (a.created_at||"").slice(0,10);
+                if (!groupMap[day]) {
+                  groupMap[day] = [];
+                  groups.push(day);
+                }
+                groupMap[day].push(a);
+              });
+              groups.sort(function(a,b){ return b > a ? 1 : -1; });
+
+              var today = todayIso();
+              var yesterday = (function(){ var d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
+
+              function dayLabel(iso){
+                if (iso === today) return "Heute — " + iso.split("-").reverse().join(".");
+                if (iso === yesterday) return "Gestern — " + iso.split("-").reverse().join(".");
+                return iso.split("-").reverse().join(".");
+              }
+
+              return groups.map(function(day){
+                var dayList = groupMap[day];
+                return (
+                  <div key={day}>
+                    {/* РАЗДЕЛИТЕЛЬ ДНЯ */}
+                    <div style={{
+                      display:"flex", alignItems:"center", gap:12,
+                      margin:"20px 0 8px 0"
+                    }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, whiteSpace:"nowrap" }}>
+                        {dayLabel(day)}
+                      </div>
+                      <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.08)" }}></div>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.25)" }}>
+                        {dayList.length} Meldung{dayList.length!==1?"en":""}
+                      </div>
+                    </div>
+                    {/* ЗАГОЛОВКИ КОЛОНОК */}
+                    <div style={{
+                      display:"grid",
+                      gridTemplateColumns:"100px 120px 140px 1fr 150px 1fr 100px 100px",
+                      borderBottom:"1px solid rgba(255,255,255,0.1)",
+                      paddingBottom:6, marginBottom:0
+                    }}>
+                      {["Priorität","Zeit","Fahrzeug","Beschreibung","Fahrer","Standort","Mech.","Aktion"].map(function(h,i){
+                        return (
+                          <div key={i} style={{
+                            fontSize:11, fontWeight:800, color:"rgba(255,255,255,0.3)",
+                            textTransform:"uppercase", letterSpacing:1, padding:"0 12px",
+                            borderLeft: i>0 ? "1px solid rgba(255,255,255,0.06)" : "none"
+                          }}>{h}</div>
+                        );
+                      })}
+                    </div>
+                    {/* СТРОКИ */}
+                    {dayList.map(function(a, idx){
               var urg = (a.urgency||"").includes("urgent");
               var done = a.status === "done";
               var photos = [];
@@ -743,7 +779,11 @@ function Eingang({ alerts, onRefresh, loading }) {
                   )}
                 </div>
               );
-            })
+            })}
+                  </div>
+                );
+              });
+            })()
         }
       </div>
       {selectedAlert && (
