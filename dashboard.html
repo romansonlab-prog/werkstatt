@@ -19,43 +19,43 @@
 
     /* LAYOUT */
     .dash-layout{display:flex;min-height:100vh}
-    .sidebar{width:220px;flex-shrink:0;background:rgba(8,18,40,0.95);border-right:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:30}
-    .sidebar-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.07)}
-    .sidebar-logo-text{font-size:28px;font-weight:900;letter-spacing:-1.5px;line-height:1}
-    .sidebar-subtitle{font-size:11px;font-weight:700;color:#ffa500;letter-spacing:2px;text-transform:uppercase;margin-top:3px}
-    .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
-    .nav-section{padding:6px 16px 4px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase;margin-top:8px}
-    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;border:none;background:transparent;color:rgba(255,255,255,0.6);width:100%;text-align:left;font-size:13px;font-weight:600;border-radius:0;cursor:pointer;position:relative;transition:color 0.15s}
+    .sidebar{width:250px;flex-shrink:0;background:rgba(8,18,40,0.95);border-right:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:30}
+    .sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,0.07)}
+    .sidebar-logo-text{font-size:32px;font-weight:900;letter-spacing:-1.5px;line-height:1}
+    .sidebar-subtitle{font-size:13px;font-weight:600;color:#ffa500;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+    .sidebar-nav{flex:1;padding:14px 0;overflow-y:auto}
+    .nav-section{padding:8px 18px 4px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase;margin-top:8px}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:12px 20px;border:none;background:transparent;color:rgba(255,255,255,0.7);width:100%;text-align:left;font-size:16px;font-weight:500;border-radius:0;cursor:pointer;position:relative;transition:color 0.15s}
     .nav-item:hover{color:#fff;background:rgba(255,255,255,0.04)}
     .nav-item.active{color:#ffa500;background:rgba(255,165,0,0.08)}
     .nav-item.active::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ffa500;border-radius:0 2px 2px 0}
-    .nav-badge{margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:2px 7px;min-width:20px;text-align:center}
+    .nav-badge{margin-left:auto;background:#ef4444;color:#fff;border-radius:99px;font-size:11px;font-weight:800;padding:2px 8px;min-width:22px;text-align:center}
     .nav-badge.orange{background:#ffa500;color:#0a1730}
-    .sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.07)}
+    .sidebar-footer{padding:16px 18px;border-top:1px solid rgba(255,255,255,0.07)}
     .sidebar-user{display:flex;align-items:center;gap:10px}
-    .sidebar-avatar{width:34px;height:34px;border-radius:50%;background:rgba(255,165,0,0.15);border:1px solid rgba(255,165,0,0.35);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#ffa500;flex-shrink:0}
-    .sidebar-name{font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);line-height:1.2}
-    .sidebar-role{font-size:10px;color:rgba(255,255,255,0.4)}
+    .sidebar-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,165,0,0.15);border:1px solid rgba(255,165,0,0.35);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#ffa500;flex-shrink:0}
+    .sidebar-name{font-size:14px;font-weight:600;color:rgba(255,255,255,0.85);line-height:1.2}
+    .sidebar-role{font-size:12px;color:rgba(255,255,255,0.4)}
 
-    .main{margin-left:220px;flex:1;min-height:100vh;background:#0f1623}
-    .topbar{height:56px;background:rgba(8,18,40,0.9);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
-    .topbar-title{font-size:16px;font-weight:800;color:#fff}
-    .topbar-sub{font-size:12px;color:rgba(255,255,255,0.45);margin-left:4px}
-    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
-    .topbar-refresh{padding:7px 14px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);border-radius:8px;font-size:12px;font-weight:700}
+    .main{margin-left:250px;flex:1;min-height:100vh;background:#0f1623}
+    .topbar{height:64px;background:rgba(8,18,40,0.9);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
+    .topbar-title{font-size:20px;font-weight:700;color:#fff}
+    .topbar-sub{font-size:14px;color:rgba(255,255,255,0.45);margin-left:4px}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+    .topbar-refresh{padding:9px 20px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.8);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
     .topbar-refresh:hover{border-color:#ffa500;color:#ffa500}
-    .page{padding:16px 20px}
+    .page{padding:20px 24px}
 
     /* CARDS & PANELS */
     .glass{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;backdrop-filter:blur(12px)}
-    .panel{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px 20px;margin-bottom:16px}
+    .panel{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px 22px;margin-bottom:16px}
     .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-    .panel-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.8)}
-    .panel-title-lg{font-size:17px;font-weight:900;color:#fff;letter-spacing:-0.5px}
+    .panel-title{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.8)}
+    .panel-title-lg{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.5px}
 
     /* KPI */
     .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-    .kpi-card{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+    .kpi-card{background:rgba(15,30,60,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden}
     .kpi-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px 0 0 2px}
     .kpi-card.blue::before{background:#3b82f6}
     .kpi-card.orange::before{background:#ffa500}
@@ -63,21 +63,21 @@
     .kpi-card.green::before{background:#22c55e}
     .kpi-card.purple::before{background:#a855f7}
     .kpi-icon{font-size:22px;margin-bottom:10px}
-    .kpi-val{font-size:28px;font-weight:900;letter-spacing:-1px;line-height:1}
-    .kpi-label{font-size:11px;color:rgba(255,255,255,0.5);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+    .kpi-val{font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1}
+    .kpi-label{font-size:13px;color:rgba(255,255,255,0.5);margin-top:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
     .kpi-sub{font-size:11px;margin-top:4px;font-weight:600}
 
     /* TABLE */
     .tbl{width:100%;border-collapse:collapse;table-layout:fixed}
-    .tbl th{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.4);padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.1);border-right:1px solid rgba(255,255,255,0.06);text-align:left;white-space:nowrap}
+    .tbl th{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.4);padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.1);border-right:1px solid rgba(255,255,255,0.06);text-align:left;white-space:nowrap}
     .tbl th:last-child{border-right:none}
-    .tbl td{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.04);font-size:15px;vertical-align:middle}
+    .tbl td{padding:15px 16px;border-bottom:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.04);font-size:15px;vertical-align:middle}
     .tbl td:last-child{border-right:none}
     .tbl tr:last-child td{border-bottom:none}
     .tbl tr:hover td{background:rgba(255,255,255,0.04)}
 
     /* BADGES */
-    .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:800}
+    .badge{display:inline-block;padding:4px 11px;border-radius:99px;font-size:13px;font-weight:700}
     .badge-red{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
     .badge-orange{background:rgba(255,165,0,0.15);color:#ffa500;border:1px solid rgba(255,165,0,0.3)}
     .badge-green{background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)}
@@ -86,14 +86,14 @@
     .badge-purple{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3)}
 
     /* BUTTONS */
-    .btn-primary{background:linear-gradient(180deg,#ffa500,#ff8c00);color:#0a1730;border:none;border-radius:9px;font-weight:800;padding:9px 16px;font-size:13px}
-    .btn-outline{border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.8);border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700}
+    .btn-primary{background:linear-gradient(180deg,#ffa500,#ff8c00);color:#0a1730;border:none;border-radius:9px;font-weight:700;padding:10px 18px;font-size:15px;cursor:pointer}
+    .btn-outline{border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.8);border-radius:9px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
     .btn-outline:hover{border-color:#ffa500;color:#ffa500}
     .btn-danger{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:9px;padding:9px 14px;font-size:12px;font-weight:700}
-    .btn-small{padding:5px 11px;border-radius:7px;font-size:11px;font-weight:700}
+    .btn-small{padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer}
 
     /* INPUTS */
-    .inp{background:rgba(9,27,58,0.8);border:1px solid rgba(255,255,255,0.14);border-radius:9px;color:#fff;padding:9px 12px;font-size:13px;outline:none}
+    .inp{background:rgba(9,27,58,0.8);border:1px solid rgba(255,255,255,0.14);border-radius:9px;color:#fff;padding:10px 14px;font-size:15px;outline:none}
     .inp:focus{border-color:#ffa500}
     select.inp{appearance:none}
 
@@ -145,7 +145,7 @@
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
 
     /* EMPTY STATE */
-    .empty{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.35);font-size:14px}
+    .empty{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.35);font-size:16px}
 
     /* EXPANDABLE ROW */
     .expand-row{background:rgba(9,20,48,0.6);border-left:2px solid rgba(255,165,0,0.3);padding:14px 16px;margin-top:2px;border-radius:0 0 10px 10px}
@@ -284,20 +284,26 @@ function printHtml(html, title) {
 }
 
 function ExportModal() {
-  var _s = useState(false); var show = _s[0]; var setShow = _s[1];
-  var _h = useState(""); var html = _h[0]; var setHtml = _h[1];
-  var _t = useState(""); var title = _t[0]; var setTitle = _t[1];
+  var _s  = useState(false); var show = _s[0]; var setShow = _s[1];
+  var _h  = useState(""); var html = _h[0]; var setHtml = _h[1];
+  var _t  = useState(""); var title = _t[0]; var setTitle = _t[1];
+  var _cs = useState([]); var contacts = _cs[0]; var setContacts = _cs[1];
+  var _ev = useState("email"); var emailView = _ev[0]; var setEmailView = _ev[1];
 
   useEffect(function(){
     function update(){
       setShow(_exportModal.show);
       setHtml(_exportModal.html);
       setTitle(_exportModal.title);
+      setEmailView("main");
+      // load contacts with email
+      sbGet("contacts","select=id,name,firma,email,category&order=name.asc")
+        .then(function(r){ setContacts(r.filter(function(c){ return c.email && c.email.trim(); })); });
     }
     onExportModalChange(update);
   }, []);
 
-  function close(){ setExportModal({ show:false }); setShow(false); }
+  function close(){ setExportModal({ show:false }); setShow(false); setEmailView("main"); }
 
   function doPrint(){
     var win = window.open("", "_blank");
@@ -313,17 +319,23 @@ function ExportModal() {
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = title.replace(/[^a-zA-Z0-9_\-]/g,"_") + ".html";
+    a.download = (title||"export").replace(/\s+/g,"_") + ".html";
     a.click();
     URL.revokeObjectURL(url);
-    close();
   }
 
-  function doEmail(){
-    var text = title + " — " + new Date().toLocaleDateString("de-DE");
-    var mailto = "mailto:?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text + " (Bericht als Anhang)");
-    window.open(mailto);
+  function sendToEmail(contact){
+    var subject = encodeURIComponent("WerkFlow: " + title);
+    var body = encodeURIComponent(
+      "Hallo " + contact.name + ", " +
+      "anbei der WerkFlow Bericht: " + title + ". " +
+      "Datum: " + new Date().toLocaleDateString("de-DE") + ". " +
+      "Bitte Anhang oeffnen. Mit freundlichen Gruessen, WerkFlow"
+    );
+    var to = encodeURIComponent(contact.email);
+    window.open("https://outlook.office.com/mail/deeplink/compose?to=" + to + "&subject=" + subject + "&body=" + body, "_blank");
     doDownload();
+    close();
   }
 
   function doWhatsApp(){
@@ -342,6 +354,8 @@ function ExportModal() {
 
   if (!show) return null;
 
+  var CAT_ICONS = { Mitarbeiter:"👷", Lieferanten:"🏢", Servicepartner:"🔧", Notfall:"🚨", Management:"👔", Sonstiges:"📋" };
+
   return (
     <div onClick={close} style={{
       position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:500,
@@ -349,79 +363,80 @@ function ExportModal() {
     }}>
       <div onClick={function(e){ e.stopPropagation(); }} style={{
         background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
-        borderRadius:20, padding:36, maxWidth:420, width:"100%",
-        boxShadow:"0 24px 60px rgba(0,0,0,0.6)"
+        borderRadius:20, padding:32, maxWidth:460, width:"100%",
+        boxShadow:"0 24px 60px rgba(0,0,0,0.6)", maxHeight:"85vh", overflowY:"auto"
       }}>
-        <div style={{ fontSize:20, fontWeight:900, color:"#fff", marginBottom:8 }}>
-          📄 Export
-        </div>
-        <div style={{ fontSize:14, color:"rgba(255,255,255,0.4)", marginBottom:28 }}>
-          {title}
-        </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <button onClick={doPrint} style={{
-            display:"flex", alignItems:"center", gap:14, padding:"14px 20px",
-            borderRadius:12, border:"1px solid rgba(255,255,255,0.12)",
-            background:"rgba(255,255,255,0.06)", color:"#fff", cursor:"pointer",
-            fontSize:16, fontWeight:600, textAlign:"left"
-          }}>
-            <span style={{ fontSize:24 }}>🖨</span>
-            <div>
-              <div>Drucken / PDF speichern</div>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:400 }}>Öffnet Druckdialog</div>
+        {emailView === "main" ? (
+          <div>
+            <div style={{ fontSize:20, fontWeight:900, color:"#fff", marginBottom:4 }}>📄 Export</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.35)", marginBottom:24 }}>{title}</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <button onClick={doPrint} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", borderRadius:12, border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.05)", color:"#fff", cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:22 }}>🖨</span>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:600 }}>Drucken / PDF</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>Öffnet Druckdialog</div>
+                </div>
+              </button>
+              <button onClick={doDownload} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", borderRadius:12, border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.05)", color:"#fff", cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:22 }}>💾</span>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:600 }}>Datei herunterladen</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>HTML-Bericht speichern</div>
+                </div>
+              </button>
+              <button onClick={function(){ setEmailView("contacts"); }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", borderRadius:12, border:"1px solid rgba(59,130,246,0.3)", background:"rgba(59,130,246,0.08)", color:"#60a5fa", cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:22 }}>✉️</span>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:600 }}>Per E-Mail senden</div>
+                  <div style={{ fontSize:12, color:"rgba(96,165,250,0.5)" }}>Öffnet Outlook — Empfänger wählen</div>
+                </div>
+              </button>
+              <button onClick={doWhatsApp} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", borderRadius:12, border:"1px solid rgba(34,197,94,0.3)", background:"rgba(34,197,94,0.08)", color:"#22c55e", cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:22 }}>💬</span>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:600 }}>WhatsApp</div>
+                  <div style={{ fontSize:12, color:"rgba(34,197,94,0.5)" }}>Kurzinfo senden</div>
+                </div>
+              </button>
+              <button onClick={doPreview} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 18px", borderRadius:12, border:"1px solid rgba(255,255,255,0.07)", background:"transparent", color:"rgba(255,255,255,0.4)", cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:20 }}>👁</span>
+                <div style={{ fontSize:14 }}>Vorschau anzeigen</div>
+              </button>
             </div>
-          </button>
-          <button onClick={doDownload} style={{
-            display:"flex", alignItems:"center", gap:14, padding:"14px 20px",
-            borderRadius:12, border:"1px solid rgba(255,255,255,0.12)",
-            background:"rgba(255,255,255,0.06)", color:"#fff", cursor:"pointer",
-            fontSize:16, fontWeight:600, textAlign:"left"
-          }}>
-            <span style={{ fontSize:24 }}>💾</span>
-            <div>
-              <div>Datei herunterladen</div>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:400 }}>HTML-Datei speichern</div>
+            <button onClick={close} style={{ marginTop:16, width:"100%", padding:"10px", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"transparent", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:13 }}>Abbrechen</button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+              <button onClick={function(){ setEmailView("main"); }} style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, color:"#fff", padding:"6px 12px", cursor:"pointer", fontSize:13 }}>← Zurück</button>
+              <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Empfänger wählen</div>
             </div>
-          </button>
-          <button onClick={doEmail} style={{
-            display:"flex", alignItems:"center", gap:14, padding:"14px 20px",
-            borderRadius:12, border:"1px solid rgba(59,130,246,0.3)",
-            background:"rgba(59,130,246,0.1)", color:"#60a5fa", cursor:"pointer",
-            fontSize:16, fontWeight:600, textAlign:"left"
-          }}>
-            <span style={{ fontSize:24 }}>✉️</span>
-            <div>
-              <div>Per E-Mail senden</div>
-              <div style={{ fontSize:12, color:"rgba(96,165,250,0.6)", fontWeight:400 }}>Öffnet Mail-App + lädt Datei</div>
-            </div>
-          </button>
-          <button onClick={doWhatsApp} style={{
-            display:"flex", alignItems:"center", gap:14, padding:"14px 20px",
-            borderRadius:12, border:"1px solid rgba(34,197,94,0.3)",
-            background:"rgba(34,197,94,0.1)", color:"#22c55e", cursor:"pointer",
-            fontSize:16, fontWeight:600, textAlign:"left"
-          }}>
-            <span style={{ fontSize:24 }}>💬</span>
-            <div>
-              <div>WhatsApp</div>
-              <div style={{ fontSize:12, color:"rgba(34,197,94,0.6)", fontWeight:400 }}>Nachricht mit Berichtsinfo</div>
-            </div>
-          </button>
-          <button onClick={doPreview} style={{
-            display:"flex", alignItems:"center", gap:14, padding:"14px 20px",
-            borderRadius:12, border:"1px solid rgba(255,255,255,0.08)",
-            background:"transparent", color:"rgba(255,255,255,0.5)", cursor:"pointer",
-            fontSize:15, fontWeight:500, textAlign:"left"
-          }}>
-            <span style={{ fontSize:22 }}>👁</span>
-            <div>Vorschau anzeigen</div>
-          </button>
-        </div>
-        <button onClick={close} style={{
-          marginTop:20, width:"100%", padding:"10px", borderRadius:10,
-          border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.04)",
-          color:"rgba(255,255,255,0.4)", cursor:"pointer", fontSize:14
-        }}>Abbrechen</button>
+            {contacts.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"30px 0", color:"rgba(255,255,255,0.4)", fontSize:14 }}>
+                Keine Kontakte mit E-Mail gefunden.
+                <div style={{ marginTop:8, fontSize:12 }}>Bitte in Kontakte E-Mail-Adressen eintragen.</div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {contacts.map(function(c){
+                  return (
+                    <button key={c.id} onClick={function(){ sendToEmail(c); }}
+                      style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 16px", borderRadius:12, border:"1px solid rgba(255,255,255,0.08)", background:"rgba(255,255,255,0.04)", color:"#fff", cursor:"pointer", textAlign:"left" }}>
+                      <span style={{ fontSize:20 }}>{CAT_ICONS[c.category]||"👤"}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:15, fontWeight:700 }}>{c.name}</div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{c.firma ? c.firma + " · " : ""}{c.email}</div>
+                      </div>
+                      <span style={{ fontSize:13, color:"#60a5fa" }}>✉️ Senden</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <button onClick={close} style={{ marginTop:16, width:"100%", padding:"10px", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"transparent", color:"rgba(255,255,255,0.3)", cursor:"pointer", fontSize:13 }}>Abbrechen</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -756,9 +771,9 @@ function Eingang({ alerts, onRefresh, loading }) {
     <div style={{ position:"relative" }}>
       <div style={{ background:"rgba(15,30,60,0.7)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:14, padding:"20px 28px 0 28px", marginBottom:16 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ fontSize:22, fontWeight:900, color:"#fff", letterSpacing:-0.5 }}>
+          <div style={{ fontSize:26, fontWeight:700, color:"#fff", letterSpacing:-0.5 }}>
             Eingang
-            <span style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.4)", marginLeft:12 }}>
+            <span style={{ fontSize:16, fontWeight:500, color:"rgba(255,255,255,0.4)", marginLeft:12 }}>
               {list.length} Meldung{list.length!==1?"en":""}
             </span>
           </div>
@@ -770,7 +785,7 @@ function Eingang({ alerts, onRefresh, loading }) {
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12, marginBottom:20 }}>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             {[["all","Alle"],["open","Offen"],["urgent","Dringend"],["fahrer","Fahrer"],["stapler","Stapler"],["done","Erledigt"]].map(function(f){
-              return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")} style={{ fontSize:14, padding:"6px 18px" }}>{f[1]}</button>;
+              return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")} style={{ fontSize:15, padding:"8px 20px" }}>{f[1]}</button>;
             })}
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -779,7 +794,7 @@ function Eingang({ alerts, onRefresh, loading }) {
               onChange={function(e){ setDateFilter(e.target.value); }}
               style={{
                 background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
-                borderRadius:8, color:"#fff", fontSize:14, padding:"6px 12px",
+                borderRadius:8, color:"#fff", fontSize:16, padding:"8px 14px",
                 outline:"none", cursor:"pointer"
               }}
             />
@@ -838,7 +853,7 @@ function Eingang({ alerts, onRefresh, loading }) {
                     {/* ЗАГОЛОВКИ КОЛОНОК */}
                     <div style={{
                       display:"grid",
-                      gridTemplateColumns:"100px 120px 140px 1fr 150px 1fr 100px 100px",
+                      gridTemplateColumns:"90px 110px 130px 1fr 140px 1fr 90px 90px",
                       borderBottom:"1px solid rgba(255,255,255,0.1)",
                       paddingBottom:6, marginBottom:0
                     }}>
@@ -872,7 +887,7 @@ function Eingang({ alerts, onRefresh, loading }) {
                 <div key={a.id}>
                   <div style={{
                     display:"grid",
-                    gridTemplateColumns:"100px 120px 140px 1fr 150px 1fr 100px 100px",
+                    gridTemplateColumns:"90px 110px 130px 1fr 140px 1fr 90px 90px",
                     alignItems:"center",
                     minHeight:72,
                     borderBottom:"1px solid rgba(255,255,255,0.06)",
@@ -2772,11 +2787,11 @@ function AppShell({ user, onLogout }) {
             {NAV.find(function(n){ return n.k===sec; }) && NAV.find(function(n){ return n.k===sec; }).ic}
           </div>
           <div className="topbar-title" style={{ marginLeft:8 }}>{PAGE_TITLES[sec]||sec}</div>
-          <div style={{ fontSize:12, color: dbOk===false?"#ef4444":dbOk===true?"#22c55e":"#ffa500", marginLeft:8 }}>
+          <div style={{ fontSize:15, color: dbOk===false?"#ef4444":dbOk===true?"#22c55e":"#ffa500", marginLeft:8, fontWeight:600 }}>
             {dbOk===false?"● Fehler":dbOk===true?"● Online":"● Lädt"}
           </div>
           <div className="topbar-right">
-            <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>{new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"})}</span>
+            <span style={{ fontSize:16, color:"rgba(255,255,255,0.5)", fontWeight:400 }}>{new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"})}</span>
             <button className="topbar-refresh no-print" onClick={loadAll}>{loading ? "⏳" : "↻ Aktualisieren"}</button>
           </div>
         </div>
