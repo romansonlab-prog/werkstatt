@@ -562,6 +562,7 @@ function Eingang({ alerts, onRefresh, loading }) {
   var _su = useState(false); var updating = _su[0]; var setUpdating = _su[1];
   var _ep = useState({}); var expandedPhotos = _ep[0]; var setExpandedPhotos = _ep[1];
   var _tr = useState({}); var translations = _tr[0]; var setTranslations = _tr[1];
+  var _sa = useState(null); var selectedAlert = _sa[0]; var setSelectedAlert = _sa[1];
   function togglePhotos(id){ setExpandedPhotos(function(prev){ var n=Object.assign({},prev); n[id]=!n[id]; return n; }); }
 
   useEffect(function(){
@@ -690,16 +691,14 @@ function Eingang({ alerts, onRefresh, loading }) {
                       <div style={{ fontSize:12, color: a.sender_app==="stapler" ? "#a78bfa" : "#60a5fa", fontWeight:600, textTransform:"uppercase", letterSpacing:0.5 }}>{a.sender_app||"—"}</div>
                     </div>
                     {/* ОПИСАНИЕ */}
-                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
-                      <div style={{ fontSize:16, fontWeight:500, color:"#fff", lineHeight:1.4 }}>
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)", cursor:"pointer" }}
+                      onClick={function(){ setSelectedAlert(a); }}>
+                      <div style={{ fontSize:15, fontWeight:500, color:"#fff", lineHeight:1.3,
+                        display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
                         {translations[a.id] || a.description || "—"}
                       </div>
-                      {translations[a.id] && translations[a.id] !== a.description && (
-                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:3, fontStyle:"italic" }}>
-                          {a.description}
-                        </div>
-                      )}
                       {done && <div style={{ fontSize:12, color:"#22c55e", marginTop:3 }}>✓ Erledigt</div>}
+                      <div style={{ fontSize:11, color:"rgba(255,165,0,0.6)", marginTop:2 }}>▶ öffnen</div>
                     </div>
                     {/* ВОДИТЕЛЬ */}
                     <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
@@ -748,6 +747,53 @@ function Eingang({ alerts, onRefresh, loading }) {
         }
       </div>
     </div>
+
+    {/* МОДАЛЬНОЕ ОКНО ОПИСАНИЯ */}
+    {selectedAlert && (
+      <div onClick={function(){ setSelectedAlert(null); }} style={{
+        position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200,
+        display:"flex", alignItems:"center", justifyContent:"center", padding:40
+      }}>
+        <div onClick={function(e){ e.stopPropagation(); }} style={{
+          background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
+          borderRadius:20, padding:36, maxWidth:680, width:"100%",
+          boxShadow:"0 24px 60px rgba(0,0,0,0.6)"
+        }}>
+          {/* Заголовок */}
+          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+            {urgBadge(selectedAlert.urgency)}
+            <span style={{ fontSize:26, fontWeight:900, letterSpacing:2, fontFamily:"monospace" }}>
+              {selectedAlert.plate||"—"}
+            </span>
+            <span style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginLeft:"auto" }}>
+              {fmtDateTime(selectedAlert.created_at)} · {selectedAlert.sender||""}
+            </span>
+          </div>
+          {/* Перевод */}
+          <div style={{ fontSize:22, fontWeight:600, color:"#fff", lineHeight:1.6, marginBottom:16 }}>
+            {translations[selectedAlert.id] || selectedAlert.description || "—"}
+          </div>
+          {/* Оригинал */}
+          {translations[selectedAlert.id] && translations[selectedAlert.id] !== selectedAlert.description && (
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontStyle:"italic", marginBottom:20, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+              Original: {selectedAlert.description}
+            </div>
+          )}
+          {/* Локация */}
+          {selectedAlert.location && (
+            <div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>
+              📍 {selectedAlert.location}
+            </div>
+          )}
+          {/* Кнопка закрыть */}
+          <button onClick={function(){ setSelectedAlert(null); }} style={{
+            fontSize:15, padding:"10px 32px", borderRadius:10, fontWeight:700,
+            background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
+            color:"#fff", cursor:"pointer"
+          }}>Schließen</button>
+        </div>
+      </div>
+    )}
   );
 }
 
