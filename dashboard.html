@@ -560,6 +560,7 @@ function translateToDE(text) {
 function Eingang({ alerts, onRefresh, loading }) {
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
   var _su = useState(false); var updating = _su[0]; var setUpdating = _su[1];
+  var _df = useState(todayIso()); var dateFilter = _df[0]; var setDateFilter = _df[1];
   var _ep = useState({}); var expandedPhotos = _ep[0]; var setExpandedPhotos = _ep[1];
   var _tr = useState({}); var translations = _tr[0]; var setTranslations = _tr[1];
   var _sa = useState(null); var selectedAlert = _sa[0]; var setSelectedAlert = _sa[1];
@@ -585,6 +586,7 @@ function Eingang({ alerts, onRefresh, loading }) {
   if (filter === "done")   list = list.filter(function(a){ return a.status === "done"; });
   if (filter === "fahrer") list = list.filter(function(a){ return a.sender_app === "fahrer"; });
   if (filter === "stapler") list = list.filter(function(a){ return a.sender_app === "stapler"; });
+  if (dateFilter) list = list.filter(function(a){ return (a.created_at||"").slice(0,10) === dateFilter; });
 
   function markDone(id) {
     setUpdating(true);
@@ -617,10 +619,31 @@ function Eingang({ alerts, onRefresh, loading }) {
             <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading ? "..." : "↻"}</button>
           </div>
         </div>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
-          {[["all","Alle"],["open","Offen"],["urgent","Dringend"],["fahrer","Fahrer"],["stapler","Stapler"],["done","Erledigt"]].map(function(f){
-            return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")} style={{ fontSize:14, padding:"6px 18px" }}>{f[1]}</button>;
-          })}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12, marginBottom:20 }}>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {[["all","Alle"],["open","Offen"],["urgent","Dringend"],["fahrer","Fahrer"],["stapler","Stapler"],["done","Erledigt"]].map(function(f){
+              return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")} style={{ fontSize:14, padding:"6px 18px" }}>{f[1]}</button>;
+            })}
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:13, color:"rgba(255,255,255,0.4)", fontWeight:600 }}>📅</span>
+            <input type="date" value={dateFilter}
+              onChange={function(e){ setDateFilter(e.target.value); }}
+              style={{
+                background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)",
+                borderRadius:8, color:"#fff", fontSize:14, padding:"6px 12px",
+                outline:"none", cursor:"pointer"
+              }}
+            />
+            {dateFilter && (
+              <button onClick={function(){ setDateFilter(""); }}
+                style={{
+                  fontSize:13, padding:"6px 12px", borderRadius:8,
+                  border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.06)",
+                  color:"rgba(255,255,255,0.6)", cursor:"pointer"
+                }}>✕ Alle Tage</button>
+            )}
+          </div>
         </div>
         {list.length === 0
           ? <div className="empty">Keine Meldungen</div>
