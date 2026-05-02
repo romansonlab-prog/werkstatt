@@ -992,14 +992,7 @@ function Eingang({ alerts, onRefresh, loading }) {
                 outline:"none", cursor:"pointer"
               }}
             />
-            {dateFilter && (
-              <button onClick={function(){ setDateFilter(""); }}
-                style={{
-                  fontSize:13, padding:"6px 12px", borderRadius:8,
-                  border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.06)",
-                  color:"rgba(255,255,255,0.6)", cursor:"pointer"
-                }}>✕ Alle Tage</button>
-            )}
+
           </div>
         </div>
         {list.length === 0
