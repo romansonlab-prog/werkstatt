@@ -418,6 +418,8 @@
   }
 </script>
 <script type="text/babel">
+console.log("WERKSTATT HOTFIX loaded: partsCost/Lieferschein fix v3");
+window.__WERKSTATT_BUILD = "hotfix_partsCost_lieferschein_v3";
 const { useEffect, useRef, useState } = React;
 
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
@@ -1268,6 +1270,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var _srj = useState(null); var savedJobId = _srj[0]; var setSavedJobId = _srj[1];
   var _srp = useState(""); var savedJobPlate = _srp[0]; var setSavedJobPlate = _srp[1];
   var _sra = useState(0); var savedReceiptAmount = _sra[0]; var setSavedReceiptAmount = _sra[1];
+  // HOTFIX: fallback for older/cached Lieferschein handler; prevents ReferenceError if old code path is still used
+  var partsCost = savedReceiptAmount || shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis||"0").replace(",",".")) || 0); }, 0);
   var _rsupp = useState(""); var rSupplier = _rsupp[0]; var setRSupplier = _rsupp[1];
   var _rnr = useState(""); var rNr = _rnr[0]; var setRNr = _rnr[1];
   var _ramt = useState(""); var rAmt = _ramt[0]; var setRAmt = _ramt[1];
