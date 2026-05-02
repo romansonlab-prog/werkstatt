@@ -588,6 +588,28 @@ function Eingang({ alerts, onRefresh, loading }) {
             return <button key={f[0]} onClick={function(){ setFilter(f[0]); }} className={"btn-small " + (filter===f[0] ? "btn-primary" : "btn-outline")} style={{ fontSize:14, padding:"6px 18px" }}>{f[1]}</button>;
           })}
         </div>
+        {/* ЗАГОЛОВКИ КОЛОНОК */}
+        {list.length > 0 && (
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"90px 110px 130px 1fr 140px 110px 80px 90px",
+            borderBottom:"1px solid rgba(255,255,255,0.15)",
+            paddingBottom:8,
+            marginBottom:0,
+            gap:0
+          }}>
+            {["Priorität","Zeit","Fahrzeug","Beschreibung","Fahrer","Standort","Mech.","Aktion"].map(function(h,i){
+              return (
+                <div key={i} style={{
+                  fontSize:11, fontWeight:800, color:"rgba(255,255,255,0.35)",
+                  textTransform:"uppercase", letterSpacing:1,
+                  padding:"0 12px",
+                  borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.07)" : "none"
+                }}>{h}</div>
+              );
+            })}
+          </div>
+        )}
         {list.length === 0
           ? <div className="empty">Keine Meldungen</div>
           : list.map(function(a, idx){
@@ -604,81 +626,83 @@ function Eingang({ alerts, onRefresh, loading }) {
                 }
               } catch(e){ photos = []; }
               photos = photos.filter(function(u){ return u && typeof u === "string" && u.startsWith("http"); });
+              var _ep = useState(false); var showPhotos = _ep[0]; var setShowPhotos = _ep[1];
               return (
-                <div key={a.id} style={{
-                  borderBottom: idx < list.length-1 ? "1px solid rgba(255,255,255,0.07)" : "none",
-                  padding: "24px 0",
-                  opacity: done ? 0.55 : 1,
-                  background: urg && !done ? "rgba(239,68,68,0.05)" : "transparent",
-                  marginLeft: urg && !done ? -20 : 0,
-                  paddingLeft: urg && !done ? 20 : 0,
-                  borderLeft: urg && !done ? "4px solid #ef4444" : "none",
-                }}>
-                  {/* СТРОКА 1: статус + номер + источник */}
-                  <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap", marginBottom:10 }}>
-                    {urgBadge(a.urgency)}
-                    <span style={{ fontSize:28, fontWeight:900, letterSpacing:2, color: done ? "rgba(255,255,255,0.5)" : "#fff", fontFamily:"monospace" }}>
-                      {a.plate||"Ohne KZ"}
-                    </span>
-                    <span style={{
-                      fontSize:13, fontWeight:800, padding:"3px 14px", borderRadius:20,
-                      background: a.sender_app==="stapler" ? "rgba(139,92,246,0.25)" : "rgba(59,130,246,0.25)",
-                      color: a.sender_app==="stapler" ? "#a78bfa" : "#60a5fa",
-                      border: a.sender_app==="stapler" ? "1px solid rgba(139,92,246,0.4)" : "1px solid rgba(59,130,246,0.4)",
-                      textTransform:"uppercase", letterSpacing:1
-                    }}>{a.sender_app||"—"}</span>
-                    {done && <span style={{ fontSize:13, fontWeight:700, color:"#22c55e", padding:"3px 14px", borderRadius:20, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.3)" }}>✓ Erledigt</span>}
-                    {a.taken_by_name && <span style={{ fontSize:13, color:"rgba(255,255,255,0.5)", padding:"3px 14px", borderRadius:20, background:"rgba(255,255,255,0.06)" }}>🔒 {a.taken_by_name}</span>}
+                <div key={a.id}>
+                  <div style={{
+                    display:"grid",
+                    gridTemplateColumns:"90px 110px 130px 1fr 140px 110px 80px 90px",
+                    alignItems:"center",
+                    minHeight:64,
+                    borderBottom:"1px solid rgba(255,255,255,0.06)",
+                    background: urg && !done ? "rgba(239,68,68,0.05)" : idx%2===0 ? "transparent" : "rgba(255,255,255,0.02)",
+                    opacity: done ? 0.55 : 1,
+                    borderLeft: urg && !done ? "3px solid #ef4444" : "3px solid transparent",
+                  }}>
+                    {/* ПРИОРИТЕТ */}
+                    <div style={{ padding:"0 12px" }}>
+                      {urg
+                        ? <span style={{ fontSize:12, fontWeight:800, color:"#ef4444", background:"rgba(239,68,68,0.15)", padding:"3px 8px", borderRadius:6 }}>🚨 Dringend</span>
+                        : <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>Normal</span>
+                      }
+                    </div>
+                    {/* ВРЕМЯ */}
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.85)" }}>{(a.created_at||"").slice(11,16)}</div>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{(a.created_at||"").slice(0,10)}</div>
+                    </div>
+                    {/* МАШИНА */}
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize:16, fontWeight:900, color:"#fff", letterSpacing:1, fontFamily:"monospace" }}>{a.plate||"—"}</div>
+                      <div style={{ fontSize:11, color: a.sender_app==="stapler" ? "#a78bfa" : "#60a5fa", fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{a.sender_app||"—"}</div>
+                    </div>
+                    {/* ОПИСАНИЕ */}
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize:15, fontWeight:700, color:"#fff", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                        {a.description||"—"}
+                      </div>
+                      {done && <div style={{ fontSize:11, color:"#22c55e", marginTop:2 }}>✓ Erledigt</div>}
+                    </div>
+                    {/* ВОДИТЕЛЬ */}
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.85)" }}>{a.sender||"—"}</div>
+                    </div>
+                    {/* ЛОКАЦИЯ */}
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.location||"—"}</div>
+                    </div>
+                    {/* МЕХАНИК */}
+                    <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{a.taken_by_name||"—"}</div>
+                    </div>
+                    {/* КНОПКИ */}
+                    <div style={{ padding:"0 8px", borderLeft:"1px solid rgba(255,255,255,0.07)", display:"flex", flexDirection:"column", gap:4, alignItems:"center" }}>
+                      {photos.length > 0 && (
+                        <button onClick={function(){ setShowPhotos(!showPhotos); }}
+                          style={{ fontSize:12, padding:"4px 8px", borderRadius:6, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"#fff", cursor:"pointer", whiteSpace:"nowrap" }}>
+                          📷 {photos.length}
+                        </button>
+                      )}
+                      {!done && (
+                        <button className="no-print" disabled={updating}
+                          onClick={function(){ markDone(a.id); }}
+                          style={{ fontSize:12, padding:"4px 8px", borderRadius:6, border:"1px solid rgba(34,197,94,0.4)", background:"rgba(34,197,94,0.1)", color:"#22c55e", cursor:"pointer", whiteSpace:"nowrap" }}>
+                          ✓ OK
+                        </button>
+                      )}
+                    </div>
                   </div>
-
-                  {/* СТРОКА 2: мета — время, водитель, локация */}
-                  <div style={{ display:"flex", gap:32, marginBottom:12, fontSize:15, color:"rgba(255,255,255,0.55)", flexWrap:"wrap" }}>
-                    <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                      <span style={{ fontSize:16 }}>🕐</span> {fmtDateTime(a.created_at)}
-                    </span>
-                    <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                      <span style={{ fontSize:16 }}>👤</span> <strong style={{ color:"rgba(255,255,255,0.8)", fontWeight:700 }}>{a.sender||"—"}</strong>
-                    </span>
-                    <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                      <span style={{ fontSize:16 }}>📍</span> {a.location||"—"}
-                    </span>
-                  </div>
-
-                  {/* СТРОКА 3: описание */}
-                  <div style={{ fontSize:20, fontWeight:700, color:"#fff", lineHeight:1.5, marginBottom: photos.length || !done ? 16 : 0, maxWidth:900 }}>
-                    {a.description||"Keine Beschreibung"}
-                  </div>
-
-                  {/* СТРОКА 4: фото */}
-                  {photos.length > 0 && (
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:12, marginBottom:16 }}>
+                  {/* ФОТО — раскрываются по кнопке */}
+                  {showPhotos && photos.length > 0 && (
+                    <div style={{ display:"flex", gap:10, padding:"12px 16px", background:"rgba(0,0,0,0.3)", borderBottom:"1px solid rgba(255,255,255,0.06)", flexWrap:"wrap" }}>
                       {photos.map(function(u,i){
                         return (
-                          <a key={i} href={u} target="_blank" rel="noreferrer" title="Klicken zum Vergrößern">
-                            <img src={u} alt={"Foto "+(i+1)} style={{
-                              width:160, height:160, objectFit:"cover",
-                              borderRadius:12, display:"block",
-                              border:"2px solid rgba(255,255,255,0.15)",
-                              transition:"transform 0.15s",
-                              cursor:"zoom-in"
-                            }} />
+                          <a key={i} href={u} target="_blank" rel="noreferrer">
+                            <img src={u} alt={"Foto "+(i+1)} style={{ width:180, height:180, objectFit:"cover", borderRadius:10, border:"2px solid rgba(255,255,255,0.15)", display:"block", cursor:"zoom-in" }} />
                           </a>
                         );
                       })}
                     </div>
-                  )}
-
-                  {/* КНОПКА */}
-                  {!done && (
-                    <button className="no-print" disabled={updating}
-                      onClick={function(){ markDone(a.id); }}
-                      style={{
-                        fontSize:15, padding:"10px 32px", borderRadius:10, fontWeight:700,
-                        background:"rgba(34,197,94,0.15)", border:"1px solid rgba(34,197,94,0.4)",
-                        color:"#22c55e", cursor:"pointer"
-                      }}>
-                      ✓ Als erledigt markieren
-                    </button>
                   )}
                 </div>
               );
