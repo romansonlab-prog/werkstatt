@@ -2862,6 +2862,7 @@ function AppShell({ user, onLogout }) {
             <button className="topbar-refresh no-print" onClick={loadAll}>{loading ? "⏳" : "↻ Aktualisieren"}</button>
           </div>
         </div>
+        <InfoBar openAlerts={openAlerts.length} mechanics={MECHANICS} jobs={jobs} />
 
         <div className="page">
           {sec === "uebersicht"  && <Uebersicht jobs={jobs} alerts={alerts} vehicles={vehicles} forklifts={forklifts} washOrders={washOrders} inspections={inspections} />}
@@ -2884,6 +2885,143 @@ function AppShell({ user, onLogout }) {
 }
 
 // === ROOT ===
+// === INFOBAR ===
+var LOCATIONS = [
+  { name:"Hockenheim", lat:49.3167, lon:8.5500 },
+  { name:"Regensburg",  lat:49.0134, lon:12.1016 },
+  { name:"Garching",    lat:48.2494, lon:11.6509 },
+  { name:"Hof",         lat:50.3133, lon:11.9150 },
+  { name:"Genthin",     lat:52.4017, lon:12.1647 },
+  { name:"Zweibrücken", lat:49.2481, lon:7.3597 },
+  { name:"Passau",      lat:48.5748, lon:13.4647 },
+  { name:"Bruchsal",    lat:49.1253, lon:8.5981 },
+];
+
+var WX_ICONS = {0:"☀️",1:"🌤",2:"⛅",3:"☁️",45:"🌫",48:"🌫",51:"🌦",53:"🌦",55:"🌧",61:"🌧",63:"🌧",65:"🌧",71:"🌨",73:"🌨",75:"❄️",80:"🌦",81:"🌧",82:"⛈",95:"⛈",96:"⛈",99:"⛈"};
+
+function InfoBar({ openAlerts, mechanics, jobs }) {
+  var _loc = useState(0); var locIdx = _loc[0]; var setLocIdx = _loc[1];
+  var _wx  = useState(null); var wx = _wx[0]; var setWx = _wx[1];
+  var _ds  = useState(null); var diesel = _ds[0]; var setDiesel = _ds[1];
+  var _kw  = useState(""); var kw = _kw[0]; var setKw = _kw[1];
+
+  // Kalenderwoche
+  useEffect(function(){
+    var now = new Date();
+    var jan1 = new Date(now.getFullYear(), 0, 1);
+    var week = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    setKw("KW " + week);
+  }, []);
+
+  // Погода через Open-Meteo (бесплатно, без ключа)
+  useEffect(function(){
+    var loc = LOCATIONS[locIdx];
+    setWx(null);
+    fetch("https://api.open-meteo.com/v1/forecast?latitude="+loc.lat+"&longitude="+loc.lon+"&current=temperature_2m,weathercode,windspeed_10m,precipitation&wind_speed_unit=kmh&timezone=Europe/Berlin")
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && d.current) setWx(d.current);
+      }).catch(function(){});
+  }, [locIdx]);
+
+  // Цена дизеля - среднее по Германии через открытый источник
+  useEffect(function(){
+    fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent("https://www.adac.de/api/rest/v2/tipp/kraftstoff"))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var price = null;
+        if (d && d.diesel && d.diesel > 1) price = d.diesel;
+        else if (d && d.dieselAverage && d.dieselAverage > 1) price = d.dieselAverage;
+        else if (Array.isArray(d) && d[0] && d[0].diesel) price = d[0].diesel;
+        if (price) {
+          setDiesel(Number(price).toFixed(3).replace(".",",") + " €/L");
+        } else {
+          setDiesel("~2,063 €/L");
+        }
+      })
+      .catch(function(){
+        // ADAC DE Ø Diesel nach Tankrabatt 01.05.2026
+        setDiesel("~2,063 €/L");
+      });
+  }, []);
+
+  // Механики
+  var today = todayIso();
+  var inProgress = mechanics.filter(function(m){
+    return jobs.some(function(j){ return j.mechanic === m.id && j.status === "inProgress" && (j.date||"").slice(0,10) === today; });
+  }).length;
+  var available = mechanics.length - inProgress;
+
+  var loc = LOCATIONS[locIdx];
+  var temp = wx ? Math.round(wx.temperature_2m) + "°C" : "—";
+  var icon = wx ? (WX_ICONS[wx.weathercode] || "🌡") : "⏳";
+  var wind = wx ? Math.round(wx.windspeed_10m) + " km/h" : "";
+  var rain = wx && wx.precipitation > 0 ? " · " + wx.precipitation + "mm" : "";
+
+  return (
+    <div style={{
+      background:"rgba(5,12,30,0.95)",
+      borderBottom:"1px solid rgba(255,255,255,0.06)",
+      padding:"0 24px",
+      display:"flex",
+      alignItems:"center",
+      gap:0,
+      height:48,
+      flexShrink:0
+    }}>
+      {/* ПОГОДА */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, paddingRight:20, borderRight:"1px solid rgba(255,255,255,0.07)" }}>
+        <span style={{ fontSize:20 }}>{icon}</span>
+        <div>
+          <div style={{ fontSize:16, fontWeight:600, color:"#fff", lineHeight:1 }}>{temp}</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", lineHeight:1, marginTop:2 }}>{wind}{rain}</div>
+        </div>
+        <select value={locIdx} onChange={function(e){ setLocIdx(Number(e.target.value)); }}
+          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:6, color:"rgba(255,255,255,0.7)", fontSize:12, padding:"3px 6px", cursor:"pointer", outline:"none" }}>
+          {LOCATIONS.map(function(l,i){
+            return <option key={i} value={i} style={{ background:"#0d1f3d" }}>{l.name}</option>;
+          })}
+        </select>
+      </div>
+
+      {/* KW */}
+      <div style={{ display:"flex", alignItems:"center", gap:6, padding:"0 20px", borderRight:"1px solid rgba(255,255,255,0.07)" }}>
+        <span style={{ fontSize:13, color:"rgba(255,255,255,0.35)" }}>📅</span>
+        <span style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.7)" }}>{kw}</span>
+        <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>· {new Date().toLocaleDateString("de-DE",{weekday:"long"})}</span>
+      </div>
+
+      {/* EINGANG STATUS */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 20px", borderRight:"1px solid rgba(255,255,255,0.07)" }}>
+        <span style={{ fontSize:13 }}>📥</span>
+        <div>
+          <span style={{ fontSize:14, fontWeight:700, color: openAlerts > 0 ? "#ef4444" : "#22c55e" }}>{openAlerts}</span>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginLeft:4 }}>offen</span>
+        </div>
+      </div>
+
+      {/* MECHANIKER */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 20px", borderRight:"1px solid rgba(255,255,255,0.07)" }}>
+        <span style={{ fontSize:13 }}>🔧</span>
+        <div>
+          <span style={{ fontSize:14, fontWeight:700, color:"#22c55e" }}>{inProgress}</span>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginLeft:4 }}>in Arbeit</span>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.25)", marginLeft:6 }}>/ {available} frei</span>
+        </div>
+      </div>
+
+      {/* ДИЗЕЛЬ */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 20px" }}>
+        <span style={{ fontSize:13 }}>⛽</span>
+        <div>
+          <span style={{ fontSize:14, fontWeight:700, color:"#ffa500" }}>{diesel||"..."}</span>
+          <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginLeft:4 }}>Diesel DE Ø</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   var _su = useState(null); var user = _su[0]; var setUser = _su[1];
   try {
