@@ -218,7 +218,7 @@ const VEH_TYPES = {
   trailer:"Anhänger", pkw:"PKW", other:"Sonstiges"
 };
 
-function todayIso() { return new Date().toISOString().slice(0,10); }
+function todayIso() { return new Date().toLocaleDateString("sv-SE"); }
 function fmtDate(d) { if (!d) return "—"; try { return new Date(d).toLocaleDateString("de-DE"); } catch(e){ return d; } }
 function fmtDateTime(d) { if (!d) return "—"; try { return new Date(d).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch(e){ return d; } }
 function fmtMin(m) { m=parseInt(m||0)||0; if(!m) return "0 min"; var h=Math.floor(m/60),mm=m%60; return h ? h+"h "+mm+"min" : mm+" min"; }
@@ -898,7 +898,11 @@ function Eingang({ alerts, onRefresh, loading }) {
   if (filter === "done")   list = list.filter(function(a){ return a.status === "done"; });
   if (filter === "fahrer") list = list.filter(function(a){ return a.sender_app === "fahrer"; });
   if (filter === "stapler") list = list.filter(function(a){ return a.sender_app === "stapler"; });
-  if (dateFilter) list = list.filter(function(a){ return (a.created_at||"").slice(0,10) === dateFilter; });
+  if (dateFilter) list = list.filter(function(a){
+    if (!a.created_at) return false;
+    var localDate = new Date(a.created_at).toLocaleDateString("sv-SE"); // sv-SE даёт YYYY-MM-DD в локальном времени
+    return localDate === dateFilter;
+  });
 
   function markDone(id) {
     setUpdating(true);
@@ -1005,7 +1009,7 @@ function Eingang({ alerts, onRefresh, loading }) {
               var groups = [];
               var groupMap = {};
               list.forEach(function(a){
-                var day = (a.created_at||"").slice(0,10);
+                var day = a.created_at ? new Date(a.created_at).toLocaleDateString("sv-SE") : "unknown";
                 if (!groupMap[day]) {
                   groupMap[day] = [];
                   groups.push(day);
