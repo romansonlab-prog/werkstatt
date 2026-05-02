@@ -1307,10 +1307,10 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           labor_cost: laborCost,
           parts_cost: partsCost,
           photos: photoUrls.length,
-          photo_urls: photoUrls,
+          photo_urls: JSON.stringify(photoUrls),
           source: prefill ? "eingang" : "werkstatt",
           alert_id: prefill && prefill.id ? prefill.id : null,
-          incoming_photo_urls: prefill ? normalizeUrls(prefill.photo_urls) : [],
+          incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
           created_at: new Date().toISOString()
         };
         return sbInsert("jobs", payload, true);

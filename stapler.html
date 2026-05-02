@@ -494,7 +494,7 @@ function ReportForm({ user, onSent }) {
         plate:plate, location:locFinal, description:dsc,
         urgency: urg === "urgent" ? "urgent" : "normal",
         sender:nm, sender_app:"stapler", status:"open",
-        photo_urls: photoUrls
+        photo_urls: JSON.stringify(photoUrls)
       });
     }).then(function(){
       setSnd(false);

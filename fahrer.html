@@ -941,7 +941,7 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
         return sbPost("alerts",{
           id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,
           urgency:urg==="sofort"?"urgent":"normal",
-          sender:driverName||"driver",sender_app:"fahrer",status:"open",photo_urls:urls
+          sender:driverName||"driver",sender_app:"fahrer",status:"open",photo_urls:JSON.stringify(urls)
         });
       })
       .then(function(){ setSending(false); setSent(true); })
