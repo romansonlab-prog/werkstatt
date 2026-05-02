@@ -1266,6 +1266,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var _ssav = useState(false); var saving = _ssav[0]; var setSaving = _ssav[1];
   var _srm = useState(false); var rechnungModal = _srm[0]; var setRechnungModal = _srm[1];
   var _srj = useState(null); var savedJobId = _srj[0]; var setSavedJobId = _srj[1];
+  var _srp = useState(""); var savedJobPlate = _srp[0]; var setSavedJobPlate = _srp[1];
+  var _sra = useState(0); var savedReceiptAmount = _sra[0]; var setSavedReceiptAmount = _sra[1];
   var _rsupp = useState(""); var rSupplier = _rsupp[0]; var setRSupplier = _rsupp[1];
   var _rnr = useState(""); var rNr = _rnr[0]; var setRNr = _rnr[1];
   var _ramt = useState(""); var rAmt = _ramt[0]; var setRAmt = _ramt[1];
@@ -1356,10 +1358,13 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         // Предлагаем сохранить накладную если были запчасти из магазина
         if (partsType === "shop" && shopItems.some(function(i){ return i.name.trim() || i.lieferschein.trim(); })) {
           setSavedJobId(jid);
+          setSavedJobPlate(vehicle && vehicle.plate ? vehicle.plate : "");
+          var receiptAmount = shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis||"0").replace(",",".")) || 0); }, 0);
+          setSavedReceiptAmount(receiptAmount);
           var firstItem = shopItems[0];
           setRSupplier("");
           setRNr(firstItem.lieferschein || "");
-          setRAmt(shopItems.reduce(function(s,i){ return s + (parseFloat((i.preis||"0").replace(",",".")) || 0); }, 0).toFixed(2));
+          setRAmt(receiptAmount.toFixed(2));
           setRDate(todayIso());
           setRNotes(shopItems.map(function(i){ return i.typ + " " + i.name; }).filter(function(x){ return x.trim(); }).join(", "));
           setRechnungModal(true);
@@ -1529,9 +1534,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                     date: rDate,
                     supplier: rSupplier.trim() || "Unbekannt",
                     invoice_nr: rNr.trim() || null,
-                    vehicle_id: vehicle ? vehicle.plate : null,
+                    vehicle_id: savedJobPlate || (vehicle ? vehicle.plate : null),
                     job_id: savedJobId,
-                    amount: partsCost || shopItems.reduce(function(s,i){ return s+(parseFloat((i.preis||"0").replace(",","."))||0); }, 0),
+                    amount: parseFloat((rAmt || "0").replace(",",".")) || savedReceiptAmount || 0,
                     paid: false,
                     items: rNotes.trim() || shopItems.filter(function(i){ return i.name.trim(); }).map(function(i){ return i.name; }).join(", ") || null,
                     mechanic: user.name || user.id || null,
