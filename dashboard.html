@@ -2961,23 +2961,23 @@ function InfoBar({ openAlerts, mechanics, jobs }) {
   return (
     <div style={{
       background:"rgba(5,12,30,0.95)",
-      borderBottom:"1px solid rgba(255,255,255,0.06)",
-      padding:"0 24px",
+      borderBottom:"1px solid rgba(255,255,255,0.08)",
+      padding:"0 28px",
       display:"flex",
       alignItems:"center",
       gap:0,
-      height:48,
+      height:62,
       flexShrink:0
     }}>
       {/* ПОГОДА */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, paddingRight:20, borderRight:"1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ fontSize:20 }}>{icon}</span>
+      <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, paddingRight:28, borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+        <span style={{ fontSize:26 }}>{icon}</span>
         <div>
-          <div style={{ fontSize:16, fontWeight:600, color:"#fff", lineHeight:1 }}>{temp}</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", lineHeight:1, marginTop:2 }}>{wind}{rain}</div>
+          <div style={{ fontSize:20, fontWeight:600, color:"#fff", lineHeight:1 }}>{temp}</div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1, marginTop:3 }}>{wind}{rain}</div>
         </div>
         <select value={locIdx} onChange={function(e){ setLocIdx(Number(e.target.value)); }}
-          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:6, color:"rgba(255,255,255,0.7)", fontSize:12, padding:"3px 6px", cursor:"pointer", outline:"none" }}>
+          style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, color:"rgba(255,255,255,0.8)", fontSize:14, padding:"5px 10px", cursor:"pointer", outline:"none" }}>
           {LOCATIONS.map(function(l,i){
             return <option key={i} value={i} style={{ background:"#0d1f3d" }}>{l.name}</option>;
           })}
@@ -2985,37 +2985,37 @@ function InfoBar({ openAlerts, mechanics, jobs }) {
       </div>
 
       {/* KW */}
-      <div style={{ display:"flex", alignItems:"center", gap:6, padding:"0 20px", borderRight:"1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ fontSize:13, color:"rgba(255,255,255,0.35)" }}>📅</span>
-        <span style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.7)" }}>{kw}</span>
-        <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>· {new Date().toLocaleDateString("de-DE",{weekday:"long"})}</span>
+      <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, padding:"0 28px", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+        <span style={{ fontSize:18 }}>📅</span>
+        <span style={{ fontSize:17, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>{kw}</span>
+        <span style={{ fontSize:14, color:"rgba(255,255,255,0.45)" }}>· {new Date().toLocaleDateString("de-DE",{weekday:"long"})}</span>
       </div>
 
       {/* EINGANG STATUS */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 20px", borderRight:"1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ fontSize:13 }}>📥</span>
+      <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"0 28px", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+        <span style={{ fontSize:18 }}>📥</span>
         <div>
-          <span style={{ fontSize:14, fontWeight:700, color: openAlerts > 0 ? "#ef4444" : "#22c55e" }}>{openAlerts}</span>
-          <span style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginLeft:4 }}>offen</span>
+          <span style={{ fontSize:20, fontWeight:700, color: openAlerts > 0 ? "#ef4444" : "#22c55e" }}>{openAlerts}</span>
+          <span style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginLeft:6 }}>Eingang offen</span>
         </div>
       </div>
 
       {/* MECHANIKER */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 20px", borderRight:"1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ fontSize:13 }}>🔧</span>
+      <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"0 28px", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+        <span style={{ fontSize:18 }}>🔧</span>
         <div>
-          <span style={{ fontSize:14, fontWeight:700, color:"#22c55e" }}>{inProgress}</span>
-          <span style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginLeft:4 }}>in Arbeit</span>
-          <span style={{ fontSize:12, color:"rgba(255,255,255,0.25)", marginLeft:6 }}>/ {available} frei</span>
+          <span style={{ fontSize:20, fontWeight:700, color:"#22c55e" }}>{inProgress}</span>
+          <span style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginLeft:6 }}>in Arbeit</span>
+          <span style={{ fontSize:14, color:"rgba(255,255,255,0.3)", marginLeft:8 }}>/ {available} frei</span>
         </div>
       </div>
 
       {/* ДИЗЕЛЬ */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"0 20px" }}>
-        <span style={{ fontSize:13 }}>⛽</span>
+      <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"0 0 0 28px" }}>
+        <span style={{ fontSize:18 }}>⛽</span>
         <div>
-          <span style={{ fontSize:14, fontWeight:700, color:"#ffa500" }}>{diesel||"..."}</span>
-          <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginLeft:4 }}>Diesel DE Ø</span>
+          <span style={{ fontSize:20, fontWeight:700, color:"#ffa500" }}>{diesel||"..."}</span>
+          <span style={{ fontSize:13, color:"rgba(255,255,255,0.35)", marginLeft:6 }}>Diesel DE Ø</span>
         </div>
       </div>
     </div>
