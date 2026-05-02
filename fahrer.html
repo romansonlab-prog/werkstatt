@@ -370,6 +370,27 @@ function sbPatch(table, col, val, body) {
     body:JSON.stringify(body)
   }).then(function(r){ return r.ok; }).catch(function(){ return false; });
 }
+function compressPhoto(b64, maxWidth, quality) {
+  maxWidth = maxWidth || 1200;
+  quality = quality || 0.75;
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = function(){ resolve(b64); };
+    img.src = b64;
+  });
+}
+function compressAll(photos) {
+  return Promise.all(photos.map(function(p){ return compressPhoto(p); }));
+}
 function uploadPhoto(b64, alertId, i) {
   if (!b64) return Promise.resolve(null);
   return fetch(b64).then(function(r){ return r.blob(); }).then(function(blob){
@@ -754,7 +775,8 @@ function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
       ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:vType,mileage:0}).catch(function(){})
       : Promise.resolve(true);
     saveVeh
-      .then(function(){ return uploadAll(photos,alertId); })
+      .then(function(){ return compressAll(photos); })
+      .then(function(compressed){ return uploadAll(compressed,alertId); })
       .then(function(urls){
         var checksObj = {}; items.forEach(function(c){ checksObj[c.k]=chk[c.k]||"ok"; });
         var mangelObj = {}; items.forEach(function(c){ if(chk[c.k]==="fail") mangelObj[c.k]=c.label; });
@@ -936,7 +958,8 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
       ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:"truck",mileage:0}).catch(function(){})
       : Promise.resolve(true);
     saveVeh
-      .then(function(){ return uploadAll(photos,alertId); })
+      .then(function(){ return compressAll(photos); })
+      .then(function(compressed){ return uploadAll(compressed,alertId); })
       .then(function(urls){
         return sbPost("alerts",{
           id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,

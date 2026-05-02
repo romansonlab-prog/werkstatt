@@ -805,6 +805,27 @@ function SliderScreen({ userName, alerts, onUnlock, onChangeUser }) {
   );
 }
 
+function compressPhoto(b64, maxWidth, quality) {
+  maxWidth = maxWidth || 1200;
+  quality = quality || 0.75;
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = function(){ resolve(b64); };
+    img.src = b64;
+  });
+}
+function compressAll(photos) {
+  return Promise.all(photos.map(function(p){ return compressPhoto(p); }));
+}
 // === PhotoCapture & RemotePhotos ===
 function PhotoCapture({ photos, setPhotos }) {
   var ref = useRef(null);
@@ -813,7 +834,11 @@ function PhotoCapture({ photos, setPhotos }) {
     Promise.all(files.map(function(file) {
       return new Promise(function(resolve) {
         var r = new FileReader();
-        r.onload = function(ev) { resolve({ file:file, base64:ev.target.result }); };
+        r.onload = function(ev) {
+          compressPhoto(ev.target.result).then(function(compressed){
+            resolve({ file:file, base64:compressed });
+          });
+        };
         r.readAsDataURL(file);
       });
     })).then(function(arr) { setPhotos((photos || []).concat(arr)); });

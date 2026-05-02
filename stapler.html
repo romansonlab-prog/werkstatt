@@ -141,6 +141,27 @@ function sbForklift(num) {
   }).then(function(r){ return r.json(); }).then(function(d){ return d && d[0] ? d[0] : null; }).catch(function(){ return null; });
 }
 
+function compressPhoto(b64, maxWidth, quality) {
+  maxWidth = maxWidth || 1200;
+  quality = quality || 0.75;
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = function(){ resolve(b64); };
+    img.src = b64;
+  });
+}
+function compressAll(photos) {
+  return Promise.all(photos.map(function(p){ return compressPhoto(p); }));
+}
 function uploadPhoto(b64, alertId, i) {
   if (!b64) return Promise.resolve(null);
   return fetch(b64).then(function(r){ return r.blob(); }).then(function(blob){
@@ -488,7 +509,7 @@ function ReportForm({ user, onSent }) {
     var locPreset = LOCS.find(function(l){ return l.id === loc; });
     var locFinal = locPreset ? locPreset.name : locV;
     var plate = fk ? (fk.nummer || fk.plate || fk.id || "") : "";
-    uploadAll(ph, id).then(function(photoUrls){
+    compressAll(ph).then(function(compressed){ return uploadAll(compressed, id); }).then(function(photoUrls){
       return sbPost("alerts", {
         id:id, type: urg === "urgent" ? "breakdown" : "other",
         plate:plate, location:locFinal, description:dsc,
