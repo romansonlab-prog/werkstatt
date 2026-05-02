@@ -496,7 +496,7 @@ const PARTS_TYPES = [
   { k:"shop",   label:"Aus dem\nLaden",icon:"🛒" }
 ];
 
-function todayIso() { return new Date().toISOString().slice(0,10); }
+function todayIso() { return new Date().toLocaleDateString("sv-SE"); }
 function timeHM(x) {
   try { return new Date(x).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); }
   catch(e) { return ""; }
@@ -592,13 +592,31 @@ function sbUploadPhoto(path, file) {
   }).catch(function() { return null; });
 }
 
+function dataUrlToBlob(dataUrl) {
+  // Превращает "data:image/jpeg;base64,..." в Blob для отправки.
+  try {
+    var parts = dataUrl.split(",");
+    var meta = parts[0] || "";
+    var b64 = parts[1] || "";
+    var mime = (meta.match(/data:([^;]+)/) || [])[1] || "image/jpeg";
+    var bin = atob(b64);
+    var len = bin.length;
+    var bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  } catch(e) { return null; }
+}
+
 function uploadAllPhotos(jobId, photos) {
   if (!photos || !photos.length) return Promise.resolve([]);
   var promises = photos.map(function(p, i) {
-    if (!p.file) return Promise.resolve(null);
-    var ext = (p.file.name || "photo.jpg").split(".").pop() || "jpg";
-    var path = "jobs/" + jobId + "/" + Date.now() + "_" + i + "." + ext;
-    return sbUploadPhoto(path, p.file);
+    // Берём сжатую версию (compressPhoto уже сделал её при выборе файла).
+    // Это в разы уменьшает объём загрузки и место в Storage.
+    var blob = p.base64 ? dataUrlToBlob(p.base64) : null;
+    if (!blob && p.file) blob = p.file; // fallback на оригинал, если что-то пошло не так
+    if (!blob) return Promise.resolve(null);
+    var path = "jobs/" + jobId + "/" + Date.now() + "_" + i + ".jpg";
+    return sbUploadPhoto(path, blob);
   });
   return Promise.all(promises).then(function(urls) { return urls.filter(Boolean); });
 }
@@ -2187,33 +2205,69 @@ function AppShell({ user, onLogout }) {
     });
   }
 
-  // Realtime подписка на alerts
+  // Realtime подписка на alerts (с heartbeat и переподключением)
   useEffect(function() {
     loadAll();
-    // Supabase Realtime через WebSocket
-    try {
-      var wsUrl = SB_URL.replace("https://","wss://") + "/realtime/v1/websocket?apikey=" + SB_KEY + "&vsn=1.0.0";
-      var ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-      ws.onopen = function() {
-        ws.send(JSON.stringify({ topic:"realtime:public:alerts", event:"phx_join", payload:{}, ref:"1" }));
-      };
-      ws.onmessage = function(e) {
-        try {
-          var msg = JSON.parse(e.data);
-          if (msg.event === "INSERT" || msg.event === "UPDATE") {
-            playAlertSound();
-            loadAll();
-          }
-        } catch(err) {}
-      };
-      ws.onerror = function() {};
-    } catch(e) {}
 
-    // Fallback: polling каждые 30 сек
+    var hbTimer = null;     // интервал отправки heartbeat
+    var reconnectTimer = null;
+    var refCounter = 1;
+    var stopped = false;    // флаг чтобы при unmount не пытаться переподключиться
+
+    function connect() {
+      if (stopped) return;
+      try {
+        var wsUrl = SB_URL.replace("https://","wss://") + "/realtime/v1/websocket?apikey=" + SB_KEY + "&vsn=1.0.0";
+        var ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = function() {
+          // Подписываемся на канал alerts
+          ws.send(JSON.stringify({ topic:"realtime:public:alerts", event:"phx_join", payload:{}, ref:String(refCounter++) }));
+          // Heartbeat каждые 25 сек — Supabase закрывает соединения через ~30 сек тишины.
+          if (hbTimer) clearInterval(hbTimer);
+          hbTimer = setInterval(function(){
+            try {
+              if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ topic:"phoenix", event:"heartbeat", payload:{}, ref:String(refCounter++) }));
+              }
+            } catch(e) {}
+          }, 25000);
+        };
+
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.event === "INSERT" || msg.event === "UPDATE") {
+              playAlertSound();
+              loadAll();
+            }
+          } catch(err) {}
+        };
+
+        ws.onerror = function() {};
+
+        ws.onclose = function() {
+          if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+          // Автоматическое переподключение через 3 сек, если компонент ещё жив.
+          if (!stopped) {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(connect, 3000);
+          }
+        };
+      } catch(e) {}
+    }
+
+    connect();
+
+    // Fallback: polling каждые 30 сек на случай если WS совсем не работает
     var poll = setInterval(function() { loadAll(); }, 30000);
+
     return function() {
+      stopped = true;
       clearInterval(poll);
+      if (hbTimer) clearInterval(hbTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       try { if (wsRef.current) wsRef.current.close(); } catch(e) {}
     };
   }, []);
@@ -2383,7 +2437,47 @@ function App() {
   return null;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+// === ErrorBoundary — ловит падения React-компонентов и показывает экран вместо белого экрана ===
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMsg: "" };
+  }
+  static getDerivedStateFromError(err) {
+    return { hasError: true, errorMsg: (err && err.message) ? err.message : String(err) };
+  }
+  componentDidCatch(err, info) {
+    console.error("App crash:", err, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement("div", {
+        style: {
+          minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
+          background:"#0a0a0a", color:"#fff", padding:24, fontFamily:"system-ui,sans-serif"
+        }
+      },
+        React.createElement("div", { style:{ maxWidth:400, textAlign:"center" } },
+          React.createElement("div", { style:{ fontSize:48, marginBottom:16 } }, "⚠️"),
+          React.createElement("div", { style:{ fontSize:20, fontWeight:700, marginBottom:8 } }, "Etwas ist schiefgelaufen"),
+          React.createElement("div", { style:{ fontSize:13, color:"rgba(255,255,255,0.6)", marginBottom:20, wordBreak:"break-word" } }, this.state.errorMsg),
+          React.createElement("button", {
+            onClick: function(){ window.location.reload(); },
+            style: {
+              background:"#ffa500", color:"#000", border:"none", padding:"12px 24px",
+              borderRadius:10, fontWeight:800, fontSize:14, cursor:"pointer"
+            }
+          }, "🔄 App neu laden")
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  React.createElement(ErrorBoundary, null, React.createElement(App))
+);
 </script>
 </body>
 </html>

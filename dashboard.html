@@ -587,8 +587,8 @@ function PinLogin({ onLogin }) {
 // === ÜBERSICHT ===
 function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections }) {
   var today = todayIso();
-  var yesterday = (function(){ var d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
-  var thirtyAgo = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  var yesterday = (function(){ var d=new Date(); d.setDate(d.getDate()-1); return d.toLocaleDateString("sv-SE"); })();
+  var thirtyAgo = (function(){ var d=new Date(); d.setDate(d.getDate()-30); return d.toLocaleDateString("sv-SE"); })();
 
   var todayJobs = jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) === today; });
   var yesterJobs = jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) === yesterday; });
@@ -618,7 +618,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
   var last30 = [];
   for (var i=29; i>=0; i--) {
     var d=new Date(); d.setDate(d.getDate()-i);
-    var iso=d.toISOString().slice(0,10);
+    var iso=d.toLocaleDateString("sv-SE");
     var cnt=jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10))===iso; }).length;
     last30.push({ iso:iso, label: i%5===0||i===0 ? d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}) : "", count:cnt });
   }
@@ -1039,7 +1039,7 @@ function Eingang({ alerts, onRefresh, loading }) {
               groups.sort(function(a,b){ return b > a ? 1 : -1; });
 
               var today = todayIso();
-              var yesterday = (function(){ var d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
+              var yesterday = (function(){ var d=new Date(); d.setDate(d.getDate()-1); return d.toLocaleDateString("sv-SE"); })();
 
               function dayLabel(iso){
                 if (iso === today) return "Heute — " + iso.split("-").reverse().join(".");
@@ -1948,9 +1948,9 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
 
   function periodStart() {
     var d = new Date();
-    if (period === "month") { d.setDate(1); return d.toISOString().slice(0,10); }
-    if (period === "quarter") { d.setMonth(Math.floor(d.getMonth()/3)*3, 1); return d.toISOString().slice(0,10); }
-    if (period === "year") { d.setMonth(0,1); return d.toISOString().slice(0,10); }
+    if (period === "month") { d.setDate(1); return d.toLocaleDateString("sv-SE"); }
+    if (period === "quarter") { d.setMonth(Math.floor(d.getMonth()/3)*3, 1); return d.toLocaleDateString("sv-SE"); }
+    if (period === "year") { d.setMonth(0,1); return d.toLocaleDateString("sv-SE"); }
     return "";
   }
 
@@ -3305,7 +3305,47 @@ function AppWithModals() {
     React.createElement(ExportModal)
   );
 }
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(AppWithModals));
+// === ErrorBoundary — ловит падения React-компонентов и показывает экран вместо белого экрана ===
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMsg: "" };
+  }
+  static getDerivedStateFromError(err) {
+    return { hasError: true, errorMsg: (err && err.message) ? err.message : String(err) };
+  }
+  componentDidCatch(err, info) {
+    console.error("App crash:", err, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement("div", {
+        style: {
+          minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
+          background:"#0a0a0a", color:"#fff", padding:24, fontFamily:"system-ui,sans-serif"
+        }
+      },
+        React.createElement("div", { style:{ maxWidth:400, textAlign:"center" } },
+          React.createElement("div", { style:{ fontSize:48, marginBottom:16 } }, "⚠️"),
+          React.createElement("div", { style:{ fontSize:20, fontWeight:700, marginBottom:8 } }, "Etwas ist schiefgelaufen"),
+          React.createElement("div", { style:{ fontSize:13, color:"rgba(255,255,255,0.6)", marginBottom:20, wordBreak:"break-word" } }, this.state.errorMsg),
+          React.createElement("button", {
+            onClick: function(){ window.location.reload(); },
+            style: {
+              background:"#ffa500", color:"#000", border:"none", padding:"12px 24px",
+              borderRadius:10, fontWeight:800, fontSize:14, cursor:"pointer"
+            }
+          }, "🔄 App neu laden")
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  React.createElement(ErrorBoundary, null, React.createElement(AppWithModals))
+);
 </script>
 </body>
 </html>

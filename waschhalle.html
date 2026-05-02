@@ -151,7 +151,7 @@ const VEH_TYPES = [
   { k:"other",         l:"Sonstiges" },
 ];
 
-function todayIso() { return new Date().toISOString().slice(0,10); }
+function todayIso() { return new Date().toLocaleDateString("sv-SE"); }
 function fmtTime(d) { try { return new Date(d).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); } catch(e){ return ""; } }
 function fmtMin(m) { m=parseInt(m||0)||0; if(!m) return "0 min"; var h=Math.floor(m/60),mm=m%60; return h?h+"h "+mm+"min":mm+" min"; }
 
@@ -603,7 +603,47 @@ function App() {
   return null;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+// === ErrorBoundary — ловит падения React-компонентов и показывает экран вместо белого экрана ===
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMsg: "" };
+  }
+  static getDerivedStateFromError(err) {
+    return { hasError: true, errorMsg: (err && err.message) ? err.message : String(err) };
+  }
+  componentDidCatch(err, info) {
+    console.error("App crash:", err, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement("div", {
+        style: {
+          minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
+          background:"#0a0a0a", color:"#fff", padding:24, fontFamily:"system-ui,sans-serif"
+        }
+      },
+        React.createElement("div", { style:{ maxWidth:400, textAlign:"center" } },
+          React.createElement("div", { style:{ fontSize:48, marginBottom:16 } }, "⚠️"),
+          React.createElement("div", { style:{ fontSize:20, fontWeight:700, marginBottom:8 } }, "Etwas ist schiefgelaufen"),
+          React.createElement("div", { style:{ fontSize:13, color:"rgba(255,255,255,0.6)", marginBottom:20, wordBreak:"break-word" } }, this.state.errorMsg),
+          React.createElement("button", {
+            onClick: function(){ window.location.reload(); },
+            style: {
+              background:"#ffa500", color:"#000", border:"none", padding:"12px 24px",
+              borderRadius:10, fontWeight:800, fontSize:14, cursor:"pointer"
+            }
+          }, "🔄 App neu laden")
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  React.createElement(ErrorBoundary, null, React.createElement(App))
+);
 </script>
 </body>
 </html>
