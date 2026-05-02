@@ -746,47 +746,46 @@ function Eingang({ alerts, onRefresh, loading }) {
             })
         }
       </div>
-    </div>
-    {selectedAlert && (
-      <div onClick={function(){ setSelectedAlert(null); }} style={{
-        position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200,
-        display:"flex", alignItems:"center", justifyContent:"center", padding:40
-      }}>
-        <div onClick={function(e){ e.stopPropagation(); }} style={{
-          background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
-          borderRadius:20, padding:36, maxWidth:680, width:"100%",
-          boxShadow:"0 24px 60px rgba(0,0,0,0.6)"
+      {selectedAlert && (
+        <div onClick={function(){ setSelectedAlert(null); }} style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200,
+          display:"flex", alignItems:"center", justifyContent:"center", padding:40
         }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-            {urgBadge(selectedAlert.urgency)}
-            <span style={{ fontSize:26, fontWeight:900, letterSpacing:2, fontFamily:"monospace" }}>
-              {selectedAlert.plate||"—"}
-            </span>
-            <span style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginLeft:"auto" }}>
-              {fmtDateTime(selectedAlert.created_at)} · {selectedAlert.sender||""}
-            </span>
-          </div>
-          <div style={{ fontSize:22, fontWeight:600, color:"#fff", lineHeight:1.6, marginBottom:16 }}>
-            {translations[selectedAlert.id] || selectedAlert.description || "—"}
-          </div>
-          {translations[selectedAlert.id] && translations[selectedAlert.id] !== selectedAlert.description && (
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontStyle:"italic", marginBottom:20, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-              Original: {selectedAlert.description}
+          <div onClick={function(e){ e.stopPropagation(); }} style={{
+            background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
+            borderRadius:20, padding:36, maxWidth:680, width:"100%",
+            boxShadow:"0 24px 60px rgba(0,0,0,0.6)"
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+              {urgBadge(selectedAlert.urgency)}
+              <span style={{ fontSize:26, fontWeight:900, letterSpacing:2, fontFamily:"monospace" }}>
+                {selectedAlert.plate||"—"}
+              </span>
+              <span style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginLeft:"auto" }}>
+                {fmtDateTime(selectedAlert.created_at)} · {selectedAlert.sender||""}
+              </span>
             </div>
-          )}
-          {selectedAlert.location && (
-            <div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>
-              📍 {selectedAlert.location}
+            <div style={{ fontSize:22, fontWeight:600, color:"#fff", lineHeight:1.6, marginBottom:16 }}>
+              {translations[selectedAlert.id] || selectedAlert.description || "—"}
             </div>
-          )}
-          <button onClick={function(){ setSelectedAlert(null); }} style={{
-            fontSize:15, padding:"10px 32px", borderRadius:10, fontWeight:700,
-            background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
-            color:"#fff", cursor:"pointer"
-          }}>Schließen</button>
+            {translations[selectedAlert.id] && translations[selectedAlert.id] !== selectedAlert.description && (
+              <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontStyle:"italic", marginBottom:20, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+                Original: {selectedAlert.description}
+              </div>
+            )}
+            {selectedAlert.location && (
+              <div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>
+                📍 {selectedAlert.location}
+              </div>
+            )}
+            <button onClick={function(){ setSelectedAlert(null); }} style={{
+              fontSize:15, padding:"10px 32px", borderRadius:10, fontWeight:700,
+              background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
+              color:"#fff", cursor:"pointer"
+            }}>Schließen</button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 }
