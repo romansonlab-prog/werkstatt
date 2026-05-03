@@ -301,6 +301,38 @@ function sbUpsert(table, body) {
   }).then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
 }
 
+// Универсальный PATCH по любому ключу (нужен для app_settings, где ключ называется 'key', а не 'id')
+function sbPatchBy(table, keyCol, keyVal, body) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?" + keyCol + "=eq." + encodeURIComponent(keyVal), {
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
+    body:JSON.stringify(body)
+  }).then(function(r){ return r.ok; }).catch(function(){ return false; });
+}
+
+// Генератор случайного 4-значного PIN
+function genPin4() {
+  var p = "";
+  for (var i = 0; i < 4; i++) p += String(Math.floor(Math.random()*10));
+  return p;
+}
+
+// Список доступных ролей
+var ROLE_OPTS = [
+  { k:"chef",       l:"Chef (Geschäftsführer)" },
+  { k:"fpl",        l:"Fuhrparkleiter" },
+  { k:"mechaniker", l:"Mechaniker" },
+  { k:"stapler",    l:"Staplerfahrer" },
+  { k:"wascher",    l:"Wascher (Waschhalle)" },
+  { k:"fahrer",     l:"Fahrer" },
+  { k:"it",         l:"IT / Admin" },
+];
+
+function roleLabel(k) {
+  var r = ROLE_OPTS.find(function(o){ return o.k === k; });
+  return r ? r.l : (k || "—");
+}
+
 // === PRINT / EXPORT ===
 // Глобальное состояние для экспорта
 var _exportModal = { html:"", title:"", show:false, listeners:[] };
@@ -2572,16 +2604,39 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
   // Stock form
   var _sf = useState({ name:"", unit:"Stk", qty:"0", min_qty:"0", price:"", category:"Sonstiges", serial_nr:"", condition:"new" });
   var sf = _sf[0]; var setSf = _sf[1];
-  var _mf = useState({ id:"", name:"", rate_per_hour:"25" });
-  var mf = _mf[0]; var setMf = _mf[1];
   var _editItem = useState(null); var editItem = _editItem[0]; var setEditItem = _editItem[1];
   var _fSearch = useState(""); var fSearch = _fSearch[0]; var setFSearch = _fSearch[1];
   var _fLoc = useState(""); var fLoc = _fLoc[0]; var setFLoc = _fLoc[1];
 
   var _musers = useState([]); var dbUsers = _musers[0]; var setDbUsers = _musers[1];
+  var _mnied  = useState([]); var dbNiederlassungen = _mnied[0]; var setDbNiederlassungen = _mnied[1];
+  var _mset   = useState([]); var dbSettings = _mset[0]; var setDbSettings = _mset[1];
+
+  // подвкладка Mitarbeiter: 'alle' | 'fahrer' | 'pins'
+  var _mtab = useState("alle"); var mTab = _mtab[0]; var setMTab = _mtab[1];
+
+  // фильтры в подвкладке "Alle"
+  var _fNied = useState("");      var fNied = _fNied[0];     var setFNied = _fNied[1];
+  var _fRole = useState("");      var fRole = _fRole[0];     var setFRole = _fRole[1];
+  var _fAct  = useState("active"); var fAct  = _fAct[0];      var setFAct  = _fAct[1]; // 'all' | 'active' | 'inactive'
+
+  // редактируемый юзер (объект из users или null = новый, undefined = форма скрыта)
+  var _uEdit = useState(undefined); var uEdit = _uEdit[0]; var setUEdit = _uEdit[1];
+
+  function loadUsers() {
+    return sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); return r; });
+  }
+  function loadNiederlassungen() {
+    return sbGet("niederlassungen","select=*&order=name.asc").then(function(r){ setDbNiederlassungen(r||[]); }).catch(function(){ setDbNiederlassungen([]); });
+  }
+  function loadSettings() {
+    return sbGet("app_settings","select=*").then(function(r){ setDbSettings(r||[]); }).catch(function(){ setDbSettings([]); });
+  }
 
   useEffect(function(){
-    sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); });
+    loadUsers();
+    loadNiederlassungen();
+    loadSettings();
   },[]);
 
   function showMsg(m){ setMsg(m); setTimeout(function(){ setMsg(""); }, 3000); }
@@ -2617,12 +2672,151 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
     .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
   }
 
-  function saveMechanic() {
-    if (!mf.id.trim() || !mf.name.trim()) { showMsg("ID und Name sind Pflicht"); return; }
+  // === MITARBEITER: сохранение юзера (новый или редактирование) ===
+  function saveUser(u) {
+    if (!u.name || !u.name.trim()) { showMsg("Name ist Pflicht"); return Promise.reject("noname"); }
+    if (!u.role) { showMsg("Rolle ist Pflicht"); return Promise.reject("norole"); }
+    if (!u.niederlassung_id) { showMsg("Niederlassung ist Pflicht"); return Promise.reject("nonied"); }
+
+    // Валидация PIN: пустой допустим (юзер не сможет логиниться), но если задан — должен быть 4 цифры
+    var pin = (u.pin||"").trim();
+    if (pin && !/^\d{4}$/.test(pin)) { showMsg("PIN muss 4 Ziffern sein"); return Promise.reject("badpin"); }
+
+    // Проверка уникальности PIN в пересекающемся app_access
+    if (pin) {
+      var apps = u.app_access || [];
+      var conflict = dbUsers.find(function(other){
+        if (!other.active) return false;
+        if (other.id === u.id) return false; // редактируем того же
+        if ((other.pin||"") !== pin) return false;
+        var oa = other.app_access || [];
+        return apps.some(function(a){ return oa.indexOf(a) !== -1; });
+      });
+      if (conflict) {
+        showMsg("PIN bereits vergeben an: " + conflict.name);
+        return Promise.reject("pinconflict");
+      }
+    }
+
+    var id = u.id;
+    if (!id) {
+      // Новый юзер — id из имени, в lowercase, без пробелов; если занят — добавляем число
+      var base = u.name.trim().toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9\-]/g,"");
+      if (!base) base = "user";
+      id = base;
+      var n = 1;
+      while (dbUsers.find(function(x){ return x.id === id; })) {
+        n++; id = base + "-" + n;
+      }
+    }
+
+    var avatar = (u.avatar||"").trim();
+    if (!avatar) {
+      avatar = u.name.trim().split(/\s+/).map(function(w){ return (w[0]||"").toUpperCase(); }).join("").slice(0,2);
+    }
+
+    var payload = {
+      id: id,
+      name: u.name.trim(),
+      avatar: avatar,
+      role: u.role,
+      niederlassung_id: u.niederlassung_id,
+      home_niederlassung_id: u.niederlassung_id,
+      scope_level: u.scope_level || (u.role === "chef" || u.role === "fpl" ? "tenant" : "niederlassung"),
+      pin: pin || null,
+      app_access: u.app_access || [],
+      active: u.active !== false,
+      rate_per_hour: u.rate_per_hour ? (parseFloat(u.rate_per_hour)||null) : null,
+      notes: (u.notes||"").trim() || null,
+      tenant_id: "ltg"
+    };
+
     setSaving(true);
-    sbUpsert("users", { id:mf.id.trim().toLowerCase(), name:mf.name.trim(), avatar:mf.name.trim().split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(), rate_per_hour:parseFloat(mf.rate_per_hour||"25")||25 })
-    .then(function(){ setSaving(false); showMsg("✅ Mechaniker gespeichert"); setMf({ id:"", name:"", rate_per_hour:"25" }); sbGet("users","select=*&order=name.asc").then(function(r){ setDbUsers(r); }); })
-    .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+    return sbUpsert("users", payload)
+      .then(function(){ setSaving(false); showMsg("✅ Mitarbeiter gespeichert"); setUEdit(undefined); return loadUsers(); })
+      .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); throw e; });
+  }
+
+  // Защита от lockout: проверяем, что после деактивации останется минимум один активный 'dashboard'-юзер
+  function canDeactivate(u) {
+    var apps = u.app_access || [];
+    if (apps.indexOf("dashboard") === -1) return true;
+    var remainingDashUsers = dbUsers.filter(function(x){
+      if (x.id === u.id) return false;
+      if (!x.active) return false;
+      return (x.app_access||[]).indexOf("dashboard") !== -1;
+    });
+    return remainingDashUsers.length > 0;
+  }
+
+  function toggleActive(u) {
+    if (u.active && !canDeactivate(u)) {
+      showMsg("Letzter aktiver Dashboard-Benutzer — kann nicht deaktiviert werden");
+      return;
+    }
+    var msg = u.active
+      ? ("Mitarbeiter \"" + u.name + "\" deaktivieren? Login wird gesperrt, Historie bleibt erhalten.")
+      : ("Mitarbeiter \"" + u.name + "\" wieder aktivieren?");
+    if (!window.confirm(msg)) return;
+    sbPatch("users", u.id, { active: !u.active }).then(function(ok){
+      if (ok) { showMsg(u.active ? "✅ Deaktiviert" : "✅ Aktiviert"); loadUsers(); }
+      else { showMsg("Fehler beim Speichern"); }
+    });
+  }
+
+  function resetPin(u) {
+    var newPin = window.prompt("Neuer PIN für \"" + u.name + "\" (4 Ziffern, leer = generieren):", "");
+    if (newPin === null) return;
+    newPin = (newPin||"").trim();
+    if (!newPin) newPin = genPin4();
+    if (!/^\d{4}$/.test(newPin)) { showMsg("PIN muss 4 Ziffern sein"); return; }
+
+    // Проверка коллизий
+    var apps = u.app_access || [];
+    var conflict = dbUsers.find(function(other){
+      if (!other.active) return false;
+      if (other.id === u.id) return false;
+      if ((other.pin||"") !== newPin) return false;
+      var oa = other.app_access || [];
+      return apps.some(function(a){ return oa.indexOf(a) !== -1; });
+    });
+    if (conflict) { showMsg("PIN bereits vergeben an: " + conflict.name); return; }
+
+    sbPatch("users", u.id, { pin: newPin }).then(function(ok){
+      if (ok) {
+        showMsg("✅ Neuer PIN: " + newPin);
+        window.alert("Neuer PIN für " + u.name + ":\n\n    " + newPin + "\n\nBitte mitteilen!");
+        loadUsers();
+      } else { showMsg("Fehler beim Speichern"); }
+    });
+  }
+
+  // Запись настройки (driver_shared_pin / *_fallback_pin)
+  function settingValue(k) {
+    var s = (dbSettings||[]).find(function(x){ return x.key === k; });
+    return s ? (s.value||"") : "";
+  }
+  function settingUpdated(k) {
+    var s = (dbSettings||[]).find(function(x){ return x.key === k; });
+    return s ? (s.updated_at || s.created_at || null) : null;
+  }
+  function saveSetting(k, v) {
+    if (!/^\d{4}$/.test(v)) { showMsg("PIN muss 4 Ziffern sein"); return; }
+    setSaving(true);
+    var existing = (dbSettings||[]).find(function(x){ return x.key === k; });
+    if (existing) {
+      sbPatchBy("app_settings", "key", k, { value: v, updated_at: new Date().toISOString() })
+        .then(function(ok){
+          setSaving(false);
+          if (ok) { showMsg("✅ Gespeichert"); loadSettings(); }
+          else { showMsg("Fehler beim Speichern"); }
+        });
+    } else {
+      // Записи нет — создаём
+      sbUpsert("app_settings", { key: k, value: v, updated_at: new Date().toISOString() })
+        .then(function(){ setSaving(false); showMsg("✅ Gespeichert"); loadSettings(); })
+        .catch(function(e){ setSaving(false); showMsg("Fehler: " + (e.message||e)); });
+    }
   }
 
   function deleteItem(table, id) {
@@ -2636,7 +2830,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
     { k:"vehicles",   label:"🚛 Fahrzeuge" },
     { k:"forklifts",  label:"🏗 Stapler" },
     { k:"stock",      label:"📦 Lager" },
-    { k:"mechanics",  label:"👷 Mechaniker" },
+    { k:"users",      label:"👥 Mitarbeiter" },
   ];
 
   var VEH_TYPE_OPTS = [
@@ -2938,53 +3132,339 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
         </div>
       )}
 
-      {/* MECHANIKER */}
-      {tab === "mechanics" && (
+      {/* MITARBEITER */}
+      {tab === "users" && (
         <div>
-          <div className="panel" style={{ marginBottom:16 }}>
-            <div className="panel-hd"><div className="panel-title">Mechaniker hinzufügen</div></div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-              <div>
-                <div className="label-cap">ID (eindeutig) *</div>
-                <input className="inp" style={{ width:"100%" }} value={mf.id} placeholder="roman, petr..." onChange={function(e){ setMf(Object.assign({},mf,{id:e.target.value})); }} />
-              </div>
-              <div>
-                <div className="label-cap">Name *</div>
-                <input className="inp" style={{ width:"100%" }} value={mf.name} placeholder="Roman Anokhin" onChange={function(e){ setMf(Object.assign({},mf,{name:e.target.value})); }} />
-              </div>
-              <div>
-                <div className="label-cap">Stundensatz (€)</div>
-                <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={mf.rate_per_hour} placeholder="25" onChange={function(e){ setMf(Object.assign({},mf,{rate_per_hour:e.target.value})); }} />
-              </div>
-            </div>
-            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveMechanic}>
-              {saving ? "..." : "+ Mechaniker speichern"}
-            </button>
+          {/* Sub-tabs */}
+          <div style={{ display:"flex", gap:6, marginBottom:16, padding:4, background:"rgba(255,255,255,0.04)", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)" }}>
+            {[
+              { k:"alle",   l:"👥 Alle Mitarbeiter" },
+              { k:"fahrer", l:"🚚 Fahrer" },
+              { k:"pins",   l:"🔑 Allgemeine PINs" }
+            ].map(function(t){
+              return (
+                <button key={t.k} onClick={function(){ setMTab(t.k); }}
+                  style={{
+                    flex:1, padding:"10px 14px", borderRadius:8, border:0, fontSize:13, fontWeight:700, cursor:"pointer",
+                    background: mTab === t.k ? "#ffa500" : "transparent",
+                    color: mTab === t.k ? "#000" : "rgba(255,255,255,0.6)"
+                  }}>
+                  {t.l}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="panel">
-            <div className="panel-hd"><div className="panel-title">Mechaniker ({dbUsers.length})</div></div>
-            {dbUsers.length === 0
-              ? <div className="empty">Noch keine Mechaniker</div>
-              : <table className="tbl">
-                  <thead><tr><th>ID</th><th>Name</th><th>Stundensatz</th><th></th></tr></thead>
-                  <tbody>
-                    {dbUsers.map(function(u){
-                      return (
-                        <tr key={u.id}>
-                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:"monospace" }}>{u.id}</td>
-                          <td><strong>{u.name}</strong></td>
-                          <td style={{ color:"#ffa500", fontWeight:700 }}>{u.rate_per_hour||25} €/h</td>
-                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("users",u.id); }}>✕</button></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-            }
-          </div>
+          {/* === ALLE === */}
+          {mTab === "alle" && (
+            <div>
+              {/* Filter + Neuer Mitarbeiter */}
+              <div className="panel" style={{ marginBottom:16 }}>
+                <div style={{ display:"flex", gap:10, alignItems:"flex-end", flexWrap:"wrap" }}>
+                  <div style={{ flex:"1 1 180px", minWidth:140 }}>
+                    <div className="label-cap">Niederlassung</div>
+                    <select className="inp" style={{ width:"100%" }} value={fNied} onChange={function(e){ setFNied(e.target.value); }}>
+                      <option value="">Alle Niederlassungen</option>
+                      {dbNiederlassungen.map(function(n){ return <option key={n.id} value={n.id}>{n.name}</option>; })}
+                    </select>
+                  </div>
+                  <div style={{ flex:"1 1 160px", minWidth:140 }}>
+                    <div className="label-cap">Rolle</div>
+                    <select className="inp" style={{ width:"100%" }} value={fRole} onChange={function(e){ setFRole(e.target.value); }}>
+                      <option value="">Alle Rollen</option>
+                      {ROLE_OPTS.map(function(r){ return <option key={r.k} value={r.k}>{r.l}</option>; })}
+                    </select>
+                  </div>
+                  <div style={{ flex:"1 1 140px", minWidth:140 }}>
+                    <div className="label-cap">Status</div>
+                    <select className="inp" style={{ width:"100%" }} value={fAct} onChange={function(e){ setFAct(e.target.value); }}>
+                      <option value="active">Nur aktive</option>
+                      <option value="inactive">Nur inaktive</option>
+                      <option value="all">Alle</option>
+                    </select>
+                  </div>
+                  <button className="btn-primary" onClick={function(){
+                    setUEdit({ name:"", avatar:"", role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung", pin:"", app_access:["werkstatt"], active:true, rate_per_hour:"25", notes:"" });
+                  }}>+ Neuer Mitarbeiter</button>
+                </div>
+              </div>
+
+              {/* Edit form */}
+              {uEdit !== undefined && (
+                <div className="panel" style={{ marginBottom:16, border:"1px solid rgba(255,165,0,0.4)" }}>
+                  <div className="panel-hd">
+                    <div className="panel-title">{uEdit.id ? ("Bearbeiten: " + uEdit.name) : "Neuer Mitarbeiter"}</div>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                    <div>
+                      <div className="label-cap">Name *</div>
+                      <input className="inp" style={{ width:"100%" }} value={uEdit.name||""} placeholder="Roman Anokhin"
+                        onChange={function(e){ setUEdit(Object.assign({},uEdit,{name:e.target.value})); }} />
+                    </div>
+                    <div>
+                      <div className="label-cap">Avatar (2 Buchstaben, leer = auto)</div>
+                      <input className="inp" style={{ width:"100%" }} maxLength={2} value={uEdit.avatar||""} placeholder="RA"
+                        onChange={function(e){ setUEdit(Object.assign({},uEdit,{avatar:e.target.value.toUpperCase()})); }} />
+                    </div>
+                    <div>
+                      <div className="label-cap">Rolle *</div>
+                      <select className="inp" style={{ width:"100%" }} value={uEdit.role||""}
+                        onChange={function(e){
+                          var nr = e.target.value;
+                          var newScope = (nr === "chef" || nr === "fpl") ? "tenant" : "niederlassung";
+                          // авто-предложение app_access по роли
+                          var defaultApps = {
+                            chef:["dashboard"], fpl:["dashboard"], it:["dashboard","werkstatt","stapler","waschhalle"],
+                            mechaniker:["werkstatt"], stapler:["stapler"], wascher:["waschhalle"], fahrer:[]
+                          };
+                          var apps = defaultApps[nr] || [];
+                          setUEdit(Object.assign({},uEdit,{ role:nr, scope_level:newScope, app_access:apps }));
+                        }}>
+                        <option value="">— wählen —</option>
+                        {ROLE_OPTS.map(function(r){ return <option key={r.k} value={r.k}>{r.l}</option>; })}
+                      </select>
+                    </div>
+                    <div>
+                      <div className="label-cap">Niederlassung *</div>
+                      <select className="inp" style={{ width:"100%" }} value={uEdit.niederlassung_id||""}
+                        onChange={function(e){ setUEdit(Object.assign({},uEdit,{niederlassung_id:e.target.value})); }}>
+                        <option value="">— wählen —</option>
+                        {dbNiederlassungen.map(function(n){ return <option key={n.id} value={n.id}>{n.name}</option>; })}
+                      </select>
+                    </div>
+                    <div>
+                      <div className="label-cap">Scope</div>
+                      <select className="inp" style={{ width:"100%" }} value={uEdit.scope_level||"niederlassung"}
+                        onChange={function(e){ setUEdit(Object.assign({},uEdit,{scope_level:e.target.value})); }}>
+                        <option value="tenant">Tenant (alle Niederlassungen)</option>
+                        <option value="niederlassung">Niederlassung</option>
+                        <option value="standort">Standort</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div className="label-cap">PIN (4 Ziffern, leer = kein Login)</div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <input className="inp" style={{ flex:1 }} maxLength={4} inputMode="numeric" value={uEdit.pin||""} placeholder="leer lassen"
+                          onChange={function(e){ setUEdit(Object.assign({},uEdit,{pin:e.target.value.replace(/\D/g,"")})); }} />
+                        <button className="btn-secondary btn-small" onClick={function(){ setUEdit(Object.assign({},uEdit,{pin:genPin4()})); }}>🎲 Gen</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom:10 }}>
+                    <div className="label-cap">App-Zugriff</div>
+                    <div style={{ display:"flex", gap:14, flexWrap:"wrap", padding:"8px 0" }}>
+                      {[
+                        { k:"dashboard",  l:"📊 Dashboard" },
+                        { k:"werkstatt",  l:"🔧 Werkstatt" },
+                        { k:"stapler",    l:"🏗 Stapler" },
+                        { k:"waschhalle", l:"🚿 Waschhalle" }
+                      ].map(function(a){
+                        var checked = (uEdit.app_access||[]).indexOf(a.k) !== -1;
+                        return (
+                          <label key={a.k} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, cursor:"pointer", padding:"6px 12px", border:"1px solid " + (checked ? "rgba(255,165,0,0.5)" : "rgba(255,255,255,0.12)"), borderRadius:8, background: checked ? "rgba(255,165,0,0.1)" : "transparent" }}>
+                            <input type="checkbox" checked={checked} onChange={function(){
+                              var cur = (uEdit.app_access||[]).slice();
+                              var idx = cur.indexOf(a.k);
+                              if (idx === -1) cur.push(a.k); else cur.splice(idx,1);
+                              setUEdit(Object.assign({},uEdit,{app_access:cur}));
+                            }} />
+                            <span>{a.l}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>
+                      Hinweis: Fahrer-App nutzt einen gemeinsamen PIN — separate Verwaltung in Tab "Fahrer".
+                    </div>
+                  </div>
+
+                  {uEdit.role === "mechaniker" && (
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 2fr", gap:10, marginBottom:10 }}>
+                      <div>
+                        <div className="label-cap">Stundensatz (€)</div>
+                        <input className="inp" style={{ width:"100%" }} inputMode="decimal" value={uEdit.rate_per_hour||""} placeholder="25"
+                          onChange={function(e){ setUEdit(Object.assign({},uEdit,{rate_per_hour:e.target.value})); }} />
+                      </div>
+                      <div>
+                        <div className="label-cap">Notizen</div>
+                        <input className="inp" style={{ width:"100%" }} value={uEdit.notes||""}
+                          onChange={function(e){ setUEdit(Object.assign({},uEdit,{notes:e.target.value})); }} />
+                      </div>
+                    </div>
+                  )}
+                  {uEdit.role !== "mechaniker" && (
+                    <div style={{ marginBottom:10 }}>
+                      <div className="label-cap">Notizen</div>
+                      <input className="inp" style={{ width:"100%" }} value={uEdit.notes||""}
+                        onChange={function(e){ setUEdit(Object.assign({},uEdit,{notes:e.target.value})); }} />
+                    </div>
+                  )}
+
+                  <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, cursor:"pointer" }}>
+                    <input type="checkbox" checked={uEdit.active !== false}
+                      onChange={function(e){ setUEdit(Object.assign({},uEdit,{active:e.target.checked})); }} />
+                    <span style={{ fontSize:13, fontWeight:700 }}>Aktiv (kann sich anmelden)</span>
+                  </label>
+
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button className="btn-primary" disabled={saving} onClick={function(){ saveUser(uEdit).catch(function(){}); }}>
+                      {saving ? "..." : "💾 Speichern"}
+                    </button>
+                    <button className="btn-secondary" onClick={function(){ setUEdit(undefined); }}>Abbrechen</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Liste */}
+              <div className="panel">
+                <div className="panel-hd"><div className="panel-title">Mitarbeiter ({(function(){
+                  return dbUsers.filter(function(u){
+                    if (u.role === "fahrer") return false;
+                    if (fNied && u.niederlassung_id !== fNied) return false;
+                    if (fRole && u.role !== fRole) return false;
+                    if (fAct === "active" && !u.active) return false;
+                    if (fAct === "inactive" && u.active) return false;
+                    return true;
+                  }).length;
+                })()})</div></div>
+                {(function(){
+                  var filtered = dbUsers.filter(function(u){
+                    if (u.role === "fahrer") return false;
+                    if (fNied && u.niederlassung_id !== fNied) return false;
+                    if (fRole && u.role !== fRole) return false;
+                    if (fAct === "active" && !u.active) return false;
+                    if (fAct === "inactive" && u.active) return false;
+                    return true;
+                  });
+                  if (filtered.length === 0) return <div className="empty">Keine Mitarbeiter gefunden</div>;
+                  return (
+                    <table className="tbl">
+                      <thead><tr><th>Name</th><th>Rolle</th><th>Niederlassung</th><th>App-Zugriff</th><th>PIN</th><th>Letzter Login</th><th></th></tr></thead>
+                      <tbody>
+                        {filtered.map(function(u){
+                          var apps = (u.app_access||[]).join(", ") || "—";
+                          var nied = (dbNiederlassungen.find(function(n){ return n.id === u.niederlassung_id; })||{}).name || u.niederlassung_id || "—";
+                          return (
+                            <tr key={u.id} style={{ opacity: u.active ? 1 : 0.45 }}>
+                              <td>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                  <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:"#ffa500", flexShrink:0 }}>{u.avatar||"??"}</div>
+                                  <div>
+                                    <div style={{ fontWeight:700 }}>{u.name}</div>
+                                    {!u.active && <div style={{ fontSize:10, color:"#ef4444", fontWeight:700 }}>INAKTIV</div>}
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ fontSize:12 }}>{roleLabel(u.role)}</td>
+                              <td style={{ fontSize:12 }}>{nied}</td>
+                              <td style={{ fontSize:11, color:"rgba(255,255,255,0.6)", fontFamily:"monospace" }}>{apps}</td>
+                              <td style={{ fontSize:12, fontFamily:"monospace", color: u.pin ? "#22c55e" : "rgba(255,255,255,0.3)" }}>{u.pin ? "••••" : "🔒 kein PIN"}</td>
+                              <td style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>{u.last_login ? fmtDateTime(u.last_login) : "—"}</td>
+                              <td>
+                                <div style={{ display:"flex", gap:4, justifyContent:"flex-end" }}>
+                                  <button className="btn-secondary btn-small" title="Bearbeiten" onClick={function(){ setUEdit(Object.assign({},u,{rate_per_hour: u.rate_per_hour ? String(u.rate_per_hour) : "" })); }}>✏️</button>
+                                  <button className="btn-secondary btn-small" title="PIN zurücksetzen" onClick={function(){ resetPin(u); }}>🔑</button>
+                                  <button className="btn-secondary btn-small" title={u.active ? "Deaktivieren" : "Aktivieren"} onClick={function(){ toggleActive(u); }}>{u.active ? "🚫" : "✅"}</button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* === FAHRER === */}
+          {mTab === "fahrer" && (
+            <div>
+              <div className="panel">
+                <div className="panel-hd"><div className="panel-title">Fahrer ({(function(){ return dbUsers.filter(function(u){ return u.role === "fahrer"; }).length; })()})</div></div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", padding:"0 0 12px" }}>
+                  Fahrer registrieren sich selbst in der Fahrer-App mit dem gemeinsamen PIN. Hier können sie deaktiviert werden.
+                </div>
+                {(function(){
+                  var fahrer = dbUsers.filter(function(u){ return u.role === "fahrer"; });
+                  if (fahrer.length === 0) return <div className="empty">Noch keine Fahrer registriert</div>;
+                  return (
+                    <table className="tbl">
+                      <thead><tr><th>Name</th><th>Niederlassung</th><th>Letzter Login</th><th>Status</th><th></th></tr></thead>
+                      <tbody>
+                        {fahrer.map(function(u){
+                          var nied = (dbNiederlassungen.find(function(n){ return n.id === u.niederlassung_id; })||{}).name || u.niederlassung_id || "—";
+                          return (
+                            <tr key={u.id} style={{ opacity: u.active ? 1 : 0.45 }}>
+                              <td>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                  <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:"#ffa500" }}>{u.avatar||"??"}</div>
+                                  <strong>{u.name}</strong>
+                                </div>
+                              </td>
+                              <td style={{ fontSize:12 }}>{nied}</td>
+                              <td style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>{u.last_login ? fmtDateTime(u.last_login) : "—"}</td>
+                              <td style={{ fontSize:12, color: u.active ? "#22c55e" : "#ef4444", fontWeight:700 }}>{u.active ? "Aktiv" : "Inaktiv"}</td>
+                              <td><button className="btn-secondary btn-small" onClick={function(){ toggleActive(u); }}>{u.active ? "🚫 Deaktivieren" : "✅ Aktivieren"}</button></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* === ALLGEMEINE PINs === */}
+          {mTab === "pins" && (
+            <div>
+              <div className="panel">
+                <div className="panel-hd"><div className="panel-title">Allgemeine PINs</div></div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", padding:"0 0 16px" }}>
+                  Diese PINs werden als Notlogin verwendet, wenn der persönliche PIN unbekannt ist. Fahrer-App nutzt ausschließlich den gemeinsamen PIN.
+                </div>
+
+                {[
+                  { k:"driver_shared_pin",     l:"🚚 Fahrer-App (gemeinsamer PIN)",    note:"Wird von allen Fahrern verwendet." },
+                  { k:"werkstatt_fallback_pin", l:"🔧 Werkstatt (Fallback)",             note:"Notlogin, falls persönlicher PIN unbekannt." },
+                  { k:"stapler_fallback_pin",   l:"🏗 Stapler (Fallback)",               note:"Notlogin, falls persönlicher PIN unbekannt." },
+                  { k:"waschhalle_fallback_pin", l:"🚿 Waschhalle (Fallback)",            note:"Notlogin, falls persönlicher PIN unbekannt." }
+                ].map(function(s){
+                  return <PinSettingRow key={s.k} setting={s} value={settingValue(s.k)} updated={settingUpdated(s.k)} onSave={saveSetting} saving={saving} />;
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Подкомпонент строки настройки PIN — у каждой свой локальный input state
+function PinSettingRow({ setting, value, updated, onSave, saving }) {
+  var _v = useState(value); var localVal = _v[0]; var setLocalVal = _v[1];
+  useEffect(function(){ setLocalVal(value); }, [value]);
+  var changed = localVal !== value;
+  return (
+    <div style={{ padding:"14px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>{setting.l}</div>
+      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>{setting.note}</div>
+      <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+        <input className="inp" style={{ width:120, fontFamily:"monospace", letterSpacing:4, fontSize:16 }} maxLength={4} inputMode="numeric"
+          value={localVal} onChange={function(e){ setLocalVal(e.target.value.replace(/\D/g,"")); }} />
+        <button className="btn-secondary btn-small" onClick={function(){ setLocalVal(genPin4()); }}>🎲 Gen</button>
+        <button className="btn-primary btn-small" disabled={saving || !changed || !/^\d{4}$/.test(localVal)} onClick={function(){ onSave(setting.k, localVal); }}>
+          {changed ? "💾 Speichern" : "Gespeichert"}
+        </button>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginLeft:"auto" }}>
+          Letzte Änderung: {updated ? fmtDateTime(updated) : "—"}
+        </div>
+      </div>
     </div>
   );
 }
