@@ -671,7 +671,7 @@ function PinScreen({ lang, setLang, onOk, dynPin }) {
 }
 
 // ── SLIDER ────────────────────────────────────────────────────────────────────
-function SliderScreen({ lang, setLang, name, onUnlock }) {
+function SliderScreen({ lang, setLang, name, onUnlock, onChange }) {
   var _x=useState(0); var x=_x[0]; var setX=_x[1];
   var _d=useState(false); var drag=_d[0]; var setDrag=_d[1];
   var ref=useRef(null); var maxR=useRef(0);
@@ -700,7 +700,7 @@ function SliderScreen({ lang, setLang, name, onUnlock }) {
           {name && <div style={{ color:"rgba(255,255,255,0.6)",fontSize:14,marginTop:6 }}>Guten Tag, {name}</div>}
         </div>
         <div style={{ flex:1 }}></div>
-        <div ref={ref} className="slider-track" style={{ marginBottom:30 }}>
+        <div ref={ref} className="slider-track" style={{ marginBottom:14 }}>
           <div className="slider-marks">
             <div className="slider-mark"></div><div className="slider-mark"></div>
             <div className="slider-mark"></div><div className="slider-mark"></div>
@@ -711,6 +711,12 @@ function SliderScreen({ lang, setLang, name, onUnlock }) {
             <div className="slider-grip"><span></span><span></span><span></span></div>
           </div>
         </div>
+        {onChange && (
+          <button onClick={onChange}
+            style={{ background:"transparent",border:0,color:"rgba(255,255,255,0.5)",fontSize:13,fontWeight:700,padding:"10px 16px",marginBottom:18,cursor:"pointer" }}>
+            ← Anderer Fahrer
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1160,7 +1166,12 @@ function App() {
   if(stg==="loading") return <div className="scrn"><Bg /></div>;
   if(stg==="register") return <ErsteAnmeldung lang={lang} setLang={setLang} onNext={function(v,n){ setName(v+" "+n); setStg("pin"); }} />;
   if(stg==="pin") return <PinScreen lang={lang} setLang={setLang} dynPin={dynPin} onOk={function(){ try{ localStorage.setItem(SESS_KEY,name); }catch(e){} registerOrUpdateDriver(name); setStg("menu"); }} />;
-  if(stg==="slider") return <SliderScreen lang={lang} setLang={setLang} name={name} onUnlock={function(){ setStg("menu"); }} />;
+  if(stg==="slider") return <SliderScreen lang={lang} setLang={setLang} name={name}
+    onUnlock={function(){ setStg("menu"); }}
+    onChange={function(){
+      try{ localStorage.removeItem(SESS_KEY); }catch(e){}
+      setName(""); setStg("register");
+    }} />;
   if(scr==="menu") return <MainMenu lang={lang} setLang={setLang} onPick={function(k){ if(k==="lkw") setScr("insp_lkw"); else if(k==="auf") setScr("insp_auf"); else if(k==="bd") setScr("bd"); }} />;
   if(scr==="insp_lkw") return <InspectionScreen kind="lkw" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
   if(scr==="insp_auf") return <InspectionScreen kind="auf" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
