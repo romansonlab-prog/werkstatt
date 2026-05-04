@@ -707,9 +707,22 @@ function ErsteAnmeldung({ onContinue }) {
 
 // === п.1: PIN — только при первой регистрации, потом только слайдер ===
 // п.3: стрелка "назад" → возврат на ErsteAnmeldung
-function PinScreen({ onSuccess, onBack }) {
+function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack, hideBack }) {
   var _s0 = useState(""); var pin = _s0[0]; var setPin = _s0[1];
   var _s1 = useState(false); var err = _s1[0]; var setErr = _s1[1];
+
+  function check(nx){
+    var fb = fallbackPin || APP_PIN;
+    var personal = (users||[]).find(function(u){
+      if (!u.active) return false;
+      if (!u.pin || u.pin !== nx) return false;
+      if (((u.app_access||[]).indexOf("werkstatt")) === -1) return false;
+      return true;
+    });
+    if (personal) return { kind:"personal", user:personal };
+    if (nx === fb) return { kind:"fallback" };
+    return null;
+  }
 
   function press(d) {
     if (pin.length >= 4) return;
@@ -718,7 +731,9 @@ function PinScreen({ onSuccess, onBack }) {
     setPin(next);
     if (next.length === 4) {
       setTimeout(function() {
-        if (next === APP_PIN) { onSuccess(); }
+        var r = check(next);
+        if (r && r.kind === "personal") onPersonal(r.user);
+        else if (r && r.kind === "fallback") onFallback();
         else {
           setErr(true);
           setTimeout(function() { setPin(""); setErr(false); }, 650);
@@ -732,9 +747,8 @@ function PinScreen({ onSuccess, onBack }) {
   return (
     <div className="scrn">
       <Bg />
-      <div style={{ position:"relative", zIndex:2, paddingTop:54 }}>
-        {/* п.3: стрелка назад → на ErsteAnmeldung */}
-        <BackBtn onClick={onBack} />
+      <div style={{ position:"relative", zIndex:2, paddingTop:54, minHeight: hideBack ? 0 : undefined }}>
+        {!hideBack && <BackBtn onClick={onBack} />}
       </div>
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:24 }}>
         <Logo />
@@ -2349,11 +2363,56 @@ function App() {
   var _sname = useState(""); var savedName = _sname[0]; var setSavedName = _sname[1];
   var _suser = useState(null); var user = _suser[0]; var setUser = _suser[1];
   var _salerts = useState([]); var alerts = _salerts[0]; var setAlerts = _salerts[1];
+  var _users = useState([]); var dbUsers = _users[0]; var setDbUsers = _users[1];
+  var _fb = useState(null); var fbPin = _fb[0]; var setFbPin = _fb[1];
+
+  // Логин по персональному PIN — данные из public.users
+  function loginPersonal(u){
+    var sessUser = {
+      id: u.id, name: u.name, avatar: u.avatar || "??",
+      role: u.role, niederlassung_id: u.niederlassung_id, scope_level: u.scope_level,
+      app_access: u.app_access||[], tenant_id: "ltg"
+    };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessUser)); } catch(e) {}
+    fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(u.id), {
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal" },
+      body:JSON.stringify({ last_login: new Date().toISOString() })
+    }).catch(function(){});
+    setSavedName(u.name);
+    setUser(sessUser);
+    setStage("slider");
+  }
+
+  // Fallback PIN — старая логика: ввод имени, попытка распознать по локальному USERS
+  function loginFallback(fullName){
+    var avatar = fullName.split(" ").map(function(w){ return w[0] || ""; }).join("").slice(0,2).toUpperCase() || "WK";
+    var knownUser = USERS.find(function(u){ return fullName.toLowerCase().indexOf(u.id) !== -1; });
+    var u = knownUser
+      ? { id: knownUser.id, name: fullName, avatar: knownUser.avatar||avatar,
+          role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung",
+          app_access:["werkstatt"], tenant_id:"ltg" }
+      : { id:"wk_"+Date.now(), name:fullName, avatar:avatar,
+          role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung",
+          app_access:["werkstatt"], tenant_id:"ltg" };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
+    setSavedName(fullName);
+    setUser(u);
+    setStage("slider");
+  }
 
   useEffect(function() {
     sbSelect("alerts","select=*&order=created_at.desc&limit=30")
       .then(function(a){ setAlerts(a.map(function(x){ return Object.assign({},x,{photo_urls:normalizeUrls(x.photo_urls)}); })); })
       .catch(function(){});
+
+    // Загружаем юзеров и fallback PIN параллельно
+    sbSelect("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
+      setDbUsers(r||[]);
+    }).catch(function(){ setDbUsers([]); });
+    sbSelect("app_settings","key=eq.werkstatt_fallback_pin&select=value").then(function(r){
+      if (r && r.length && r[0].value) setFbPin(r[0].value);
+    }).catch(function(){});
 
     try {
       var saved = localStorage.getItem(SESSION_KEY);
@@ -2362,13 +2421,13 @@ function App() {
         if (u && u.name) {
           setSavedName(u.name);
           setUser(u);
-          // п.1: уже зарегистрирован → сразу слайдер, PIN не показываем
           setStage("slider");
           return;
         }
       }
     } catch(e) {}
-    setStage("register");
+    // Новый поток: PIN ПЕРВЫМ (без ErsteAnmeldung впереди)
+    setStage("pin");
   }, []);
 
   if (stage === "loading") {
@@ -2380,31 +2439,24 @@ function App() {
     );
   }
 
-  if (stage === "register") {
-    return (
-      <ErsteAnmeldung onContinue={function(v, n) {
-        setSavedName(v + " " + n);
-        setStage("pin");
-      }} />
-    );
-  }
-
-  // п.1: PIN только после регистрации (первый раз)
-  // п.3: стрелка назад в PinScreen → обратно на ErsteAnmeldung
   if (stage === "pin") {
     return (
       <PinScreen
-        onBack={function(){ setStage("register"); }}
-        onSuccess={function() {
-          var name = savedName || "Werkstatt";
-          var avatar = name.split(" ").map(function(w){ return w[0] || ""; }).join("").slice(0,2).toUpperCase() || "WK";
-          var knownUser = USERS.find(function(u){ return name.toLowerCase().includes(u.id); });
-          var u = knownUser || { id:"roman", name:name, avatar:avatar };
-          try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
-          setUser(u);
-          setStage("slider");
-        }}
+        users={dbUsers}
+        fallbackPin={fbPin}
+        hideBack={true}
+        onPersonal={loginPersonal}
+        onFallback={function(){ setStage("register"); }}
       />
+    );
+  }
+
+  // ErsteAnmeldung теперь только после fallback PIN
+  if (stage === "register") {
+    return (
+      <ErsteAnmeldung onContinue={function(v, n) {
+        loginFallback(v + " " + n);
+      }} />
     );
   }
 
@@ -2416,7 +2468,7 @@ function App() {
         onUnlock={function(){ setStage("app"); }}
         onChangeUser={function() {
           try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
-          setSavedName(""); setUser(null); setStage("register");
+          setSavedName(""); setUser(null); setStage("pin");
         }}
       />
     );
@@ -2427,7 +2479,6 @@ function App() {
       <AppShell
         user={user}
         onLogout={function() {
-          // Выход → обратно на слайдер (не удаляем сессию, просто идём на slider)
           setStage("slider");
         }}
       />

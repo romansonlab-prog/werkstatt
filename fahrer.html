@@ -629,14 +629,18 @@ function ErsteAnmeldung({ lang, setLang, onNext }) {
 }
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
-function PinScreen({ lang, setLang, onOk }) {
+function PinScreen({ lang, setLang, onOk, dynPin }) {
   var _p=useState(""); var p=_p[0]; var setP=_p[1];
   var _e=useState(false); var err=_e[0]; var setErr=_e[1];
   var t=getT(lang);
+  function check(val){
+    var expected = dynPin || APP_PIN;
+    return val === expected;
+  }
   function press(d){
     if(p.length>=4) return; setErr(false);
     var nx=p+d; setP(nx);
-    if(nx.length===4) setTimeout(function(){ if(nx===APP_PIN) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } },150);
+    if(nx.length===4) setTimeout(function(){ if(check(nx)) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } },150);
   }
   return (
     <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top),50px)" }}>
@@ -656,7 +660,7 @@ function PinScreen({ lang, setLang, onOk }) {
           <button className="keypad-btn" onClick={function(){ setP(function(x){ return x.slice(0,-1); }); setErr(false); }}>⌫</button>
         </div>
         <div style={{ flex:1 }}></div>
-        <button onClick={function(){ if(p===APP_PIN) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } }}
+        <button onClick={function(){ if(check(p)) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } }}
           disabled={p.length!==4}
           style={{ width:"100%",padding:18,background:"transparent",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:14,color:"#fff",fontSize:17,fontWeight:600,opacity:p.length===4?1:0.5,marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
           {t.login} <span style={{ fontSize:20 }}>→</span>
@@ -1106,19 +1110,56 @@ function App() {
   var _lang=useState("DE"); var lang=_lang[0]; var setLangRaw=_lang[1];
   var _name=useState(""); var name=_name[0]; var setName=_name[1];
   var _scr=useState("menu"); var scr=_scr[0]; var setScr=_scr[1];
+  var _dynPin=useState(null); var dynPin=_dynPin[0]; var setDynPin=_dynPin[1];
 
   function setLang(v){ setLangRaw(v); try{ localStorage.setItem("werkflow_fahrer_lang",v); }catch(e){} }
+
+  // Преобразует имя (Vorname Nachname) в slug-id
+  function nameToId(fullName){
+    var s = (fullName||"").trim().toLowerCase()
+      .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
+      .replace(/\s+/g,"-").replace(/[^a-z0-9\-]/g,"");
+    return s || ("driver-"+Date.now());
+  }
+
+  // При успешном логине: создать/обновить запись в users + last_login
+  function registerOrUpdateDriver(fullName){
+    if (!fullName) return;
+    var id = nameToId(fullName);
+    var avatar = fullName.trim().split(/\s+/).map(function(w){ return (w[0]||"").toUpperCase(); }).join("").slice(0,2);
+    // upsert: при коллизии id просто обновляется last_login и активность
+    fetch(SB_URL+"/rest/v1/users", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal,resolution=merge-duplicates" },
+      body:JSON.stringify({
+        id: id,
+        name: fullName,
+        avatar: avatar,
+        role: "fahrer",
+        tenant_id: "ltg",
+        niederlassung_id: "hockenheim",
+        scope_level: "niederlassung",
+        active: true,
+        app_access: [],
+        last_login: new Date().toISOString()
+      })
+    }).catch(function(){});
+  }
 
   useEffect(function(){
     try{
       var sl=localStorage.getItem("werkflow_fahrer_lang"); if(sl) setLangRaw(sl);
       var sn=localStorage.getItem(SESS_KEY); if(sn){ setName(sn); setStg("slider"); } else setStg("register");
     }catch(e){ setStg("register"); }
+    // Загружаем актуальный PIN из app_settings (fail → fallback на APP_PIN внутри PinScreen)
+    sbGet("app_settings","key=eq.driver_shared_pin&select=value").then(function(r){
+      if (r && r.length && r[0].value) setDynPin(r[0].value);
+    }).catch(function(){});
   },[]);
 
   if(stg==="loading") return <div className="scrn"><Bg /></div>;
   if(stg==="register") return <ErsteAnmeldung lang={lang} setLang={setLang} onNext={function(v,n){ setName(v+" "+n); setStg("pin"); }} />;
-  if(stg==="pin") return <PinScreen lang={lang} setLang={setLang} onOk={function(){ try{ localStorage.setItem(SESS_KEY,name); }catch(e){} setStg("menu"); }} />;
+  if(stg==="pin") return <PinScreen lang={lang} setLang={setLang} dynPin={dynPin} onOk={function(){ try{ localStorage.setItem(SESS_KEY,name); }catch(e){} registerOrUpdateDriver(name); setStg("menu"); }} />;
   if(stg==="slider") return <SliderScreen lang={lang} setLang={setLang} name={name} onUnlock={function(){ setStg("menu"); }} />;
   if(scr==="menu") return <MainMenu lang={lang} setLang={setLang} onPick={function(k){ if(k==="lkw") setScr("insp_lkw"); else if(k==="auf") setScr("insp_auf"); else if(k==="bd") setScr("bd"); }} />;
   if(scr==="insp_lkw") return <InspectionScreen kind="lkw" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;

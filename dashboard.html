@@ -229,10 +229,11 @@ const { useState, useEffect, useRef, useCallback } = React;
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 
-const USERS = [
-  { id:"chef",   name:"Chef",             avatar:"CH", pin:"4818", role:"chef" },
-  { id:"jens",   name:"Jens",             avatar:"JE", pin:"9274", role:"fpl"  },
-];
+// УСТАРЕЛО: список юзеров теперь грузится из public.users (см. PinLogin)
+// const USERS = [
+//   { id:"chef", name:"Chef", avatar:"CH", pin:"4818", role:"chef" },
+//   { id:"jens", name:"Jens", avatar:"JE", pin:"9274", role:"fpl"  },
+// ];
 
 const MECHANICS = [
   { id:"roman", name:"Roman Anokhin" },
@@ -545,23 +546,62 @@ function urgBadge(u) {
 }
 
 // === PIN LOGIN ===
+// Без селектора юзеров. Юзер вводит свой PIN, мы ищем его в users по
+// app_access='dashboard' & active=true. Fallback PIN отсутствует — для
+// дашборда только персональный логин.
 function PinLogin({ onLogin }) {
-  var _su = useState(null); var selUser = _su[0]; var setSelUser = _su[1];
   var _sp = useState(""); var pin = _sp[0]; var setPin = _sp[1];
   var _se = useState(false); var err = _se[0]; var setErr = _se[1];
+  var _users = useState(null); var dbUsers = _users[0]; var setDbUsers = _users[1];
+  var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
+
+  useEffect(function(){
+    sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
+      setDbUsers(r||[]);
+    }).catch(function(){ setDbUsers([]); });
+  }, []);
+
+  function tryLogin(nx){
+    if (dbUsers === null) {
+      // загрузка ещё идёт — обычно очень быстро, но на всякий случай ждём
+      setTimeout(function(){ tryLogin(nx); }, 150);
+      return;
+    }
+    var found = (dbUsers||[]).find(function(u){
+      if (!u.active) return false;
+      if (!u.pin || u.pin !== nx) return false;
+      if (((u.app_access||[]).indexOf("dashboard")) === -1) return false;
+      return true;
+    });
+    if (found) {
+      // сохраняем расширенный объект сессии и обновляем last_login
+      var sessUser = {
+        id: found.id, name: found.name, avatar: found.avatar||"??",
+        role: found.role, niederlassung_id: found.niederlassung_id, scope_level: found.scope_level,
+        app_access: found.app_access||[], tenant_id: "ltg",
+        pin: found.pin // нужен для совместимости с существующим кодом дашборда
+      };
+      fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(found.id), {
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal" },
+        body:JSON.stringify({ last_login: new Date().toISOString() })
+      }).catch(function(){});
+      onLogin(sessUser);
+    } else {
+      setErr(true); setMsg("Falscher PIN");
+      setTimeout(function(){ setPin(""); setErr(false); setMsg(""); }, 900);
+    }
+  }
 
   function press(d) {
-    if (!selUser || pin.length >= 4) return;
+    if (pin.length >= 4) return;
     setErr(false);
     var next = pin + d; setPin(next);
     if (next.length === 4) {
-      setTimeout(function(){
-        if (next === selUser.pin) onLogin(selUser);
-        else { setErr(true); setTimeout(function(){ setPin(""); setErr(false); }, 650); }
-      }, 100);
+      setTimeout(function(){ tryLogin(next); }, 120);
     }
   }
-  function del() { setPin(function(p){ return p.slice(0,-1); }); setErr(false); }
+  function del() { setPin(function(p){ return p.slice(0,-1); }); setErr(false); setMsg(""); }
 
   return (
     <div className="login-wrap">
@@ -573,44 +613,21 @@ function PinLogin({ onLogin }) {
           <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:3 }}>Dashboard</div>
           <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:4 }}>Landauer Transportgesellschaft Doll KG</div>
         </div>
-
-        {!selUser ? (
-          <div className="login-card">
-            <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.6)", textAlign:"center", marginBottom:18 }}>Benutzer wählen</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {USERS.map(function(u){
-                return (
-                  <button key={u.id} onClick={function(){ setSelUser(u); setPin(""); setErr(false); }}
-                    style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:12, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", color:"#fff" }}>
-                    <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:14, color:"#ffa500", flexShrink:0 }}>{u.avatar}</div>
-                    <div style={{ textAlign:"left" }}>
-                      <div style={{ fontWeight:700, fontSize:14 }}>{u.name}</div>
-                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{u.role === "chef" ? "Chef" : "Fuhrparkleiter"}</div>
-                    </div>
-                    <div style={{ marginLeft:"auto", color:"rgba(255,255,255,0.25)", fontSize:18 }}>→</div>
-                  </button>
-                );
-              })}
-            </div>
+        <div className="login-card">
+          <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.5)", textAlign:"center", textTransform:"uppercase", letterSpacing:2, marginBottom:14 }}>
+            {dbUsers === null ? "Lade..." : "PIN eingeben"}
           </div>
-        ) : (
-          <div className="login-card">
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
-              <button onClick={function(){ setSelUser(null); setPin(""); }} style={{ border:0, background:"transparent", color:"#ffa500", fontSize:13, fontWeight:700 }}>← Zurück</button>
-              <div style={{ flex:1, textAlign:"center", fontWeight:700, fontSize:15 }}>{selUser.name}</div>
-            </div>
-            <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.5)", textAlign:"center", textTransform:"uppercase", letterSpacing:2, marginBottom:4 }}>PIN eingeben</div>
-            <div className="pin-row">
-              {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot" + (i < pin.length ? " on" : "") + (err ? " err" : "")}></div>; })}
-            </div>
-            <div className="keypad">
-              {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="kkey" onClick={function(){ press(String(d)); }}>{d}</button>; })}
-              <div></div>
-              <button className="kkey" onClick={function(){ press("0"); }}>0</button>
-              <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
-            </div>
+          <div className="pin-row">
+            {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot" + (i < pin.length ? " on" : "") + (err ? " err" : "")}></div>; })}
           </div>
-        )}
+          {msg && <div style={{ textAlign:"center", color:"#ef4444", fontSize:12, fontWeight:700, marginTop:4, marginBottom:6 }}>{msg}</div>}
+          <div className="keypad">
+            {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="kkey" onClick={function(){ press(String(d)); }}>{d}</button>; })}
+            <div></div>
+            <button className="kkey" onClick={function(){ press("0"); }}>0</button>
+            <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -2721,7 +2738,6 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading }) {
       avatar: avatar,
       role: u.role,
       niederlassung_id: u.niederlassung_id,
-      home_niederlassung_id: u.niederlassung_id,
       scope_level: u.scope_level || (u.role === "chef" || u.role === "fpl" ? "tenant" : "niederlassung"),
       pin: pin || null,
       app_access: u.app_access || [],

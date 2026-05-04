@@ -225,16 +225,34 @@ function ErsteAnmeldung({ onNext }) {
 }
 
 // === PIN ===
-function PinScreen({ onOk, onBack }) {
+// users — массив активных юзеров с 'waschhalle' в app_access
+// fallbackPin — реальный fallback PIN (из app_settings или null → APP_PIN)
+// onPersonal(user) — найден персональный
+// onFallback() — введён fallback PIN, нужен ErsteAnmeldung
+function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack }) {
   var _p = useState(""); var p = _p[0]; var setP = _p[1];
   var _e = useState(false); var err = _e[0]; var setErr = _e[1];
+  function check(nx){
+    var fb = fallbackPin || APP_PIN;
+    var personal = (users||[]).find(function(u){
+      if (!u.active) return false;
+      if (!u.pin || u.pin !== nx) return false;
+      if (((u.app_access||[]).indexOf("waschhalle")) === -1) return false;
+      return true;
+    });
+    if (personal) return { kind:"personal", user:personal };
+    if (nx === fb) return { kind:"fallback" };
+    return null;
+  }
   function press(d) {
     if (p.length >= 4) return;
     setErr(false);
     var nx = p+d; setP(nx);
     if (nx.length === 4) {
       setTimeout(function(){
-        if (nx === APP_PIN) onOk();
+        var r = check(nx);
+        if (r && r.kind === "personal") onPersonal(r.user);
+        else if (r && r.kind === "fallback") onFallback();
         else { setErr(true); setTimeout(function(){ setP(""); setErr(false); }, 650); }
       }, 120);
     }
@@ -242,8 +260,7 @@ function PinScreen({ onOk, onBack }) {
   return (
     <div className="scrn">
       <Bg />
-      <div style={{ position:"relative", zIndex:2, paddingTop:16 }}>
-        <button onClick={onBack} style={{ border:0, background:"transparent", color:"#ffa500", fontSize:13, fontWeight:700 }}>← Zurück</button>
+      <div style={{ position:"relative", zIndex:2, paddingTop:16, minHeight:30 }}>
       </div>
       <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:32 }}>
         <Logo /><Powered />
@@ -573,30 +590,71 @@ function App() {
   var _stg = useState("loading"); var stg = _stg[0]; var setStg = _stg[1];
   var _nm = useState(""); var nm = _nm[0]; var setNm = _nm[1];
   var _u = useState(null); var user = _u[0]; var setUser = _u[1];
+  var _users = useState([]); var dbUsers = _users[0]; var setDbUsers = _users[1];
+  var _fb = useState(null); var fbPin = _fb[0]; var setFbPin = _fb[1];
+
+  // Обновить last_login (fire-and-forget) и сохранить юзера
+  function loginPersonal(u){
+    var sessUser = {
+      id: u.id, name: u.name, avatar: u.avatar || "??",
+      role: u.role, niederlassung_id: u.niederlassung_id, scope_level: u.scope_level,
+      app_access: u.app_access||[], tenant_id: "ltg"
+    };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessUser)); } catch(e){}
+    fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(u.id), {
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal" },
+      body:JSON.stringify({ last_login: new Date().toISOString() })
+    }).catch(function(){});
+    setNm(u.name); setUser(sessUser); setStg("slider");
+  }
+
+  // Fallback PIN: создаём виртуального юзера после ввода имени
+  function loginFallback(fullName){
+    var u = {
+      id: "wh_"+Date.now(),
+      name: fullName,
+      avatar: fullName.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(),
+      role: "wascher",
+      niederlassung_id: "hockenheim",
+      scope_level: "niederlassung",
+      app_access: ["waschhalle"],
+      tenant_id: "ltg"
+    };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e){}
+    setNm(fullName); setUser(u); setStg("slider");
+  }
 
   useEffect(function(){
+    // Сначала восстановление сессии
     try {
       var s = localStorage.getItem(SESSION_KEY);
-      if (s) { var u=JSON.parse(s); if(u&&u.name){ setNm(u.name); setUser(u); setStg("slider"); return; } }
-    } catch(e) {}
-    setStg("register");
+      if (s) { var u=JSON.parse(s); if(u&&u.name){ setNm(u.name); setUser(u); setStg("slider"); }
+        else setStg("pin"); }
+      else setStg("pin");
+    } catch(e) { setStg("pin"); }
+    // Параллельно загружаем юзеров и fallback PIN
+    sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
+      setDbUsers(r||[]);
+    }).catch(function(){ setDbUsers([]); });
+    sbGet("app_settings","key=eq.waschhalle_fallback_pin&select=value").then(function(r){
+      if (r && r.length && r[0].value) setFbPin(r[0].value);
+    }).catch(function(){});
   }, []);
 
   if (stg==="loading") return <div className="scrn" style={{ alignItems:"center", justifyContent:"center" }}><Bg /><div style={{ position:"relative", zIndex:2 }}><Logo /></div></div>;
-  if (stg==="register") return <ErsteAnmeldung onNext={function(n){ setNm(n); setStg("pin"); }} />;
   if (stg==="pin") return (
-    <PinScreen onBack={function(){ setStg("register"); }}
-      onOk={function(){
-        var u = { id:"wh_"+Date.now(), name:nm, avatar:nm.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase() };
-        try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
-        setUser(u); setStg("slider");
-      }}
+    <PinScreen users={dbUsers} fallbackPin={fbPin}
+      onPersonal={loginPersonal}
+      onFallback={function(){ setStg("register"); }}
+      onBack={function(){ /* нет куда возвращаться, остаёмся */ }}
     />
   );
+  if (stg==="register") return <ErsteAnmeldung onNext={function(n){ loginFallback(n); }} />;
   if (stg==="slider") return (
     <SliderScreen name={nm}
       onUnlock={function(){ setStg("app"); }}
-      onChange={function(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} setNm(""); setUser(null); setStg("register"); }}
+      onChange={function(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} setNm(""); setUser(null); setStg("pin"); }}
     />
   );
   if (stg==="app" && user) return <WaschApp user={user} onLogout={function(){ setStg("slider"); }} />;
