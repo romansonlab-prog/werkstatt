@@ -3774,24 +3774,34 @@ function InfoBar({ openAlerts, mechanics, jobs }) {
 }
 
 function App() {
+  // 'loading' | 'pin' | 'app'
+  var _stg = useState("loading"); var stage = _stg[0]; var setStage = _stg[1];
   var _su = useState(null); var user = _su[0]; var setUser = _su[1];
-  try {
-    var saved = localStorage.getItem("werkflow_dash_user");
-    if (saved && !user) {
-      var u = JSON.parse(saved);
-      if (u && u.id) { setTimeout(function(){ setUser(u); }, 0); }
-    }
-  } catch(e) {}
 
-  if (!user) {
+  useEffect(function(){
+    try {
+      var saved = localStorage.getItem("werkflow_dash_user");
+      if (saved) {
+        var u = JSON.parse(saved);
+        if (u && u.id) { setUser(u); setStage("app"); return; }
+      }
+    } catch(e) {}
+    setStage("pin");
+  }, []);
+
+  if (stage === "loading") {
+    return <div style={{ minHeight:"100vh", background:"#0a0a0a" }}></div>;
+  }
+
+  if (stage === "pin" || !user) {
     return <PinLogin onLogin={function(u){
       try { localStorage.setItem("werkflow_dash_user", JSON.stringify(u)); } catch(e) {}
-      setUser(u);
+      setUser(u); setStage("app");
     }} />;
   }
   return <AppShell user={user} onLogout={function(){
     try { localStorage.removeItem("werkflow_dash_user"); } catch(e) {}
-    setUser(null);
+    setUser(null); setStage("pin");
   }} />;
 }
 

@@ -152,6 +152,14 @@ const LOCS = [
   { id:"jd",   name:"John Deere" },
 ];
 
+function sbGet(table, query) {
+  return fetch(SB_URL + "/rest/v1/" + table + (query ? "?" + query : ""), {
+    headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
+  }).then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(d){ return Array.isArray(d) ? d : []; })
+    .catch(function(){ return []; });
+}
+
 function sbPost(table, body) {
   return fetch(SB_URL + "/rest/v1/" + table, {
     method:"POST",
