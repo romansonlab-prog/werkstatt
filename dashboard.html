@@ -554,46 +554,28 @@ function PinLogin({ onLogin }) {
   var _se = useState(false); var err = _se[0]; var setErr = _se[1];
   var _users = useState(null); var dbUsers = _users[0]; var setDbUsers = _users[1];
   var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
-  var _dbg = useState("Initialisierung..."); var dbg = _dbg[0]; var setDbg = _dbg[1];
 
   useEffect(function(){
-    setDbg("Lade Benutzer aus DB...");
     sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
-      var arr = r || [];
-      setDbUsers(arr);
-      var dashCount = arr.filter(function(u){ return (u.app_access||[]).indexOf("dashboard") !== -1 && u.pin; }).length;
-      setDbg("Geladen: " + arr.length + " aktive Benutzer, davon " + dashCount + " mit PIN für Dashboard");
-    }).catch(function(e){
+      setDbUsers(r||[]);
+    }).catch(function(){
       setDbUsers([]);
-      setDbg("FEHLER beim Laden: " + (e && e.message ? e.message : "unbekannt"));
     });
   }, []);
 
   function tryLogin(nx){
     if (dbUsers === null) {
-      setDbg("Warte auf DB...");
       setTimeout(function(){ tryLogin(nx); }, 150);
       return;
     }
-    // Подробная диагностика: выведем для каждого юзера что мы видим
-    var rep = (dbUsers||[]).map(function(u){
-      var pinMatch = (u.pin === nx);
-      var pinType = typeof u.pin;
-      var pinRaw = JSON.stringify(u.pin);
-      var hasDash = ((u.app_access||[]).indexOf("dashboard") !== -1);
-      var act = u.active === true;
-      return u.id + "[pin=" + pinRaw + "(" + pinType + ") match=" + pinMatch + " dash=" + hasDash + " act=" + act + "]";
-    }).join(" | ");
-    setDbg("PIN=" + JSON.stringify(nx) + "(" + typeof nx + ") | " + rep);
-
     var found = (dbUsers||[]).find(function(u){
-      if (!u.active) return false;
+      // active уже отфильтрован на сервере через ?active=eq.true,
+      // поэтому здесь не проверяем (поле может не быть в select)
       if (!u.pin || u.pin !== nx) return false;
       if (((u.app_access||[]).indexOf("dashboard")) === -1) return false;
       return true;
     });
     if (found) {
-      setDbg("✅ Gefunden: " + found.name);
       // сохраняем расширенный объект сессии и обновляем last_login
       var sessUser = {
         id: found.id, name: found.name, avatar: found.avatar||"??",
@@ -646,9 +628,6 @@ function PinLogin({ onLogin }) {
             <div></div>
             <button className="kkey" onClick={function(){ press("0"); }}>0</button>
             <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
-          </div>
-          <div style={{ marginTop:16, padding:10, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, fontSize:9, color:"rgba(255,255,255,0.7)", fontFamily:"monospace", textAlign:"left", wordBreak:"break-word", maxHeight:200, overflowY:"auto", lineHeight:1.4 }}>
-            🔧 DEBUG:<br/>{dbg}
           </div>
         </div>
       </div>

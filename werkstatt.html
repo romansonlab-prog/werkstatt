@@ -714,7 +714,7 @@ function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack, hideBac
   function check(nx){
     var fb = fallbackPin || APP_PIN;
     var personal = (users||[]).find(function(u){
-      if (!u.active) return false;
+      // active отфильтрован на сервере через ?active=eq.true
       if (!u.pin || u.pin !== nx) return false;
       if (((u.app_access||[]).indexOf("werkstatt")) === -1) return false;
       return true;

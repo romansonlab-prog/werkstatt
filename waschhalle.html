@@ -235,7 +235,7 @@ function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack }) {
   function check(nx){
     var fb = fallbackPin || APP_PIN;
     var personal = (users||[]).find(function(u){
-      if (!u.active) return false;
+      // active отфильтрован на сервере через ?active=eq.true
       if (!u.pin || u.pin !== nx) return false;
       if (((u.app_access||[]).indexOf("waschhalle")) === -1) return false;
       return true;
