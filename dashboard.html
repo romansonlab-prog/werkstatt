@@ -554,19 +554,28 @@ function PinLogin({ onLogin }) {
   var _se = useState(false); var err = _se[0]; var setErr = _se[1];
   var _users = useState(null); var dbUsers = _users[0]; var setDbUsers = _users[1];
   var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
+  var _dbg = useState("Initialisierung..."); var dbg = _dbg[0]; var setDbg = _dbg[1];
 
   useEffect(function(){
+    setDbg("Lade Benutzer aus DB...");
     sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
-      setDbUsers(r||[]);
-    }).catch(function(){ setDbUsers([]); });
+      var arr = r || [];
+      setDbUsers(arr);
+      var dashCount = arr.filter(function(u){ return (u.app_access||[]).indexOf("dashboard") !== -1 && u.pin; }).length;
+      setDbg("Geladen: " + arr.length + " aktive Benutzer, davon " + dashCount + " mit PIN für Dashboard");
+    }).catch(function(e){
+      setDbUsers([]);
+      setDbg("FEHLER beim Laden: " + (e && e.message ? e.message : "unbekannt"));
+    });
   }, []);
 
   function tryLogin(nx){
     if (dbUsers === null) {
-      // загрузка ещё идёт — обычно очень быстро, но на всякий случай ждём
+      setDbg("Warte auf DB...");
       setTimeout(function(){ tryLogin(nx); }, 150);
       return;
     }
+    setDbg("Prüfe PIN " + nx + " gegen " + dbUsers.length + " Benutzer...");
     var found = (dbUsers||[]).find(function(u){
       if (!u.active) return false;
       if (!u.pin || u.pin !== nx) return false;
@@ -574,6 +583,7 @@ function PinLogin({ onLogin }) {
       return true;
     });
     if (found) {
+      setDbg("✅ Gefunden: " + found.name);
       // сохраняем расширенный объект сессии и обновляем last_login
       var sessUser = {
         id: found.id, name: found.name, avatar: found.avatar||"??",
@@ -626,6 +636,9 @@ function PinLogin({ onLogin }) {
             <div></div>
             <button className="kkey" onClick={function(){ press("0"); }}>0</button>
             <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
+          </div>
+          <div style={{ marginTop:16, padding:10, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, fontSize:11, color:"rgba(255,255,255,0.7)", fontFamily:"monospace", textAlign:"center", wordBreak:"break-word" }}>
+            🔧 DEBUG: {dbg}
           </div>
         </div>
       </div>
@@ -3501,6 +3514,49 @@ function AppShell({ user, onLogout }) {
   var _sdb = useState(null); var dbOk = _sdb[0]; var setDbOk = _sdb[1];
   var _sshift = useState(todayIso()); var shiftDate = _sshift[0]; var setShiftDate = _sshift[1];
 
+  // === SESSION C: Niederlassung-Selector ===
+  // null = "Alle Niederlassungen", иначе id филиала.
+  // Tenant-scope юзеры (chef/fpl) могут переключать; остальные — заперты на свой филиал.
+  var canSwitchNied = user.scope_level === "tenant" || !user.scope_level; // старые сессии без scope_level — считаем tenant
+  var _snied = useState(function(){
+    try {
+      if (canSwitchNied) {
+        var saved = localStorage.getItem("werkflow_dash_niederlassung");
+        if (saved !== null) return saved === "" ? null : saved;
+      }
+      // Не-tenant юзеры всегда видят только свой филиал
+      return user.niederlassung_id || null;
+    } catch(e) { return null; }
+  });
+  var selectedNied = _snied[0]; var setSelectedNiedRaw = _snied[1];
+  function setSelectedNied(v){
+    setSelectedNiedRaw(v);
+    if (canSwitchNied) {
+      try { localStorage.setItem("werkflow_dash_niederlassung", v === null ? "" : v); } catch(e){}
+    }
+  }
+  var _sniedList = useState([]); var niedList = _sniedList[0]; var setNiedList = _sniedList[1];
+  useEffect(function(){
+    sbGet("niederlassungen","select=*&order=name.asc").then(function(r){ setNiedList(r||[]); }).catch(function(){});
+  }, []);
+
+  // Применяем фильтр к массиву по нужному полю.
+  // Если selectedNied=null → возвращаем всё.
+  function filterByNied(arr, field) {
+    if (selectedNied === null || selectedNied === undefined) return arr;
+    return arr.filter(function(r){ return r[field] === selectedNied; });
+  }
+
+  var fJobs        = filterByNied(jobs,         "workshop_niederlassung_id");
+  var fAlerts      = filterByNied(alerts,       "niederlassung_id");
+  var fVehicles    = filterByNied(vehicles,     "home_niederlassung_id");
+  var fForklifts   = filterByNied(forklifts,    "home_niederlassung_id");
+  var fStock       = filterByNied(stock,        "niederlassung_id");
+  var fWashOrders  = filterByNied(washOrders,   "niederlassung_id");
+  var fInspections = filterByNied(inspections,  "niederlassung_id");
+  var fInvoices    = filterByNied(invoices,     "niederlassung_id");
+  var fPlans       = filterByNied(plans,        "niederlassung_id");
+
   function loadAll() {
     setLoading(true);
     Promise.all([
@@ -3528,9 +3584,9 @@ function AppShell({ user, onLogout }) {
     return function(){ clearInterval(interval); };
   }, []);
 
-  var openAlerts = alerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
-  var lowStock = stock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
-  var overduePlans = plans.filter(function(p){
+  var openAlerts = fAlerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
+  var lowStock = fStock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
+  var overduePlans = fPlans.filter(function(p){
     if (!p.next_service_date) return false;
     return Math.round((new Date(p.next_service_date)-new Date())/86400000) < 14;
   }).length;
@@ -3567,6 +3623,40 @@ function AppShell({ user, onLogout }) {
           </div>
           <div className="sidebar-subtitle">Dashboard</div>
         </div>
+
+        {/* === SESSION C: Niederlassung-Selector === */}
+        <div style={{ padding:"12px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize:10, fontWeight:800, letterSpacing:1.5, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", marginBottom:6 }}>
+            Niederlassung
+          </div>
+          {canSwitchNied ? (
+            <select
+              value={selectedNied === null ? "" : selectedNied}
+              onChange={function(e){ var v=e.target.value; setSelectedNied(v === "" ? null : v); }}
+              style={{
+                width:"100%", padding:"9px 10px", borderRadius:8,
+                background: selectedNied === null ? "rgba(255,165,0,0.12)" : "rgba(255,255,255,0.05)",
+                border:"1px solid " + (selectedNied === null ? "rgba(255,165,0,0.35)" : "rgba(255,255,255,0.12)"),
+                color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", outline:"none"
+              }}>
+              <option value="">🌐 Alle Niederlassungen</option>
+              {niedList.map(function(n){
+                return <option key={n.id} value={n.id}>🏢 {n.name}</option>;
+              })}
+            </select>
+          ) : (
+            <div style={{
+              padding:"9px 10px", borderRadius:8,
+              background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)",
+              color:"rgba(255,255,255,0.7)", fontSize:13, fontWeight:700,
+              display:"flex", alignItems:"center", gap:6
+            }}>
+              <span>🏢</span>
+              <span>{(niedList.find(function(n){ return n.id === selectedNied; })||{}).name || selectedNied || "—"}</span>
+            </div>
+          )}
+        </div>
+
         <div className="sidebar-nav">
           {NAV.map(function(n){
             return (
@@ -3605,6 +3695,15 @@ function AppShell({ user, onLogout }) {
             {NAV.find(function(n){ return n.k===sec; }) && NAV.find(function(n){ return n.k===sec; }).ic}
           </div>
           <div className="topbar-title" style={{ marginLeft:8 }}>{PAGE_TITLES[sec]||sec}</div>
+          <div style={{
+            marginLeft:10, padding:"4px 10px", borderRadius:6,
+            background: selectedNied === null ? "rgba(255,165,0,0.12)" : "rgba(255,255,255,0.06)",
+            border:"1px solid " + (selectedNied === null ? "rgba(255,165,0,0.3)" : "rgba(255,255,255,0.1)"),
+            fontSize:11, fontWeight:700, color: selectedNied === null ? "#ffa500" : "rgba(255,255,255,0.7)",
+            letterSpacing:0.5, textTransform:"uppercase"
+          }}>
+            {selectedNied === null ? "🌐 ALLE NIEDERLASSUNGEN" : ((niedList.find(function(n){ return n.id === selectedNied; })||{}).name || selectedNied)}
+          </div>
           <div style={{ fontSize:15, color: dbOk===false?"#ef4444":dbOk===true?"#22c55e":"#ffa500", marginLeft:8, fontWeight:600 }}>
             {dbOk===false?"● Fehler":dbOk===true?"● Online":"● Lädt"}
           </div>
@@ -3613,22 +3712,22 @@ function AppShell({ user, onLogout }) {
             <button className="topbar-refresh no-print" onClick={loadAll}>{loading ? "⏳" : "↻ Aktualisieren"}</button>
           </div>
         </div>
-        <InfoBar openAlerts={openAlerts.length} mechanics={MECHANICS} jobs={jobs} />
+        <InfoBar openAlerts={openAlerts.length} mechanics={MECHANICS} jobs={fJobs} />
 
         <div className="page">
-          {sec === "uebersicht"  && <Uebersicht jobs={jobs} alerts={alerts} vehicles={vehicles} forklifts={forklifts} washOrders={washOrders} inspections={inspections} />}
-          {sec === "eingang"     && <Eingang alerts={alerts} onRefresh={loadAll} loading={loading} />}
-          {sec === "mechaniker"  && <Mechaniker jobs={jobs} onRefresh={loadAll} loading={loading} />}
-          {sec === "technik"     && <Technik vehicles={vehicles} forklifts={forklifts} jobs={jobs} />}
-          {sec === "inspektion"  && <Inspektion inspections={inspections} onRefresh={loadAll} loading={loading} />}
-          {sec === "waschhalle"  && <Waschhalle washOrders={washOrders} onRefresh={loadAll} loading={loading} />}
-          {sec === "lager"       && <Lager stock={stock} onRefresh={loadAll} loading={loading} />}
-          {sec === "kosten"      && <Kosten jobs={jobs} invoices={invoices} vehicles={vehicles} forklifts={forklifts} />}
-          {sec === "rechnungen"  && <Rechnungen invoices={invoices} vehicles={vehicles} jobs={jobs} onRefresh={loadAll} loading={loading} />}
-          {sec === "wartung"     && <Wartungsplan plans={plans} vehicles={vehicles} forklifts={forklifts} onRefresh={loadAll} loading={loading} />}
-          {sec === "archiv"      && <Archiv jobs={jobs} />}
+          {sec === "uebersicht"  && <Uebersicht jobs={fJobs} alerts={fAlerts} vehicles={fVehicles} forklifts={fForklifts} washOrders={fWashOrders} inspections={fInspections} />}
+          {sec === "eingang"     && <Eingang alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
+          {sec === "mechaniker"  && <Mechaniker jobs={fJobs} onRefresh={loadAll} loading={loading} />}
+          {sec === "technik"     && <Technik vehicles={fVehicles} forklifts={fForklifts} jobs={fJobs} />}
+          {sec === "inspektion"  && <Inspektion inspections={fInspections} onRefresh={loadAll} loading={loading} />}
+          {sec === "waschhalle"  && <Waschhalle washOrders={fWashOrders} onRefresh={loadAll} loading={loading} />}
+          {sec === "lager"       && <Lager stock={fStock} onRefresh={loadAll} loading={loading} />}
+          {sec === "kosten"      && <Kosten jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} forklifts={fForklifts} />}
+          {sec === "rechnungen"  && <Rechnungen invoices={fInvoices} vehicles={fVehicles} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
+          {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} onRefresh={loadAll} loading={loading} />}
+          {sec === "archiv"      && <Archiv jobs={fJobs} />}
           {sec === "kontakte"    && <Kontakte onRefresh={loadAll} />}
-          {sec === "settings"    && <Einstellungen vehicles={vehicles} forklifts={forklifts} stock={stock} onRefresh={loadAll} loading={loading} />}
+          {sec === "settings"    && <Einstellungen vehicles={fVehicles} forklifts={fForklifts} stock={fStock} onRefresh={loadAll} loading={loading} />}
         </div>
       </div>
     </div>
