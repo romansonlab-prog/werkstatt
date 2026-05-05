@@ -575,7 +575,17 @@ function PinLogin({ onLogin }) {
       setTimeout(function(){ tryLogin(nx); }, 150);
       return;
     }
-    setDbg("Prüfe PIN " + nx + " gegen " + dbUsers.length + " Benutzer...");
+    // Подробная диагностика: выведем для каждого юзера что мы видим
+    var rep = (dbUsers||[]).map(function(u){
+      var pinMatch = (u.pin === nx);
+      var pinType = typeof u.pin;
+      var pinRaw = JSON.stringify(u.pin);
+      var hasDash = ((u.app_access||[]).indexOf("dashboard") !== -1);
+      var act = u.active === true;
+      return u.id + "[pin=" + pinRaw + "(" + pinType + ") match=" + pinMatch + " dash=" + hasDash + " act=" + act + "]";
+    }).join(" | ");
+    setDbg("PIN=" + JSON.stringify(nx) + "(" + typeof nx + ") | " + rep);
+
     var found = (dbUsers||[]).find(function(u){
       if (!u.active) return false;
       if (!u.pin || u.pin !== nx) return false;
@@ -637,8 +647,8 @@ function PinLogin({ onLogin }) {
             <button className="kkey" onClick={function(){ press("0"); }}>0</button>
             <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
           </div>
-          <div style={{ marginTop:16, padding:10, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, fontSize:11, color:"rgba(255,255,255,0.7)", fontFamily:"monospace", textAlign:"center", wordBreak:"break-word" }}>
-            🔧 DEBUG: {dbg}
+          <div style={{ marginTop:16, padding:10, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, fontSize:9, color:"rgba(255,255,255,0.7)", fontFamily:"monospace", textAlign:"left", wordBreak:"break-word", maxHeight:200, overflowY:"auto", lineHeight:1.4 }}>
+            🔧 DEBUG:<br/>{dbg}
           </div>
         </div>
       </div>
