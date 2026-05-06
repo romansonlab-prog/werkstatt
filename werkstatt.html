@@ -460,6 +460,7 @@ const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 const APP_PIN = "3847";
 const WERKSTATT_VERSION = "v3-items-supplier-amount";
+const SESSION_KEY = "werkflow_werkstatt_v1";
 
 const USERS = [
   { id:"roman", name:"Roman Anokhin", avatar:"RA" },
@@ -621,15 +622,21 @@ function uploadAllPhotos(jobId, photos) {
   return Promise.all(promises).then(function(urls) { return urls.filter(Boolean); });
 }
 
-function ensureVehicle(vehicle, vehicles, setVehicles) {
+function ensureVehicle(vehicle, vehicles, setVehicles, user) {
   if (!vehicle || !vehicle.plate) return Promise.resolve(null);
   var exists = (vehicles || []).find(function(v) {
     return (v.plate || "").toLowerCase() === vehicle.plate.toLowerCase();
   });
   if (exists) return Promise.resolve(exists);
+  // Новая машина приписывается к филиалу того, кто её первый зафиксировал.
+  // Если приехал гость из другого филиала — потом перепривяжешь в dashboard.
+  var nied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
   var row = {
     id:"V" + Date.now(), plate:vehicle.plate, brand:vehicle.brand || "",
-    type:vehicle.type || "other", created_at:new Date().toISOString()
+    type:vehicle.type || "other",
+    home_niederlassung_id: nied,
+    tenant_id: "ltg",
+    created_at:new Date().toISOString()
   };
   return sbInsert("vehicles", row, true).then(function() {
     setVehicles(function(prev) { return [row].concat(prev || []); });
@@ -951,7 +958,7 @@ function RemotePhotos({ urls }) {
 }
 
 // === VehicleInput ===
-function VehicleInput({ vehicles, value, onChange, vehicleType }) {
+function VehicleInput({ vehicles, value, onChange, vehicleType, userNied }) {
   var _sp = useState(value && value.plate ? value.plate : ""); var plate = _sp[0]; var setPlate = _sp[1];
   var _sb = useState(value && value.brand ? value.brand : ""); var brand = _sb[0]; var setBrand = _sb[1];
   var _so = useState(false); var open = _so[0]; var setOpen = _so[1];
@@ -974,6 +981,14 @@ function VehicleInput({ vehicles, value, onChange, vehicleType }) {
     else onChange({ plate:clean, brand:(b !== undefined ? b : brand).trim(), type:vehicleType || "other", isNew:true });
   }
 
+  // Gast = машина приписана к другому филиалу. Сравниваем только если userNied известен
+  // и у машины проставлен home_niederlassung_id (старые записи без поля считаем "своими").
+  function isGast(v) {
+    if (!userNied) return false;
+    if (!v || !v.home_niederlassung_id) return false;
+    return v.home_niederlassung_id !== userNied;
+  }
+
   return (
     <div style={{ position:"relative" }}>
       <input className="input-dark" value={plate} placeholder="Kennzeichen eingeben oder wählen"
@@ -990,6 +1005,7 @@ function VehicleInput({ vehicles, value, onChange, vehicleType }) {
       {open && filtered.length > 0 && (
         <div className="dropdown-list">
           {filtered.map(function(v) {
+            var gast = isGast(v);
             return (
               <div key={v.id || v.plate} className="dropdown-item"
                 onMouseDown={function(){
@@ -997,7 +1013,18 @@ function VehicleInput({ vehicles, value, onChange, vehicleType }) {
                   onChange({ id:v.id, plate:v.plate, brand:v.brand || "", type:v.type || vehicleType, isNew:false });
                   setOpen(false);
                 }}>
-                <div style={{ fontWeight:800 }}>{v.plate}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ fontWeight:800 }}>{v.plate}</div>
+                  {gast && (
+                    <span style={{
+                      fontSize:10, fontWeight:800, letterSpacing:0.5,
+                      padding:"2px 7px", borderRadius:999,
+                      background:"rgba(255,165,0,0.18)",
+                      border:"1px solid rgba(255,165,0,0.55)",
+                      color:"#ffa500"
+                    }}>GAST</span>
+                  )}
+                </div>
                 <div className="meta">{v.brand || labelFrom(VEHICLE_TYPES, v.type)}</div>
               </div>
             );
@@ -1371,11 +1398,24 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       partsNote = "Neu aus Lager (Buchung folgt)";
     }
 
-    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles)
-      .then(function() { return uploadAllPhotos(jobId, photos); })
+    var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
+    var savedVehicleRow = null;
+
+    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles, user)
+      .then(function(veh) {
+        // veh может быть существующей машиной (со своим home_niederlassung_id),
+        // только что созданной (home = workshopNied), или null (если plate пустой / ошибка).
+        savedVehicleRow = veh;
+        return uploadAllPhotos(jobId, photos);
+      })
       .then(function(photoUrls) {
         var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
         var totalCost = laborCost + partsCost;
+        // Денормализация: на момент создания job фиксируем, чьей машина была.
+        // Если машина не нашлась (не должно случаться, но на всякий) — fallback на workshopNied.
+        var vehicleHomeNied = (savedVehicleRow && savedVehicleRow.home_niederlassung_id)
+          ? savedVehicleRow.home_niederlassung_id
+          : workshopNied;
         var payload = {
           id: jobId,
           mechanic: user.id || "roman",
@@ -1404,6 +1444,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           source: prefill ? "eingang" : "werkstatt",
           alert_id: prefill && prefill.id ? prefill.id : null,
           incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
+          workshop_niederlassung_id: workshopNied,
+          vehicle_home_niederlassung_id: vehicleHomeNied,
+          tenant_id: "ltg",
           created_at: new Date().toISOString()
         };
         return sbInsert("jobs", payload, true);
@@ -1472,7 +1515,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           </div>
           <div>
             <div className="label-cap">Kennzeichen / Nr.</div>
-            <VehicleInput vehicles={vehicles} value={vehicle} onChange={setVehicle} vehicleType={vehicleType} />
+            <VehicleInput vehicles={vehicles} value={vehicle} onChange={setVehicle} vehicleType={vehicleType} userNied={user && user.niederlassung_id} />
           </div>
         </div>
         <div className="label-cap" style={{ marginTop:10 }}>Standort</div>
@@ -1608,6 +1651,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                       paid: false,
                       items: rNotes.trim() || shopItems.filter(function(i){ return i.name.trim(); }).map(function(i){ return i.name; }).join(", ") || null,
                       mechanic: user.name || user.id || null,
+                      niederlassung_id: (user && user.niederlassung_id) ? user.niederlassung_id : null,
+                      tenant_id: "ltg",
                       created_at: new Date().toISOString()
                     };
                     sbInsert("invoices", inv, true)
@@ -2195,11 +2240,15 @@ function AppShell({ user, onLogout }) {
 
   function loadAll() {
     setLoading(true);
+    // Stock фильтруем по филиалу: каждый филиал ведёт свой склад.
+    // Если у юзера почему-то нет niederlassung_id — грузим пустой stock (вместо чужого).
+    var nied = (user && user.niederlassung_id) ? user.niederlassung_id : "__none__";
+    var stockQuery = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=name.asc&limit=200";
     Promise.all([
       sbSelect("jobs","select=*&order=created_at.desc&limit=300"),
       sbSelect("alerts","select=*&order=created_at.desc&limit=100"),
       sbSelect("vehicles","select=*&order=plate.asc&limit=500"),
-      sbSelect("stock","select=*&order=name.asc&limit=200"),
+      sbSelect("stock", stockQuery),
       sbSelect("users","select=*")
     ]).then(function(results) {
       setJobs(results[0]);
@@ -2419,10 +2468,16 @@ function App() {
       if (saved) {
         var u = JSON.parse(saved);
         if (u && u.name) {
-          setSavedName(u.name);
-          setUser(u);
-          setStage("slider");
-          return;
+          // Сессия без niederlassung_id (старая сессия до Сессии B/D) — форсим релогин,
+          // иначе все записи поедут с niederlassung_id=undefined и аналитика сломается.
+          if (!u.niederlassung_id) {
+            try { localStorage.removeItem(SESSION_KEY); } catch(e2) {}
+          } else {
+            setSavedName(u.name);
+            setUser(u);
+            setStage("slider");
+            return;
+          }
         }
       }
     } catch(e) {}
