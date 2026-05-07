@@ -1735,6 +1735,268 @@ function Inspektion({ inspections, onRefresh, loading }) {
   );
 }
 
+// === DU AUFLIEGER (Dashboard) ===
+var DU_SECTIONS_DASH = [
+  { id:1, title:"1. Dokumente", items:[
+    "Auflieger Tasche, Auflieger Buch","Fahrzeugschein","Ladungssicherungszertifikat",
+    "Prüfplaketten am Fahrzeug vorhanden (vorne LaSi / hinten HU, SP)"
+  ]},
+  { id:2, title:"2. Allg. Wartungsarbeiten", items:[
+    "Reifendruck prüfen und einstellen","Reifen und Felgen auf Beschädigung prüfen","Reifenprofil prüfen",
+    "Kupplungsköpfe und Luftleitung überprüfen","Unterlegkeile prüfen, vorhanden, i.O.",
+    "Rahmen auf Beschädigung prüfen","Stützwinden auf Zustand und Funktion prüfen","Alle relevanten Teile abschmieren"
+  ]},
+  { id:3, title:"3. Elektrische Anlage", items:[
+    "Beleuchtung überprüfen","Steckdosen 7polig, 15polig überprüfen","EBS-Steckdose überprüfen"
+  ]},
+  { id:4, title:"4. Aufbau / Plane / Boden", items:[
+    "Boden auf Beschädigung prüfen","Bordwände Zustand überprüfen","Alu-Einstecklatten vollzählig und gerade",
+    "2 Ladebalken, 4 Lochschienen vorhanden und i.O. (LaSi)",
+    "8 Schwerbalken prüfen bei Oktabiner Auflieger inkl. Latten",
+    "Türen, -scharniere, -Dicht Gummi, -verschlüsse überprüfen",
+    "Seitenplanen, Dachplanen überprüfen","Rammpuffer i.O.",
+    "Edscha-Verdeck überprüfen auf Beschädigung, Funktion",
+    "Leiter 3m vorhanden","Aufstieg Leiter vorhanden, Funktion","Spanngurte vollzählig – 15 Stück"
+  ]},
+  { id:5, title:"5. Luftfederung", items:[
+    "Sichtprüfung aller Bauteile auf Beschädigung u. Verschleiß, Anlage auf Dichtheit prüfen",
+    "Stoßdämpfer auf Dichtheit und Festsitz prüfen"
+  ]},
+  { id:6, title:"6. Bremsen", items:[
+    "Bremsschläuche und Leitungen auf Beschädigungen prüfen",
+    "Bremsbeläge auf Verschleiß prüfen","Bremsscheiben auf Zustand / Verschleiß prüfen"
+  ]}
+];
+
+function exportDuPdf(insp) {
+  var data = {}; try { data = JSON.parse(insp.items_json || "{}"); } catch(e) {}
+  var sectionsHtml = DU_SECTIONS_DASH.map(function(sec) {
+    var rows = sec.items.map(function(item) {
+      var key = sec.id + "__" + item;
+      var r = data[key] || { status:"", bemerkung:"" };
+      var io  = r.status === "io"  ? "✓" : "";
+      var nio = r.status === "nio" ? "✓" : "";
+      return "<tr><td style='padding:5px 8px;border-bottom:1px solid #eee;font-size:12px'>" + item + "</td>" +
+        "<td style='padding:5px 8px;border-bottom:1px solid #eee;text-align:center;width:40px;font-size:14px'>" + io + "</td>" +
+        "<td style='padding:5px 8px;border-bottom:1px solid #eee;text-align:center;width:40px;font-size:14px'>" + nio + "</td>" +
+        "<td style='padding:5px 8px;border-bottom:1px solid #eee;font-size:11px;color:#666'>" + (r.bemerkung || "") + "</td></tr>";
+    }).join("");
+    return "<tr><td colspan='4' style='background:#0a1730;color:#fff;padding:7px 8px;font-weight:800;font-size:13px'>" + sec.title + "</td></tr>" + rows;
+  }).join("");
+
+  var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>DU Auflieger - " + (insp.plate||"") + "</title>" +
+    "<style>body{font-family:Arial,sans-serif;padding:20px;color:#222;font-size:13px}" +
+    "h1{font-size:18px;margin-bottom:4px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:16px}" +
+    "th{background:#0a1730;color:#fff;padding:6px 8px;text-align:left;font-size:12px}" +
+    ".hrow{display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap}" +
+    ".hf{flex:1;min-width:140px}" +
+    ".hl{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:2px}" +
+    ".hv{font-size:14px;font-weight:700;border-bottom:1px solid #ccc;padding-bottom:3px}" +
+    ".footer{margin-top:24px;padding-top:16px;border-top:1px solid #ccc;display:flex;gap:32px}" +
+    ".sb{flex:1}.sl{font-size:10px;color:#888;margin-bottom:20px}.sln{border-bottom:1px solid #333;height:30px}" +
+    "</style></head><body>" +
+    "<h1>Fahrzeug Checkliste – Plan Auflieger</h1>" +
+    "<div class='hrow'>" +
+    "<div class='hf'><div class='hl'>Fahrzeug</div><div class='hv'>" + (insp.plate||"—") + "</div></div>" +
+    "<div class='hf'><div class='hl'>Datum</div><div class='hv'>" + (insp.date||"") + "</div></div>" +
+    "<div class='hf'><div class='hl'>KM-Stand</div><div class='hv'>" + (insp.km_stand||"—") + "</div></div>" +
+    "<div class='hf'><div class='hl'>Mechaniker</div><div class='hv'>" + (insp.mechanic_name||"—") + "</div></div>" +
+    "<div class='hf'><div class='hl'>Niederlassung</div><div class='hv'>" + (insp.niederlassung_id||"—") + "</div></div>" +
+    "</div>" +
+    "<table><thead><tr><th>Prüfpunkt</th><th style='width:40px;text-align:center'>i.O.</th><th style='width:40px;text-align:center'>n.i.O.</th><th style='width:180px'>Bemerkung</th></tr></thead><tbody>" +
+    sectionsHtml + "</tbody></table>" +
+    (insp.ergaenzt_ersetzt ? "<p><strong>Ergänzt / Ersetzt:</strong> " + insp.ergaenzt_ersetzt + "</p>" : "") +
+    (insp.bemerkungen ? "<p><strong>Bemerkungen:</strong> " + insp.bemerkungen + "</p>" : "") +
+    "<div class='footer'>" +
+    "<div class='sb'><div class='sl'>Name des Mitarbeiters (Klarschrift)</div><div class='sln'></div></div>" +
+    "<div class='sb'><div class='sl'>Unterschrift Mitarbeiter</div><div class='sln'></div></div>" +
+    "<div class='sb'><div class='sl'>Kontrolliert durch</div><div class='sln' style='padding-top:4px;font-weight:700'>" + (insp.kontrolliert_durch||"—") + "</div></div>" +
+    "</div>" +
+    "<p style='font-size:10px;color:#aaa;margin-top:12px'>WerkFlow · Stand: " + (insp.date||"") + "</p>" +
+    "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px'>🖨 Drucken / PDF</button>" +
+    "</body></html>";
+  printHtml(html, "DU_Auflieger_" + (insp.plate||"") + "_" + (insp.date||""));
+}
+
+function DUAufliegerDash({ inspections, onRefresh, loading }) {
+  var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
+  var _sd = useState(""); var dateF = _sd[0]; var setDateF = _sd[1];
+  var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
+  var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
+
+  // Только DU Auflieger записи
+  var duList = (inspections || []).filter(function(i){ return i.type === "du_auflieger"; });
+
+  var list = duList;
+  if (filter === "passed")   list = list.filter(function(i){ return i.result === "passed"; });
+  if (filter === "remarks")  list = list.filter(function(i){ return i.result === "passed_with_remarks"; });
+  if (dateF) list = list.filter(function(i){ return (i.date||"") === dateF; });
+  if (search) list = list.filter(function(i){
+    return ((i.plate||"") + (i.mechanic_name||"") + (i.niederlassung_id||"")).toLowerCase().includes(search.toLowerCase());
+  });
+
+  function exportAll() {
+    var rows = list.map(function(i){
+      var resLabel = i.result === "passed" ? "Bestanden" : i.result === "passed_with_remarks" ? "Mit Mängeln" : "—";
+      var resColor = i.result === "passed" ? "#22c55e" : "#ef4444";
+      return "<tr><td>" + (i.date||"—") + "</td><td>" + (i.plate||"—") + "</td>" +
+        "<td>" + (i.mechanic_name||"—") + "</td><td>" + (i.niederlassung_id||"—") + "</td>" +
+        "<td>" + (i.km_stand||"—") + "</td>" +
+        "<td style='color:" + resColor + ";font-weight:700'>" + resLabel + "</td>" +
+        "<td>" + (i.bemerkungen||"—") + "</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>DU Auflieger Export</title>" + baseReportStyle() + "</head><body>" +
+      "<h1>WerkFlow — DU Auflieger</h1><h2>" + list.length + " Einträge</h2>" +
+      "<table><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Niederlassung</th><th>KM</th><th>Ergebnis</th><th>Bemerkungen</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" +
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button>" +
+      "</body></html>";
+    printHtml(html, "DU_Auflieger_Export");
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">DU Auflieger</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportAll}>📄 Export</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading ? "..." : "↻"}</button>
+          </div>
+        </div>
+
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+          {[["all","Alle"],["passed","Bestanden"],["remarks","Mit Mängeln"]].map(function(f){
+            return (
+              <button key={f[0]} onClick={function(){ setFilter(f[0]); }}
+                className={"btn-small " + (filter===f[0]?"btn-primary":"btn-outline")}>
+                {f[1]}
+              </button>
+            );
+          })}
+          <input type="date" className="inp" value={dateF} onChange={function(e){ setDateF(e.target.value); }} />
+          <input className="inp" value={search} placeholder="Suche Kennzeichen / Mechaniker..."
+            onChange={function(e){ setSearch(e.target.value); }} style={{ flex:1, minWidth:180 }} />
+        </div>
+
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:10 }}>{list.length} Einträge</div>
+
+        {list.length === 0
+          ? <div className="empty">Keine DU-Prüfungen gefunden</div>
+          : list.map(function(insp){
+              var isExp = expanded === insp.id;
+              var resColor = insp.result === "passed" ? "#22c55e" : insp.result === "passed_with_remarks" ? "#ffa500" : "rgba(255,255,255,0.4)";
+              var resLabel = insp.result === "passed" ? "✓ Bestanden" : insp.result === "passed_with_remarks" ? "⚠ Mit Mängeln" : "—";
+              var data = {}; try { data = JSON.parse(insp.items_json || "{}"); } catch(e) {}
+              var nioItems = Object.keys(data).filter(function(k){ return data[k] && data[k].status === "nio"; });
+
+              return (
+                <div key={insp.id} className={"alert-card" + (insp.result === "passed_with_remarks" ? " urgent" : "")}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer" }}
+                    onClick={function(){ setExpanded(isExp ? null : insp.id); }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:22 }}>🚛</span>
+                      <div>
+                        <div style={{ fontWeight:700 }}>{insp.plate || "—"}</div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
+                          {insp.mechanic_name || "—"} · {fmtDate(insp.date)}
+                          {insp.km_stand ? " · " + insp.km_stand + " km" : ""}
+                          {insp.niederlassung_id ? " · " + insp.niederlassung_id : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {insp.acknowledged && <span className="badge badge-blue">✓ Zur Kenntnis</span>}
+                      <span style={{ fontSize:11, fontWeight:800, color:resColor }}>{resLabel}</span>
+                      <span style={{ color:"rgba(255,255,255,0.4)", fontSize:12 }}>{isExp ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+
+                  {isExp && (
+                    <div className="expand-row" style={{ marginTop:12 }}>
+                      {nioItems.length > 0 && (
+                        <div style={{ marginBottom:12 }}>
+                          <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>
+                            Mängel ({nioItems.length}):
+                          </div>
+                          {nioItems.map(function(k) {
+                            var parts = k.split("__");
+                            var label = parts.length > 1 ? parts.slice(1).join("__") : k;
+                            var bem = data[k] && data[k].bemerkung ? " — " + data[k].bemerkung : "";
+                            return (
+                              <div key={k} style={{ fontSize:12, color:"rgba(255,120,120,0.9)", marginBottom:4, paddingLeft:8, borderLeft:"2px solid #ef4444" }}>
+                                • {label}{bem}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {DU_SECTIONS_DASH.map(function(sec) {
+                        var secItems = sec.items.filter(function(item) {
+                          var key = sec.id + "__" + item;
+                          return data[key] && data[key].status;
+                        });
+                        if (secItems.length === 0) return null;
+                        return (
+                          <div key={sec.id} style={{ marginBottom:10 }}>
+                            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:4 }}>
+                              {sec.title}
+                            </div>
+                            {secItems.map(function(item) {
+                              var key = sec.id + "__" + item;
+                              var r = data[key] || {};
+                              var isNio = r.status === "nio";
+                              return (
+                                <div key={item} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, fontSize:12 }}>
+                                  <span style={{ color: isNio ? "#ef4444" : "#22c55e", fontWeight:800, minWidth:14 }}>
+                                    {isNio ? "✗" : "✓"}
+                                  </span>
+                                  <span style={{ color: isNio ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)" }}>{item}</span>
+                                  {isNio && r.bemerkung && (
+                                    <span style={{ color:"rgba(255,165,0,0.8)", fontSize:11 }}>({r.bemerkung})</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+
+                      {insp.ergaenzt_ersetzt && (
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:8 }}>
+                          <strong>Ergänzt/Ersetzt:</strong> {insp.ergaenzt_ersetzt}
+                        </div>
+                      )}
+                      {insp.bemerkungen && (
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:4 }}>
+                          <strong>Bemerkungen:</strong> {insp.bemerkungen}
+                        </div>
+                      )}
+
+                      <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+                        <button className="btn-outline btn-small" onClick={function(e){
+                          e.stopPropagation(); exportDuPdf(insp);
+                        }}>📄 PDF</button>
+                        {!insp.acknowledged && (
+                          <button className="btn-outline btn-small" onClick={function(e){
+                            e.stopPropagation();
+                            sbPatch("inspections", insp.id, { acknowledged:true }).then(function(){ onRefresh(); });
+                          }}>✓ Zur Kenntnis genommen</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+        }
+      </div>
+    </div>
+  );
+}
+
 // === WASCHHALLE ===
 function Waschhalle({ washOrders, onRefresh, loading }) {
   var _sd = useState(todayIso()); var dateF = _sd[0]; var setDateF = _sd[1];
@@ -3605,6 +3867,7 @@ function AppShell({ user, onLogout }) {
     { k:"mechaniker",  ic: IC.wrench,   label:"Mechaniker" },
     { k:"technik",     ic: IC.truck,    label:"Technik" },
     { k:"inspektion",  ic: IC.search,   label:"Inspektion" },
+    { k:"du",          ic: IC.archive,  label:"DU Auflieger" },
     { k:"waschhalle",  ic: IC.droplet,  label:"Waschhalle" },
     { k:"lager",       ic: IC.box,      label:"Lager",         badge: lowStock, badgeCls:"orange" },
     { k:"kosten",      ic: IC.euro,     label:"Kosten" },
@@ -3617,7 +3880,7 @@ function AppShell({ user, onLogout }) {
 
   var PAGE_TITLES = {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
-    technik:"Technik — Fuhrpark", inspektion:"Inspektion", waschhalle:"Waschhalle",
+    technik:"Technik — Fuhrpark", inspektion:"Inspektion", du:"DU Auflieger", waschhalle:"Waschhalle",
     lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Lieferscheine",
     wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen", kontakte:"Kontakte"
   };
@@ -3728,6 +3991,7 @@ function AppShell({ user, onLogout }) {
           {sec === "mechaniker"  && <Mechaniker jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "technik"     && <Technik vehicles={fVehicles} forklifts={fForklifts} jobs={fJobs} />}
           {sec === "inspektion"  && <Inspektion inspections={fInspections} onRefresh={loadAll} loading={loading} />}
+          {sec === "du"          && <DUAufliegerDash inspections={fInspections} onRefresh={loadAll} loading={loading} />}
           {sec === "waschhalle"  && <Waschhalle washOrders={fWashOrders} onRefresh={loadAll} loading={loading} />}
           {sec === "lager"       && <Lager stock={fStock} onRefresh={loadAll} loading={loading} />}
           {sec === "kosten"      && <Kosten jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} forklifts={fForklifts} />}
