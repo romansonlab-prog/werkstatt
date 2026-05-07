@@ -235,9 +235,17 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 //   { id:"jens", name:"Jens", avatar:"JE", pin:"9274", role:"fpl"  },
 // ];
 
-// MECHANICS больше не хардкодим — загружаем динамически из users где app_access содержит 'werkstatt'.
-// Используй getMechanics(dbUsers) везде где раньше был MECHANICS.
-function getMechanics(dbUsers) {
+// MECHANICS больше не хардкодим.
+// getMechanicsFromJobs — динамически из jobs (кто сегодня что делал).
+// getMechanicsFromUsers — из массива dbUsers (для компонентов у которых он есть).
+function getMechanicsFromJobs(jobs) {
+  var ids = {};
+  (jobs || []).forEach(function(j) {
+    if (j.mechanic) ids[j.mechanic] = j.mechanic_name || j.mechanic;
+  });
+  return Object.keys(ids).map(function(id) { return { id:id, name:ids[id] }; });
+}
+function getMechanicsFromUsers(dbUsers) {
   return (dbUsers || []).filter(function(u) {
     return u.active !== false && Array.isArray(u.app_access) && u.app_access.indexOf("werkstatt") !== -1;
   });
@@ -741,15 +749,8 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
   });
   activity.sort(function(a,b){ return b.ts.localeCompare(a.ts); });
 
-  // Mechaniker heute — динамически из jobs (кто что делал сегодня)
-  var mechIds = {};
-  todayJobs.forEach(function(j) {
-    if (j.mechanic) mechIds[j.mechanic] = j.mechanic_name || j.mechanic;
-  });
-  var dynamicMechanics = Object.keys(mechIds).map(function(id) {
-    return { id: id, name: mechIds[id] };
-  });
-  var mechStatus = dynamicMechanics.map(function(m){
+  // Mechaniker heute — динамически из jobs
+  var mechStatus = getMechanicsFromJobs(todayJobs).map(function(m){
     var mj = todayJobs.filter(function(j){ return j.mechanic===m.id; });
     var active = mj.filter(function(j){ return j.status==="inProgress"; }).length;
     var done = mj.filter(function(j){ return j.status==="done"; }).length;
@@ -1292,11 +1293,11 @@ function Eingang({ alerts, onRefresh, loading }) {
 }
 
 // === MECHANIKER ===
-function Mechaniker({ jobs, dbUsers, onRefresh, loading }) {
+function Mechaniker({ jobs, onRefresh, loading }) {
   var _sd = useState(todayIso()); var date = _sd[0]; var setDate = _sd[1];
   var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
 
-  var mechanics = getMechanics(dbUsers);
+  var mechanics = getMechanicsFromJobs(jobs);
 
   function mechJobs(mechId) {
     return jobs.filter(function(j){
@@ -1324,7 +1325,7 @@ function Mechaniker({ jobs, dbUsers, onRefresh, loading }) {
 
         {mechanics.length === 0 && (
           <div style={{ padding:20, color:"rgba(255,255,255,0.4)", textAlign:"center", fontSize:13 }}>
-            Keine Mechaniker gefunden. Bitte in Einstellungen → Mitarbeiter Mechaniker anlegen (app_access: werkstatt).
+            Noch keine Aufträge von Mechanikern gefunden.
           </div>
         )}
 
@@ -1898,7 +1899,7 @@ function Lager({ stock, onRefresh, loading }) {
     </div>
   );
 }
-function Archiv({ jobs, dbUsers }) {
+function Archiv({ jobs }) {
   var _sd1 = useState(""); var dateFrom = _sd1[0]; var setDateFrom = _sd1[1];
   var _sd2 = useState(""); var dateTo = _sd2[0]; var setDateTo = _sd2[1];
   var _sm = useState(""); var mechF = _sm[0]; var setMechF = _sm[1];
@@ -1933,7 +1934,7 @@ function Archiv({ jobs, dbUsers }) {
           <input type="date" className="inp" value={dateTo} onChange={function(e){ setDateTo(e.target.value); }} placeholder="Bis" />
           <select className="inp" value={mechF} onChange={function(e){ setMechF(e.target.value); }}>
             <option value="">Alle Mechaniker</option>
-            {getMechanics(dbUsers).map(function(m){ return <option key={m.id} value={m.id}>{m.name}</option>; })}
+            {getMechanicsFromJobs(jobs).map(function(m){ return <option key={m.id} value={m.id}>{m.name}</option>; })}
           </select>
           <select className="inp" value={typeF} onChange={function(e){ setTypeF(e.target.value); }}>
             <option value="">Alle Typen</option>
@@ -3685,7 +3686,7 @@ function AppShell({ user, onLogout }) {
           </div>
           <div style={{ marginTop:12, display:"flex", gap:6, alignItems:"center" }}>
             <input type="date" className="inp" style={{ flex:1, fontSize:11, padding:"5px 8px" }} value={shiftDate} onChange={function(e){ setShiftDate(e.target.value); }} />
-            <button onClick={function(){ genSchichtbericht(jobs, shiftDate, getMechanics(dbUsers)); }}
+            <button onClick={function(){ genSchichtbericht(jobs, shiftDate, getMechanicsFromJobs(jobs)); }}
               style={{ flexShrink:0, padding:"5px 10px", border:"1px solid rgba(255,165,0,0.35)", background:"rgba(255,165,0,0.08)", color:"#ffa500", borderRadius:8, fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>
               {IC.report} Schicht
             </button>
@@ -3719,12 +3720,12 @@ function AppShell({ user, onLogout }) {
             <button className="topbar-refresh no-print" onClick={loadAll}>{loading ? "⏳" : "↻ Aktualisieren"}</button>
           </div>
         </div>
-        <InfoBar openAlerts={openAlerts.length} mechanics={getMechanics(dbUsers)} jobs={fJobs} />
+        <InfoBar openAlerts={openAlerts.length} mechanics={getMechanicsFromJobs(fJobs)} jobs={fJobs} />
 
         <div className="page">
           {sec === "uebersicht"  && <Uebersicht jobs={fJobs} alerts={fAlerts} vehicles={fVehicles} forklifts={fForklifts} washOrders={fWashOrders} inspections={fInspections} />}
           {sec === "eingang"     && <Eingang alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
-          {sec === "mechaniker"  && <Mechaniker jobs={fJobs} dbUsers={dbUsers} onRefresh={loadAll} loading={loading} />}
+          {sec === "mechaniker"  && <Mechaniker jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "technik"     && <Technik vehicles={fVehicles} forklifts={fForklifts} jobs={fJobs} />}
           {sec === "inspektion"  && <Inspektion inspections={fInspections} onRefresh={loadAll} loading={loading} />}
           {sec === "waschhalle"  && <Waschhalle washOrders={fWashOrders} onRefresh={loadAll} loading={loading} />}
@@ -3732,7 +3733,7 @@ function AppShell({ user, onLogout }) {
           {sec === "kosten"      && <Kosten jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} forklifts={fForklifts} />}
           {sec === "rechnungen"  && <Rechnungen invoices={fInvoices} vehicles={fVehicles} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} onRefresh={loadAll} loading={loading} />}
-          {sec === "archiv"      && <Archiv jobs={fJobs} dbUsers={dbUsers} />}
+          {sec === "archiv"      && <Archiv jobs={fJobs} />}
           {sec === "kontakte"    && <Kontakte onRefresh={loadAll} />}
           {sec === "settings"    && <Einstellungen vehicles={fVehicles} forklifts={fForklifts} stock={fStock} onRefresh={loadAll} loading={loading} />}
         </div>
