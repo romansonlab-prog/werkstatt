@@ -380,6 +380,8 @@ function WaschApp({ user, onLogout }) {
       price_eur: parseFloat(price||"0")||0,
       duration_minutes: parseInt(duration||"0")||0,
       report_text: note.trim()||null,
+      niederlassung_id: (user && user.niederlassung_id) ? user.niederlassung_id : null,
+      tenant_id: "ltg",
       finished_at: new Date().toISOString(),
       created_at: new Date().toISOString()
     };

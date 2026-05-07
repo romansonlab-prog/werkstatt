@@ -941,6 +941,12 @@ function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
 }
 
 // ── BREAKDOWN ─────────────────────────────────────────────────────────────────
+var WERKSTAETTEN = [
+  { id:"hockenheim", label:"Werkstatt Hockenheim" },
+  { id:"passau",     label:"Werkstatt Passau" },
+  { id:"regensburg", label:"Werkstatt Regensburg" }
+];
+
 function BreakdownScreen({ driverName, lang, setLang, onBack }) {
   var t=getT(lang);
   var _veh=useState([]); var vehicles=_veh[0]; var setVehicles=_veh[1];
@@ -955,6 +961,7 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
   var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
   var _sent=useState(false); var sent=_sent[0]; var setSent=_sent[1];
   var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
+  var _wk=useState("hockenheim"); var targetWerkstatt=_wk[0]; var setTargetWerkstatt=_wk[1];
 
   useEffect(function(){
     sbGet("vehicles","select=id,plate,brand,model&order=plate").then(function(rows){
@@ -1008,7 +1015,9 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
         return sbPost("alerts",{
           id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,
           urgency:urg==="sofort"?"urgent":"normal",
-          sender:driverName||"driver",sender_app:"fahrer",status:"open",photo_urls:JSON.stringify(urls)
+          sender:driverName||"driver",sender_app:"fahrer",status:"open",
+          target_workshop_niederlassung_id: targetWerkstatt,
+          photo_urls:JSON.stringify(urls)
         });
       })
       .then(function(){ setSending(false); setSent(true); })
@@ -1099,6 +1108,26 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
           <textarea className="textarea-dark" placeholder={t.descPh} value={desc} onChange={function(e){ setDesc(e.target.value); }} />
         </div>
 
+        <div style={{ marginBottom:14 }}>
+          <div className="label-cap">WERKSTATT AUSWÄHLEN *</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {WERKSTAETTEN.map(function(wk) {
+              return (
+                <div key={wk.id}
+                  onClick={function(){ setTargetWerkstatt(wk.id); }}
+                  style={{ padding:"12px 16px", borderRadius:12, border:"1px solid",
+                    borderColor: targetWerkstatt === wk.id ? "#ffa500" : "rgba(255,255,255,0.2)",
+                    background: targetWerkstatt === wk.id ? "rgba(255,165,0,0.12)" : "rgba(9,27,58,0.5)",
+                    color: targetWerkstatt === wk.id ? "#ffa500" : "#fff",
+                    fontWeight:700, fontSize:14, cursor:"pointer" }}>
+                  🔧 {wk.label}
+                  {targetWerkstatt === wk.id && <span style={{ float:"right" }}>✓</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
         {errMsg && <div style={{ color:"#ef4444",fontSize:13,marginTop:10,fontWeight:700 }}>{errMsg}</div>}
         <div style={{ textAlign:"center",color:"rgba(255,255,255,0.4)",fontSize:12,marginTop:14 }}>* {t.req}</div>
@@ -1128,27 +1157,40 @@ function App() {
     return s || ("driver-"+Date.now());
   }
 
-  // При успешном логине: создать/обновить запись в users + last_login
+  // При успешном логине: найти существующего юзера по имени или создать нового.
+  // Это предотвращает дубликаты когда имя водителя совпадает с именем механика.
   function registerOrUpdateDriver(fullName){
     if (!fullName) return;
-    var id = nameToId(fullName);
     var avatar = fullName.trim().split(/\s+/).map(function(w){ return (w[0]||"").toUpperCase(); }).join("").slice(0,2);
-    // upsert: при коллизии id просто обновляется last_login и активность
-    fetch(SB_URL+"/rest/v1/users", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal,resolution=merge-duplicates" },
-      body:JSON.stringify({
-        id: id,
-        name: fullName,
-        avatar: avatar,
-        role: "fahrer",
-        tenant_id: "ltg",
-        niederlassung_id: "hockenheim",
-        scope_level: "niederlassung",
-        active: true,
-        app_access: [],
-        last_login: new Date().toISOString()
-      })
+    var nameLower = fullName.trim().toLowerCase();
+    // Сначала ищем существующего юзера с похожим именем (любая роль)
+    sbGet("users", "select=id,name,role&active=eq.true").then(function(rows) {
+      var existing = (rows || []).find(function(u) {
+        return (u.name || "").trim().toLowerCase() === nameLower;
+      });
+      if (existing) {
+        // Юзер найден — просто обновляем last_login, не трогаем role/id
+        fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(existing.id), {
+          method:"PATCH",
+          headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+          body:JSON.stringify({ last_login: new Date().toISOString(), active: true })
+        }).catch(function(){});
+      } else {
+        // Нового водителя создаём
+        var id = nameToId(fullName);
+        fetch(SB_URL+"/rest/v1/users", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal,resolution=merge-duplicates" },
+          body:JSON.stringify({
+            id: id, name: fullName, avatar: avatar,
+            role: "fahrer", tenant_id: "ltg",
+            niederlassung_id: "hockenheim",
+            scope_level: "niederlassung",
+            active: true, app_access: [],
+            last_login: new Date().toISOString()
+          })
+        }).catch(function(){});
+      }
     }).catch(function(){});
   }
 
