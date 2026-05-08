@@ -485,7 +485,9 @@ const WORK_TYPES = [
 ];
 
 // п.4: Standort Liste
-const LOCATIONS = ["Werkstatt","HOC 1","HOC 2","HOC 3","HOC 4","HOC 5","John Deere Bruchsal"];
+// LOCATIONS грузятся динамически из niederlassung_locations по филиалу юзера.
+// Этот массив используется как fallback если БД ещё не загрузилась.
+const LOCATIONS_FALLBACK = ["Werkstatt","HOC 1","HOC 2","HOC 3","HOC 4","HOC 5","John Deere Bruchsal"];
 
 // п.5: Teile-Typen
 const PARTS_TYPES = [
@@ -1249,11 +1251,12 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
 }
 
 // === StandortPicker — плитки как Arbeitstyp ===
-function StandortPicker({ value, onChange }) {
+function StandortPicker({ value, onChange, locations }) {
+  var LOCS = (locations && locations.length) ? locations : LOCATIONS_FALLBACK;
   var _sc = useState(false); var custom = _sc[0]; var setCustom = _sc[1];
   var _si = useState(""); var customVal = _si[0]; var setCustomVal = _si[1];
 
-  var isCustom = value && !LOCATIONS.includes(value);
+  var isCustom = value && !LOCS.includes(value);
 
   function pick(l) {
     if (l === "__custom__") {
@@ -1265,7 +1268,7 @@ function StandortPicker({ value, onChange }) {
     }
   }
 
-  var allItems = LOCATIONS.concat(["__custom__"]);
+  var allItems = LOCS.concat(["__custom__"]);
 
   return (
     <div>
@@ -1310,7 +1313,7 @@ function StandortPicker({ value, onChange }) {
 }
 
 // === NEW JOB FORM ===
-function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved }) {
+function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations }) {
   var _svt = useState(prefill && prefill.vehicle_type ? prefill.vehicle_type : "truck");
   var vehicleType = _svt[0]; var setVehicleType = _svt[1];
   var _sveh = useState(prefill && prefill.plate ? { plate:prefill.plate, brand:"", type:"truck", isNew:false } : null);
@@ -1490,7 +1493,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           </div>
         </div>
         <div className="label-cap" style={{ marginTop:10 }}>Standort</div>
-        <StandortPicker value={location} onChange={setLocation} />
+        <StandortPicker value={location} onChange={setLocation} locations={locations} />
       </div>
 
       <div className="glass-panel">
@@ -2566,6 +2569,7 @@ function AppShell({ user, onLogout }) {
   var _svehicles = useState([]); var vehicles = _svehicles[0]; var setVehicles = _svehicles[1];
   var _sstock = useState([]); var stock = _sstock[0]; var setStock = _sstock[1];
   var _susers = useState([]); var dbUsers = _susers[0]; var setDbUsers = _susers[1];
+  var _slocs = useState([]); var dbLocations = _slocs[0]; var setDbLocations = _slocs[1];
   var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
   var _sprefill = useState(null); var prefill = _sprefill[0]; var setPrefill = _sprefill[1];
   var _sdbOk = useState(null); var dbOk = _sdbOk[0]; var setDbOk = _sdbOk[1];
@@ -2576,14 +2580,15 @@ function AppShell({ user, onLogout }) {
     setLoading(true);
     var nied = (user && user.niederlassung_id) ? user.niederlassung_id : "__none__";
     var stockQuery = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=name.asc&limit=200";
-    // Alerts: только те что адресованы в наш werkstatt + те без адреса (обратная совместимость)
+    var locsQuery  = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=sort_order.asc,name.asc";
     var alertsQuery = "select=*&order=created_at.desc&limit=100";
     Promise.all([
       sbSelect("jobs","select=*&order=created_at.desc&limit=300"),
       sbSelect("alerts", alertsQuery),
       sbSelect("vehicles","select=*&order=plate.asc&limit=500"),
       sbSelect("stock", stockQuery),
-      sbSelect("users","select=*")
+      sbSelect("users","select=*"),
+      sbSelect("niederlassung_locations", locsQuery)
     ]).then(function(results) {
       setJobs(results[0]);
       var rawAlerts = results[1].map(function(a){ return Object.assign({},a,{photo_urls:normalizeUrls(a.photo_urls)}); });
@@ -2600,6 +2605,8 @@ function AppShell({ user, onLogout }) {
       setVehicles(results[2]);
       setStock(results[3]);
       if (results[4] && results[4].length) setDbUsers(results[4]);
+      // Локации из БД — если есть, используем; иначе fallback
+      if (results[5] && results[5].length) setDbLocations(results[5].map(function(l){ return l.name; }));
       setDbOk(true); setLoading(false);
     }).catch(function(e) {
       console.error(e); setDbOk(false); setLoading(false);
@@ -2722,6 +2729,7 @@ function AppShell({ user, onLogout }) {
           <NewJob vehicles={vehicles} setVehicles={setVehicles}
             user={user} userRate={myRate}
             prefill={prefill}
+            locations={dbLocations}
             onClear={function(){ setPrefill(null); }}
             onSaved={loadAll}
           />
