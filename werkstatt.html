@@ -2966,6 +2966,7 @@ function App() {
         onUnlock={function(){ setStage("app"); }}
         onChangeUser={function() {
           try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
           setSavedName(""); setUser(null); setStage("pin");
         }}
       />

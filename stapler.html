@@ -876,7 +876,7 @@ function App() {
   if (stg === "slider") return (
     <SliderScreen name={nm}
       onUnlock={function(){ setStg("form"); }}
-      onChange={function(){ try { localStorage.removeItem(SESSION_KEY); } catch(e) {} setNm(""); setUsr(null); setStg("pin"); }}
+      onChange={function(){ try { localStorage.removeItem(SESSION_KEY); } catch(e) {} try { localStorage.removeItem(DRAFT_KEY_STAPLER); } catch(e) {} setNm(""); setUsr(null); setStg("pin"); }}
     />
   );
 

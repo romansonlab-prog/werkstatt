@@ -448,7 +448,24 @@ function WaschApp({ user, onLogout }) {
       });
   }
 
-  var todayOrders = orders;
+  var todayStr = todayIso();
+  var myName = (user && user.name) ? user.name : "";
+
+  // Heute = заказы за сегодня этого мойщика
+  var todayOrders = orders.filter(function(o){
+    if ((o.work_date || "") !== todayStr) return false;
+    if (!myName) return true;
+    return (o.washer_name === myName) || (o.worker_name === myName);
+  });
+
+  // Архив — мои завершённые НЕ сегодня
+  var archiveOrders = orders.filter(function(o){
+    if ((o.work_date || "") === todayStr) return false;
+    if (!["done","archived"].includes(o.status)) return false;
+    if (!myName) return true;
+    return (o.washer_name === myName) || (o.worker_name === myName);
+  });
+
   var done = todayOrders.filter(function(o){ return ["done","archived"].includes(o.status); });
   var revenue = done.reduce(function(s,o){ return s+(Number(o.price_eur)||0); }, 0);
   var totalMin = done.reduce(function(s,o){ return s+(Number(o.duration_minutes)||0); }, 0);
@@ -485,6 +502,9 @@ function WaschApp({ user, onLogout }) {
           <button className={"btn-sm"+(tab==="form"?" active":"")} onClick={function(){ setTab("form"); }}>+ Neuer Auftrag</button>
           <button className={"btn-sm"+(tab==="list"?" active":"")} onClick={function(){ setTab("list"); loadData(); }}>
             Heute ({todayOrders.length})
+          </button>
+          <button className={"btn-sm"+(tab==="archiv"?" active":"")} onClick={function(){ setTab("archiv"); loadData(); }}>
+            Mein Archiv
           </button>
         </div>
 
@@ -591,46 +611,86 @@ function WaschApp({ user, onLogout }) {
           </div>
         )}
 
-        {/* LIST TAB */}
+        {/* LIST TAB — Heute (только сегодня + мои) */}
         {tab === "list" && (
           <div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>Alle Aufträge ({orders.length})</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>Heute ({todayOrders.length})</div>
               <button className="btn-sm" onClick={loadData}>{loading?"...":"↻ Aktualisieren"}</button>
             </div>
-            <input className="input-dark" style={{ marginBottom:12, fontSize:13 }}
-              value={archFilter} placeholder="Suche Kennzeichen..."
-              onChange={function(e){ setArchFilter(e.target.value); }} />
-            {(function(){
-              var filtered = archFilter.trim()
-                ? orders.filter(function(o){ return ((o.plate_number||"")+(o.fleet_number||"")).toLowerCase().includes(archFilter.toLowerCase()); })
-                : orders;
-              var todayStr = todayIso();
-              if (filtered.length === 0) return (
-                <div style={{ textAlign:"center", padding:"40px 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
-                  Keine Aufträge gefunden
-                </div>
-              );
-              return filtered.map(function(o){
-                var isToday = (o.work_date||"") === todayStr;
-                return (
-                  <div key={o.id} className="order-card">
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                      <div>
-                        <div style={{ fontWeight:800, fontSize:16 }}>{o.plate_number||o.fleet_number||"—"}</div>
-                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
-                          {o.vehicle_type||""} · {o.work_date||""}{isToday ? " · Heute" : ""}
-                        </div>
-                      </div>
-                      <div style={{ textAlign:"right" }}>
-                        <div style={{ fontWeight:800, color:"#22c55e", fontSize:15 }}>{o.wash_type_name||"—"}</div>
-                        <div style={{ fontSize:13, color:"#ffa500", fontWeight:700 }}>{o.price_eur ? Number(o.price_eur).toFixed(2)+" €" : ""}</div>
+            {todayOrders.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
+                Heute noch keine Aufträge
+              </div>
+            ) : todayOrders.map(function(o){
+              return (
+                <div key={o.id} className="order-card">
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                    <div>
+                      <div style={{ fontWeight:800, fontSize:16 }}>{o.plate_number||o.fleet_number||"—"}</div>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
+                        {o.vehicle_type||""}
                       </div>
                     </div>
-                    {o.report_text && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", marginTop:4 }}>{o.report_text}</div>}
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontWeight:800, color:"#22c55e", fontSize:15 }}>{o.wash_type_name||"—"}</div>
+                      <div style={{ fontSize:13, color:"#ffa500", fontWeight:700 }}>{o.price_eur ? Number(o.price_eur).toFixed(2)+" €" : ""}</div>
+                    </div>
                   </div>
-                );
-              });
+                  {o.report_text && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", marginTop:4 }}>{o.report_text}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ARCHIV TAB — мои завершённые с фильтром по дате */}
+        {tab === "archiv" && (
+          <div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>Mein Archiv</div>
+              <button className="btn-sm" onClick={loadData}>{loading?"...":"↻"}</button>
+            </div>
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              <input type="date" className="input-dark" style={{ flex:1, fontSize:13 }}
+                value={archFilter} onChange={function(e){ setArchFilter(e.target.value); }} />
+              {archFilter && <button className="btn-sm" onClick={function(){ setArchFilter(""); }}>✕</button>}
+            </div>
+            {(function(){
+              var filtered = archFilter
+                ? archiveOrders.filter(function(o){ return (o.work_date||"") === archFilter; })
+                : archiveOrders;
+              if (filtered.length === 0) return (
+                <div style={{ textAlign:"center", padding:"40px 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
+                  {archFilter ? "An diesem Datum keine Aufträge" : "Noch keine archivierten Aufträge"}
+                </div>
+              );
+              return (
+                <div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:10 }}>
+                    {filtered.length} {filtered.length === 1 ? "Auftrag" : "Aufträge"}
+                  </div>
+                  {filtered.map(function(o){
+                    return (
+                      <div key={o.id} className="order-card">
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                          <div>
+                            <div style={{ fontWeight:800, fontSize:16 }}>{o.plate_number||o.fleet_number||"—"}</div>
+                            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
+                              {o.vehicle_type||""} · {o.work_date||""}
+                            </div>
+                          </div>
+                          <div style={{ textAlign:"right" }}>
+                            <div style={{ fontWeight:800, color:"#22c55e", fontSize:15 }}>{o.wash_type_name||"—"}</div>
+                            <div style={{ fontSize:13, color:"#ffa500", fontWeight:700 }}>{o.price_eur ? Number(o.price_eur).toFixed(2)+" €" : ""}</div>
+                          </div>
+                        </div>
+                        {o.report_text && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", marginTop:4 }}>{o.report_text}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
             })()}
           </div>
         )}
@@ -747,7 +807,7 @@ function App() {
   if (stg==="slider") return (
     <SliderScreen name={nm}
       onUnlock={function(){ setStg("app"); }}
-      onChange={function(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} setNm(""); setUser(null); setStg("pin"); }}
+      onChange={function(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} try{ localStorage.removeItem(DRAFT_KEY_WASCHHALLE); }catch(e){} setNm(""); setUser(null); setStg("pin"); }}
     />
   );
   if (stg==="app" && user) return <WaschApp user={user} onLogout={function(){ setStg("slider"); }} />;

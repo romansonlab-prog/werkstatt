@@ -1269,6 +1269,7 @@ function App() {
     onUnlock={function(){ setStg("menu"); }}
     onChange={function(){
       try{ localStorage.removeItem(SESS_KEY); }catch(e){}
+      try{ localStorage.removeItem(DRAFT_KEY_FAHRER); }catch(e){}
       setName(""); setStg("register");
     }} />;
   if(scr==="menu") return <MainMenu lang={lang} setLang={setLang} onPick={function(k){ if(k==="lkw") setScr("insp_lkw"); else if(k==="auf") setScr("insp_auf"); else if(k==="bd") setScr("bd"); }} />;
