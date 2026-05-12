@@ -790,6 +790,39 @@ function App() {
     setNm(u.name); setUsr(sessUser); setStg("slider");
   }
 
+  // Запись/обновление пользователя в public.users
+  function registerOrUpdateUser(fullName, niedId, fallbackUserId) {
+    if (!fullName) return;
+    var avatar = fullName.trim().split(/\s+/).map(function(w){ return (w[0]||"").toUpperCase(); }).join("").slice(0,2);
+    var nameLower = fullName.trim().toLowerCase();
+    sbGet("users", "select=id,name,niederlassung_id&active=eq.true").then(function(rows) {
+      var existing = (rows || []).find(function(u) {
+        return (u.name || "").trim().toLowerCase() === nameLower;
+      });
+      if (existing) {
+        fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(existing.id), {
+          method:"PATCH",
+          headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+          body:JSON.stringify({ last_login: new Date().toISOString(), active: true,
+            niederlassung_id: niedId || existing.niederlassung_id || "hockenheim" })
+        }).catch(function(){});
+      } else {
+        fetch(SB_URL+"/rest/v1/users", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal,resolution=merge-duplicates" },
+          body:JSON.stringify({
+            id: fallbackUserId, name: fullName, avatar: avatar,
+            role: "stapler", tenant_id: "ltg",
+            niederlassung_id: niedId || "hockenheim",
+            scope_level: "niederlassung",
+            active: true, app_access: ["stapler"],
+            last_login: new Date().toISOString()
+          })
+        }).catch(function(){});
+      }
+    }).catch(function(){});
+  }
+
   function loginFallback(fullName, nied) {
     var u = {
       id: "st_" + Date.now(),
@@ -802,6 +835,7 @@ function App() {
       tenant_id: "ltg"
     };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
+    registerOrUpdateUser(fullName, u.niederlassung_id, u.id);
     setNm(fullName); setUsr(u); setStg("slider");
   }
 

@@ -621,15 +621,19 @@ function uploadAllPhotos(jobId, photos) {
   return Promise.all(promises).then(function(urls) { return urls.filter(Boolean); });
 }
 
-function ensureVehicle(vehicle, vehicles, setVehicles) {
+function ensureVehicle(vehicle, vehicles, setVehicles, user) {
   if (!vehicle || !vehicle.plate) return Promise.resolve(null);
   var exists = (vehicles || []).find(function(v) {
     return (v.plate || "").toLowerCase() === vehicle.plate.toLowerCase();
   });
   if (exists) return Promise.resolve(exists);
+  var nied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
   var row = {
     id:"V" + Date.now(), plate:vehicle.plate, brand:vehicle.brand || "",
-    type:vehicle.type || "other", created_at:new Date().toISOString()
+    type:vehicle.type || "other",
+    home_niederlassung_id: nied,
+    tenant_id: "ltg",
+    created_at:new Date().toISOString()
   };
   return sbInsert("vehicles", row, true).then(function() {
     setVehicles(function(prev) { return [row].concat(prev || []); });
@@ -1336,7 +1340,7 @@ function StandortPicker({ value, onChange, locations }) {
 }
 
 // === NEW JOB FORM ===
-function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations }) {
+function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations, dbUsers }) {
   // Черновик восстанавливаем только если нет prefill (открыт вручную, не из Eingang)
   var _draft = (function() {
     if (prefill) return {};
@@ -1412,6 +1416,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
 
   function save() {
     if (!vehicle || !vehicle.plate) { alert("Bitte Fahrzeug eingeben."); return; }
+    if (colleague && !colleagueName) { alert("Bitte Kollegen auswählen."); return; }
     setSaving(true);
     var jobId = "J" + Date.now();
 
@@ -1429,11 +1434,19 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       partsNote = "Neu aus Lager (Buchung folgt)";
     }
 
-    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles)
-      .then(function() { return uploadAllPhotos(jobId, photos); })
+    var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
+    var savedVehicleRow = null;
+
+    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles, user)
+      .then(function(veh) {
+        savedVehicleRow = veh;
+        return uploadAllPhotos(jobId, photos);
+      })
       .then(function(photoUrls) {
         var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
         var totalCost = laborCost + partsCost;
+        var vehicleHomeNied = (savedVehicleRow && savedVehicleRow.home_niederlassung_id)
+          ? savedVehicleRow.home_niederlassung_id : workshopNied;
         var payload = {
           id: jobId,
           mechanic: user.id || "roman",
@@ -1462,6 +1475,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           source: prefill ? "eingang" : "werkstatt",
           alert_id: prefill && prefill.id ? prefill.id : null,
           incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
+          workshop_niederlassung_id: workshopNied,
+          vehicle_home_niederlassung_id: vehicleHomeNied,
+          tenant_id: "ltg",
           created_at: new Date().toISOString()
         };
         return sbInsert("jobs", payload, true);
@@ -1592,14 +1608,39 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           <button type="button" className={"chip" + (!colleague ? " active" : "")} onClick={function(){ setColleague(false); }}>👤 Allein</button>
           <button type="button" className={"chip" + (colleague ? " active" : "")} onClick={function(){ setColleague(true); }}>👥 Mit Kollegen</button>
         </div>
-        {colleague && (
-          <select className="select-dark" style={{ marginTop:10 }} value={colleagueName} onChange={function(e){ setColleagueName(e.target.value); }}>
-            <option value="">Kollege wählen</option>
-            {USERS.filter(function(u) { return u.id !== user.id; }).map(function(u) {
-              return <option key={u.id} value={u.name}>{u.name}</option>;
-            })}
-          </select>
-        )}
+        {colleague && (function(){
+          var myNied = user && user.niederlassung_id;
+          var allMechs = (dbUsers || []).filter(function(u) {
+            return u.role === "mechaniker" && u.active !== false && u.id !== (user && user.id);
+          });
+          var mine = allMechs.filter(function(u){ return u.niederlassung_id === myNied; });
+          var others = allMechs.filter(function(u){ return u.niederlassung_id !== myNied; });
+          mine.sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+          others.sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+          function niedLabel(id) {
+            var f = ALLE_NIEDERLASSUNGEN.find(function(n){ return n.id === id; });
+            return f ? f.label : (id || "—");
+          }
+          return (
+            <select className="select-dark" style={{ marginTop:10 }} value={colleagueName} onChange={function(e){ setColleagueName(e.target.value); }}>
+              <option value="">Kollege wählen *</option>
+              {mine.length > 0 && (
+                <optgroup label="Mein Werkstatt">
+                  {mine.map(function(u){
+                    return <option key={u.id} value={u.name}>{u.name}</option>;
+                  })}
+                </optgroup>
+              )}
+              {others.length > 0 && (
+                <optgroup label="Andere Niederlassungen">
+                  {others.map(function(u){
+                    return <option key={u.id} value={u.name}>{u.name + " (" + niedLabel(u.niederlassung_id) + ")"}</option>;
+                  })}
+                </optgroup>
+              )}
+            </select>
+          );
+        })()}
       </div>
 
       {/* п.6: Таймер Arbeitszeit с паузой */}
@@ -2089,11 +2130,14 @@ function Lager({ stock, loading, onRefresh }) {
 }
 
 // === ARCHIV (с просмотром фото) ===
-function Archiv({ jobs }) {
+function Archiv({ jobs, user }) {
   var _sd = useState(""); var filterDate = _sd[0]; var setFilterDate = _sd[1];
   var _sp = useState(null); var photoJob = _sp[0]; var setPhotoJob = _sp[1];
 
-  var done = (jobs || []).filter(function(j) { return j.status === "done"; });
+  var myId = user && user.id;
+  var done = (jobs || []).filter(function(j) {
+    return j.status === "done" && j.mechanic === myId;
+  });
   var filtered = filterDate
     ? done.filter(function(j) { return (j.date || (j.created_at || "").slice(0,10)) === filterDate; })
     : done;
@@ -2113,7 +2157,7 @@ function Archiv({ jobs }) {
 
   return (
     <div>
-      <div className="page-title">Ar<span style={{ color:"#ffa500" }}>chiv</span></div>
+      <div className="page-title">Mein Ar<span style={{ color:"#ffa500" }}>chiv</span></div>
       <div style={{ display:"flex", gap:10, marginBottom:14, alignItems:"center" }}>
         <input type="date" className="input-dark" style={{ flex:1 }} value={filterDate} onChange={function(e){ setFilterDate(e.target.value); }} />
         {filterDate && <button className="mini-btn" type="button" onClick={function(){ setFilterDate(""); }}>✕</button>}
@@ -2211,9 +2255,351 @@ function Archiv({ jobs }) {
   );
 }
 
+// === DU AUFLIEGER ===
+var DU_SECTIONS = [
+  { id:1, title:"1. Dokumente", items:[
+    "Auflieger Tasche, Auflieger Buch",
+    "Fahrzeugschein",
+    "Ladungssicherungszertifikat",
+    "Prüfplaketten am Fahrzeug vorhanden (vorne LaSi / hinten HU, SP)"
+  ]},
+  { id:2, title:"2. Allg. Wartungsarbeiten", items:[
+    "Reifendruck prüfen und einstellen",
+    "Reifen und Felgen auf Beschädigung prüfen",
+    "Reifenprofil prüfen",
+    "Kupplungsköpfe und Luftleitung überprüfen",
+    "Unterlegkeile prüfen, vorhanden, i.O.",
+    "Rahmen auf Beschädigung prüfen",
+    "Stützwinden auf Zustand und Funktion prüfen",
+    "Alle relevanten Teile abschmieren"
+  ]},
+  { id:3, title:"3. Elektrische Anlage", items:[
+    "Beleuchtung überprüfen",
+    "Steckdosen 7polig, 15polig überprüfen",
+    "EBS-Steckdose überprüfen"
+  ]},
+  { id:4, title:"4. Aufbau / Plane / Boden", items:[
+    "Boden auf Beschädigung prüfen",
+    "Bordwände Zustand überprüfen",
+    "Alu-Einstecklatten vollzählig und gerade",
+    "2 Ladebalken, 4 Lochschienen vorhanden und i.O. (LaSi)",
+    "8 Schwerbalken prüfen bei Oktabiner Auflieger inkl. Latten",
+    "Türen, -scharniere, -Dicht Gummi, -verschlüsse überprüfen",
+    "Seitenplanen, Dachplanen überprüfen",
+    "Rammpuffer i.O.",
+    "Edscha-Verdeck überprüfen auf Beschädigung, Funktion",
+    "Leiter 3m vorhanden",
+    "Aufstieg Leiter vorhanden, Funktion",
+    "Spanngurte vollzählig – 15 Stück"
+  ]},
+  { id:5, title:"5. Luftfederung", items:[
+    "Sichtprüfung aller Bauteile auf Beschädigung u. Verschleiß, Anlage auf Dichtheit prüfen",
+    "Stoßdämpfer auf Dichtheit und Festsitz prüfen"
+  ]},
+  { id:6, title:"6. Bremsen", items:[
+    "Bremsschläuche und Leitungen auf Beschädigungen prüfen",
+    "Bremsbeläge auf Verschleiß prüfen",
+    "Bremsscheiben auf Zustand / Verschleiß prüfen"
+  ]}
+];
+
+function buildDuResults(sections) {
+  var results = {};
+  sections.forEach(function(sec) {
+    sec.items.forEach(function(item) {
+      results[sec.id + "__" + item] = { status:"", bemerkung:"" };
+    });
+  });
+  return results;
+}
+
+function DUAuflieger({ user, vehicles, onRefresh }) {
+  var _sview = useState("list"); var view = _sview[0]; var setView = _sview[1];
+  var _slist = useState([]); var duList = _slist[0]; var setDuList = _slist[1];
+  var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
+  var _splate = useState(null); var plate = _splate[0]; var setPlate = _splate[1];
+  var _skm = useState(""); var km = _skm[0]; var setKm = _skm[1];
+  var _sresults = useState(buildDuResults(DU_SECTIONS)); var results = _sresults[0]; var setResults = _sresults[1];
+  var _sergaenzt = useState(""); var ergaenzt = _sergaenzt[0]; var setErgaenzt = _sergaenzt[1];
+  var _sbemerk = useState(""); var bemerk = _sbemerk[0]; var setBemerk = _sbemerk[1];
+  var _ssaving = useState(false); var saving = _ssaving[0]; var setSaving = _ssaving[1];
+
+  useEffect(function() {
+    loadList();
+  }, []);
+
+  function loadList() {
+    setLoading(true);
+    sbSelect("inspections", "select=*&type=eq.du_auflieger&order=created_at.desc&limit=100")
+      .then(function(r){ setDuList(r || []); setLoading(false); })
+      .catch(function(){ setLoading(false); });
+  }
+
+  function setItemStatus(secId, item, status) {
+    var key = secId + "__" + item;
+    setResults(function(prev) {
+      var next = Object.assign({}, prev);
+      next[key] = Object.assign({}, prev[key], { status: status });
+      return next;
+    });
+  }
+
+  function setItemBemerk(secId, item, val) {
+    var key = secId + "__" + item;
+    setResults(function(prev) {
+      var next = Object.assign({}, prev);
+      next[key] = Object.assign({}, prev[key], { bemerkung: val });
+      return next;
+    });
+  }
+
+  function calcResult() {
+    var hasNio = false;
+    Object.keys(results).forEach(function(k) {
+      if (results[k].status === "nio") hasNio = true;
+    });
+    var allSet = Object.keys(results).every(function(k) { return results[k].status !== ""; });
+    if (!allSet) return "incomplete";
+    return hasNio ? "passed_with_remarks" : "passed";
+  }
+
+  function exportPdf(insp) {
+    var data = insp ? JSON.parse(insp.items_json || "{}") : results;
+    var sectionsHtml = DU_SECTIONS.map(function(sec) {
+      var rows = sec.items.map(function(item) {
+        var key = sec.id + "__" + item;
+        var r = data[key] || { status:"", bemerkung:"" };
+        var io = r.status === "io" ? "✓" : "";
+        var nio = r.status === "nio" ? "✓" : "";
+        return "<tr><td style='padding:5px 8px;border-bottom:1px solid #eee;font-size:12px'>" + item + "</td>" +
+          "<td style='padding:5px 8px;border-bottom:1px solid #eee;text-align:center;width:40px;font-size:14px'>" + io + "</td>" +
+          "<td style='padding:5px 8px;border-bottom:1px solid #eee;text-align:center;width:40px;font-size:14px'>" + nio + "</td>" +
+          "<td style='padding:5px 8px;border-bottom:1px solid #eee;font-size:11px;color:#666'>" + (r.bemerkung || "") + "</td></tr>";
+      }).join("");
+      return "<tr><td colspan='4' style='background:#0a1730;color:#fff;padding:7px 8px;font-weight:800;font-size:13px'>" + sec.title + "</td></tr>" + rows;
+    }).join("");
+
+    var pl = insp ? insp.plate : (plate ? plate.plate : "");
+    var dt = insp ? insp.date : todayIso();
+    var mech = insp ? insp.mechanic_name : (user ? user.name : "");
+    var kmVal = insp ? insp.km_stand : km;
+    var ergVal = insp ? insp.ergaenzt_ersetzt : ergaenzt;
+    var bemVal = insp ? insp.bemerkungen : bemerk;
+
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>DU Auflieger - " + pl + "</title>" +
+      "<style>body{font-family:Arial,sans-serif;padding:20px;color:#222;font-size:13px}" +
+      "h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;font-weight:normal;margin-bottom:16px}" +
+      "table{width:100%;border-collapse:collapse;margin-bottom:16px}" +
+      "th{background:#0a1730;color:#fff;padding:6px 8px;text-align:left;font-size:12px}" +
+      ".header-row{display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap}" +
+      ".header-field{flex:1;min-width:140px}" +
+      ".header-label{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:2px}" +
+      ".header-value{font-size:14px;font-weight:700;border-bottom:1px solid #ccc;padding-bottom:3px}" +
+      ".footer{margin-top:24px;padding-top:16px;border-top:1px solid #ccc;display:flex;gap:32px}" +
+      ".sig-block{flex:1}" +
+      ".sig-label{font-size:10px;color:#888;margin-bottom:20px}" +
+      ".sig-line{border-bottom:1px solid #333;height:30px}" +
+      "</style></head><body>" +
+      "<h1>Fahrzeug Checkliste – Plan Auflieger</h1>" +
+      "<div class='header-row'>" +
+      "<div class='header-field'><div class='header-label'>Fahrzeug</div><div class='header-value'>" + pl + "</div></div>" +
+      "<div class='header-field'><div class='header-label'>Datum</div><div class='header-value'>" + dt + "</div></div>" +
+      "<div class='header-field'><div class='header-label'>KM-Stand</div><div class='header-value'>" + (kmVal || "—") + "</div></div>" +
+      "<div class='header-field'><div class='header-label'>Mitarbeiter</div><div class='header-value'>" + mech + "</div></div>" +
+      "</div>" +
+      "<table><thead><tr><th>Prüfpunkt</th><th style='width:40px;text-align:center'>i.O.</th><th style='width:40px;text-align:center'>n.i.O.</th><th style='width:180px'>Bemerkung</th></tr></thead><tbody>" +
+      sectionsHtml + "</tbody></table>" +
+      (ergVal ? "<p><strong>Ergänzt / Ersetzt:</strong> " + ergVal + "</p>" : "") +
+      (bemVal ? "<p><strong>Bemerkungen:</strong> " + bemVal + "</p>" : "") +
+      "<div class='footer'>" +
+      "<div class='sig-block'><div class='sig-label'>Name des Mitarbeiters (Klarschrift)</div><div class='sig-line'></div></div>" +
+      "<div class='sig-block'><div class='sig-label'>Unterschrift Mitarbeiter</div><div class='sig-line'></div></div>" +
+      "<div class='sig-block'><div class='sig-label'>Kontrolliert durch</div><div class='sig-line' style='padding-top:4px;font-weight:700'>" + mech + "</div></div>" +
+      "</div>" +
+      "<p style='font-size:10px;color:#aaa;margin-top:12px'>WerkFlow · Seite 1 von 1 · Stand: " + todayIso() + "</p>" +
+      "</body></html>";
+
+    var blob = new Blob([html], { type:"text/html" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "DU_Auflieger_" + pl + "_" + dt + ".html";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function save() {
+    if (!plate || !plate.plate) { alert("Bitte Fahrzeug auswählen."); return; }
+    var res = calcResult();
+    if (res === "incomplete") {
+      if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
+    }
+    setSaving(true);
+    var id = "DU" + Date.now();
+    var payload = {
+      id: id,
+      type: "du_auflieger",
+      plate: plate.plate,
+      date: todayIso(),
+      km_stand: km || null,
+      mechanic_id: user ? user.id : null,
+      mechanic_name: user ? user.name : null,
+      niederlassung_id: user ? user.niederlassung_id : null,
+      tenant_id: "ltg",
+      result: res === "incomplete" ? "passed_with_remarks" : res,
+      bemerkungen: bemerk || null,
+      ergaenzt_ersetzt: ergaenzt || null,
+      kontrolliert_durch: user ? user.name : null,
+      items_json: JSON.stringify(results),
+      created_at: new Date().toISOString()
+    };
+    sbInsert("inspections", payload, true)
+      .then(function() {
+        setSaving(false);
+        exportPdf(payload);
+        setPlate(null); setKm(""); setResults(buildDuResults(DU_SECTIONS));
+        setErgaenzt(""); setBemerk(""); setView("list");
+        loadList();
+      })
+      .catch(function(e) { setSaving(false); alert("Fehler: " + (e.message || e)); });
+  }
+
+  if (view === "form") {
+    return (
+      <div>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+          <button type="button" className="outline-btn" style={{ padding:"8px 14px" }} onClick={function(){ setView("list"); }}>← Zurück</button>
+          <div className="page-title" style={{ margin:0 }}>DU <span style={{ color:"#ffa500" }}>Auflieger</span></div>
+        </div>
+
+        <div className="glass-panel">
+          <div className="label-cap">🚛 Fahrzeug (Auflieger)</div>
+          <VehicleInput vehicles={vehicles} value={plate} onChange={setPlate} vehicleType="trailer" />
+        </div>
+
+        <div className="glass-panel">
+          <div className="label-cap">KM-Stand</div>
+          <input className="input-dark" value={km} placeholder="z.B. 245000"
+            onChange={function(e){ setKm(e.target.value.replace(/\D/g,"")); }} />
+        </div>
+
+        {DU_SECTIONS.map(function(sec) {
+          return (
+            <div key={sec.id} className="glass-panel">
+              <div style={{ fontWeight:800, fontSize:13, color:"#ffa500", marginBottom:10, letterSpacing:0.5 }}>{sec.title}</div>
+              {sec.items.map(function(item) {
+                var key = sec.id + "__" + item;
+                var r = results[key] || { status:"", bemerkung:"" };
+                return (
+                  <div key={item} style={{ marginBottom:12, paddingBottom:12, borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", marginBottom:6 }}>{item}</div>
+                    <div style={{ display:"flex", gap:8, marginBottom: r.status === "nio" ? 6 : 0 }}>
+                      <button type="button"
+                        style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid", fontWeight:700, fontSize:12,
+                          borderColor: r.status === "io" ? "#22c55e" : "rgba(255,255,255,0.2)",
+                          background: r.status === "io" ? "rgba(34,197,94,0.15)" : "transparent",
+                          color: r.status === "io" ? "#22c55e" : "rgba(255,255,255,0.6)" }}
+                        onClick={function(){ setItemStatus(sec.id, item, r.status === "io" ? "" : "io"); }}>
+                        i.O.
+                      </button>
+                      <button type="button"
+                        style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid", fontWeight:700, fontSize:12,
+                          borderColor: r.status === "nio" ? "#ef4444" : "rgba(255,255,255,0.2)",
+                          background: r.status === "nio" ? "rgba(239,68,68,0.15)" : "transparent",
+                          color: r.status === "nio" ? "#ef4444" : "rgba(255,255,255,0.6)" }}
+                        onClick={function(){ setItemStatus(sec.id, item, r.status === "nio" ? "" : "nio"); }}>
+                        n.i.O.
+                      </button>
+                    </div>
+                    {r.status === "nio" && (
+                      <input className="input-dark" style={{ fontSize:12, padding:"8px 12px" }}
+                        value={r.bemerkung} placeholder="Bemerkung..."
+                        onChange={function(e){ setItemBemerk(sec.id, item, e.target.value); }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+
+        <div className="glass-panel">
+          <div className="label-cap">Ergänzt / Ersetzt</div>
+          <textarea className="textarea-dark" value={ergaenzt} placeholder="Was wurde ergänzt oder ersetzt?"
+            onChange={function(e){ setErgaenzt(e.target.value); }} style={{ minHeight:64 }} />
+        </div>
+
+        <div className="glass-panel">
+          <div className="label-cap">Allgemeine Bemerkungen</div>
+          <textarea className="textarea-dark" value={bemerk} placeholder="Weitere Bemerkungen..."
+            onChange={function(e){ setBemerk(e.target.value); }} style={{ minHeight:64 }} />
+        </div>
+
+        <div className="glass-panel" style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>
+          Kontrolliert durch: <strong style={{ color:"#fff" }}>{user ? user.name : ""}</strong>
+        </div>
+
+        <button className="btn-primary" type="button" disabled={saving}
+          onClick={save} style={{ marginBottom:100 }}>
+          {saving ? "Speichert..." : "💾 Speichern + PDF exportieren"}
+        </button>
+      </div>
+    );
+  }
+
+  // LIST VIEW
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+        <div className="page-title" style={{ margin:0 }}>DU <span style={{ color:"#ffa500" }}>Auflieger</span></div>
+        <button className="btn-primary" type="button" style={{ padding:"10px 18px", fontSize:13 }}
+          onClick={function(){ setResults(buildDuResults(DU_SECTIONS)); setPlate(null); setKm(""); setErgaenzt(""); setBemerk(""); setView("form"); }}>
+          + Neue Prüfung
+        </button>
+      </div>
+
+      {loading && <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", padding:32 }}>Lädt...</div>}
+      {!loading && duList.length === 0 && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", padding:32 }}>
+          Noch keine DU-Prüfungen. Erste Prüfung starten!
+        </div>
+      )}
+      {duList.map(function(insp) {
+        var resColor = insp.result === "passed" ? "#22c55e" : insp.result === "passed_with_remarks" ? "#ffa500" : "#ef4444";
+        var resLabel = insp.result === "passed" ? "✓ Bestanden" : insp.result === "passed_with_remarks" ? "⚠ Mit Mängeln" : "✗ Nicht bestanden";
+        return (
+          <div key={insp.id} className="glass-panel" style={{ marginBottom:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+              <div>
+                <div style={{ fontWeight:800, fontSize:15 }}>{insp.plate}</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
+                  {dateDMY(insp.date)} · {insp.mechanic_name || "—"}
+                  {insp.km_stand ? " · " + insp.km_stand + " km" : ""}
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                <span style={{ fontSize:11, fontWeight:800, color:resColor }}>{resLabel}</span>
+                <button type="button"
+                  style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:"1px solid rgba(255,165,0,0.4)", background:"rgba(255,165,0,0.08)", color:"#ffa500", fontWeight:700 }}
+                  onClick={function(){ exportPdf(insp); }}>
+                  📄 PDF
+                </button>
+              </div>
+            </div>
+            {insp.bemerkungen && (
+              <div style={{ marginTop:8, fontSize:12, color:"rgba(255,255,255,0.55)" }}>{insp.bemerkungen}</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 // === BOTTOM NAV ===
 function BottomNav({ tab, setTab, alertCount }) {
-  var items = [["new","➕","Auftrag"],["eingang","📥","Eingang"],["jobs","📋","Meine"],["lager","📦","Lager"],["archiv","🗃️","Archiv"]];
+  var items = [["new","➕","Auftrag"],["eingang","📥","Eingang"],["jobs","📋","Meine"],["lager","📦","Lager"],["du","✅","DU"],["archiv","🗃️","Archiv"]];
   return (
     <div className="nav-wrap">
       <div className="nav">
@@ -2405,6 +2791,7 @@ function AppShell({ user, onLogout }) {
             user={user} userRate={myRate}
             prefill={prefill}
             locations={dbLocations}
+            dbUsers={dbUsers}
             onClear={function(){ setPrefill(null); }}
             onSaved={loadAll}
           />
@@ -2418,8 +2805,11 @@ function AppShell({ user, onLogout }) {
         {tab === "lager" && (
           <Lager stock={stock} loading={loading} onRefresh={loadAll} />
         )}
+        {tab === "du" && (
+          <DUAuflieger user={user} vehicles={vehicles} onRefresh={loadAll} />
+        )}
         {tab === "archiv" && (
-          <Archiv jobs={jobs} />
+          <Archiv jobs={jobs} user={user} />
         )}
       </div>
       <BottomNav tab={tab} setTab={setTab} alertCount={openAlerts.length} />
@@ -2454,6 +2844,39 @@ function App() {
     setStage("slider");
   }
 
+  // Запись/обновление пользователя в public.users (по образцу fahrer.registerOrUpdateDriver)
+  function registerOrUpdateUser(fullName, niedId, fallbackUserId) {
+    if (!fullName) return;
+    var avatar = fullName.trim().split(/\s+/).map(function(w){ return (w[0]||"").toUpperCase(); }).join("").slice(0,2);
+    var nameLower = fullName.trim().toLowerCase();
+    sbSelect("users", "select=id,name,niederlassung_id&active=eq.true").then(function(rows) {
+      var existing = (rows || []).find(function(u) {
+        return (u.name || "").trim().toLowerCase() === nameLower;
+      });
+      if (existing) {
+        fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(existing.id), {
+          method:"PATCH",
+          headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+          body:JSON.stringify({ last_login: new Date().toISOString(), active: true,
+            niederlassung_id: niedId || existing.niederlassung_id || "hockenheim" })
+        }).catch(function(){});
+      } else {
+        fetch(SB_URL+"/rest/v1/users", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal,resolution=merge-duplicates" },
+          body:JSON.stringify({
+            id: fallbackUserId, name: fullName, avatar: avatar,
+            role: "mechaniker", tenant_id: "ltg",
+            niederlassung_id: niedId || "hockenheim",
+            scope_level: "niederlassung",
+            active: true, app_access: ["werkstatt"],
+            last_login: new Date().toISOString()
+          })
+        }).catch(function(){});
+      }
+    }).catch(function(){});
+  }
+
   // Fallback PIN — старая логика: ввод имени, попытка распознать по локальному USERS
   function loginFallback(fullName, nied) {
     var niedId = nied || "hockenheim";
@@ -2467,6 +2890,7 @@ function App() {
           role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
           app_access:["werkstatt"], tenant_id:"ltg" };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
+    registerOrUpdateUser(fullName, niedId, u.id);
     setSavedName(fullName);
     setUser(u);
     setStage("slider");
