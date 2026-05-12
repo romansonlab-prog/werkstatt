@@ -250,10 +250,24 @@ function UserPill({ name }) {
 }
 
 // === ERSTE ANMELDUNG ===
+var ALLE_NIEDERLASSUNGEN = [
+  { id:"hockenheim",   label:"Hockenheim" },
+  { id:"passau",       label:"Passau" },
+  { id:"regensburg",   label:"Regensburg" },
+  { id:"garching",     label:"Garching" },
+  { id:"bruchsal",     label:"Bruchsal" },
+  { id:"zweibruecken", label:"Zweibrücken" },
+  { id:"hof",          label:"Hof" },
+  { id:"genthin",      label:"Genthin" }
+];
+
+const DRAFT_KEY_STAPLER = "draft_stapler_report";
+
 function ErsteAnmeldung({ onNext }) {
   var _v = useState(""); var v = _v[0]; var setV = _v[1];
   var _n = useState(""); var n = _n[0]; var setN = _n[1];
-  var ok = v.trim() && n.trim();
+  var _nd = useState(""); var nied = _nd[0]; var setNied = _nd[1];
+  var ok = v.trim() && n.trim() && nied;
   return (
     <div className="scrn">
       <Bg />
@@ -269,12 +283,26 @@ function ErsteAnmeldung({ onNext }) {
             <input className="input-light" value={v} placeholder="Roman" onChange={function(e){ setV(e.target.value); }} />
           </div>
           <div className="light-label">Nachname <span style={{ color:"#ff3b30" }}>*</span></div>
-          <div className="light-field" style={{ marginBottom:26 }}>
+          <div className="light-field" style={{ marginBottom:16 }}>
             <span className="light-field-icon">👤</span>
             <input className="input-light" value={n} placeholder="Anokhin" onChange={function(e){ setN(e.target.value); }} />
           </div>
+          <div className="light-label">Niederlassung <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:26 }}>
+            {ALLE_NIEDERLASSUNGEN.map(function(nd){
+              return (
+                <div key={nd.id} onClick={function(){ setNied(nd.id); }}
+                  style={{ padding:"8px 14px", borderRadius:8, border:"2px solid", cursor:"pointer", fontSize:13, fontWeight:700,
+                    borderColor: nied===nd.id ? "#ffa500" : "rgba(0,0,0,0.12)",
+                    background: nied===nd.id ? "rgba(255,165,0,0.1)" : "rgba(0,0,0,0.03)",
+                    color: nied===nd.id ? "#c47a00" : "#333" }}>
+                  {nd.label}
+                </div>
+              );
+            })}
+          </div>
           <button className="blue-btn" disabled={!ok} style={{ opacity: ok ? 1 : 0.5 }}
-            onClick={function(){ if (ok) onNext(v.trim() + " " + n.trim()); }}>
+            onClick={function(){ if (ok) onNext(v.trim() + " " + n.trim(), nied); }}>
             Weiter →
           </button>
         </div>
@@ -526,14 +554,25 @@ function StandortPicker({ value, onChange }) {
 
 // === REPORT FORM ===
 function ReportForm({ user, onSent }) {
-  var _loc = useState(""); var loc = _loc[0]; var setLoc = _loc[1];
-  var _fk  = useState(null); var fk = _fk[0]; var setFk = _fk[1];
-  var _urg = useState(""); var urg = _urg[0]; var setUrg = _urg[1];
-  var _dsc = useState(""); var dsc = _dsc[0]; var setDsc = _dsc[1];
+  var _draftInit = (function(){
+    try { var d=localStorage.getItem(DRAFT_KEY_STAPLER); return d?JSON.parse(d):{}; } catch(e){ return {}; }
+  })();
+
+  var _loc = useState(_draftInit.loc||""); var loc = _loc[0]; var setLoc = _loc[1];
+  var _fk  = useState(_draftInit.fk||null); var fk = _fk[0]; var setFk = _fk[1];
+  var _urg = useState(_draftInit.urg||""); var urg = _urg[0]; var setUrg = _urg[1];
+  var _dsc = useState(_draftInit.dsc||""); var dsc = _dsc[0]; var setDsc = _dsc[1];
   var _nm  = useState(user.name || ""); var nm = _nm[0]; var setNm = _nm[1];
   var _ph  = useState([]); var ph = _ph[0]; var setPh = _ph[1];
   var _snd = useState(false); var snd = _snd[0]; var setSnd = _snd[1];
   var photoRef = useRef(null);
+
+  // Автосохранение черновика
+  useEffect(function(){
+    try {
+      localStorage.setItem(DRAFT_KEY_STAPLER, JSON.stringify({ loc:loc, fk:fk, urg:urg, dsc:dsc }));
+    } catch(e) {}
+  }, [loc, fk, urg, dsc]);
 
   var locV = (typeof loc === "string" ? loc : "").trim();
   var fkV  = fk && (fk.nummer || fk.plate || fk.id);
@@ -573,6 +612,7 @@ function ReportForm({ user, onSent }) {
         photo_urls: JSON.stringify(photoUrls)
       });
     }).then(function(){
+      try { localStorage.removeItem(DRAFT_KEY_STAPLER); } catch(e) {}
       setSnd(false);
       onSent({ alertId:id, location:locFinal, forklift:fk, urg:urg, desc:dsc });
     }).catch(function(e){ alert("Fehler: " + (e.message || e)); setSnd(false); });
@@ -750,13 +790,13 @@ function App() {
     setNm(u.name); setUsr(sessUser); setStg("slider");
   }
 
-  function loginFallback(fullName){
+  function loginFallback(fullName, nied) {
     var u = {
       id: "st_" + Date.now(),
       name: fullName,
       avatar: fullName.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(),
       role: "stapler",
-      niederlassung_id: "hockenheim",
+      niederlassung_id: nied || "hockenheim",
       scope_level: "niederlassung",
       app_access: ["stapler"],
       tenant_id: "ltg"
@@ -768,9 +808,16 @@ function App() {
   useEffect(function(){
     try {
       var s = localStorage.getItem(SESSION_KEY);
-      if (s) { var u = JSON.parse(s); if (u && u.name) { setNm(u.name); setUsr(u); setStg("slider"); }
-        else setStg("pin"); }
-      else setStg("pin");
+      if (s) {
+        var u = JSON.parse(s);
+        if (u && u.name) {
+          if (!u.niederlassung_id) {
+            try { localStorage.removeItem(SESSION_KEY); } catch(e2) {}
+            setStg("pin"); return;
+          }
+          setNm(u.name); setUsr(u); setStg("slider");
+        } else setStg("pin");
+      } else setStg("pin");
     } catch(e) { setStg("pin"); }
     sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
       setDbUsers(r||[]);
@@ -790,7 +837,7 @@ function App() {
     />
   );
 
-  if (stg === "register") return <ErsteAnmeldung onNext={function(n){ loginFallback(n); }} />;
+  if (stg === "register") return <ErsteAnmeldung onNext={function(n, nied){ loginFallback(n, nied); }} />;
 
   if (stg === "slider") return (
     <SliderScreen name={nm}

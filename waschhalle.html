@@ -192,10 +192,24 @@ function Powered() {
 }
 
 // === ERSTE ANMELDUNG ===
+var ALLE_NIEDERLASSUNGEN = [
+  { id:"hockenheim",   label:"Hockenheim" },
+  { id:"passau",       label:"Passau" },
+  { id:"regensburg",   label:"Regensburg" },
+  { id:"garching",     label:"Garching" },
+  { id:"bruchsal",     label:"Bruchsal" },
+  { id:"zweibruecken", label:"Zweibrücken" },
+  { id:"hof",          label:"Hof" },
+  { id:"genthin",      label:"Genthin" }
+];
+
+const DRAFT_KEY_WASCHHALLE = "draft_waschhalle_wash";
+
 function ErsteAnmeldung({ onNext }) {
   var _v = useState(""); var v = _v[0]; var setV = _v[1];
   var _n = useState(""); var n = _n[0]; var setN = _n[1];
-  var ok = v.trim() && n.trim();
+  var _nd = useState(""); var nied = _nd[0]; var setNied = _nd[1];
+  var ok = v.trim() && n.trim() && nied;
   return (
     <div className="scrn">
       <Bg />
@@ -210,12 +224,26 @@ function ErsteAnmeldung({ onNext }) {
             <input className="input-light" value={v} placeholder="Roman" onChange={function(e){ setV(e.target.value); }} />
           </div>
           <div className="light-label">Nachname <span style={{ color:"#ff3b30" }}>*</span></div>
-          <div className="light-field" style={{ marginBottom:26 }}>
+          <div className="light-field" style={{ marginBottom:16 }}>
             <span className="light-field-icon">👤</span>
             <input className="input-light" value={n} placeholder="Anokhin" onChange={function(e){ setN(e.target.value); }} />
           </div>
+          <div className="light-label">Niederlassung <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:26 }}>
+            {ALLE_NIEDERLASSUNGEN.map(function(nd){
+              return (
+                <div key={nd.id} onClick={function(){ setNied(nd.id); }}
+                  style={{ padding:"8px 14px", borderRadius:8, border:"2px solid", cursor:"pointer", fontSize:13, fontWeight:700,
+                    borderColor: nied===nd.id ? "#ffa500" : "rgba(0,0,0,0.12)",
+                    background: nied===nd.id ? "rgba(255,165,0,0.1)" : "rgba(0,0,0,0.03)",
+                    color: nied===nd.id ? "#c47a00" : "#333" }}>
+                  {nd.label}
+                </div>
+              );
+            })}
+          </div>
           <button className="blue-btn" disabled={!ok} style={{ opacity:ok?1:0.5 }}
-            onClick={function(){ if(ok) onNext(v.trim()+" "+n.trim()); }}>
+            onClick={function(){ if(ok) onNext(v.trim()+" "+n.trim(), nied); }}>
             Weiter →
           </button>
         </div>
@@ -337,21 +365,42 @@ function WaschApp({ user, onLogout }) {
   var _sv = useState(false); var saving = _sv[0]; var setSaving = _sv[1];
   var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
   var _tab = useState("form"); var tab = _tab[0]; var setTab = _tab[1];
+  var _archFilter = useState(""); var archFilter = _archFilter[0]; var setArchFilter = _archFilter[1];
 
-  // Form state
-  var _fvt = useState("truck"); var vehType = _fvt[0]; var setVehType = _fvt[1];
-  var _fvb = useState(""); var vehBrand = _fvb[0]; var setVehBrand = _fvb[1];
-  var _fpl = useState(""); var plate = _fpl[0]; var setPlate = _fpl[1];
-  var _ffl = useState(""); var fleetNr = _ffl[0]; var setFleetNr = _ffl[1];
-  var _fwt = useState(null); var selWashType = _fwt[0]; var setSelWashType = _fwt[1];
-  var _fpr = useState(""); var price = _fpr[0]; var setPrice = _fpr[1];
-  var _fdu = useState(""); var duration = _fdu[0]; var setDuration = _fdu[1];
-  var _fno = useState(""); var note = _fno[0]; var setNote = _fno[1];
+  // Черновик формы
+  var _draftInit = (function(){
+    try { var d=localStorage.getItem(DRAFT_KEY_WASCHHALLE); return d?JSON.parse(d):{}; } catch(e){ return {}; }
+  })();
+
+  // Form state — восстанавливаем из черновика
+  var _fvt = useState(_draftInit.vehType||"truck"); var vehType = _fvt[0]; var setVehType = _fvt[1];
+  var _fvb = useState(_draftInit.vehBrand||""); var vehBrand = _fvb[0]; var setVehBrand = _fvb[1];
+  var _fpl = useState(_draftInit.plate||""); var plate = _fpl[0]; var setPlate = _fpl[1];
+  var _ffl = useState(_draftInit.fleetNr||""); var fleetNr = _ffl[0]; var setFleetNr = _ffl[1];
+  var _fwt = useState(_draftInit.selWashType||null); var selWashType = _fwt[0]; var setSelWashType = _fwt[1];
+  var _fpr = useState(_draftInit.price||""); var price = _fpr[0]; var setPrice = _fpr[1];
+  var _fdu = useState(_draftInit.duration||""); var duration = _fdu[0]; var setDuration = _fdu[1];
+  var _fno = useState(_draftInit.note||""); var note = _fno[0]; var setNote = _fno[1];
+
+  // Автосохранение черновика
+  useEffect(function(){
+    try {
+      localStorage.setItem(DRAFT_KEY_WASCHHALLE, JSON.stringify({
+        vehType:vehType, vehBrand:vehBrand, plate:plate, fleetNr:fleetNr,
+        selWashType:selWashType, price:price, duration:duration, note:note
+      }));
+    } catch(e) {}
+  }, [vehType, vehBrand, plate, fleetNr, selWashType, price, duration, note]);
 
   function loadData() {
     setLoading(true);
-    sbGet("wash_orders", "select=*&work_date=eq."+todayIso()+"&order=created_at.desc")
-      .then(function(r){ setOrders(r); setLoading(false); })
+    // Загружаем все заказы мойщика — не только сегодня
+    var q = "select=*&order=created_at.desc&limit=200";
+    if (user && user.niederlassung_id) {
+      q = "select=*&niederlassung_id=eq."+encodeURIComponent(user.niederlassung_id)+"&order=created_at.desc&limit=200";
+    }
+    sbGet("wash_orders", q)
+      .then(function(r){ setOrders(r||[]); setLoading(false); })
       .catch(function(){ setLoading(false); });
   }
 
@@ -360,6 +409,7 @@ function WaschApp({ user, onLogout }) {
   function clearForm() {
     setVehType("truck"); setVehBrand(""); setPlate(""); setFleetNr("");
     setSelWashType(null); setPrice(""); setDuration(""); setNote(""); setMsg("");
+    try { localStorage.removeItem(DRAFT_KEY_WASCHHALLE); } catch(e) {}
   }
 
   function save() {
@@ -545,41 +595,43 @@ function WaschApp({ user, onLogout }) {
         {tab === "list" && (
           <div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>Heute — {todayOrders.length} Aufträge</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>Alle Aufträge ({orders.length})</div>
               <button className="btn-sm" onClick={loadData}>{loading?"...":"↻ Aktualisieren"}</button>
             </div>
-            {todayOrders.length === 0
-              ? <div style={{ textAlign:"center", padding:"40px 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
-                  Noch keine Aufträge heute
+            <input className="input-dark" style={{ marginBottom:12, fontSize:13 }}
+              value={archFilter} placeholder="Suche Kennzeichen..."
+              onChange={function(e){ setArchFilter(e.target.value); }} />
+            {(function(){
+              var filtered = archFilter.trim()
+                ? orders.filter(function(o){ return ((o.plate_number||"")+(o.fleet_number||"")).toLowerCase().includes(archFilter.toLowerCase()); })
+                : orders;
+              var todayStr = todayIso();
+              if (filtered.length === 0) return (
+                <div style={{ textAlign:"center", padding:"40px 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
+                  Keine Aufträge gefunden
                 </div>
-              : todayOrders.map(function(o){
-                  var isDone = ["done","archived"].includes(o.status);
-                  return (
-                    <div key={o.id} className="order-card">
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-                        <div>
-                          <div style={{ fontWeight:800, fontSize:16 }}>{o.plate_number||o.fleet_number||"—"}</div>
-                          <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
-                            {o.vehicle_type||""} · {fmtTime(o.created_at||o.finished_at)}
-                          </div>
+              );
+              return filtered.map(function(o){
+                var isToday = (o.work_date||"") === todayStr;
+                return (
+                  <div key={o.id} className="order-card">
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                      <div>
+                        <div style={{ fontWeight:800, fontSize:16 }}>{o.plate_number||o.fleet_number||"—"}</div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
+                          {o.vehicle_type||""} · {o.work_date||""}{isToday ? " · Heute" : ""}
                         </div>
-                        <span className={"badge "+(isDone?"badge-green":o.status==="cancelled"?"badge-red":"badge-orange")}>
-                          {isDone?"✓ Fertig":o.status||"—"}
-                        </span>
                       </div>
-                      <div style={{ display:"flex", gap:12, flexWrap:"wrap", fontSize:13 }}>
-                        <span style={{ color:"#ffa500", fontWeight:700 }}>{o.wash_type_name||"—"}</span>
-                        {o.price_eur ? <span style={{ color:"#22c55e", fontWeight:700 }}>{Number(o.price_eur).toFixed(2)} €</span> : null}
-                        {o.duration_minutes ? <span style={{ color:"rgba(255,255,255,0.55)" }}>{o.duration_minutes} min</span> : null}
-                        {o.washer_name || o.worker_name ? <span style={{ color:"rgba(255,255,255,0.4)" }}>· {o.washer_name||o.worker_name}</span> : null}
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ fontWeight:800, color:"#22c55e", fontSize:15 }}>{o.wash_type_name||"—"}</div>
+                        <div style={{ fontSize:13, color:"#ffa500", fontWeight:700 }}>{o.price_eur ? Number(o.price_eur).toFixed(2)+" €" : ""}</div>
                       </div>
-                      {o.report_text && (
-                        <div style={{ marginTop:6, fontSize:12, color:"rgba(255,255,255,0.55)", lineHeight:1.4 }}>{o.report_text}</div>
-                      )}
                     </div>
-                  );
-                })
-            }
+                    {o.report_text && <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", marginTop:4 }}>{o.report_text}</div>}
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
       </div>
@@ -611,14 +663,13 @@ function App() {
     setNm(u.name); setUser(sessUser); setStg("slider");
   }
 
-  // Fallback PIN: создаём виртуального юзера после ввода имени
-  function loginFallback(fullName){
+  function loginFallback(fullName, nied) {
     var u = {
       id: "wh_"+Date.now(),
       name: fullName,
       avatar: fullName.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(),
       role: "wascher",
-      niederlassung_id: "hockenheim",
+      niederlassung_id: nied || "hockenheim",
       scope_level: "niederlassung",
       app_access: ["waschhalle"],
       tenant_id: "ltg"
@@ -628,12 +679,18 @@ function App() {
   }
 
   useEffect(function(){
-    // Сначала восстановление сессии
     try {
       var s = localStorage.getItem(SESSION_KEY);
-      if (s) { var u=JSON.parse(s); if(u&&u.name){ setNm(u.name); setUser(u); setStg("slider"); }
-        else setStg("pin"); }
-      else setStg("pin");
+      if (s) {
+        var u=JSON.parse(s);
+        if(u&&u.name){
+          if(!u.niederlassung_id){
+            try{ localStorage.removeItem(SESSION_KEY); }catch(e2){}
+            setStg("pin"); return;
+          }
+          setNm(u.name); setUser(u); setStg("slider");
+        } else setStg("pin");
+      } else setStg("pin");
     } catch(e) { setStg("pin"); }
     // Параллельно загружаем юзеров и fallback PIN
     sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
@@ -652,7 +709,7 @@ function App() {
       onBack={function(){ /* нет куда возвращаться, остаёмся */ }}
     />
   );
-  if (stg==="register") return <ErsteAnmeldung onNext={function(n){ loginFallback(n); }} />;
+  if (stg==="register") return <ErsteAnmeldung onNext={function(n, nied){ loginFallback(n, nied); }} />;
   if (stg==="slider") return (
     <SliderScreen name={nm}
       onUnlock={function(){ setStg("app"); }}

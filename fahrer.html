@@ -584,10 +584,22 @@ function PhotoUpload({ photos, setPhotos, t }) {
 }
 
 // ── ERSTE ANMELDUNG ───────────────────────────────────────────────────────────
+var ALLE_NIEDERLASSUNGEN = [
+  { id:"hockenheim",   label:"Hockenheim" },
+  { id:"passau",       label:"Passau" },
+  { id:"regensburg",   label:"Regensburg" },
+  { id:"garching",     label:"Garching" },
+  { id:"bruchsal",     label:"Bruchsal" },
+  { id:"zweibruecken", label:"Zweibrücken" },
+  { id:"hof",          label:"Hof" },
+  { id:"genthin",      label:"Genthin" }
+];
+
 function ErsteAnmeldung({ lang, setLang, onNext }) {
   var _v=useState(""); var v=_v[0]; var setV=_v[1];
   var _n=useState(""); var n=_n[0]; var setN=_n[1];
-  var t=getT(lang); var ok=v.trim()&&n.trim();
+  var _nd=useState(""); var nied=_nd[0]; var setNied=_nd[1];
+  var t=getT(lang); var ok=v.trim()&&n.trim()&&nied;
   return (
     <div className="scrn">
       <Bg />
@@ -611,14 +623,30 @@ function ErsteAnmeldung({ lang, setLang, onNext }) {
               <input type="text" className="input-light" value={v} onChange={function(e){ setV(e.target.value); }} placeholder="Roman" />
             </div>
           </div>
-          <div style={{ marginBottom:20 }}>
+          <div style={{ marginBottom:16 }}>
             <div style={{ fontWeight:700,color:"#1e3a6b",marginBottom:8,fontSize:14 }}>{t.ln} <span style={{ color:"#dc2626" }}>*</span></div>
             <div style={{ position:"relative" }}>
               <span className="field-icon">👤</span>
               <input type="text" className="input-light" value={n} onChange={function(e){ setN(e.target.value); }} placeholder="Anokhin" />
             </div>
           </div>
-          <button onClick={function(){ if(ok) onNext(v.trim(),n.trim()); }} disabled={!ok}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontWeight:700,color:"#1e3a6b",marginBottom:8,fontSize:14 }}>Niederlassung <span style={{ color:"#dc2626" }}>*</span></div>
+            <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
+              {ALLE_NIEDERLASSUNGEN.map(function(nd){
+                return (
+                  <div key={nd.id} onClick={function(){ setNied(nd.id); }}
+                    style={{ padding:"8px 14px",borderRadius:8,border:"2px solid",cursor:"pointer",fontSize:13,fontWeight:700,
+                      borderColor: nied===nd.id ? "#1e3a6b" : "rgba(0,0,0,0.12)",
+                      background: nied===nd.id ? "#1e3a6b" : "rgba(0,0,0,0.03)",
+                      color: nied===nd.id ? "#fff" : "#333" }}>
+                    {nd.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <button onClick={function(){ if(ok) onNext(v.trim(),n.trim(),nied); }} disabled={!ok}
             style={{ width:"100%",padding:18,background:"#1e3a6b",color:"#fff",border:"none",borderRadius:12,fontSize:17,fontWeight:700,opacity:ok?1:0.5,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
             {t.cont} <span style={{ fontSize:20 }}>→</span>
           </button>
@@ -782,7 +810,7 @@ function MainMenu({ lang, setLang, onPick }) {
 }
 
 // ── INSPECTION ────────────────────────────────────────────────────────────────
-function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
+function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack }) {
   var vType = kind==="lkw"?"truck":"trailer";
   var t = getT(lang);
   var items = kind==="lkw" ? t.truckChecks : t.trailerChecks;
@@ -836,6 +864,8 @@ function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
           note:notes||null,
           photos:JSON.stringify(urls),
           mileage:km?parseInt(km):null,
+          niederlassung_id: driverNied || null,
+          tenant_id: "ltg",
           created_at:new Date().toISOString()
         }).then(function(){
           if(km&&parseInt(km)>0&&sel.id&&!sel.isNew) return sbPatch("vehicles","id",sel.id,{mileage:parseInt(km)});
@@ -854,7 +884,10 @@ function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
             urgency:"normal",
             sender:driverName||"driver",
             sender_app:"fahrer",
-            status:"open"
+            status:"open",
+            niederlassung_id: driverNied || null,
+            target_workshop_niederlassung_id: driverNied || null,
+            tenant_id: "ltg"
           }).catch(function(){});
         }
         return true;
@@ -941,27 +974,36 @@ function InspectionScreen({ kind, driverName, lang, setLang, onBack }) {
 }
 
 // ── BREAKDOWN ─────────────────────────────────────────────────────────────────
-var WERKSTAETTEN = [
-  { id:"hockenheim", label:"Werkstatt Hockenheim" },
-  { id:"passau",     label:"Werkstatt Passau" },
-  { id:"regensburg", label:"Werkstatt Regensburg" }
-];
-
-function BreakdownScreen({ driverName, lang, setLang, onBack }) {
+function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var t=getT(lang);
   var _veh=useState([]); var vehicles=_veh[0]; var setVehicles=_veh[1];
-  var _sel=useState(null); var sel=_sel[0]; var setSel=_sel[1];
-  var _bt=useState(null); var bType=_bt[0]; var setBType=_bt[1];
-  var _urg=useState(null); var urg=_urg[0]; var setUrg=_urg[1];
-  var _loc=useState(""); var loc=_loc[0]; var setLoc=_loc[1];
+
+  // Восстановить черновик
+  var _draftInit = (function(){
+    try { var d=localStorage.getItem(DRAFT_KEY_FAHRER); return d?JSON.parse(d):{}; } catch(e){ return {}; }
+  })();
+
+  var _sel=useState(_draftInit.sel||null); var sel=_sel[0]; var setSel=_sel[1];
+  var _bt=useState(_draftInit.bType||null); var bType=_bt[0]; var setBType=_bt[1];
+  var _urg=useState(_draftInit.urg||null); var urg=_urg[0]; var setUrg=_urg[1];
+  var _loc=useState(_draftInit.loc||""); var loc=_loc[0]; var setLoc=_loc[1];
   var _gps=useState(false); var gpsLoad=_gps[0]; var setGpsLoad=_gps[1];
   var _gacc=useState(null); var gpsAcc=_gacc[0]; var setGpsAcc=_gacc[1];
-  var _desc=useState(""); var desc=_desc[0]; var setDesc=_desc[1];
+  var _desc=useState(_draftInit.desc||""); var desc=_desc[0]; var setDesc=_desc[1];
   var _ph=useState([]); var photos=_ph[0]; var setPhotos=_ph[1];
   var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
   var _sent=useState(false); var sent=_sent[0]; var setSent=_sent[1];
   var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
-  var _wk=useState("hockenheim"); var targetWerkstatt=_wk[0]; var setTargetWerkstatt=_wk[1];
+  var _wk=useState(_draftInit.targetWerkstatt||"hockenheim"); var targetWerkstatt=_wk[0]; var setTargetWerkstatt=_wk[1];
+
+  // Автосохранение черновика
+  useEffect(function(){
+    try {
+      localStorage.setItem(DRAFT_KEY_FAHRER, JSON.stringify({
+        sel:sel, bType:bType, urg:urg, loc:loc, desc:desc, targetWerkstatt:targetWerkstatt
+      }));
+    } catch(e) {}
+  }, [sel, bType, urg, loc, desc, targetWerkstatt]);
 
   useEffect(function(){
     sbGet("vehicles","select=id,plate,brand,model&order=plate").then(function(rows){
@@ -1016,11 +1058,16 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
           id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,
           urgency:urg==="sofort"?"urgent":"normal",
           sender:driverName||"driver",sender_app:"fahrer",status:"open",
+          niederlassung_id: driverNied || null,
           target_workshop_niederlassung_id: targetWerkstatt,
+          tenant_id: "ltg",
           photo_urls:JSON.stringify(urls)
         });
       })
-      .then(function(){ setSending(false); setSent(true); })
+      .then(function(){
+        try { localStorage.removeItem(DRAFT_KEY_FAHRER); } catch(e) {}
+        setSending(false); setSent(true);
+      })
       .catch(function(e){ setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
   }
 
@@ -1108,26 +1155,6 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
           <textarea className="textarea-dark" placeholder={t.descPh} value={desc} onChange={function(e){ setDesc(e.target.value); }} />
         </div>
 
-        <div style={{ marginBottom:14 }}>
-          <div className="label-cap">WERKSTATT AUSWÄHLEN *</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {WERKSTAETTEN.map(function(wk) {
-              return (
-                <div key={wk.id}
-                  onClick={function(){ setTargetWerkstatt(wk.id); }}
-                  style={{ padding:"12px 16px", borderRadius:12, border:"1px solid",
-                    borderColor: targetWerkstatt === wk.id ? "#ffa500" : "rgba(255,255,255,0.2)",
-                    background: targetWerkstatt === wk.id ? "rgba(255,165,0,0.12)" : "rgba(9,27,58,0.5)",
-                    color: targetWerkstatt === wk.id ? "#ffa500" : "#fff",
-                    fontWeight:700, fontSize:14, cursor:"pointer" }}>
-                  🔧 {wk.label}
-                  {targetWerkstatt === wk.id && <span style={{ float:"right" }}>✓</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
         {errMsg && <div style={{ color:"#ef4444",fontSize:13,marginTop:10,fontWeight:700 }}>{errMsg}</div>}
         <div style={{ textAlign:"center",color:"rgba(255,255,255,0.4)",fontSize:12,marginTop:14 }}>* {t.req}</div>
@@ -1139,17 +1166,19 @@ function BreakdownScreen({ driverName, lang, setLang, onBack }) {
   );
 }
 
+const DRAFT_KEY_FAHRER = "draft_fahrer_breakdown";
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 function App() {
   var _stg=useState("loading"); var stg=_stg[0]; var setStg=_stg[1];
   var _lang=useState("DE"); var lang=_lang[0]; var setLangRaw=_lang[1];
   var _name=useState(""); var name=_name[0]; var setName=_name[1];
+  var _nied=useState(""); var userNied=_nied[0]; var setUserNied=_nied[1];
   var _scr=useState("menu"); var scr=_scr[0]; var setScr=_scr[1];
   var _dynPin=useState(null); var dynPin=_dynPin[0]; var setDynPin=_dynPin[1];
 
   function setLang(v){ setLangRaw(v); try{ localStorage.setItem("werkflow_fahrer_lang",v); }catch(e){} }
 
-  // Преобразует имя (Vorname Nachname) в slug-id
   function nameToId(fullName){
     var s = (fullName||"").trim().toLowerCase()
       .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
@@ -1157,26 +1186,23 @@ function App() {
     return s || ("driver-"+Date.now());
   }
 
-  // При успешном логине: найти существующего юзера по имени или создать нового.
-  // Это предотвращает дубликаты когда имя водителя совпадает с именем механика.
-  function registerOrUpdateDriver(fullName){
+  // Фикс дубликатов: сначала ищем существующего по имени, потом создаём нового
+  function registerOrUpdateDriver(fullName, niedId) {
     if (!fullName) return;
     var avatar = fullName.trim().split(/\s+/).map(function(w){ return (w[0]||"").toUpperCase(); }).join("").slice(0,2);
     var nameLower = fullName.trim().toLowerCase();
-    // Сначала ищем существующего юзера с похожим именем (любая роль)
     sbGet("users", "select=id,name,role&active=eq.true").then(function(rows) {
       var existing = (rows || []).find(function(u) {
         return (u.name || "").trim().toLowerCase() === nameLower;
       });
       if (existing) {
-        // Юзер найден — просто обновляем last_login, не трогаем role/id
         fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(existing.id), {
           method:"PATCH",
           headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
-          body:JSON.stringify({ last_login: new Date().toISOString(), active: true })
+          body:JSON.stringify({ last_login: new Date().toISOString(), active: true,
+            niederlassung_id: niedId || existing.niederlassung_id || "hockenheim" })
         }).catch(function(){});
       } else {
-        // Нового водителя создаём
         var id = nameToId(fullName);
         fetch(SB_URL+"/rest/v1/users", {
           method:"POST",
@@ -1184,7 +1210,7 @@ function App() {
           body:JSON.stringify({
             id: id, name: fullName, avatar: avatar,
             role: "fahrer", tenant_id: "ltg",
-            niederlassung_id: "hockenheim",
+            niederlassung_id: niedId || "hockenheim",
             scope_level: "niederlassung",
             active: true, app_access: [],
             last_login: new Date().toISOString()
@@ -1197,17 +1223,48 @@ function App() {
   useEffect(function(){
     try{
       var sl=localStorage.getItem("werkflow_fahrer_lang"); if(sl) setLangRaw(sl);
-      var sn=localStorage.getItem(SESS_KEY); if(sn){ setName(sn); setStg("slider"); } else setStg("register");
+      var sn=localStorage.getItem(SESS_KEY);
+      if(sn){
+        // Поддержка старого формата (просто строка с именем) и нового (JSON)
+        try {
+          var parsed = JSON.parse(sn);
+          if (parsed && parsed.name) {
+            setName(parsed.name);
+            setUserNied(parsed.niederlassung_id || "");
+            // Старая сессия без niederlassung_id — форсим перерегистрацию
+            if (!parsed.niederlassung_id) {
+              try { localStorage.removeItem(SESS_KEY); } catch(e2) {}
+              setStg("register"); return;
+            }
+            setStg("slider"); return;
+          }
+        } catch(pe) {
+          // Старый формат — строка с именем, нет niederlassung_id → перерегистрация
+          try { localStorage.removeItem(SESS_KEY); } catch(e2) {}
+        }
+      }
+      setStg("register");
     }catch(e){ setStg("register"); }
-    // Загружаем актуальный PIN из app_settings (fail → fallback на APP_PIN внутри PinScreen)
     sbGet("app_settings","key=eq.driver_shared_pin&select=value").then(function(r){
       if (r && r.length && r[0].value) setDynPin(r[0].value);
     }).catch(function(){});
   },[]);
 
   if(stg==="loading") return <div className="scrn"><Bg /></div>;
-  if(stg==="register") return <ErsteAnmeldung lang={lang} setLang={setLang} onNext={function(v,n){ setName(v+" "+n); setStg("pin"); }} />;
-  if(stg==="pin") return <PinScreen lang={lang} setLang={setLang} dynPin={dynPin} onOk={function(){ try{ localStorage.setItem(SESS_KEY,name); }catch(e){} registerOrUpdateDriver(name); setStg("menu"); }} />;
+  if(stg==="register") return (
+    <ErsteAnmeldung lang={lang} setLang={setLang} onNext={function(v,n,nied){
+      setName(v+" "+n);
+      setUserNied(nied);
+      setStg("pin");
+    }} />
+  );
+  if(stg==="pin") return (
+    <PinScreen lang={lang} setLang={setLang} dynPin={dynPin} onOk={function(){
+      try{ localStorage.setItem(SESS_KEY, JSON.stringify({ name: name, niederlassung_id: userNied })); }catch(e){}
+      registerOrUpdateDriver(name, userNied);
+      setStg("menu");
+    }} />
+  );
   if(stg==="slider") return <SliderScreen lang={lang} setLang={setLang} name={name}
     onUnlock={function(){ setStg("menu"); }}
     onChange={function(){
@@ -1215,9 +1272,9 @@ function App() {
       setName(""); setStg("register");
     }} />;
   if(scr==="menu") return <MainMenu lang={lang} setLang={setLang} onPick={function(k){ if(k==="lkw") setScr("insp_lkw"); else if(k==="auf") setScr("insp_auf"); else if(k==="bd") setScr("bd"); }} />;
-  if(scr==="insp_lkw") return <InspectionScreen kind="lkw" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
-  if(scr==="insp_auf") return <InspectionScreen kind="auf" driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
-  if(scr==="bd") return <BreakdownScreen driverName={name} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
+  if(scr==="insp_lkw") return <InspectionScreen kind="lkw" driverName={name} driverNied={userNied} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
+  if(scr==="insp_auf") return <InspectionScreen kind="auf" driverName={name} driverNied={userNied} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
+  if(scr==="bd") return <BreakdownScreen driverName={name} driverNied={userNied} lang={lang} setLang={setLang} onBack={function(){ setScr("menu"); }} />;
   return null;
 }
 

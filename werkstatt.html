@@ -461,6 +461,7 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const APP_PIN = "3847";
 const WERKSTATT_VERSION = "v3-items-supplier-amount";
 const SESSION_KEY = "werkflow_werkstatt_v1";
+const DRAFT_KEY = "draft_werkstatt_job";
 
 const USERS = [
   { id:"roman", name:"Roman Anokhin", avatar:"RA" },
@@ -484,9 +485,7 @@ const WORK_TYPES = [
   ["emergency","Notruf"]
 ];
 
-// п.4: Standort Liste
-// LOCATIONS грузятся динамически из niederlassung_locations по филиалу юзера.
-// Этот массив используется как fallback если БД ещё не загрузилась.
+// Standort Liste — fallback если БД не загрузилась
 const LOCATIONS_FALLBACK = ["Werkstatt","HOC 1","HOC 2","HOC 3","HOC 4","HOC 5","John Deere Bruchsal"];
 
 // п.5: Teile-Typen
@@ -580,7 +579,7 @@ function sbPatch(table, id, payload) {
 }
 
 function sbUploadPhoto(path, file) {
-  return fetch(SB_URL + "/storage/v1/object/inspection-photos/" + path, {
+  return fetch(SB_URL + "/storage/v1/object/job-photos/" + path, {
     method:"POST",
     headers: {
       "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY,
@@ -589,7 +588,7 @@ function sbUploadPhoto(path, file) {
     body: file
   }).then(function(res) {
     if (!res.ok) return null;
-    return SB_URL + "/storage/v1/object/public/inspection-photos/" + path;
+    return SB_URL + "/storage/v1/object/public/job-photos/" + path;
   }).catch(function() { return null; });
 }
 
@@ -622,19 +621,15 @@ function uploadAllPhotos(jobId, photos) {
   return Promise.all(promises).then(function(urls) { return urls.filter(Boolean); });
 }
 
-function ensureVehicle(vehicle, vehicles, setVehicles, user) {
+function ensureVehicle(vehicle, vehicles, setVehicles) {
   if (!vehicle || !vehicle.plate) return Promise.resolve(null);
   var exists = (vehicles || []).find(function(v) {
     return (v.plate || "").toLowerCase() === vehicle.plate.toLowerCase();
   });
   if (exists) return Promise.resolve(exists);
-  var nied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
   var row = {
     id:"V" + Date.now(), plate:vehicle.plate, brand:vehicle.brand || "",
-    type:vehicle.type || "other",
-    home_niederlassung_id: nied,
-    tenant_id: "ltg",
-    created_at:new Date().toISOString()
+    type:vehicle.type || "other", created_at:new Date().toISOString()
   };
   return sbInsert("vehicles", row, true).then(function() {
     setVehicles(function(prev) { return [row].concat(prev || []); });
@@ -675,10 +670,22 @@ function BackBtn({ onClick }) {
 }
 
 // === п.1+п.3: Erste Anmeldung — стрелка назад ведёт НА ЭТОТ ЖЕ экран (некуда идти), кнопка скрыта ===
+var ALLE_NIEDERLASSUNGEN = [
+  { id:"hockenheim",   label:"Hockenheim" },
+  { id:"passau",       label:"Passau" },
+  { id:"regensburg",   label:"Regensburg" },
+  { id:"garching",     label:"Garching" },
+  { id:"bruchsal",     label:"Bruchsal" },
+  { id:"zweibruecken", label:"Zweibrücken" },
+  { id:"hof",          label:"Hof" },
+  { id:"genthin",      label:"Genthin" }
+];
+
 function ErsteAnmeldung({ onContinue }) {
   var _s0 = useState(""); var vorname = _s0[0]; var setVorname = _s0[1];
   var _s1 = useState(""); var nachname = _s1[0]; var setNachname = _s1[1];
-  var ok = vorname.trim() && nachname.trim();
+  var _s2 = useState(""); var nied = _s2[0]; var setNied = _s2[1];
+  var ok = vorname.trim() && nachname.trim() && nied;
 
   return (
     <div className="scrn">
@@ -695,12 +702,28 @@ function ErsteAnmeldung({ onContinue }) {
             <input className="input-light" value={vorname} onChange={function(e){ setVorname(e.target.value); }} placeholder="Roman" />
           </div>
           <div className="light-label">Nachname <span style={{ color:"#ff3b30" }}>*</span></div>
-          <div className="light-field" style={{ marginBottom:26 }}>
+          <div className="light-field" style={{ marginBottom:16 }}>
             <span className="light-field-icon">👤</span>
             <input className="input-light" value={nachname} onChange={function(e){ setNachname(e.target.value); }} placeholder="Anokhin" />
           </div>
+          <div className="light-label">Niederlassung <span style={{ color:"#ff3b30" }}>*</span></div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:26 }}>
+            {ALLE_NIEDERLASSUNGEN.map(function(n) {
+              return (
+                <div key={n.id} onClick={function(){ setNied(n.id); }}
+                  style={{ padding:"10px 16px", borderRadius:10, border:"2px solid",
+                    borderColor: nied === n.id ? "#ffa500" : "rgba(0,0,0,0.15)",
+                    background: nied === n.id ? "rgba(255,165,0,0.12)" : "rgba(0,0,0,0.04)",
+                    color: nied === n.id ? "#ffa500" : "#333",
+                    fontWeight: nied === n.id ? 800 : 600,
+                    fontSize:14, cursor:"pointer" }}>
+                  {n.label}
+                </div>
+              );
+            })}
+          </div>
           <button className="blue-btn" disabled={!ok} style={{ opacity: ok ? 1 : 0.5 }} onClick={function(){
-            if (ok) onContinue(vorname.trim(), nachname.trim());
+            if (ok) onContinue(vorname.trim(), nachname.trim(), nied);
           }}>
             Weiter <span style={{ fontSize:24 }}>→</span>
           </button>
@@ -1314,28 +1337,33 @@ function StandortPicker({ value, onChange, locations }) {
 
 // === NEW JOB FORM ===
 function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations }) {
-  var _svt = useState(prefill && prefill.vehicle_type ? prefill.vehicle_type : "truck");
+  // Черновик восстанавливаем только если нет prefill (открыт вручную, не из Eingang)
+  var _draft = (function() {
+    if (prefill) return {};
+    try { var d = localStorage.getItem(DRAFT_KEY); return d ? JSON.parse(d) : {}; } catch(e) { return {}; }
+  })();
+
+  var _svt = useState(prefill && prefill.vehicle_type ? prefill.vehicle_type : (_draft.vehicleType || "truck"));
   var vehicleType = _svt[0]; var setVehicleType = _svt[1];
-  var _sveh = useState(prefill && prefill.plate ? { plate:prefill.plate, brand:"", type:"truck", isNew:false } : null);
+  var _sveh = useState(prefill && prefill.plate ? { plate:prefill.plate, brand:"", type:"truck", isNew:false } : (_draft.vehicle || null));
   var vehicle = _sveh[0]; var setVehicle = _sveh[1];
-  var _sloc = useState(prefill && prefill.location ? prefill.location : "Werkstatt");
+  var _sloc = useState(prefill && prefill.location ? prefill.location : (_draft.location || "Werkstatt"));
   var location = _sloc[0]; var setLocation = _sloc[1];
-  var _swt = useState(prefill && prefill.work_type ? prefill.work_type : "repair");
+  var _swt = useState(prefill && prefill.work_type ? prefill.work_type : (_draft.workType || "repair"));
   var workType = _swt[0]; var setWorkType = _swt[1];
-  var _sdesc = useState(prefill && prefill.description ? prefill.description : "");
+  var _sdesc = useState(prefill && prefill.description ? prefill.description : (_draft.description || ""));
   var description = _sdesc[0]; var setDescription = _sdesc[1];
   var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
-  var _stt = useState(0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
-  var _stb = useState(0); var travelBack = _stb[0]; var setTravelBack = _stb[1];
-  var _swm = useState(0); var workMin = _swm[0]; var setWorkMin = _swm[1];
-  var _scoll = useState(false); var colleague = _scoll[0]; var setColleague = _scoll[1];
-  var _scn = useState(""); var colleagueName = _scn[0]; var setColleagueName = _scn[1];
-  // п.5: Teile
-  var _spt = useState("none"); var partsType = _spt[0]; var setPartsType = _spt[1];
-  var _ssi = useState([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+  var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
+  var _stb = useState(_draft.travelBack || 0); var travelBack = _stb[0]; var setTravelBack = _stb[1];
+  var _swm = useState(_draft.workMin || 0); var workMin = _swm[0]; var setWorkMin = _swm[1];
+  var _scoll = useState(_draft.colleague || false); var colleague = _scoll[0]; var setColleague = _scoll[1];
+  var _scn = useState(_draft.colleagueName || ""); var colleagueName = _scn[0]; var setColleagueName = _scn[1];
+  var _spt = useState(_draft.partsType || "none"); var partsType = _spt[0]; var setPartsType = _spt[1];
+  var _ssi = useState(_draft.shopItems || [{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
   var shopItems = _ssi[0]; var setShopItems = _ssi[1];
-  var _stns = useState(""); var tireNewSn = _stns[0]; var setTireNewSn = _stns[1];
-  var _stos = useState(""); var tireOldSn = _stos[0]; var setTireOldSn = _stos[1];
+  var _stns = useState(_draft.tireNewSn || ""); var tireNewSn = _stns[0]; var setTireNewSn = _stns[1];
+  var _stos = useState(_draft.tireOldSn || ""); var tireOldSn = _stos[0]; var setTireOldSn = _stos[1];
   var _stnc = useState("new"); var tireNewCond = _stnc[0]; var setTireNewCond = _stnc[1];
   var _ssav = useState(false); var saving = _ssav[0]; var setSaving = _ssav[1];
   var _srm = useState(false); var rechnungModal = _srm[0]; var setRechnungModal = _srm[1];
@@ -1348,6 +1376,30 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var _rphoto = useState(null); var rPhoto = _rphoto[0]; var setRPhoto = _rphoto[1];
   var _rsav = useState(false); var rSaving = _rsav[0]; var setRSaving = _rsav[1];
   var rPhotoRef = useRef(null);
+
+  // Автосохранение черновика — только если форма открыта вручную (не prefill)
+  useEffect(function() {
+    if (prefill) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        vehicleType: vehicleType,
+        vehicle: vehicle,
+        location: location,
+        workType: workType,
+        description: description,
+        travelTo: travelTo,
+        travelBack: travelBack,
+        workMin: workMin,
+        colleague: colleague,
+        colleagueName: colleagueName,
+        partsType: partsType,
+        shopItems: shopItems,
+        tireNewSn: tireNewSn,
+        tireOldSn: tireOldSn
+      }));
+    } catch(e) {}
+  }, [vehicleType, vehicle, location, workType, description, travelTo, travelBack,
+      workMin, colleague, colleagueName, partsType, shopItems, tireNewSn, tireOldSn]);
 
   useEffect(function() {
     if (!prefill) return;
@@ -1377,19 +1429,11 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       partsNote = "Neu aus Lager (Buchung folgt)";
     }
 
-    var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
-    var savedVehicleRow = null;
-
-    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles, user)
-      .then(function(veh) {
-        savedVehicleRow = veh;
-        return uploadAllPhotos(jobId, photos);
-      })
+    ensureVehicle(Object.assign({}, vehicle, { type:vehicleType }), vehicles, setVehicles)
+      .then(function() { return uploadAllPhotos(jobId, photos); })
       .then(function(photoUrls) {
         var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
         var totalCost = laborCost + partsCost;
-        var vehicleHomeNied = (savedVehicleRow && savedVehicleRow.home_niederlassung_id)
-          ? savedVehicleRow.home_niederlassung_id : workshopNied;
         var payload = {
           id: jobId,
           mechanic: user.id || "roman",
@@ -1418,9 +1462,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           source: prefill ? "eingang" : "werkstatt",
           alert_id: prefill && prefill.id ? prefill.id : null,
           incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
-          workshop_niederlassung_id: workshopNied,
-          vehicle_home_niederlassung_id: vehicleHomeNied,
-          tenant_id: "ltg",
           created_at: new Date().toISOString()
         };
         return sbInsert("jobs", payload, true);
@@ -1432,13 +1473,14 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         return Promise.resolve();
       })
       .then(function() {
+        // Черновик очищаем после успешного сохранения
+        try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
         var jid = jobId;
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
         setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
         if (onClear) onClear();
         if (onSaved) onSaved();
         setSaving(false);
-        // Предлагаем сохранить накладную если были запчасти из магазина
         if (partsType === "shop" && shopItems.some(function(i){ return i.name.trim() || i.lieferschein.trim(); })) {
           setSavedJobId(jid);
           var firstItem = shopItems[0];
@@ -1625,8 +1667,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                       paid: false,
                       items: rNotes.trim() || shopItems.filter(function(i){ return i.name.trim(); }).map(function(i){ return i.name; }).join(", ") || null,
                       mechanic: user.name || user.id || null,
-                      niederlassung_id: (user && user.niederlassung_id) ? user.niederlassung_id : null,
-                      tenant_id: "ltg",
                       created_at: new Date().toISOString()
                     };
                     sbInsert("invoices", inv, true)
@@ -1825,7 +1865,6 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
   var _spause = useState(null); var pauseTarget = _spause[0]; var setPauseTarget = _spause[1];
   var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
-  var _ssubtab = useState("meine"); var subtab = _ssubtab[0]; var setSubtab = _ssubtab[1];
 
   var myJobs = (jobs || [])
     .filter(function(j) { return j.mechanic === (user && user.id); })
@@ -1930,22 +1969,6 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
   return (
     <div>
       <div className="page-title">Meine <span style={{ color:"#ffa500" }}>Aufträge</span></div>
-      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-        <button type="button"
-          style={{ flex:1, padding:"10px 0", borderRadius:10, border:"1px solid", fontWeight:700, fontSize:13,
-            borderColor: subtab === "meine" ? "#ffa500" : "rgba(255,255,255,0.2)",
-            background: subtab === "meine" ? "rgba(255,165,0,0.12)" : "transparent",
-            color: subtab === "meine" ? "#ffa500" : "#fff" }}
-          onClick={function(){ setSubtab("meine"); }}>Aktiv</button>
-        <button type="button"
-          style={{ flex:1, padding:"10px 0", borderRadius:10, border:"1px solid", fontWeight:700, fontSize:13,
-            borderColor: subtab === "archiv" ? "#ffa500" : "rgba(255,255,255,0.2)",
-            background: subtab === "archiv" ? "rgba(255,165,0,0.12)" : "transparent",
-            color: subtab === "archiv" ? "#ffa500" : "#fff" }}
-          onClick={function(){ setSubtab("archiv"); }}>Archiv</button>
-      </div>
-      {subtab === "meine" && (
-        <div>
       <div style={{ display:"flex", gap:10, marginBottom:14 }}>
         <button className="outline-btn" type="button" style={{ padding:13 }} onClick={onRefresh}>
           {loading ? "Lädt..." : "↻ Aktualisieren"}
@@ -2021,11 +2044,6 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
           </div>
         </div>
       )}
-        </div>
-      )}
-      {subtab === "archiv" && (
-        <ArchivInline jobs={jobs} />
-      )}
     </div>
   );
 }
@@ -2070,8 +2088,8 @@ function Lager({ stock, loading, onRefresh }) {
   );
 }
 
-// === ARCHIV (встроен в Meine как подвкладка) ===
-function ArchivInline({ jobs }) {
+// === ARCHIV (с просмотром фото) ===
+function Archiv({ jobs }) {
   var _sd = useState(""); var filterDate = _sd[0]; var setFilterDate = _sd[1];
   var _sp = useState(null); var photoJob = _sp[0]; var setPhotoJob = _sp[1];
 
@@ -2193,350 +2211,9 @@ function ArchivInline({ jobs }) {
   );
 }
 
-// === DU AUFLIEGER ===
-var DU_SECTIONS = [
-  { id:1, title:"1. Dokumente", items:[
-    "Auflieger Tasche, Auflieger Buch",
-    "Fahrzeugschein",
-    "Ladungssicherungszertifikat",
-    "Prüfplaketten am Fahrzeug vorhanden (vorne LaSi / hinten HU, SP)"
-  ]},
-  { id:2, title:"2. Allg. Wartungsarbeiten", items:[
-    "Reifendruck prüfen und einstellen",
-    "Reifen und Felgen auf Beschädigung prüfen",
-    "Reifenprofil prüfen",
-    "Kupplungsköpfe und Luftleitung überprüfen",
-    "Unterlegkeile prüfen, vorhanden, i.O.",
-    "Rahmen auf Beschädigung prüfen",
-    "Stützwinden auf Zustand und Funktion prüfen",
-    "Alle relevanten Teile abschmieren"
-  ]},
-  { id:3, title:"3. Elektrische Anlage", items:[
-    "Beleuchtung überprüfen",
-    "Steckdosen 7polig, 15polig überprüfen",
-    "EBS-Steckdose überprüfen"
-  ]},
-  { id:4, title:"4. Aufbau / Plane / Boden", items:[
-    "Boden auf Beschädigung prüfen",
-    "Bordwände Zustand überprüfen",
-    "Alu-Einstecklatten vollzählig und gerade",
-    "2 Ladebalken, 4 Lochschienen vorhanden und i.O. (LaSi)",
-    "8 Schwerbalken prüfen bei Oktabiner Auflieger inkl. Latten",
-    "Türen, -scharniere, -Dicht Gummi, -verschlüsse überprüfen",
-    "Seitenplanen, Dachplanen überprüfen",
-    "Rammpuffer i.O.",
-    "Edscha-Verdeck überprüfen auf Beschädigung, Funktion",
-    "Leiter 3m vorhanden",
-    "Aufstieg Leiter vorhanden, Funktion",
-    "Spanngurte vollzählig – 15 Stück"
-  ]},
-  { id:5, title:"5. Luftfederung", items:[
-    "Sichtprüfung aller Bauteile auf Beschädigung u. Verschleiß, Anlage auf Dichtheit prüfen",
-    "Stoßdämpfer auf Dichtheit und Festsitz prüfen"
-  ]},
-  { id:6, title:"6. Bremsen", items:[
-    "Bremsschläuche und Leitungen auf Beschädigungen prüfen",
-    "Bremsbeläge auf Verschleiß prüfen",
-    "Bremsscheiben auf Zustand / Verschleiß prüfen"
-  ]}
-];
-
-function buildDuResults(sections) {
-  var results = {};
-  sections.forEach(function(sec) {
-    sec.items.forEach(function(item) {
-      results[sec.id + "__" + item] = { status:"", bemerkung:"" };
-    });
-  });
-  return results;
-}
-
-function DUAuflieger({ user, vehicles, onRefresh }) {
-  var _sview = useState("list"); var view = _sview[0]; var setView = _sview[1];
-  var _slist = useState([]); var duList = _slist[0]; var setDuList = _slist[1];
-  var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
-  var _splate = useState(null); var plate = _splate[0]; var setPlate = _splate[1];
-  var _skm = useState(""); var km = _skm[0]; var setKm = _skm[1];
-  var _sresults = useState(buildDuResults(DU_SECTIONS)); var results = _sresults[0]; var setResults = _sresults[1];
-  var _sergaenzt = useState(""); var ergaenzt = _sergaenzt[0]; var setErgaenzt = _sergaenzt[1];
-  var _sbemerk = useState(""); var bemerk = _sbemerk[0]; var setBemerk = _sbemerk[1];
-  var _ssaving = useState(false); var saving = _ssaving[0]; var setSaving = _ssaving[1];
-
-  useEffect(function() {
-    loadList();
-  }, []);
-
-  function loadList() {
-    setLoading(true);
-    sbSelect("inspections", "select=*&type=eq.du_auflieger&order=created_at.desc&limit=100")
-      .then(function(r){ setDuList(r || []); setLoading(false); })
-      .catch(function(){ setLoading(false); });
-  }
-
-  function setItemStatus(secId, item, status) {
-    var key = secId + "__" + item;
-    setResults(function(prev) {
-      var next = Object.assign({}, prev);
-      next[key] = Object.assign({}, prev[key], { status: status });
-      return next;
-    });
-  }
-
-  function setItemBemerk(secId, item, val) {
-    var key = secId + "__" + item;
-    setResults(function(prev) {
-      var next = Object.assign({}, prev);
-      next[key] = Object.assign({}, prev[key], { bemerkung: val });
-      return next;
-    });
-  }
-
-  function calcResult() {
-    var hasNio = false;
-    Object.keys(results).forEach(function(k) {
-      if (results[k].status === "nio") hasNio = true;
-    });
-    var allSet = Object.keys(results).every(function(k) { return results[k].status !== ""; });
-    if (!allSet) return "incomplete";
-    return hasNio ? "passed_with_remarks" : "passed";
-  }
-
-  function exportPdf(insp) {
-    var data = insp ? JSON.parse(insp.items_json || "{}") : results;
-    var sectionsHtml = DU_SECTIONS.map(function(sec) {
-      var rows = sec.items.map(function(item) {
-        var key = sec.id + "__" + item;
-        var r = data[key] || { status:"", bemerkung:"" };
-        var io = r.status === "io" ? "✓" : "";
-        var nio = r.status === "nio" ? "✓" : "";
-        return "<tr><td style='padding:5px 8px;border-bottom:1px solid #eee;font-size:12px'>" + item + "</td>" +
-          "<td style='padding:5px 8px;border-bottom:1px solid #eee;text-align:center;width:40px;font-size:14px'>" + io + "</td>" +
-          "<td style='padding:5px 8px;border-bottom:1px solid #eee;text-align:center;width:40px;font-size:14px'>" + nio + "</td>" +
-          "<td style='padding:5px 8px;border-bottom:1px solid #eee;font-size:11px;color:#666'>" + (r.bemerkung || "") + "</td></tr>";
-      }).join("");
-      return "<tr><td colspan='4' style='background:#0a1730;color:#fff;padding:7px 8px;font-weight:800;font-size:13px'>" + sec.title + "</td></tr>" + rows;
-    }).join("");
-
-    var pl = insp ? insp.plate : (plate ? plate.plate : "");
-    var dt = insp ? insp.date : todayIso();
-    var mech = insp ? insp.mechanic_name : (user ? user.name : "");
-    var kmVal = insp ? insp.km_stand : km;
-    var ergVal = insp ? insp.ergaenzt_ersetzt : ergaenzt;
-    var bemVal = insp ? insp.bemerkungen : bemerk;
-
-    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>DU Auflieger - " + pl + "</title>" +
-      "<style>body{font-family:Arial,sans-serif;padding:20px;color:#222;font-size:13px}" +
-      "h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#555;font-weight:normal;margin-bottom:16px}" +
-      "table{width:100%;border-collapse:collapse;margin-bottom:16px}" +
-      "th{background:#0a1730;color:#fff;padding:6px 8px;text-align:left;font-size:12px}" +
-      ".header-row{display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap}" +
-      ".header-field{flex:1;min-width:140px}" +
-      ".header-label{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:2px}" +
-      ".header-value{font-size:14px;font-weight:700;border-bottom:1px solid #ccc;padding-bottom:3px}" +
-      ".footer{margin-top:24px;padding-top:16px;border-top:1px solid #ccc;display:flex;gap:32px}" +
-      ".sig-block{flex:1}" +
-      ".sig-label{font-size:10px;color:#888;margin-bottom:20px}" +
-      ".sig-line{border-bottom:1px solid #333;height:30px}" +
-      "</style></head><body>" +
-      "<h1>Fahrzeug Checkliste – Plan Auflieger</h1>" +
-      "<div class='header-row'>" +
-      "<div class='header-field'><div class='header-label'>Fahrzeug</div><div class='header-value'>" + pl + "</div></div>" +
-      "<div class='header-field'><div class='header-label'>Datum</div><div class='header-value'>" + dt + "</div></div>" +
-      "<div class='header-field'><div class='header-label'>KM-Stand</div><div class='header-value'>" + (kmVal || "—") + "</div></div>" +
-      "<div class='header-field'><div class='header-label'>Mitarbeiter</div><div class='header-value'>" + mech + "</div></div>" +
-      "</div>" +
-      "<table><thead><tr><th>Prüfpunkt</th><th style='width:40px;text-align:center'>i.O.</th><th style='width:40px;text-align:center'>n.i.O.</th><th style='width:180px'>Bemerkung</th></tr></thead><tbody>" +
-      sectionsHtml + "</tbody></table>" +
-      (ergVal ? "<p><strong>Ergänzt / Ersetzt:</strong> " + ergVal + "</p>" : "") +
-      (bemVal ? "<p><strong>Bemerkungen:</strong> " + bemVal + "</p>" : "") +
-      "<div class='footer'>" +
-      "<div class='sig-block'><div class='sig-label'>Name des Mitarbeiters (Klarschrift)</div><div class='sig-line'></div></div>" +
-      "<div class='sig-block'><div class='sig-label'>Unterschrift Mitarbeiter</div><div class='sig-line'></div></div>" +
-      "<div class='sig-block'><div class='sig-label'>Kontrolliert durch</div><div class='sig-line' style='padding-top:4px;font-weight:700'>" + mech + "</div></div>" +
-      "</div>" +
-      "<p style='font-size:10px;color:#aaa;margin-top:12px'>WerkFlow · Seite 1 von 1 · Stand: " + todayIso() + "</p>" +
-      "</body></html>";
-
-    var blob = new Blob([html], { type:"text/html" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = "DU_Auflieger_" + pl + "_" + dt + ".html";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function save() {
-    if (!plate || !plate.plate) { alert("Bitte Fahrzeug auswählen."); return; }
-    var res = calcResult();
-    if (res === "incomplete") {
-      if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
-    }
-    setSaving(true);
-    var id = "DU" + Date.now();
-    var payload = {
-      id: id,
-      type: "du_auflieger",
-      plate: plate.plate,
-      date: todayIso(),
-      km_stand: km || null,
-      mechanic_id: user ? user.id : null,
-      mechanic_name: user ? user.name : null,
-      niederlassung_id: user ? user.niederlassung_id : null,
-      tenant_id: "ltg",
-      result: res === "incomplete" ? "passed_with_remarks" : res,
-      bemerkungen: bemerk || null,
-      ergaenzt_ersetzt: ergaenzt || null,
-      kontrolliert_durch: user ? user.name : null,
-      items_json: JSON.stringify(results),
-      created_at: new Date().toISOString()
-    };
-    sbInsert("inspections", payload, true)
-      .then(function() {
-        setSaving(false);
-        exportPdf(payload);
-        setPlate(null); setKm(""); setResults(buildDuResults(DU_SECTIONS));
-        setErgaenzt(""); setBemerk(""); setView("list");
-        loadList();
-      })
-      .catch(function(e) { setSaving(false); alert("Fehler: " + (e.message || e)); });
-  }
-
-  if (view === "form") {
-    return (
-      <div>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
-          <button type="button" className="outline-btn" style={{ padding:"8px 14px" }} onClick={function(){ setView("list"); }}>← Zurück</button>
-          <div className="page-title" style={{ margin:0 }}>DU <span style={{ color:"#ffa500" }}>Auflieger</span></div>
-        </div>
-
-        <div className="glass-panel">
-          <div className="label-cap">🚛 Fahrzeug (Auflieger)</div>
-          <VehicleInput vehicles={vehicles} value={plate} onChange={setPlate} vehicleType="trailer" />
-        </div>
-
-        <div className="glass-panel">
-          <div className="label-cap">KM-Stand</div>
-          <input className="input-dark" value={km} placeholder="z.B. 245000"
-            onChange={function(e){ setKm(e.target.value.replace(/\D/g,"")); }} />
-        </div>
-
-        {DU_SECTIONS.map(function(sec) {
-          return (
-            <div key={sec.id} className="glass-panel">
-              <div style={{ fontWeight:800, fontSize:13, color:"#ffa500", marginBottom:10, letterSpacing:0.5 }}>{sec.title}</div>
-              {sec.items.map(function(item) {
-                var key = sec.id + "__" + item;
-                var r = results[key] || { status:"", bemerkung:"" };
-                return (
-                  <div key={item} style={{ marginBottom:12, paddingBottom:12, borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
-                    <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", marginBottom:6 }}>{item}</div>
-                    <div style={{ display:"flex", gap:8, marginBottom: r.status === "nio" ? 6 : 0 }}>
-                      <button type="button"
-                        style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid", fontWeight:700, fontSize:12,
-                          borderColor: r.status === "io" ? "#22c55e" : "rgba(255,255,255,0.2)",
-                          background: r.status === "io" ? "rgba(34,197,94,0.15)" : "transparent",
-                          color: r.status === "io" ? "#22c55e" : "rgba(255,255,255,0.6)" }}
-                        onClick={function(){ setItemStatus(sec.id, item, r.status === "io" ? "" : "io"); }}>
-                        i.O.
-                      </button>
-                      <button type="button"
-                        style={{ flex:1, padding:"8px 0", borderRadius:9, border:"1px solid", fontWeight:700, fontSize:12,
-                          borderColor: r.status === "nio" ? "#ef4444" : "rgba(255,255,255,0.2)",
-                          background: r.status === "nio" ? "rgba(239,68,68,0.15)" : "transparent",
-                          color: r.status === "nio" ? "#ef4444" : "rgba(255,255,255,0.6)" }}
-                        onClick={function(){ setItemStatus(sec.id, item, r.status === "nio" ? "" : "nio"); }}>
-                        n.i.O.
-                      </button>
-                    </div>
-                    {r.status === "nio" && (
-                      <input className="input-dark" style={{ fontSize:12, padding:"8px 12px" }}
-                        value={r.bemerkung} placeholder="Bemerkung..."
-                        onChange={function(e){ setItemBemerk(sec.id, item, e.target.value); }} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-
-        <div className="glass-panel">
-          <div className="label-cap">Ergänzt / Ersetzt</div>
-          <textarea className="textarea-dark" value={ergaenzt} placeholder="Was wurde ergänzt oder ersetzt?"
-            onChange={function(e){ setErgaenzt(e.target.value); }} style={{ minHeight:64 }} />
-        </div>
-
-        <div className="glass-panel">
-          <div className="label-cap">Allgemeine Bemerkungen</div>
-          <textarea className="textarea-dark" value={bemerk} placeholder="Weitere Bemerkungen..."
-            onChange={function(e){ setBemerk(e.target.value); }} style={{ minHeight:64 }} />
-        </div>
-
-        <div className="glass-panel" style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>
-          Kontrolliert durch: <strong style={{ color:"#fff" }}>{user ? user.name : ""}</strong>
-        </div>
-
-        <button className="btn-primary" type="button" disabled={saving}
-          onClick={save} style={{ marginBottom:100 }}>
-          {saving ? "Speichert..." : "💾 Speichern + PDF exportieren"}
-        </button>
-      </div>
-    );
-  }
-
-  // LIST VIEW
-  return (
-    <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-        <div className="page-title" style={{ margin:0 }}>DU <span style={{ color:"#ffa500" }}>Auflieger</span></div>
-        <button className="btn-primary" type="button" style={{ padding:"10px 18px", fontSize:13 }}
-          onClick={function(){ setResults(buildDuResults(DU_SECTIONS)); setPlate(null); setKm(""); setErgaenzt(""); setBemerk(""); setView("form"); }}>
-          + Neue Prüfung
-        </button>
-      </div>
-
-      {loading && <div style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", padding:32 }}>Lädt...</div>}
-      {!loading && duList.length === 0 && (
-        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.5)", padding:32 }}>
-          Noch keine DU-Prüfungen. Erste Prüfung starten!
-        </div>
-      )}
-      {duList.map(function(insp) {
-        var resColor = insp.result === "passed" ? "#22c55e" : insp.result === "passed_with_remarks" ? "#ffa500" : "#ef4444";
-        var resLabel = insp.result === "passed" ? "✓ Bestanden" : insp.result === "passed_with_remarks" ? "⚠ Mit Mängeln" : "✗ Nicht bestanden";
-        return (
-          <div key={insp.id} className="glass-panel" style={{ marginBottom:10 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-              <div>
-                <div style={{ fontWeight:800, fontSize:15 }}>{insp.plate}</div>
-                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
-                  {dateDMY(insp.date)} · {insp.mechanic_name || "—"}
-                  {insp.km_stand ? " · " + insp.km_stand + " km" : ""}
-                </div>
-              </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-                <span style={{ fontSize:11, fontWeight:800, color:resColor }}>{resLabel}</span>
-                <button type="button"
-                  style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:"1px solid rgba(255,165,0,0.4)", background:"rgba(255,165,0,0.08)", color:"#ffa500", fontWeight:700 }}
-                  onClick={function(){ exportPdf(insp); }}>
-                  📄 PDF
-                </button>
-              </div>
-            </div>
-            {insp.bemerkungen && (
-              <div style={{ marginTop:8, fontSize:12, color:"rgba(255,255,255,0.55)" }}>{insp.bemerkungen}</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // === BOTTOM NAV ===
 function BottomNav({ tab, setTab, alertCount }) {
-  var items = [["new","➕","Auftrag"],["eingang","📥","Eingang"],["jobs","📋","Meine"],["lager","📦","Lager"],["du","📋","DU"]];
+  var items = [["new","➕","Auftrag"],["eingang","📥","Eingang"],["jobs","📋","Meine"],["lager","📦","Lager"],["archiv","🗃️","Archiv"]];
   return (
     <div className="nav-wrap">
       <div className="nav">
@@ -2579,20 +2256,19 @@ function AppShell({ user, onLogout }) {
   function loadAll() {
     setLoading(true);
     var nied = (user && user.niederlassung_id) ? user.niederlassung_id : "__none__";
-    var stockQuery = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=name.asc&limit=200";
-    var locsQuery  = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=sort_order.asc,name.asc";
-    var alertsQuery = "select=*&order=created_at.desc&limit=100";
+    var stockQ = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=name.asc&limit=200";
+    var locsQ  = "select=*&niederlassung_id=eq." + encodeURIComponent(nied) + "&order=sort_order.asc,name.asc";
+    var alertsQ = "select=*&order=created_at.desc&limit=100";
     Promise.all([
       sbSelect("jobs","select=*&order=created_at.desc&limit=300"),
-      sbSelect("alerts", alertsQuery),
+      sbSelect("alerts", alertsQ),
       sbSelect("vehicles","select=*&order=plate.asc&limit=500"),
-      sbSelect("stock", stockQuery),
+      sbSelect("stock", stockQ),
       sbSelect("users","select=*"),
-      sbSelect("niederlassung_locations", locsQuery)
+      sbSelect("niederlassung_locations", locsQ)
     ]).then(function(results) {
       setJobs(results[0]);
       var rawAlerts = results[1].map(function(a){ return Object.assign({},a,{photo_urls:normalizeUrls(a.photo_urls)}); });
-      // Фильтр: показываем alerts адресованные нам, или без target (старые записи)
       var myAlerts = rawAlerts.filter(function(a){
         return !a.target_workshop_niederlassung_id || a.target_workshop_niederlassung_id === nied;
       });
@@ -2605,7 +2281,6 @@ function AppShell({ user, onLogout }) {
       setVehicles(results[2]);
       setStock(results[3]);
       if (results[4] && results[4].length) setDbUsers(results[4]);
-      // Локации из БД — если есть, используем; иначе fallback
       if (results[5] && results[5].length) setDbLocations(results[5].map(function(l){ return l.name; }));
       setDbOk(true); setLoading(false);
     }).catch(function(e) {
@@ -2743,8 +2418,8 @@ function AppShell({ user, onLogout }) {
         {tab === "lager" && (
           <Lager stock={stock} loading={loading} onRefresh={loadAll} />
         )}
-        {tab === "du" && (
-          <DUAuflieger user={user} vehicles={vehicles} onRefresh={loadAll} />
+        {tab === "archiv" && (
+          <Archiv jobs={jobs} />
         )}
       </div>
       <BottomNav tab={tab} setTab={setTab} alertCount={openAlerts.length} />
@@ -2780,15 +2455,16 @@ function App() {
   }
 
   // Fallback PIN — старая логика: ввод имени, попытка распознать по локальному USERS
-  function loginFallback(fullName){
+  function loginFallback(fullName, nied) {
+    var niedId = nied || "hockenheim";
     var avatar = fullName.split(" ").map(function(w){ return w[0] || ""; }).join("").slice(0,2).toUpperCase() || "WK";
     var knownUser = USERS.find(function(u){ return fullName.toLowerCase().indexOf(u.id) !== -1; });
     var u = knownUser
       ? { id: knownUser.id, name: fullName, avatar: knownUser.avatar||avatar,
-          role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung",
+          role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
           app_access:["werkstatt"], tenant_id:"ltg" }
       : { id:"wk_"+Date.now(), name:fullName, avatar:avatar,
-          role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung",
+          role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
           app_access:["werkstatt"], tenant_id:"ltg" };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
     setSavedName(fullName);
@@ -2801,7 +2477,6 @@ function App() {
       .then(function(a){ setAlerts(a.map(function(x){ return Object.assign({},x,{photo_urls:normalizeUrls(x.photo_urls)}); })); })
       .catch(function(){});
 
-    // Загружаем юзеров и fallback PIN параллельно
     sbSelect("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
       setDbUsers(r||[]);
     }).catch(function(){ setDbUsers([]); });
@@ -2814,6 +2489,7 @@ function App() {
       if (saved) {
         var u = JSON.parse(saved);
         if (u && u.name) {
+          // Старая сессия без niederlassung_id — форсим релогин
           if (!u.niederlassung_id) {
             try { localStorage.removeItem(SESSION_KEY); } catch(e2) {}
           } else {
@@ -2825,7 +2501,6 @@ function App() {
         }
       }
     } catch(e) {}
-    // Новый поток: PIN ПЕРВЫМ (без ErsteAnmeldung впереди)
     setStage("pin");
   }, []);
 
@@ -2853,8 +2528,8 @@ function App() {
   // ErsteAnmeldung теперь только после fallback PIN
   if (stage === "register") {
     return (
-      <ErsteAnmeldung onContinue={function(v, n) {
-        loginFallback(v + " " + n);
+      <ErsteAnmeldung onContinue={function(v, n, nied) {
+        loginFallback(v + " " + n, nied);
       }} />
     );
   }
