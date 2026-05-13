@@ -7,6 +7,35 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- === Sentry/Glitchtip Error Monitoring ===
+       Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
+       Без DSN — Sentry молча отключён, ничего не отправляет.
+       Получить DSN: https://glitchtip.com (бесплатно, EU) или https://sentry.io (free до 5k/мес) -->
+  <script src="https://browser.sentry-cdn.com/8.45.0/bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function(){
+      var SENTRY_DSN = ""; // ← вставь DSN для waschhalle, пусто = выключено
+      if (SENTRY_DSN && window.Sentry) {
+        try {
+          Sentry.init({
+            dsn: SENTRY_DSN,
+            release: "waschhalle@2026-05-13",
+            environment: location.hostname.indexOf("localhost") >= 0 ? "dev" : "prod",
+            tracesSampleRate: 0.0,
+            beforeSend: function(event){
+              if (event.exception && event.exception.values) {
+                var msg = (event.exception.values[0]||{}).value || "";
+                if (msg.indexOf("ResizeObserver") >= 0) return null;
+                if (msg.indexOf("extension://") >= 0) return null;
+              }
+              return event;
+            }
+          });
+        } catch(e){ console.warn("Sentry init failed:", e); }
+      }
+    })();
+  </script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}

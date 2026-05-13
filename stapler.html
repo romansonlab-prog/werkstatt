@@ -7,6 +7,35 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- === Sentry/Glitchtip Error Monitoring ===
+       Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
+       Без DSN — Sentry молча отключён, ничего не отправляет.
+       Получить DSN: https://glitchtip.com (бесплатно, EU) или https://sentry.io (free до 5k/мес) -->
+  <script src="https://browser.sentry-cdn.com/8.45.0/bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function(){
+      var SENTRY_DSN = ""; // ← вставь DSN для stapler, пусто = выключено
+      if (SENTRY_DSN && window.Sentry) {
+        try {
+          Sentry.init({
+            dsn: SENTRY_DSN,
+            release: "stapler@2026-05-13",
+            environment: location.hostname.indexOf("localhost") >= 0 ? "dev" : "prod",
+            tracesSampleRate: 0.0,
+            beforeSend: function(event){
+              if (event.exception && event.exception.values) {
+                var msg = (event.exception.values[0]||{}).value || "";
+                if (msg.indexOf("ResizeObserver") >= 0) return null;
+                if (msg.indexOf("extension://") >= 0) return null;
+              }
+              return event;
+            }
+          });
+        } catch(e){ console.warn("Sentry init failed:", e); }
+      }
+    })();
+  </script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
@@ -566,6 +595,7 @@ function ReportForm({ user, onSent }) {
   var _ph  = useState([]); var ph = _ph[0]; var setPh = _ph[1];
   var _snd = useState(false); var snd = _snd[0]; var setSnd = _snd[1];
   var photoRef = useRef(null);
+  var sendingRef = useRef(false);
 
   // Автосохранение черновика
   useEffect(function(){
@@ -594,7 +624,9 @@ function ReportForm({ user, onSent }) {
   }
 
   function submit() {
+    if (sendingRef.current) return;
     if (!ok || snd) return;
+    sendingRef.current = true;
     setSnd(true);
     var id = "ST" + Date.now();
     var locPreset = LOCS.find(function(l){ return l.id === loc; });
@@ -613,9 +645,10 @@ function ReportForm({ user, onSent }) {
       });
     }).then(function(){
       try { localStorage.removeItem(DRAFT_KEY_STAPLER); } catch(e) {}
+      sendingRef.current = false;
       setSnd(false);
       onSent({ alertId:id, location:locFinal, forklift:fk, urg:urg, desc:dsc });
-    }).catch(function(e){ alert("Fehler: " + (e.message || e)); setSnd(false); });
+    }).catch(function(e){ alert("Fehler: " + (e.message || e)); sendingRef.current = false; setSnd(false); });
   }
 
   return (

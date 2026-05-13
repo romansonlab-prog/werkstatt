@@ -7,6 +7,35 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- === Sentry/Glitchtip Error Monitoring ===
+       Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
+       Без DSN — Sentry молча отключён, ничего не отправляет.
+       Получить DSN: https://glitchtip.com (бесплатно, EU) или https://sentry.io (free до 5k/мес) -->
+  <script src="https://browser.sentry-cdn.com/8.45.0/bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function(){
+      var SENTRY_DSN = ""; // ← вставь DSN для dashboard, пусто = выключено
+      if (SENTRY_DSN && window.Sentry) {
+        try {
+          Sentry.init({
+            dsn: SENTRY_DSN,
+            release: "dashboard@2026-05-13",
+            environment: location.hostname.indexOf("localhost") >= 0 ? "dev" : "prod",
+            tracesSampleRate: 0.0,
+            beforeSend: function(event){
+              if (event.exception && event.exception.values) {
+                var msg = (event.exception.values[0]||{}).value || "";
+                if (msg.indexOf("ResizeObserver") >= 0) return null;
+                if (msg.indexOf("extension://") >= 0) return null;
+              }
+              return event;
+            }
+          });
+        } catch(e){ console.warn("Sentry init failed:", e); }
+      }
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -174,6 +203,32 @@
       .kpi-grid{grid-template-columns:1fr 1fr}
       .g4{grid-template-columns:1fr 1fr}
       .g3{grid-template-columns:1fr 1fr}
+    }
+
+    /* === SOS Unfall — мигающий красный экран для критической срочности === */
+    @keyframes sosBlinkRow {
+      0%, 100% { background-color: rgba(239,68,68,0.18); }
+      50% { background-color: rgba(239,68,68,0.32); }
+    }
+    @keyframes sosBlinkBanner {
+      0%, 100% { background-color: #dc2626; box-shadow: 0 0 20px rgba(239,68,68,0.6); }
+      50% { background-color: #ef4444; box-shadow: 0 0 40px rgba(239,68,68,0.9); }
+    }
+    .sos-banner {
+      position: fixed; top: 64px; left: 250px; right: 0;
+      z-index: 100;
+      padding: 14px 24px;
+      color: #fff; font-weight: 900; font-size: 17px;
+      letter-spacing: 1px;
+      display: flex; align-items: center; gap: 14px;
+      animation: sosBlinkBanner 1s ease-in-out infinite;
+      cursor: pointer;
+    }
+    .sos-banner-icon {
+      font-size: 24px;
+    }
+    @media(max-width:900px){
+      .sos-banner { left: 0; }
     }
   </style>
   <link rel="manifest" href="manifest-dashboard.json" />
@@ -1267,6 +1322,7 @@ function Eingang({ alerts, onRefresh, loading }) {
                     {/* СТРОКИ */}
                     {dayList.map(function(a, idx){
               var urg = (a.urgency||"").includes("urgent");
+              var isSos = (a.urgency||"") === "sos" || a.type === "sos";
               var done = a.status === "done";
               var photos = [];
               try {
@@ -1288,15 +1344,18 @@ function Eingang({ alerts, onRefresh, loading }) {
                     alignItems:"center",
                     minHeight:72,
                     borderBottom:"1px solid rgba(255,255,255,0.06)",
-                    background: urg && !done ? "rgba(239,68,68,0.05)" : idx%2===0 ? "transparent" : "rgba(255,255,255,0.02)",
+                    background: isSos && !done ? "rgba(239,68,68,0.18)" : urg && !done ? "rgba(239,68,68,0.05)" : idx%2===0 ? "transparent" : "rgba(255,255,255,0.02)",
                     opacity: done ? 0.55 : 1,
-                    borderLeft: urg && !done ? "3px solid #ef4444" : "3px solid transparent",
+                    borderLeft: isSos && !done ? "5px solid #ef4444" : urg && !done ? "3px solid #ef4444" : "3px solid transparent",
+                    animation: isSos && !done ? "sosBlinkRow 1.2s ease-in-out infinite" : "none",
                   }}>
                     {/* ПРИОРИТЕТ */}
                     <div style={{ padding:"0 12px" }}>
-                      {urg
-                        ? <span style={{ fontSize:12, fontWeight:800, color:"#ef4444", background:"rgba(239,68,68,0.15)", padding:"3px 8px", borderRadius:6 }}>🚨 Dringend</span>
-                        : <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>Normal</span>
+                      {isSos
+                        ? <span style={{ fontSize:13, fontWeight:900, color:"#fff", background:"#ef4444", padding:"5px 10px", borderRadius:6, letterSpacing:1 }}>🚨 SOS</span>
+                        : urg
+                          ? <span style={{ fontSize:12, fontWeight:800, color:"#ef4444", background:"rgba(239,68,68,0.15)", padding:"3px 8px", borderRadius:6 }}>🚨 Dringend</span>
+                          : <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>Normal</span>
                       }
                     </div>
                     {/* ВРЕМЯ */}
@@ -2774,6 +2833,389 @@ function Archiv({ jobs }) {
             </table>
         }
         {list.length > 200 && <div style={{ textAlign:"center", fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:8 }}>Zeige erste 200 — Filter verwenden für genauere Suche</div>}
+      </div>
+    </div>
+  );
+}
+
+// === MONATSBERICHT ===
+function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
+  // Список месяцев: текущий + 11 предыдущих
+  var now = new Date();
+  var months = [];
+  for (var mi = 0; mi < 12; mi++) {
+    var d = new Date(now.getFullYear(), now.getMonth() - mi, 1);
+    months.push({
+      label: d.toLocaleDateString("de-DE", { month: "long", year: "numeric" }),
+      labelShort: d.toLocaleDateString("de-DE", { month: "short", year: "2-digit" }),
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      start: d.toLocaleDateString("sv-SE"),
+      end: new Date(d.getFullYear(), d.getMonth() + 1, 1).toLocaleDateString("sv-SE")
+    });
+  }
+
+  var _sm = useState(0); var selMonth = _sm[0]; var setSelMonth = _sm[1];
+  var _sg = useState(false); var generating = _sg[0]; var setGenerating = _sg[1];
+
+  var m = months[selMonth];
+
+  // Фильтрация данных за выбранный месяц
+  var mJobs = jobs.filter(function(j) {
+    var d = j.date || (j.created_at || "").slice(0, 10);
+    return d >= m.start && d < m.end;
+  });
+  var mWash = (washOrders || []).filter(function(w) {
+    return (w.work_date || "") >= m.start && (w.work_date || "") < m.end;
+  });
+  var mInsp = (inspections || []).filter(function(i) {
+    var d = (i.created_at || "").slice(0, 10);
+    return d >= m.start && d < m.end;
+  });
+  var mAlerts = (alerts || []).filter(function(a) {
+    var d = (a.created_at || "").slice(0, 10);
+    return d >= m.start && d < m.end;
+  });
+
+  // KPI
+  var totalJobs     = mJobs.length;
+  var doneJobs      = mJobs.filter(function(j) { return j.status === "done"; }).length;
+  var totalMin      = mJobs.reduce(function(s, j) { return s + (parseInt(j.work_min || 0) || 0); }, 0);
+  var totalLabor    = mJobs.reduce(function(s, j) { return s + (Number(j.labor_cost) || 0); }, 0);
+  var totalParts    = mJobs.reduce(function(s, j) { return s + (Number(j.parts_cost) || 0); }, 0);
+  var totalCost     = totalLabor + totalParts;
+  var totalWashRev  = mWash.reduce(function(s, w) { return s + (Number(w.price_eur) || 0); }, 0);
+  var totalRevenue  = totalCost + totalWashRev;
+  var openAlertsM   = mAlerts.filter(function(a) { return a.status !== "done"; }).length;
+  var doneAlertsM   = mAlerts.filter(function(a) { return a.status === "done"; }).length;
+
+  // По механикам
+  var byMech = {};
+  mJobs.forEach(function(j) {
+    var key = j.mechanic || "unbekannt";
+    var name = j.mechanic_name || j.mechanic || "Unbekannt";
+    if (!byMech[key]) byMech[key] = { name: name, jobs: 0, done: 0, min: 0, labor: 0, parts: 0 };
+    byMech[key].jobs++;
+    if (j.status === "done") byMech[key].done++;
+    byMech[key].min   += parseInt(j.work_min || 0) || 0;
+    byMech[key].labor += Number(j.labor_cost) || 0;
+    byMech[key].parts += Number(j.parts_cost) || 0;
+  });
+  var mechArr = Object.keys(byMech).map(function(k) { return byMech[k]; })
+    .sort(function(a, b) { return b.jobs - a.jobs; });
+
+  // По типам работ
+  var byType = {};
+  mJobs.forEach(function(j) {
+    var t = WORK_TYPES[j.work_type] || j.work_type || "Sonstiges";
+    if (!byType[t]) byType[t] = 0;
+    byType[t]++;
+  });
+  var typeArr = Object.keys(byType).sort(function(a, b) { return byType[b] - byType[a]; });
+
+  // Топ машины (по затратам)
+  var byVeh = {};
+  mJobs.forEach(function(j) {
+    if (!j.plate) return;
+    if (!byVeh[j.plate]) byVeh[j.plate] = { jobs: 0, cost: 0, min: 0 };
+    byVeh[j.plate].jobs++;
+    byVeh[j.plate].cost += (Number(j.labor_cost) || 0) + (Number(j.parts_cost) || 0);
+    byVeh[j.plate].min  += parseInt(j.work_min || 0) || 0;
+  });
+  var topVeh = Object.keys(byVeh).sort(function(a, b) {
+    return byVeh[b].cost - byVeh[a].cost;
+  }).slice(0, 10);
+
+  // Waschhalle по типу
+  var byWashType = {};
+  mWash.forEach(function(w) {
+    var t = w.wash_type_name || "Sonstiges";
+    if (!byWashType[t]) byWashType[t] = { count: 0, rev: 0 };
+    byWashType[t].count++;
+    byWashType[t].rev += Number(w.price_eur) || 0;
+  });
+  var washTypeArr = Object.keys(byWashType).sort(function(a, b) {
+    return byWashType[b].count - byWashType[a].count;
+  });
+
+  // === PDF EXPORT ===
+  function generatePDF() {
+    setGenerating(true);
+    setTimeout(function() {
+      var mechRows = mechArr.map(function(mch) {
+        return "<tr>" +
+          "<td><strong>" + mch.name + "</strong></td>" +
+          "<td style='text-align:center'>" + mch.jobs + "</td>" +
+          "<td style='text-align:center'>" + mch.done + "</td>" +
+          "<td style='text-align:center'>" + fmtMin(mch.min) + "</td>" +
+          "<td style='text-align:right'>" + mch.labor.toFixed(2) + " €</td>" +
+          "<td style='text-align:right'>" + mch.parts.toFixed(2) + " €</td>" +
+          "<td style='text-align:right;font-weight:700'>" + (mch.labor + mch.parts).toFixed(2) + " €</td>" +
+          "</tr>";
+      }).join("");
+
+      var vehRows = topVeh.map(function(plate) {
+        var v = byVeh[plate];
+        return "<tr>" +
+          "<td><strong style='letter-spacing:1px'>" + plate + "</strong></td>" +
+          "<td style='text-align:center'>" + v.jobs + "</td>" +
+          "<td style='text-align:center'>" + fmtMin(v.min) + "</td>" +
+          "<td style='text-align:right;font-weight:700'>" + v.cost.toFixed(2) + " €</td>" +
+          "</tr>";
+      }).join("");
+
+      var washRows = washTypeArr.map(function(t) {
+        var w = byWashType[t];
+        return "<tr>" +
+          "<td>" + t + "</td>" +
+          "<td style='text-align:center'>" + w.count + "</td>" +
+          "<td style='text-align:right;font-weight:700'>" + w.rev.toFixed(2) + " €</td>" +
+          "</tr>";
+      }).join("");
+
+      var typeRowsHtml = typeArr.map(function(t) {
+        return "<tr><td>" + t + "</td><td style='text-align:center'>" + byType[t] + "</td><td style='text-align:center'>" + Math.round(byType[t] / Math.max(totalJobs, 1) * 100) + "%</td></tr>";
+      }).join("");
+
+      var jobRows = mJobs.slice(0, 300).map(function(j) {
+        return "<tr>" +
+          "<td style='white-space:nowrap;color:#666'>" + (j.date || (j.created_at || "").slice(0, 10)) + "</td>" +
+          "<td><strong>" + (j.plate || "—") + "</strong></td>" +
+          "<td>" + (j.mechanic || "—") + "</td>" +
+          "<td>" + (WORK_TYPES[j.work_type] || j.work_type || "—") + "</td>" +
+          "<td style='max-width:200px;overflow:hidden'>" + (j.description || "—").slice(0, 60) + "</td>" +
+          "<td style='text-align:center'>" + fmtMin(j.work_min || 0) + "</td>" +
+          "<td style='text-align:right'>" + ((j.labor_cost || j.parts_cost) ? ((Number(j.labor_cost)||0) + (Number(j.parts_cost)||0)).toFixed(2) + " €" : "—") + "</td>" +
+          "<td>" + statusDE(j.status) + "</td>" +
+          "</tr>";
+      }).join("");
+
+      var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
+        "<title>WerkFlow Monatsbericht " + m.label + "</title>" +
+        "<style>" +
+          "body{font-family:Arial,sans-serif;padding:28px 32px;color:#111;max-width:1100px;margin:0 auto}" +
+          "h1{color:#0a1730;font-size:26px;margin:0 0 4px}" +
+          "h2{color:#1e4fa0;font-size:17px;margin:28px 0 10px;border-bottom:2px solid #e8edf8;padding-bottom:6px}" +
+          "h3{color:#0a1730;font-size:13px;margin:18px 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}" +
+          ".subtitle{color:#666;font-size:14px;margin-bottom:28px}" +
+          ".kpi-row{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}" +
+          ".kpi{background:#f0f4ff;border-radius:10px;padding:14px 20px;text-align:center;flex:1;min-width:120px}" +
+          ".kpi-val{font-size:24px;font-weight:900;color:#0a1730}" +
+          ".kpi-val.green{color:#16a34a}" +
+          ".kpi-val.orange{color:#ea7b00}" +
+          ".kpi-val.red{color:#dc2626}" +
+          ".kpi-lab{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px}" +
+          "table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px}" +
+          "th{background:#0a1730;color:#fff;padding:9px 11px;text-align:left;font-size:11px;font-weight:700;letter-spacing:0.5px}" +
+          "td{padding:8px 11px;border-bottom:1px solid #eee;vertical-align:top}" +
+          "tr:nth-child(even) td{background:#f8f9fc}" +
+          ".total-row td{font-weight:900;background:#e8edf8;border-top:2px solid #c0cce8}" +
+          ".section-break{page-break-before:always}" +
+          ".footer{font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px;margin-top:24px;display:flex;justify-content:space-between}" +
+          "@media print{.no-print{display:none}}" +
+        "</style></head><body>" +
+
+        "<h1>WerkFlow — Monatsbericht</h1>" +
+        "<div class='subtitle'>LTG Landauer Transportgesellschaft Doll KG &nbsp;·&nbsp; " + m.label + " &nbsp;·&nbsp; Erstellt: " + new Date().toLocaleDateString("de-DE") + "</div>" +
+
+        "<h2>📊 Übersicht</h2>" +
+        "<div class='kpi-row'>" +
+          "<div class='kpi'><div class='kpi-val'>" + totalJobs + "</div><div class='kpi-lab'>Aufträge gesamt</div></div>" +
+          "<div class='kpi'><div class='kpi-val green'>" + doneJobs + "</div><div class='kpi-lab'>Abgeschlossen</div></div>" +
+          "<div class='kpi'><div class='kpi-val orange'>" + fmtMin(totalMin) + "</div><div class='kpi-lab'>Arbeitszeit</div></div>" +
+          "<div class='kpi'><div class='kpi-val'>" + mWash.length + "</div><div class='kpi-lab'>Wäschen</div></div>" +
+          "<div class='kpi'><div class='kpi-val'>" + mInsp.length + "</div><div class='kpi-lab'>Inspektionen</div></div>" +
+          "<div class='kpi'><div class='kpi-val'>" + mAlerts.length + "</div><div class='kpi-lab'>Meldungen</div></div>" +
+        "</div>" +
+        "<div class='kpi-row'>" +
+          "<div class='kpi'><div class='kpi-val orange'>" + totalLabor.toFixed(2) + " €</div><div class='kpi-lab'>Lohnkosten</div></div>" +
+          "<div class='kpi'><div class='kpi-val orange'>" + totalParts.toFixed(2) + " €</div><div class='kpi-lab'>Ersatzteile</div></div>" +
+          "<div class='kpi'><div class='kpi-val orange'>" + totalCost.toFixed(2) + " €</div><div class='kpi-lab'>Werkstatt gesamt</div></div>" +
+          "<div class='kpi'><div class='kpi-val green'>" + totalWashRev.toFixed(2) + " €</div><div class='kpi-lab'>Waschhalle Umsatz</div></div>" +
+          "<div class='kpi'><div class='kpi-val' style='color:#1e4fa0'>" + totalRevenue.toFixed(2) + " €</div><div class='kpi-lab'>Gesamtkosten / Umsatz</div></div>" +
+        "</div>" +
+
+        (mechArr.length > 0 ? (
+          "<h2>🔧 Mechaniker</h2>" +
+          "<table><thead><tr><th>Name</th><th>Aufträge</th><th>Fertig</th><th>Arbeitszeit</th><th>Lohnkosten</th><th>Ersatzteile</th><th>Gesamt</th></tr></thead><tbody>" +
+          mechRows +
+          "<tr class='total-row'><td>Gesamt</td><td style='text-align:center'>" + totalJobs + "</td><td style='text-align:center'>" + doneJobs + "</td><td style='text-align:center'>" + fmtMin(totalMin) + "</td><td style='text-align:right'>" + totalLabor.toFixed(2) + " €</td><td style='text-align:right'>" + totalParts.toFixed(2) + " €</td><td style='text-align:right'>" + totalCost.toFixed(2) + " €</td></tr>" +
+          "</tbody></table>"
+        ) : "") +
+
+        (typeArr.length > 0 ? (
+          "<h2>📋 Auftragstypen</h2>" +
+          "<table><thead><tr><th>Typ</th><th>Anzahl</th><th>Anteil</th></tr></thead><tbody>" +
+          typeRowsHtml +
+          "</tbody></table>"
+        ) : "") +
+
+        (topVeh.length > 0 ? (
+          "<h2>🚛 Top Fahrzeuge nach Kosten</h2>" +
+          "<table><thead><tr><th>Kennzeichen</th><th>Aufträge</th><th>Arbeitszeit</th><th>Kosten</th></tr></thead><tbody>" +
+          vehRows +
+          "</tbody></table>"
+        ) : "") +
+
+        (mWash.length > 0 ? (
+          "<h2>🚿 Waschhalle</h2>" +
+          "<div class='kpi-row' style='margin-bottom:12px'>" +
+            "<div class='kpi'><div class='kpi-val'>" + mWash.length + "</div><div class='kpi-lab'>Wäschen</div></div>" +
+            "<div class='kpi'><div class='kpi-val green'>" + totalWashRev.toFixed(2) + " €</div><div class='kpi-lab'>Umsatz</div></div>" +
+            "<div class='kpi'><div class='kpi-val orange'>" + (mWash.length > 0 ? (totalWashRev / mWash.length).toFixed(2) : "0.00") + " €</div><div class='kpi-lab'>Ø je Wäsche</div></div>" +
+          "</div>" +
+          (washTypeArr.length > 0 ? (
+            "<table><thead><tr><th>Typ</th><th>Anzahl</th><th>Umsatz</th></tr></thead><tbody>" +
+            washRows +
+            "<tr class='total-row'><td>Gesamt</td><td style='text-align:center'>" + mWash.length + "</td><td style='text-align:right'>" + totalWashRev.toFixed(2) + " €</td></tr>" +
+            "</tbody></table>"
+          ) : "")
+        ) : "") +
+
+        (mAlerts.length > 0 ? (
+          "<h2>🚨 Meldungen (Eingang)</h2>" +
+          "<div class='kpi-row' style='margin-bottom:12px'>" +
+            "<div class='kpi'><div class='kpi-val'>" + mAlerts.length + "</div><div class='kpi-lab'>Meldungen gesamt</div></div>" +
+            "<div class='kpi'><div class='kpi-val green'>" + doneAlertsM + "</div><div class='kpi-lab'>Erledigt</div></div>" +
+            "<div class='kpi'><div class='kpi-val red'>" + openAlertsM + "</div><div class='kpi-lab'>Noch offen</div></div>" +
+          "</div>"
+        ) : "") +
+
+        (mJobs.length > 0 ? (
+          "<div class='section-break'></div>" +
+          "<h2>📄 Alle Aufträge (" + mJobs.length + ")</h2>" +
+          "<table><thead><tr><th>Datum</th><th>Fahrzeug</th><th>Mechaniker</th><th>Typ</th><th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th></tr></thead><tbody>" +
+          jobRows +
+          (mJobs.length > 300 ? "<tr><td colspan='8' style='text-align:center;color:#888'>... und " + (mJobs.length - 300) + " weitere (im System vollständig)</td></tr>" : "") +
+          "</tbody></table>"
+        ) : "") +
+
+        "<div class='footer'>" +
+          "<span>WerkFlow Betriebsmanagementsystem &nbsp;·&nbsp; LTG Landauer Transportgesellschaft Doll KG</span>" +
+          "<span>" + m.label + " &nbsp;·&nbsp; Auto-generiert am " + new Date().toLocaleDateString("de-DE") + "</span>" +
+        "</div>" +
+        "<div class='no-print' style='margin-top:24px;display:flex;gap:12px'>" +
+          "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF speichern</button>" +
+        "</div>" +
+        "</body></html>";
+
+      printHtml(html, "Monatsbericht_" + m.label.replace(/ /g, "_"));
+      setGenerating(false);
+    }, 50);
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Monatsbericht</div>
+        </div>
+
+        <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap", marginBottom:24 }}>
+          <div>
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Monat wählen</div>
+            <select className="inp" value={selMonth}
+              onChange={function(e){ setSelMonth(Number(e.target.value)); }}
+              style={{ minWidth:220, fontSize:15 }}>
+              {months.map(function(mo, i) {
+                return <option key={i} value={i}>{mo.label}</option>;
+              })}
+            </select>
+          </div>
+          <div style={{ marginTop:18 }}>
+            <button className="btn-primary"
+              style={{ padding:"11px 28px", fontSize:15, width:"auto", opacity: generating ? 0.6 : 1 }}
+              onClick={generatePDF}
+              disabled={generating}>
+              {generating ? "⏳ Generiere..." : "📄 PDF generieren"}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", marginBottom:20 }}>
+          Zeitraum: <strong style={{ color:"#fff" }}>{m.start}</strong> bis <strong style={{ color:"#fff" }}>{m.end.slice(0,10)}</strong>
+        </div>
+
+        {/* KPI Preview */}
+        <div className="kpi-grid" style={{ marginBottom:20 }}>
+          <div className="kpi-card orange">
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Aufträge</div>
+            <div style={{ fontSize:32, fontWeight:800, lineHeight:1, marginBottom:4 }}>{totalJobs}</div>
+            <div style={{ fontSize:13, color:"#22c55e" }}>{doneJobs} abgeschlossen</div>
+          </div>
+          <div className="kpi-card blue">
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Arbeitszeit</div>
+            <div style={{ fontSize:32, fontWeight:800, lineHeight:1, marginBottom:4 }}>{Math.floor(totalMin/60)}<span style={{ fontSize:16, color:"rgba(255,255,255,0.5)" }}>h</span></div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.45)" }}>{totalMin % 60} min rest</div>
+          </div>
+          <div className="kpi-card orange">
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Werkstatt Kosten</div>
+            <div style={{ fontSize:28, fontWeight:800, lineHeight:1, marginBottom:4 }}>{totalCost.toFixed(0)}<span style={{ fontSize:14, color:"rgba(255,255,255,0.5)" }}> €</span></div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)" }}>Lohn {totalLabor.toFixed(0)} € + Teile {totalParts.toFixed(0)} €</div>
+          </div>
+          <div className="kpi-card green">
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Waschhalle</div>
+            <div style={{ fontSize:32, fontWeight:800, lineHeight:1, marginBottom:4 }}>{mWash.length}</div>
+            <div style={{ fontSize:13, color:"#22c55e" }}>{totalWashRev.toFixed(2)} € Umsatz</div>
+          </div>
+        </div>
+
+        {/* Mechaniker preview */}
+        {mechArr.length > 0 && (
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, textTransform:"uppercase", letterSpacing:1, color:"rgba(255,255,255,0.5)", marginBottom:10 }}>Mechaniker</div>
+            <table className="tbl" style={{ marginBottom:20 }}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Aufträge</th>
+                  <th>Fertig</th>
+                  <th>Zeit</th>
+                  <th>Lohn</th>
+                  <th>Teile</th>
+                  <th>Gesamt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mechArr.map(function(mch) {
+                  return (
+                    <tr key={mch.name}>
+                      <td style={{ fontWeight:600 }}>{mch.name}</td>
+                      <td style={{ textAlign:"center" }}>{mch.jobs}</td>
+                      <td style={{ textAlign:"center", color:"#22c55e" }}>{mch.done}</td>
+                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{fmtMin(mch.min)}</td>
+                      <td style={{ textAlign:"right", fontSize:12 }}>{mch.labor.toFixed(2)} €</td>
+                      <td style={{ textAlign:"right", fontSize:12 }}>{mch.parts.toFixed(2)} €</td>
+                      <td style={{ textAlign:"right", fontWeight:700, color:"#ffa500" }}>{(mch.labor + mch.parts).toFixed(2)} €</td>
+                    </tr>
+                  );
+                })}
+                <tr style={{ background:"rgba(255,165,0,0.08)", fontWeight:700 }}>
+                  <td>Gesamt</td>
+                  <td style={{ textAlign:"center" }}>{totalJobs}</td>
+                  <td style={{ textAlign:"center", color:"#22c55e" }}>{doneJobs}</td>
+                  <td style={{ fontSize:12 }}>{fmtMin(totalMin)}</td>
+                  <td style={{ textAlign:"right", fontSize:12 }}>{totalLabor.toFixed(2)} €</td>
+                  <td style={{ textAlign:"right", fontSize:12 }}>{totalParts.toFixed(2)} €</td>
+                  <td style={{ textAlign:"right", color:"#ffa500" }}>{totalCost.toFixed(2)} €</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {totalJobs === 0 && mWash.length === 0 && (
+          <div className="empty">Keine Daten für {m.label}</div>
+        )}
+
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+          <button className="btn-primary"
+            style={{ padding:"13px 32px", fontSize:15, width:"auto", opacity: generating ? 0.6 : 1 }}
+            onClick={generatePDF}
+            disabled={generating}>
+            {generating ? "⏳ Generiere..." : "📄 PDF generieren — " + m.label}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -4550,6 +4992,54 @@ function AppShell({ user, onLogout }) {
     return function(){ clearInterval(interval); };
   }, []);
 
+  // === SOS Unfall: звук + слежение за новыми SOS-алертами ===
+  // Воспроизводим тревожный звук при обнаружении нового SOS-алерта.
+  // Используем Web Audio API без файлов, чтобы не нужны были звуковые файлы на сервере.
+  var sosSeenRef = useRef({}); // id виденных SOS, чтобы звук не повторялся
+  function playSosSound() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Сирена: чередование 800Hz и 1200Hz, 4 цикла
+      var times = [
+        [800, 0,     0.35],
+        [1200, 0.4,  0.35],
+        [800, 0.8,   0.35],
+        [1200, 1.2,  0.35],
+        [800, 1.6,   0.35],
+        [1200, 2.0,  0.35],
+      ];
+      times.forEach(function(t){
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = t[0];
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + t[1]);
+        gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + t[1] + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t[1] + t[2]);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + t[1]);
+        osc.stop(ctx.currentTime + t[1] + t[2]);
+      });
+      setTimeout(function(){ try { ctx.close(); } catch(e){} }, 3000);
+    } catch(e) { console.warn("SOS sound failed:", e); }
+  }
+
+  // Активные SOS-алерты (открытые, не done/rejected)
+  var sosAlerts = alerts.filter(function(a){
+    var isSos = (a.urgency||"") === "sos" || a.type === "sos";
+    return isSos && a.status !== "done" && a.status !== "rejected";
+  });
+
+  // Звук при появлении нового SOS
+  useEffect(function(){
+    sosAlerts.forEach(function(a){
+      if (!sosSeenRef.current[a.id]) {
+        sosSeenRef.current[a.id] = true;
+        playSosSound();
+      }
+    });
+  }, [sosAlerts.map(function(a){ return a.id; }).join(",")]);
+
   var openAlerts = fAlerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
   var lowStock = fStock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
   var overduePlans = fPlans.filter(function(p){
@@ -4570,6 +5060,7 @@ function AppShell({ user, onLogout }) {
     { k:"rechnungen",  ic: IC.receipt,  label:"Lieferscheine" },
     { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
     { k:"archiv",      ic: IC.archive,  label:"Archiv" },
+    { k:"monatsbericht", ic: IC.report,  label:"Monatsbericht" },
     { k:"kontakte",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
     { k:"settings",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
   ];
@@ -4578,11 +5069,21 @@ function AppShell({ user, onLogout }) {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", du:"DU Auflieger", waschhalle:"Waschhalle",
     lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Lieferscheine",
-    wartung:"Wartungsplan", archiv:"Archiv", settings:"Einstellungen", kontakte:"Kontakte"
+    wartung:"Wartungsplan", archiv:"Archiv", monatsbericht:"Monatsbericht", settings:"Einstellungen", kontakte:"Kontakte"
   };
 
   return (
     <div className="dash-layout">
+      {/* === SOS UNFALL — мигающий баннер сверху если есть открытые SOS === */}
+      {sosAlerts.length > 0 && (
+        <div className="sos-banner no-print" onClick={function(){ setSec("eingang"); }}>
+          <span className="sos-banner-icon">🚨</span>
+          <span>SOS UNFALL — {sosAlerts.length} aktive Meldung{sosAlerts.length !== 1 ? "en" : ""}!</span>
+          <span style={{ marginLeft:"auto", fontSize:14, fontWeight:700, opacity:0.9 }}>
+            ▶ zum Eingang
+          </span>
+        </div>
+      )}
       <div className="sidebar">
         <div className="sidebar-logo">
           <div className="sidebar-logo-text">
@@ -4694,6 +5195,7 @@ function AppShell({ user, onLogout }) {
           {sec === "rechnungen"  && <Rechnungen invoices={fInvoices} vehicles={fVehicles} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={fJobs} />}
+          {sec === "monatsbericht" && <Monatsbericht jobs={fJobs} washOrders={fWashOrders} inspections={fInspections} alerts={fAlerts} />}
           {sec === "kontakte"    && <Kontakte onRefresh={loadAll} />}
           {sec === "settings"    && <Einstellungen vehicles={fVehicles} forklifts={fForklifts} stock={fStock} onRefresh={loadAll} loading={loading} niedList={niedList} />}
         </div>

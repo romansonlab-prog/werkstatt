@@ -7,6 +7,35 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- === Sentry/Glitchtip Error Monitoring ===
+       Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
+       Без DSN — Sentry молча отключён, ничего не отправляет.
+       Получить DSN: https://glitchtip.com (бесплатно, EU) или https://sentry.io (free до 5k/мес) -->
+  <script src="https://browser.sentry-cdn.com/8.45.0/bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    (function(){
+      var SENTRY_DSN = ""; // ← вставь DSN для fahrer, пусто = выключено
+      if (SENTRY_DSN && window.Sentry) {
+        try {
+          Sentry.init({
+            dsn: SENTRY_DSN,
+            release: "fahrer@2026-05-13",
+            environment: location.hostname.indexOf("localhost") >= 0 ? "dev" : "prod",
+            tracesSampleRate: 0.0,
+            beforeSend: function(event){
+              if (event.exception && event.exception.values) {
+                var msg = (event.exception.values[0]||{}).value || "";
+                if (msg.indexOf("ResizeObserver") >= 0) return null;
+                if (msg.indexOf("extension://") >= 0) return null;
+              }
+              return event;
+            }
+          });
+        } catch(e){ console.warn("Sentry init failed:", e); }
+      }
+    })();
+  </script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
@@ -130,7 +159,7 @@ const { useState, useEffect, useRef } = React;
 
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
-const APP_PIN = "1234";
+// PIN читается ТОЛЬКО из app_settings.driver_shared_pin — никакого хардкода
 const SESS_KEY = "werkflow_fahrer_v3";
 const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
 var LANG_MAP = {"DE":"de","RU":"ru","GB":"en","UA":"uk","RO":"ro","HU":"hu","CZ":"cs"};
@@ -662,8 +691,8 @@ function PinScreen({ lang, setLang, onOk, dynPin }) {
   var _e=useState(false); var err=_e[0]; var setErr=_e[1];
   var t=getT(lang);
   function check(val){
-    var expected = dynPin || APP_PIN;
-    return val === expected;
+    if (!dynPin) return false; // PIN из БД ещё не загружен
+    return val === dynPin;
   }
   function press(d){
     if(p.length>=4) return; setErr(false);
@@ -678,19 +707,24 @@ function PinScreen({ lang, setLang, onOk, dynPin }) {
         <div style={{ marginTop:60 }}><Logo size={42} /></div>
         <div style={{ color:"#ffa500",fontSize:32,fontWeight:900,marginTop:8 }}>{t.label}</div>
         <div style={{ fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.6)",letterSpacing:3,marginTop:8 }}>{t.pin}</div>
+        {!dynPin && (
+          <div style={{ marginTop:18, padding:"12px 14px", borderRadius:10, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", fontSize:13, color:"#fca5a5", textAlign:"center" }}>
+            ⚠ PIN wird geladen... Bitte Internet prüfen
+          </div>
+        )}
         <div style={{ display:"flex",justifyContent:"center",gap:14,marginTop:24 }}>
           {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot"+(i<p.length?" on":"")+(err?" err":"")}></div>; })}
         </div>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(3,68px)",gap:14,maxWidth:260,width:"100%",margin:"24px auto 0",justifyContent:"center" }}>
-          {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>; })}
+          {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="keypad-btn" disabled={!dynPin} onClick={function(){ press(String(d)); }}>{d}</button>; })}
           <div></div>
-          <button className="keypad-btn" onClick={function(){ press("0"); }}>0</button>
+          <button className="keypad-btn" disabled={!dynPin} onClick={function(){ press("0"); }}>0</button>
           <button className="keypad-btn" onClick={function(){ setP(function(x){ return x.slice(0,-1); }); setErr(false); }}>⌫</button>
         </div>
         <div style={{ flex:1 }}></div>
         <button onClick={function(){ if(check(p)) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } }}
-          disabled={p.length!==4}
-          style={{ width:"100%",padding:18,background:"transparent",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:14,color:"#fff",fontSize:17,fontWeight:600,opacity:p.length===4?1:0.5,marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
+          disabled={p.length!==4 || !dynPin}
+          style={{ width:"100%",padding:18,background:"transparent",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:14,color:"#fff",fontSize:17,fontWeight:600,opacity:(p.length===4&&dynPin)?1:0.5,marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
           {t.login} <span style={{ fontSize:20 }}>→</span>
         </button>
       </div>
@@ -823,6 +857,7 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
   var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
   var _done=useState(false); var done=_done[0]; var setDone=_done[1];
   var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
+  var sendingRef = useRef(false);
 
   useEffect(function(){
     sbGet("vehicles","type=eq."+vType+"&select=id,plate,brand,model&order=plate").then(function(rows){
@@ -836,7 +871,9 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
   function setCheck(k,v){ setChk(function(prev){ var n=Object.assign({},prev); n[k]=v; return n; }); }
 
   function submit(){
+    if(sendingRef.current) return;
     if(!allDone||!sel||!sel.plate||sending) return;
+    sendingRef.current = true;
     setSending(true); setErrMsg("");
     var alertId="I"+Date.now();
     var badItems=items.filter(function(c){ return chk[c.k]==="fail"; }).map(function(c){ return c.label; });
@@ -868,7 +905,19 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
           tenant_id: "ltg",
           created_at:new Date().toISOString()
         }).then(function(){
-          if(km&&parseInt(km)>0&&sel.id&&!sel.isNew) return sbPatch("vehicles","id",sel.id,{mileage:parseInt(km)});
+          // Километраж: обновляем только если новый >= текущий (защита от опечаток типа "ниже" вместо "выше")
+          if(km&&parseInt(km)>0&&sel.id&&!sel.isNew) {
+            var newKm = parseInt(km);
+            return sbGet("vehicles","id=eq."+encodeURIComponent(sel.id)+"&select=mileage").then(function(rows){
+              var oldKm = (rows && rows[0] && rows[0].mileage) ? parseInt(rows[0].mileage) : 0;
+              if (newKm >= oldKm) {
+                return sbPatch("vehicles","id",sel.id,{mileage:newKm});
+              }
+              // Не уменьшаем — но это не блокирует инспекцию, она уже отправлена
+              console.warn("Mileage skip: new "+newKm+" < old "+oldKm);
+              return true;
+            }).catch(function(){ return true; });
+          }
           return true;
         });
       })
@@ -892,8 +941,8 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
         }
         return true;
       })
-      .then(function(){ setSending(false); setDone(true); })
-      .catch(function(e){ setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
+      .then(function(){ sendingRef.current = false; setSending(false); setDone(true); })
+      .catch(function(e){ sendingRef.current = false; setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
   }
 
   if(done){
@@ -995,6 +1044,7 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var _sent=useState(false); var sent=_sent[0]; var setSent=_sent[1];
   var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
   var _wk=useState(_draftInit.targetWerkstatt||"hockenheim"); var targetWerkstatt=_wk[0]; var setTargetWerkstatt=_wk[1];
+  var sendingRef = useRef(false);
 
   // Автосохранение черновика
   useEffect(function(){
@@ -1044,19 +1094,25 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
 
   var ok=sel&&sel.plate&&bType&&urg&&loc.trim()&&desc.trim();
   function submit(){
+    if(sendingRef.current) return;
     if(!ok||sending) return;
+    sendingRef.current = true;
     setSending(true); setErrMsg("");
     var alertId="A"+Date.now();
     var saveVeh=sel.isNew
       ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:"truck",mileage:0}).catch(function(){})
       : Promise.resolve(true);
+    // SOS Unfall = особый уровень срочности (выше чем "urgent")
+    // Логика: тип поломки "sos" автоматически даёт urgency="sos"
+    // Если водитель выбрал "sofort" + другой тип — это просто "urgent"
+    var finalUrgency = (bType === "sos") ? "sos" : (urg === "sofort" ? "urgent" : "normal");
     saveVeh
       .then(function(){ return compressAll(photos); })
       .then(function(compressed){ return uploadAll(compressed,alertId); })
       .then(function(urls){
         return sbPost("alerts",{
           id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,
-          urgency:urg==="sofort"?"urgent":"normal",
+          urgency:finalUrgency,
           sender:driverName||"driver",sender_app:"fahrer",status:"open",
           niederlassung_id: driverNied || null,
           target_workshop_niederlassung_id: targetWerkstatt,
@@ -1066,9 +1122,10 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
       })
       .then(function(){
         try { localStorage.removeItem(DRAFT_KEY_FAHRER); } catch(e) {}
+        sendingRef.current = false;
         setSending(false); setSent(true);
       })
-      .catch(function(e){ setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
+      .catch(function(e){ sendingRef.current = false; setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
   }
 
   if(sent){
@@ -1104,9 +1161,30 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
           <div className="label-cap">{(t.bdType+" *").toUpperCase()}</div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
             {t.bdTypes.map(function(bt){
+              var isSosTile = bt.k === "sos";
+              var isSelected = bType === bt.k;
+              var tileStyle = isSosTile
+                ? {
+                    background: isSelected ? "rgba(239,68,68,0.35)" : "rgba(239,68,68,0.12)",
+                    border: "2px solid #ef4444",
+                    boxShadow: isSelected ? "0 0 0 2px #ef4444, 0 0 20px rgba(239,68,68,0.5)" : "0 0 12px rgba(239,68,68,0.25)",
+                    color: "#fff",
+                    fontWeight: 800
+                  }
+                : {};
+              var tagStyle = isSosTile
+                ? { background: "#ef4444", color: "#fff", fontWeight: 900 }
+                : {};
               return (
-                <div key={bt.k} className={"type-tile"+(bType===bt.k?" on":"")} onClick={function(){ setBType(bt.k); }}>
-                  <span className="type-tag">{bt.tag}</span>
+                <div key={bt.k}
+                  className={"type-tile"+(isSelected && !isSosTile ? " on" : "")}
+                  style={tileStyle}
+                  onClick={function(){
+                    setBType(bt.k);
+                    // SOS = всегда sofort, выбор Dringlichkeit не нужен
+                    if (bt.k === "sos") setUrg("sofort");
+                  }}>
+                  <span className="type-tag" style={tagStyle}>{bt.tag}</span>
                   <span style={{ flex:1,fontSize:13 }}>{bt.label}</span>
                 </div>
               );
