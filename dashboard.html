@@ -37,6 +37,7 @@
     })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;background:#0f1623;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -1473,9 +1474,10 @@ function Eingang({ alerts, onRefresh, loading }) {
 }
 
 // === MECHANIKER ===
-function Mechaniker({ jobs, onRefresh, loading }) {
+function Mechaniker({ jobs, alerts, onRefresh, loading }) {
   var _sd = useState(todayIso()); var date = _sd[0]; var setDate = _sd[1];
   var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
+  var _st = useState("mechaniker"); var tab = _st[0]; var setTab = _st[1];
 
   var mechanics = getMechanicsFromJobs(jobs);
 
@@ -1491,8 +1493,144 @@ function Mechaniker({ jobs, onRefresh, loading }) {
     exportJobs(mj, "Bericht — " + mech.name, fmtDate(date));
   }
 
+  // SLA расчёты
+  var slaData = (function(){
+    var doneJobs = jobs.filter(function(j){ return j.status === "done" && j.finished_at && j.created_at; });
+
+    // Время от создания job → done (в минутах)
+    var closeTimes = doneJobs.map(function(j){
+      return Math.round((new Date(j.finished_at) - new Date(j.created_at)) / 60000);
+    }).filter(function(m){ return m > 0 && m < 60*24*30; }); // max 30 дней
+
+    var avgClose = closeTimes.length ? Math.round(closeTimes.reduce(function(s,m){ return s+m; },0) / closeTimes.length) : null;
+
+    // Топ медленных закрытий
+    var slowJobs = doneJobs.map(function(j){
+      var min = Math.round((new Date(j.finished_at) - new Date(j.created_at)) / 60000);
+      return Object.assign({}, j, { closeMin: min });
+    }).filter(function(j){ return j.closeMin > 0; })
+      .sort(function(a,b){ return b.closeMin - a.closeMin; })
+      .slice(0, 10);
+
+    // Время реакции: alert → job (если job.alert_id есть)
+    var alertsMap = {};
+    (alerts||[]).forEach(function(a){ alertsMap[a.id] = a; });
+    var reactionTimes = doneJobs.filter(function(j){ return j.alert_id && alertsMap[j.alert_id]; })
+      .map(function(j){
+        var a = alertsMap[j.alert_id];
+        return Math.round((new Date(j.created_at) - new Date(a.created_at)) / 60000);
+      }).filter(function(m){ return m >= 0 && m < 60*24*7; });
+    var avgReaction = reactionTimes.length ? Math.round(reactionTimes.reduce(function(s,m){ return s+m; },0) / reactionTimes.length) : null;
+
+    // По механикам
+    var byMech = {};
+    doneJobs.forEach(function(j){
+      var m = j.mechanic || "unbekannt";
+      if (!byMech[m]) byMech[m] = { times:[], jobs:0 };
+      var min = Math.round((new Date(j.finished_at) - new Date(j.created_at)) / 60000);
+      if (min > 0) byMech[m].times.push(min);
+      byMech[m].jobs++;
+    });
+
+    return { avgClose:avgClose, avgReaction:avgReaction, slowJobs:slowJobs, byMech:byMech, total:doneJobs.length };
+  })();
+
   return (
     <div>
+      {/* ТАБ ПЕРЕКЛЮЧАТЕЛЬ */}
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+        <button className={"btn-small "+(tab==="mechaniker"?"btn-primary":"btn-outline")} onClick={function(){ setTab("mechaniker"); }}>🔧 Mechaniker</button>
+        <button className={"btn-small "+(tab==="sla"?"btn-primary":"btn-outline")} onClick={function(){ setTab("sla"); }}>⏱ SLA</button>
+      </div>
+
+      {/* SLA ТАБ */}
+      {tab === "sla" && (
+        <div>
+          <div className="kpi-grid" style={{ marginBottom:20 }}>
+            <div className="kpi-card orange">
+              <div className="kpi-icon" style={{ fontSize:18 }}>⏱</div>
+              <div className="kpi-val">{slaData.avgClose !== null ? fmtMin(slaData.avgClose) : "—"}</div>
+              <div className="kpi-label">Ø Bearbeitungszeit</div>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:4 }}>Auftrag erstellt → Fertig</div>
+            </div>
+            <div className="kpi-card blue">
+              <div className="kpi-icon" style={{ fontSize:18 }}>🚨</div>
+              <div className="kpi-val">{slaData.avgReaction !== null ? fmtMin(slaData.avgReaction) : "—"}</div>
+              <div className="kpi-label">Ø Reaktionszeit</div>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:4 }}>Alert eingegangen → Auftrag</div>
+            </div>
+            <div className="kpi-card green">
+              <div className="kpi-icon" style={{ fontSize:18 }}>✓</div>
+              <div className="kpi-val">{slaData.total}</div>
+              <div className="kpi-label">Abgeschlossene Aufträge</div>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:4 }}>Basis für SLA-Analyse</div>
+            </div>
+          </div>
+
+          {/* По механикам */}
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">SLA je Mechaniker</div></div>
+            {Object.keys(slaData.byMech).length === 0
+              ? <div className="empty">Keine abgeschlossenen Aufträge</div>
+              : Object.keys(slaData.byMech).sort(function(a,b){
+                  var at = slaData.byMech[a].times; var bt = slaData.byMech[b].times;
+                  var aa = at.length ? at.reduce(function(s,m){ return s+m; },0)/at.length : 0;
+                  var ba = bt.length ? bt.reduce(function(s,m){ return s+m; },0)/bt.length : 0;
+                  return aa - ba;
+                }).map(function(id){
+                  var m = slaData.byMech[id];
+                  var avg = m.times.length ? Math.round(m.times.reduce(function(s,t){ return s+t; },0)/m.times.length) : null;
+                  var maxT = slaData.avgClose || 1;
+                  var pct = avg ? Math.min(100, Math.round(avg/maxT*100)) : 0;
+                  var color = avg && avg < 60 ? "#22c55e" : avg && avg < 240 ? "#ffa500" : "#ef4444";
+                  return (
+                    <div key={id} style={{ padding:"14px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+                        <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(255,165,0,0.12)", border:"1px solid rgba(255,165,0,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:13, color:"#ffa500", flexShrink:0 }}>
+                          {id.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase()}
+                        </div>
+                        <div style={{ flex:1, fontWeight:700 }}>{id}</div>
+                        <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)" }}>{m.jobs} Aufträge</div>
+                        <div style={{ fontSize:16, fontWeight:900, color:color, minWidth:70, textAlign:"right" }}>{avg ? fmtMin(avg) : "—"}</div>
+                      </div>
+                      <div style={{ height:5, borderRadius:3, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+                        <div style={{ height:"100%", borderRadius:3, background:color, width:pct+"%", transition:"width 0.5s" }}></div>
+                      </div>
+                    </div>
+                  );
+                })
+            }
+          </div>
+
+          {/* Топ медленных */}
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">🐢 Langsamste Abschlüsse (Top 10)</div></div>
+            {slaData.slowJobs.length === 0
+              ? <div className="empty">Keine Daten</div>
+              : <table className="tbl">
+                  <thead><tr><th>Fahrzeug</th><th>Typ</th><th>Mechaniker</th><th>Datum</th><th>Bearbeitungszeit</th></tr></thead>
+                  <tbody>
+                    {slaData.slowJobs.map(function(j){
+                      var color = j.closeMin < 60 ? "#22c55e" : j.closeMin < 240 ? "#ffa500" : "#ef4444";
+                      return (
+                        <tr key={j.id}>
+                          <td><strong>{j.plate||"—"}</strong></td>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{WORK_TYPES[j.work_type]||j.work_type||"—"}</td>
+                          <td style={{ fontSize:12 }}>{j.mechanic_name||j.mechanic||"—"}</td>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{fmtDate(j.date)||"—"}</td>
+                          <td><span style={{ fontWeight:800, color:color }}>{fmtMin(j.closeMin)}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* MECHANIKER ТАБ */}
+      {tab === "mechaniker" && (
       <div className="panel">
         <div className="panel-hd">
           <div className="panel-title-lg">Mechaniker</div>
@@ -1506,6 +1644,7 @@ function Mechaniker({ jobs, onRefresh, loading }) {
         {mechanics.length === 0 && (
           <div style={{ padding:20, color:"rgba(255,255,255,0.4)", textAlign:"center", fontSize:13 }}>
             Noch keine Aufträge von Mechanikern gefunden.
+
           </div>
         )}
 
@@ -1623,6 +1762,7 @@ function Mechaniker({ jobs, onRefresh, loading }) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
@@ -3839,6 +3979,9 @@ function Rechnungen({ invoices, vehicles, jobs, onRefresh, loading }) {
 // === WARTUNGSPLAN ===
 function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
+  var _sv = useState("list"); var view = _sv[0]; var setView = _sv[1];
+  var calRef = useRef(null);
+  var calInst = useRef(null);
 
   var allVeh = vehicles.concat(forklifts||[]);
 
@@ -3861,6 +4004,77 @@ function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
   var expiredCount = plans.filter(function(p){ return planStatus(p) === "expired"; }).length;
   var urgentCount  = plans.filter(function(p){ return planStatus(p) === "urgent"; }).length;
   var warnCount    = plans.filter(function(p){ return planStatus(p) === "warn"; }).length;
+
+  // Строим события для FullCalendar из plans + TÜV/UVV/Versicherung машин
+  var calEvents = [];
+
+  // Из maintenance_plans
+  plans.forEach(function(p){
+    if (!p.next_service_date) return;
+    var st = planStatus(p);
+    var color = st === "expired" ? "#ef4444" : st === "urgent" ? "#ef4444" : st === "warn" ? "#ffa500" : "#22c55e";
+    calEvents.push({
+      title: (p.vehicle_plate||p.vehicle_id||"?") + " — Wartung",
+      start: p.next_service_date,
+      backgroundColor: color,
+      borderColor: color,
+      textColor: "#fff",
+      extendedProps: { type: "wartung", plate: p.vehicle_plate||p.vehicle_id, status: st }
+    });
+  });
+
+  // TÜV / UVV / Versicherung из vehicles
+  allVeh.forEach(function(v){
+    var plate = v.plate || v.nummer || "";
+    var fields = [
+      { label:"TÜV", date: v.tuev, color:"#3b82f6" },
+      { label:"UVV", date: v.uvv || v.uvv_datum, color:"#a855f7" },
+      { label:"Versicherung", date: v.insurance, color:"#60a5fa" },
+      { label:"Nächste Wartung", date: v.next_service, color:"#ffa500" }
+    ];
+    fields.forEach(function(f){
+      if (!f.date) return;
+      var diff = Math.round((new Date(f.date) - new Date()) / 86400000);
+      var color = diff < 0 ? "#ef4444" : diff < 14 ? "#ef4444" : diff < 30 ? "#ffa500" : f.color;
+      calEvents.push({
+        title: plate + " — " + f.label,
+        start: f.date,
+        backgroundColor: color,
+        borderColor: color,
+        textColor: "#fff",
+        extendedProps: { type: f.label.toLowerCase(), plate: plate }
+      });
+    });
+  });
+
+  useEffect(function(){
+    if (view !== "calendar") return;
+    if (!calRef.current) return;
+    if (!window.FullCalendar) return;
+
+    if (calInst.current) calInst.current.destroy();
+
+    calInst.current = new window.FullCalendar.Calendar(calRef.current, {
+      plugins: [],
+      initialView: "dayGridMonth",
+      locale: "de",
+      height: "auto",
+      headerToolbar: {
+        left: "prev,next today",
+        center: "title",
+        right: "dayGridMonth,listMonth"
+      },
+      events: calEvents,
+      eventClick: function(info) {
+        var p = info.event.extendedProps;
+        alert(info.event.title + "\nDatum: " + info.event.startStr + (p.plate ? "\nFahrzeug: " + p.plate : ""));
+      },
+      themeSystem: "standard",
+      buttonText: { today:"Heute", month:"Monat", list:"Liste" }
+    });
+    calInst.current.render();
+    return function(){ if (calInst.current) { calInst.current.destroy(); calInst.current = null; } };
+  }, [view, plans.length, vehicles.length]);
 
   function exportPlan() {
     var rows = list.map(function(p){
@@ -3888,62 +4102,104 @@ function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
         <div className="kpi-card orange"><div style={{ fontSize:22, fontWeight:900 }}>{urgentCount}</div><div className="kpi-label">Dringend (&lt;14 Tage)</div></div>
         <div className="kpi-card" style={{ borderLeft:"3px solid #ffa500" }}><div style={{ fontSize:22, fontWeight:900 }}>{warnCount}</div><div className="kpi-label">Bald fällig (&lt;30 Tage)</div></div>
       </div>
+
       <div className="panel">
         <div className="panel-hd">
           <div className="panel-title-lg">Wartungsplan</div>
           <div style={{ display:"flex", gap:8 }}>
+            <button className={"btn-small "+(view==="list"?"btn-primary":"btn-outline")} onClick={function(){ setView("list"); }}>☰ Liste</button>
+            <button className={"btn-small "+(view==="calendar"?"btn-primary":"btn-outline")} onClick={function(){ setView("calendar"); }}>📅 Kalender</button>
             <button className="btn-outline btn-small no-print" onClick={exportPlan}>Export</button>
             <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
           </div>
         </div>
-        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
-          {[["all","Alle"],["urgent","Dringend"],["warn","Bald fällig"],["expired","Überfällig"]].map(function(f){
-            return <button key={f[0]} className={"btn-small "+(filter===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setFilter(f[0]); }}>{f[1]}</button>;
-          })}
-        </div>
-        {list.length === 0
-          ? <div className="empty">{plans.length === 0 ? "Noch keine Wartungspläne — Daten in Supabase eintragen" : "Keine Einträge für diesen Filter"}</div>
-          : <table className="tbl">
-              <thead><tr><th>Fahrzeug</th><th>Letztes TO</th><th>Nächstes TO</th><th>Intervall</th><th>Fälligkeit</th><th>Status</th></tr></thead>
-              <tbody>
-                {list.map(function(p){
-                  var st = planStatus(p);
-                  var diff = p.next_service_date ? Math.round((new Date(p.next_service_date)-new Date())/86400000) : null;
-                  var veh = allVeh.find(function(v){ return (v.plate||v.nummer||"") === (p.vehicle_plate||""); });
-                  return (
-                    <tr key={p.id}>
-                      <td>
-                        <div style={{ fontWeight:700 }}>{p.vehicle_plate||p.vehicle_id||"—"}</div>
-                        {veh && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{veh.brand||veh.hersteller||""} {veh.model||""}</div>}
-                      </td>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{fmtDate(p.last_service_date)||"—"}</td>
-                      <td style={{ fontWeight:700 }}>{fmtDate(p.next_service_date)||"—"}</td>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
-                        {p.interval_days ? p.interval_days+"d" : ""}{p.interval_days && p.interval_km ? " / " : ""}{p.interval_km ? p.interval_km+"km" : ""}
-                      </td>
-                      <td>
-                        {diff !== null
-                          ? <span style={{ fontWeight:700, color: diff<0?"#ef4444":diff<14?"#ef4444":diff<30?"#ffa500":"#22c55e" }}>
-                              {diff < 0 ? Math.abs(diff)+"d überfällig" : "in "+diff+"d"}
+
+        {view === "calendar" && (
+          <div>
+            {/* Легенда */}
+            <div style={{ display:"flex", gap:16, flexWrap:"wrap", marginBottom:14, fontSize:12 }}>
+              {[["#ef4444","Überfällig / Dringend"],["#ffa500","Wartung / Bald fällig"],["#3b82f6","TÜV"],["#a855f7","UVV"],["#60a5fa","Versicherung"]].map(function(l){
+                return (
+                  <div key={l[1]} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <div style={{ width:12, height:12, borderRadius:3, background:l[0], flexShrink:0 }}></div>
+                    <span style={{ color:"rgba(255,255,255,0.6)" }}>{l[1]}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <style dangerouslySetInnerHTML={{ __html:
+              ".fc{color:#fff!important;font-family:inherit!important}" +
+              ".fc .fc-toolbar-title{color:#fff!important;font-size:16px!important;font-weight:800!important}" +
+              ".fc .fc-button{background:rgba(255,255,255,0.08)!important;border:1px solid rgba(255,255,255,0.15)!important;color:#fff!important;font-size:12px!important;padding:6px 12px!important;border-radius:8px!important}" +
+              ".fc .fc-button-primary:not(:disabled).fc-button-active,.fc .fc-button-primary:not(:disabled):active{background:rgba(255,165,0,0.25)!important;border-color:#ffa500!important;color:#ffa500!important}" +
+              ".fc .fc-daygrid-day{background:transparent!important}" +
+              ".fc .fc-daygrid-day-number{color:rgba(255,255,255,0.6)!important;font-size:12px!important}" +
+              ".fc .fc-col-header-cell{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.08)!important}" +
+              ".fc .fc-col-header-cell-cushion{color:rgba(255,255,255,0.5)!important;font-size:11px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:1px!important}" +
+              ".fc td,.fc th{border-color:rgba(255,255,255,0.07)!important}" +
+              ".fc .fc-daygrid-day.fc-day-today{background:rgba(255,165,0,0.06)!important}" +
+              ".fc .fc-event{border-radius:5px!important;font-size:11px!important;padding:1px 4px!important;font-weight:600!important}" +
+              ".fc .fc-list-event{background:transparent!important}" +
+              ".fc .fc-list-day-cushion{background:rgba(255,255,255,0.05)!important}" +
+              ".fc .fc-list-event-title{color:#fff!important}" +
+              ".fc .fc-list-event-time{color:rgba(255,255,255,0.4)!important}"
+            }} />
+            <div ref={calRef}></div>
+          </div>
+        )}
+
+        {view === "list" && (
+          <div>
+            <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+              {[["all","Alle"],["urgent","Dringend"],["warn","Bald fällig"],["expired","Überfällig"]].map(function(f){
+                return <button key={f[0]} className={"btn-small "+(filter===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setFilter(f[0]); }}>{f[1]}</button>;
+              })}
+            </div>
+            {list.length === 0
+              ? <div className="empty">{plans.length === 0 ? "Noch keine Wartungspläne — Daten in Supabase eintragen" : "Keine Einträge für diesen Filter"}</div>
+              : <table className="tbl">
+                  <thead><tr><th>Fahrzeug</th><th>Letztes TO</th><th>Nächstes TO</th><th>Intervall</th><th>Fälligkeit</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {list.map(function(p){
+                      var st = planStatus(p);
+                      var diff = p.next_service_date ? Math.round((new Date(p.next_service_date)-new Date())/86400000) : null;
+                      var veh = allVeh.find(function(v){ return (v.plate||v.nummer||"") === (p.vehicle_plate||""); });
+                      return (
+                        <tr key={p.id}>
+                          <td>
+                            <div style={{ fontWeight:700 }}>{p.vehicle_plate||p.vehicle_id||"—"}</div>
+                            {veh && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{veh.brand||veh.hersteller||""} {veh.model||""}</div>}
+                          </td>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>{fmtDate(p.last_service_date)||"—"}</td>
+                          <td style={{ fontWeight:700 }}>{fmtDate(p.next_service_date)||"—"}</td>
+                          <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
+                            {p.interval_days ? p.interval_days+"d" : ""}{p.interval_days && p.interval_km ? " / " : ""}{p.interval_km ? p.interval_km+"km" : ""}
+                          </td>
+                          <td>
+                            {diff !== null
+                              ? <span style={{ fontWeight:700, color: diff<0?"#ef4444":diff<14?"#ef4444":diff<30?"#ffa500":"#22c55e" }}>
+                                  {diff < 0 ? Math.abs(diff)+"d überfällig" : "in "+diff+"d"}
+                                </span>
+                              : "—"
+                            }
+                          </td>
+                          <td>
+                            <span className={"badge "+(st==="expired"||st==="urgent"?"badge-red":st==="warn"?"badge-orange":"badge-green")}>
+                              {st==="expired"?"Überfällig":st==="urgent"?"Dringend":st==="warn"?"Bald":"OK"}
                             </span>
-                          : "—"
-                        }
-                      </td>
-                      <td>
-                        <span className={"badge "+(st==="expired"||st==="urgent"?"badge-red":st==="warn"?"badge-orange":"badge-green")}>
-                          {st==="expired"?"Überfällig":st==="urgent"?"Dringend":st==="warn"?"Bald":"OK"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-        }
-        <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
-          💡 Wartungspläne werden in Supabase → Tabelle <strong style={{ color:"rgba(255,255,255,0.6)" }}>maintenance_plans</strong> gepflegt.
-          Felder: vehicle_plate, interval_days, interval_km, last_service_date, next_service_date
-        </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            }
+            <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
+              💡 Wartungspläne werden in Supabase → Tabelle <strong style={{ color:"rgba(255,255,255,0.6)" }}>maintenance_plans</strong> gepflegt.
+              Felder: vehicle_plate, interval_days, interval_km, last_service_date, next_service_date
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -5575,7 +5831,7 @@ function AppShell({ user, onLogout }) {
         <div className="page">
           {sec === "uebersicht"  && <Uebersicht jobs={fJobs} alerts={fAlerts} vehicles={fVehicles} forklifts={fForklifts} washOrders={fWashOrders} inspections={fInspections} />}
           {sec === "eingang"     && <Eingang alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
-          {sec === "mechaniker"  && <Mechaniker jobs={fJobs} onRefresh={loadAll} loading={loading} />}
+          {sec === "mechaniker"  && <Mechaniker jobs={fJobs} alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
           {sec === "technik"     && <Technik vehicles={fVehicles} forklifts={fForklifts} jobs={fJobs} invoices={fInvoices} inspections={fInspections} />}
           {sec === "inspektion"  && <Inspektion inspections={fInspections} onRefresh={loadAll} loading={loading} />}
           {sec === "du"          && <DUAufliegerDash inspections={fInspections} onRefresh={loadAll} loading={loading} />}
