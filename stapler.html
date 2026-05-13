@@ -7,6 +7,8 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
 
   <!-- === Sentry/Glitchtip Error Monitoring ===
        Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
@@ -116,6 +118,13 @@
     .status-box.w{background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.35)}
     .status-box.p{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35)}
     .status-box.d{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35)}
+    .introjs-tooltip{background:#0f1e3d!important;border:1px solid rgba(255,165,0,0.3)!important;color:#fff!important;border-radius:14px!important;max-width:280px!important}
+    .introjs-tooltiptext{color:rgba(255,255,255,0.85)!important;font-size:14px!important;line-height:1.5!important}
+    .introjs-button{background:rgba(255,165,0,0.15)!important;border:1px solid rgba(255,165,0,0.4)!important;color:#ffa500!important;border-radius:8px!important;font-weight:700!important}
+    .introjs-button:hover{background:rgba(255,165,0,0.3)!important}
+    .introjs-skipbutton{color:rgba(255,255,255,0.4)!important}
+    .introjs-progressbar{background:#ffa500!important}
+    .introjs-progress{background:rgba(255,255,255,0.1)!important}
   </style>
   <link rel="manifest" href="manifest-stapler.json" />
   <meta name="theme-color" content="#15803d" />
@@ -807,6 +816,29 @@ function App() {
   var _sd  = useState(null); var sd = _sd[0]; var setSd = _sd[1];
   var _users = useState([]); var dbUsers = _users[0]; var setDbUsers = _users[1];
   var _fb = useState(null); var fbPin = _fb[0]; var setFbPin = _fb[1];
+
+  // Onboarding — один раз
+  useEffect(function(){
+    if (stg !== "slider") return;
+    var key = "werkflow_onboarding_stapler_v1";
+    if (localStorage.getItem(key)) return;
+    var t = setTimeout(function(){
+      if (!window.introJs) return;
+      window.introJs().setOptions({
+        steps: [
+          { intro: "<strong>Willkommen in WerkFlow Stapler!</strong><br/>Kurze Einführung in die App." },
+          { intro: "🏗 <strong>Meldung senden</strong><br/>Technische Probleme am Stapler hier melden." },
+          { intro: "⚡ <strong>Dringend</strong><br/>Bei kritischen Problemen 'Dringend' wählen — Werkstatt wird sofort benachrichtigt." },
+          { intro: "✅ <strong>Status</strong><br/>Nach dem Senden siehst du ob die Werkstatt die Meldung bearbeitet." }
+        ],
+        showProgress: true, showBullets: false, exitOnOverlayClick: true,
+        doneLabel: "Los gehts!", nextLabel: "Weiter →", prevLabel: "← Zurück", skipLabel: "Überspringen"
+      }).oncomplete(function(){ localStorage.setItem(key,"1"); })
+        .onexit(function(){ localStorage.setItem(key,"1"); })
+        .start();
+    }, 1500);
+    return function(){ clearTimeout(t); };
+  }, [stg]);
 
   function loginPersonal(u){
     var sessUser = {

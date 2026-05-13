@@ -7,6 +7,8 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
 
   <!-- === Sentry/Glitchtip Error Monitoring ===
        Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
@@ -106,6 +108,13 @@
     .lang-menu{position:absolute;top:calc(100% + 6px);right:0;padding:6px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);display:flex;gap:6px;z-index:50}
     .lang-menu button{width:42px;padding:8px 0;text-align:center;border:1px solid rgba(255,255,255,0.18);border-radius:8px;font-weight:700;font-size:12px;background:transparent;color:#fff}
     .lang-menu button.on{background:#ffa500;border-color:#ffa500;color:#0a1730}
+    .introjs-tooltip{background:#0f1e3d!important;border:1px solid rgba(255,165,0,0.3)!important;color:#fff!important;border-radius:14px!important;max-width:280px!important}
+    .introjs-tooltiptext{color:rgba(255,255,255,0.85)!important;font-size:14px!important;line-height:1.5!important}
+    .introjs-button{background:rgba(255,165,0,0.15)!important;border:1px solid rgba(255,165,0,0.4)!important;color:#ffa500!important;border-radius:8px!important;font-weight:700!important}
+    .introjs-button:hover{background:rgba(255,165,0,0.3)!important}
+    .introjs-skipbutton{color:rgba(255,255,255,0.4)!important}
+    .introjs-progressbar{background:#ffa500!important}
+    .introjs-progress{background:rgba(255,255,255,0.1)!important}
   </style>
   <link rel="manifest" href="manifest-fahrer.json" />
   <meta name="theme-color" content="#1d4ed8" />
@@ -1256,6 +1265,35 @@ function App() {
   var _dynPin=useState(null); var dynPin=_dynPin[0]; var setDynPin=_dynPin[1];
 
   function setLang(v){ setLangRaw(v); try{ localStorage.setItem("werkflow_fahrer_lang",v); }catch(e){} }
+
+  // Onboarding — один раз после входа
+  useEffect(function(){
+    if (stg !== "menu") return;
+    var key = "werkflow_onboarding_fahrer_v1";
+    if (localStorage.getItem(key)) return;
+    var t = setTimeout(function(){
+      if (!window.introJs) return;
+      window.introJs().setOptions({
+        steps: [
+          { intro: "<strong>Willkommen in WerkFlow Fahrer!</strong><br/>Kurze Einführung in die App." },
+          { intro: "🚛 <strong>LKW Inspektion</strong><br/>Vor jeder Fahrt Fahrzeug prüfen und Mängel melden." },
+          { intro: "🚜 <strong>Auflieger Inspektion</strong><br/>Auflieger vor dem Ankuppeln prüfen." },
+          { intro: "🚨 <strong>Panne / Defekt</strong><br/>Bei Problemen unterwegs hier Meldung erstatten." },
+          { intro: "✅ <strong>Fertig!</strong><br/>Alle Meldungen gehen sofort an die Werkstatt." }
+        ],
+        showProgress: true,
+        showBullets: false,
+        exitOnOverlayClick: true,
+        doneLabel: "Los gehts!",
+        nextLabel: "Weiter →",
+        prevLabel: "← Zurück",
+        skipLabel: "Überspringen"
+      }).oncomplete(function(){ localStorage.setItem(key,"1"); })
+        .onexit(function(){ localStorage.setItem(key,"1"); })
+        .start();
+    }, 1500);
+    return function(){ clearTimeout(t); };
+  }, [stg]);
 
   function nameToId(fullName){
     var s = (fullName||"").trim().toLowerCase()

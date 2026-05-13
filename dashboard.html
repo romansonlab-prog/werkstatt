@@ -5633,8 +5633,53 @@ function AppShell({ user, onLogout }) {
   useEffect(function(){ loadAll(); }, []);
 
   useEffect(function(){
-    var interval = setInterval(function(){ loadAll(); }, 30000);
-    return function(){ clearInterval(interval); };
+    // Realtime WebSocket — подписка на alerts + jobs + inspections
+    var ws = null;
+    var hbTimer = null;
+    var reconnectTimer = null;
+    var refCounter = 1;
+    var stopped = false;
+    var wsRef2 = { current: null };
+
+    function connect() {
+      if (stopped) return;
+      try {
+        var wsUrl = SB_URL.replace("https://","wss://") + "/realtime/v1/websocket?apikey=" + SB_KEY + "&vsn=1.0.0";
+        ws = new WebSocket(wsUrl);
+        wsRef2.current = ws;
+        ws.onopen = function(){
+          ws.send(JSON.stringify({ topic:"realtime:public:alerts", event:"phx_join", payload:{}, ref:String(refCounter++) }));
+          ws.send(JSON.stringify({ topic:"realtime:public:jobs", event:"phx_join", payload:{}, ref:String(refCounter++) }));
+          ws.send(JSON.stringify({ topic:"realtime:public:inspections", event:"phx_join", payload:{}, ref:String(refCounter++) }));
+          if (hbTimer) clearInterval(hbTimer);
+          hbTimer = setInterval(function(){
+            try { ws.send(JSON.stringify({ topic:"phoenix", event:"heartbeat", payload:{}, ref:String(refCounter++) })); } catch(e){}
+          }, 25000);
+        };
+        ws.onmessage = function(e){
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.event === "INSERT" || msg.event === "UPDATE") loadAll();
+          } catch(err){}
+        };
+        ws.onerror = function(){};
+        ws.onclose = function(){
+          if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+          if (!stopped) { if (reconnectTimer) clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 3000); }
+        };
+      } catch(e){}
+    }
+
+    connect();
+    // Fallback polling каждые 60 сек
+    var interval = setInterval(function(){ loadAll(); }, 60000);
+    return function(){
+      stopped = true;
+      clearInterval(interval);
+      if (hbTimer) clearInterval(hbTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsRef2.current) { try { wsRef2.current.close(); } catch(e){} }
+    };
   }, []);
 
   // === SOS Unfall: звук + слежение за новыми SOS-алертами ===

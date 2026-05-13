@@ -7,6 +7,9 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
 
   <!-- === Sentry/Glitchtip Error Monitoring ===
        Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
@@ -429,6 +432,26 @@
       50%  { box-shadow:0 0 42px rgba(255,59,48,0.95); }
       100% { box-shadow:0 0 18px rgba(255,59,48,0.7); }
     }
+    /* intro.js dark theme */
+    .introjs-tooltip { background:#0f1e3d!important; border:1px solid rgba(255,165,0,0.3)!important; color:#fff!important; border-radius:14px!important; max-width:300px!important; }
+    .introjs-tooltiptext { color:rgba(255,255,255,0.85)!important; font-size:14px!important; line-height:1.5!important; }
+    .introjs-tooltipbuttons { border-top:1px solid rgba(255,255,255,0.08)!important; }
+    .introjs-button { background:rgba(255,165,0,0.15)!important; border:1px solid rgba(255,165,0,0.4)!important; color:#ffa500!important; border-radius:8px!important; font-weight:700!important; }
+    .introjs-button:hover { background:rgba(255,165,0,0.3)!important; }
+    .introjs-skipbutton { color:rgba(255,255,255,0.4)!important; }
+    .introjs-helperLayer { border:2px solid #ffa500!important; border-radius:10px!important; }
+    .introjs-arrow { border-bottom-color:#0f1e3d!important; }
+    .introjs-progressbar { background:#ffa500!important; }
+    .introjs-progress { background:rgba(255,255,255,0.1)!important; }
+    /* voice recording animation */
+    @keyframes voicePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.15)} }
+    .voice-active { animation: voicePulse 0.8s infinite; color:#ef4444!important; }
+    /* barcode scanner overlay */
+    .scanner-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.9); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .scanner-viewport { width:300px; height:200px; position:relative; border:2px solid #ffa500; border-radius:12px; overflow:hidden; }
+    .scanner-viewport video { width:100%; height:100%; object-fit:cover; }
+    .scanner-line { position:absolute; top:50%; left:0; right:0; height:2px; background:rgba(255,165,0,0.8); animation:scanLine 1.5s ease-in-out infinite; }
+    @keyframes scanLine { 0%,100%{top:20%} 50%{top:80%} }
   </style>
   <link rel="manifest" href="manifest-werkstatt.json" />
   <meta name="theme-color" content="#ff8c00" />
@@ -1232,11 +1255,69 @@ function TimerBox({ label, value, setValue, withPause }) {
   );
 }
 
+// === BARCODE SCANNER ===
+function BarcodeScanner({ onDetected, onClose }) {
+  var scannerRef = useRef(null);
+  var scannerDivId = "quagga-scanner-" + useRef(Math.random().toString(36).slice(2)).current;
+
+  useEffect(function(){
+    if (!window.Quagga) { onClose(); return; }
+    var divId = scannerDivId;
+    var started = false;
+
+    window.Quagga.init({
+      inputStream: {
+        type: "LiveStream",
+        target: document.getElementById(divId),
+        constraints: { facingMode: "environment", width: 300, height: 200 }
+      },
+      decoder: { readers: ["ean_reader","ean_8_reader","code_128_reader","code_39_reader","upc_reader"] },
+      locate: true
+    }, function(err){
+      if (err) { console.warn("Quagga init error:", err); onClose(); return; }
+      window.Quagga.start();
+      started = true;
+    });
+
+    window.Quagga.onDetected(function(result){
+      var code = result && result.codeResult && result.codeResult.code;
+      if (code) {
+        window.Quagga.stop();
+        onDetected(code);
+      }
+    });
+
+    return function(){
+      if (started) { try { window.Quagga.stop(); } catch(e){} }
+    };
+  }, []);
+
+  return (
+    <div className="scanner-overlay" onClick={onClose}>
+      <div style={{ textAlign:"center", marginBottom:16 }}>
+        <div style={{ fontSize:18, fontWeight:800, color:"#fff", marginBottom:4 }}>📷 Barcode scannen</div>
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Kamera auf Barcode richten</div>
+      </div>
+      <div className="scanner-viewport" onClick={function(e){ e.stopPropagation(); }}>
+        <div id={scannerDivId} style={{ width:"100%", height:"100%" }}></div>
+        <div className="scanner-line"></div>
+      </div>
+      <button type="button" onClick={onClose}
+        style={{ marginTop:20, border:"1px solid rgba(255,255,255,0.3)", background:"transparent", color:"#fff", borderRadius:10, padding:"10px 28px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+        Abbrechen
+      </button>
+    </div>
+  );
+}
+
 // === п.5: TeilePicker — 4 типа + несколько позиций из магазина ===
-function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
+function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }) {
+  var _sscan = useState(false); var showScanner = _sscan[0]; var setShowScanner = _sscan[1];
+  var _sscanTarget = useState(null); var scanTarget = _sscanTarget[0]; var setScanTarget = _sscanTarget[1];
 
   function addShopItem() {
     setShopItems(shopItems.concat([{
+
       id: "SI" + Date.now(),
       lieferschein:"", datum:todayIso(),
       typ:"", name:"", preis:""
@@ -1253,8 +1334,47 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
     setShopItems(shopItems.filter(function(s) { return s.id !== id; }));
   }
 
+  function handleBarcodeScan(code) {
+    setShowScanner(false);
+    // Ищем в stock по barcode или sku
+    var found = (stock||[]).find(function(s){
+      return (s.barcode && s.barcode === code) || (s.sku && s.sku === code) || (s.artikel_nr && s.artikel_nr === code);
+    });
+    if (scanTarget === "new") {
+      // Добавляем новую позицию
+      var newItem = {
+        id: "SI" + Date.now(),
+        lieferschein: "", datum: todayIso(),
+        typ: found ? (found.category||found.typ||"") : "",
+        name: found ? (found.name||found.bezeichnung||code) : "Barcode: "+code,
+        preis: found ? String(found.price||found.preis||"") : ""
+      };
+      setShopItems(shopItems.concat([newItem]));
+      if (!found) alert("Barcode " + code + " nicht im Lager gefunden. Bitte manuell ausfüllen.");
+    } else if (scanTarget) {
+      // Обновляем существующую позицию
+      setShopItems(shopItems.map(function(s){
+        if (s.id !== scanTarget) return s;
+        return Object.assign({}, s, {
+          typ: found ? (found.category||found.typ||s.typ) : s.typ,
+          name: found ? (found.name||found.bezeichnung||code) : "Barcode: "+code,
+          preis: found ? String(found.price||found.preis||s.preis) : s.preis
+        });
+      }));
+      if (!found) alert("Barcode " + code + " nicht im Lager gefunden.");
+    }
+    setScanTarget(null);
+  }
+
   return (
     <div>
+      {showScanner && (
+        <BarcodeScanner
+          onDetected={handleBarcodeScan}
+          onClose={function(){ setShowScanner(false); setScanTarget(null); }}
+        />
+      )}
+
       {/* 4 кнопки типа */}
       <div style={{ display:"flex", gap:8, marginBottom:14 }}>
         {PARTS_TYPES.map(function(pt) {
@@ -1269,11 +1389,44 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
         })}
       </div>
 
-      {/* Neu aus Lager — заглушка */}
+      {/* Neu aus Lager — штрихкод + список */}
       {partsType === "lager" && (
-        <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(255,165,0,0.07)", border:"1px solid rgba(255,165,0,0.25)", color:"rgba(255,255,255,0.65)", fontSize:13, lineHeight:1.5 }}>
-          📦 Lagerverwaltung wird als eigenes Modul <strong>lager.html</strong> entwickelt.<br/>
-          Hier später: Auswahl direkt aus Lagerbestand mit Autobuchung.
+        <div>
+          <button type="button"
+            style={{ width:"100%", padding:"14px", borderRadius:12, background:"rgba(255,165,0,0.1)", border:"2px dashed rgba(255,165,0,0.4)", color:"#ffa500", fontSize:15, fontWeight:700, cursor:"pointer", marginBottom:10 }}
+            onClick={function(){ setScanTarget("new"); setShowScanner(true); }}>
+            📷 Barcode scannen
+          </button>
+          {(stock||[]).length > 0 && (
+            <div style={{ maxHeight:200, overflowY:"auto" }}>
+              {(stock||[]).map(function(s){
+                return (
+                  <div key={s.id} className="lager-row" style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:"rgba(255,255,255,0.04)", marginBottom:6, cursor:"pointer" }}
+                    onClick={function(){
+                      setShopItems(shopItems.concat([{
+                        id: "SI"+Date.now(), lieferschein:"", datum:todayIso(),
+                        typ: s.category||s.typ||"", name: s.name||s.bezeichnung||"",
+                        preis: String(s.price||s.preis||"")
+                      }]));
+                      setPartsType("shop");
+                    }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, fontSize:13 }}>{s.name||s.bezeichnung||"—"}</div>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{s.sku||s.artikel_nr||""} {s.barcode ? "· "+s.barcode : ""}</div>
+                    </div>
+                    <div style={{ fontWeight:700, color:"#ffa500", fontSize:13 }}>{s.qty||0} {s.unit||"Stk"}</div>
+                    {s.price||s.preis ? <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{Number(s.price||s.preis||0).toFixed(2)} €</div> : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {(stock||[]).length === 0 && (
+            <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(255,165,0,0.07)", border:"1px solid rgba(255,165,0,0.25)", color:"rgba(255,255,255,0.65)", fontSize:13, lineHeight:1.5 }}>
+              📦 Lager ist leer. Artikel in Supabase → <strong>stock</strong> eintragen.<br/>
+              Felder: name, sku, barcode, price, qty, unit
+            </div>
+          )}
         </div>
       )}
 
@@ -1313,7 +1466,13 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
                 <input className="input-dark" value={item.typ} placeholder="z.B. Bremsscheibe, Ölfilter, Schraube..."
                   style={{ marginBottom:8 }}
                   onChange={function(e){ updateShopItem(item.id, "typ", e.target.value); }} />
-                <div className="label-cap">Bezeichnung / Artikelnummer</div>
+                <div className="label-cap" style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  Bezeichnung / Artikelnummer
+                  <button type="button" style={{ border:0, background:"transparent", color:"rgba(255,165,0,0.8)", fontSize:13, fontWeight:700, cursor:"pointer", padding:"0 2px" }}
+                    onClick={function(){ setScanTarget(item.id); setShowScanner(true); }}>
+                    📷 Scan
+                  </button>
+                </div>
                 <input className="input-dark" value={item.name} placeholder="Name oder Artikelnr."
                   style={{ marginBottom:8 }}
                   onChange={function(e){ updateShopItem(item.id, "name", e.target.value); }} />
@@ -1416,7 +1575,7 @@ function StandortPicker({ value, onChange, locations }) {
 }
 
 // === NEW JOB FORM ===
-function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations, dbUsers }) {
+function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations, dbUsers, stock }) {
   // Черновик восстанавливаем только если нет prefill (открыт вручную, не из Eingang)
   var _draft = (function() {
     if (prefill) return {};
@@ -1433,6 +1592,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var workType = _swt[0]; var setWorkType = _swt[1];
   var _sdesc = useState(prefill && prefill.description ? prefill.description : (_draft.description || ""));
   var description = _sdesc[0]; var setDescription = _sdesc[1];
+  var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
+  var voiceRef = useRef(null);
   var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
   var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
   var _stb = useState(_draft.travelBack || 0); var travelBack = _stb[0]; var setTravelBack = _stb[1];
@@ -1660,8 +1821,38 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
             );
           })}
         </div>
-        <div className="label-cap" style={{ marginTop:14 }}>Fehlerbeschreibung</div>
-        <textarea className="textarea-dark" value={description} onChange={function(e){ setDescription(e.target.value); }} placeholder="Fehlerbeschreibung eingeben..." />
+        <div className="label-cap" style={{ marginTop:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          Fehlerbeschreibung
+          {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
+            <button type="button"
+              className={voiceActive ? "voice-active" : ""}
+              style={{ border:0, background:"transparent", fontSize:22, cursor:"pointer", padding:"0 4px", color: voiceActive ? "#ef4444" : "rgba(255,255,255,0.5)" }}
+              onClick={function(){
+                if (voiceActive) {
+                  if (voiceRef.current) voiceRef.current.stop();
+                  setVoiceActive(false);
+                  return;
+                }
+                var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                var rec = new SR();
+                rec.lang = "de-DE";
+                rec.continuous = true;
+                rec.interimResults = false;
+                rec.onresult = function(e) {
+                  var transcript = Array.from(e.results).map(function(r){ return r[0].transcript; }).join(" ");
+                  setDescription(function(prev){ return prev ? prev + " " + transcript : transcript; });
+                };
+                rec.onerror = function(){ setVoiceActive(false); };
+                rec.onend = function(){ setVoiceActive(false); };
+                voiceRef.current = rec;
+                rec.start();
+                setVoiceActive(true);
+              }}>
+              {voiceActive ? "🔴" : "🎤"}
+            </button>
+          )}
+        </div>
+        <textarea className="textarea-dark" value={description} onChange={function(e){ setDescription(e.target.value); }} placeholder={voiceActive ? "🎤 Spricht..." : "Fehlerbeschreibung eingeben..."} style={{ borderColor: voiceActive ? "#ef4444" : undefined }} />
       </div>
 
       {workType === "tireChange" && (
@@ -1694,7 +1885,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       {/* п.5: Teile & Material */}
       <div className="glass-panel">
         <div className="panel-title">📦 Teile &amp; Material</div>
-        <TeilePicker partsType={partsType} setPartsType={setPartsType} shopItems={shopItems} setShopItems={setShopItems} />
+        <TeilePicker partsType={partsType} setPartsType={setPartsType} shopItems={shopItems} setShopItems={setShopItems} stock={stock} />
       </div>
 
       <div className="glass-panel">
@@ -2739,6 +2930,41 @@ function AppShell({ user, onLogout }) {
   var prevAlertCount = useRef(0);
   var wsRef = useRef(null);
 
+  // Onboarding — показываем один раз
+  useEffect(function(){
+    var key = "werkflow_onboarding_werkstatt_v1";
+    if (localStorage.getItem(key)) return;
+    var t = setTimeout(function(){
+      if (!window.introJs) return;
+      window.introJs().setOptions({
+        steps: [
+          { intro: "<strong>Willkommen in WerkFlow Werkstatt!</strong><br/>Kurze Einführung in die wichtigsten Funktionen." },
+          { element: document.querySelector(".nav-btn[data-tab='new'], .nav-btn:first-child") || document.body,
+            intro: "➕ <strong>Neuer Auftrag</strong><br/>Hier erstellst du einen neuen Reparaturauftrag." },
+          { element: document.querySelector(".nav-btn[data-tab='eingang'], .nav-btn:nth-child(2)") || document.body,
+            intro: "📥 <strong>Eingang</strong><br/>Meldungen von Fahrern und Staplern kommen hier an." },
+          { element: document.querySelector(".nav-btn[data-tab='jobs'], .nav-btn:nth-child(3)") || document.body,
+            intro: "📋 <strong>Meine Aufträge</strong><br/>Alle deine aktiven und erledigten Aufträge." },
+          { element: document.querySelector(".nav-btn[data-tab='lager'], .nav-btn:nth-child(4)") || document.body,
+            intro: "📦 <strong>Lager</strong><br/>Ersatzteile und Lagerbestand auf einen Blick." },
+          { intro: "✅ <strong>Fertig!</strong><br/>Bei Fragen: Tippe auf ↻ oben rechts zum Aktualisieren." }
+        ],
+        showProgress: true,
+        showBullets: false,
+        exitOnOverlayClick: true,
+        doneLabel: "Los gehts!",
+        nextLabel: "Weiter →",
+        prevLabel: "← Zurück",
+        skipLabel: "Überspringen"
+      }).oncomplete(function(){
+        localStorage.setItem(key, "1");
+      }).onexit(function(){
+        localStorage.setItem(key, "1");
+      }).start();
+    }, 1500);
+    return function(){ clearTimeout(t); };
+  }, []);
+
   function loadAll() {
     setLoading(true);
     var nied = (user && user.niederlassung_id) ? user.niederlassung_id : "__none__";
@@ -2791,9 +3017,10 @@ function AppShell({ user, onLogout }) {
         wsRef.current = ws;
 
         ws.onopen = function() {
-          // Подписываемся на канал alerts
+          // Подписываемся на alerts и jobs
           ws.send(JSON.stringify({ topic:"realtime:public:alerts", event:"phx_join", payload:{}, ref:String(refCounter++) }));
-          // Heartbeat каждые 25 сек — Supabase закрывает соединения через ~30 сек тишины.
+          ws.send(JSON.stringify({ topic:"realtime:public:jobs", event:"phx_join", payload:{}, ref:String(refCounter++) }));
+          // Heartbeat каждые 25 сек
           if (hbTimer) clearInterval(hbTimer);
           hbTimer = setInterval(function(){
             try {
@@ -2892,6 +3119,7 @@ function AppShell({ user, onLogout }) {
             prefill={prefill}
             locations={dbLocations}
             dbUsers={dbUsers}
+            stock={stock}
             onClear={function(){ setPrefill(null); }}
             onSaved={function(){ loadAll(); setTab("jobs"); }}
           />
