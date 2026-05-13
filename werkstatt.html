@@ -1557,8 +1557,12 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         // Черновик очищаем после успешного сохранения
         try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
         var jid = jobId;
+        // Полный сброс формы — включая vehicle и colleague, чтобы случайное повторное нажатие не создало пустую запись
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
         setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+        setVehicle(null);
+        setColleague(false); setColleagueName("");
+        setTireNewSn(""); setTireOldSn("");
         if (onClear) onClear();
         if (onSaved) onSaved();
         setSaving(false);
@@ -2865,7 +2869,7 @@ function AppShell({ user, onLogout }) {
             locations={dbLocations}
             dbUsers={dbUsers}
             onClear={function(){ setPrefill(null); }}
-            onSaved={loadAll}
+            onSaved={function(){ loadAll(); setTab("jobs"); }}
           />
         )}
         {tab === "eingang" && (
