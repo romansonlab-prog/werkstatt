@@ -1341,16 +1341,33 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems }) {
 function StandortPicker({ value, onChange, locations }) {
   var LOCS = (locations && locations.length) ? locations : LOCATIONS_FALLBACK;
   var _sc = useState(false); var custom = _sc[0]; var setCustom = _sc[1];
-  var _si = useState(""); var customVal = _si[0]; var setCustomVal = _si[1];
 
   var isCustom = value && !LOCS.includes(value);
+  // Инициализируем customVal значением из value (если оно кастомное),
+  // чтобы кнопка ✓ работала сразу без необходимости что-то печатать
+  var _si = useState(isCustom ? value : ""); var customVal = _si[0]; var setCustomVal = _si[1];
+
+  // Синхронизируем customVal с входящим value (например, при prefill из алерта)
+  useEffect(function(){
+    if (isCustom && value !== customVal) {
+      setCustomVal(value);
+    }
+  }, [value]);
 
   function pick(l) {
     if (l === "__custom__") {
       setCustom(true);
-      setCustomVal(isCustom ? value : "");
+      if (isCustom) setCustomVal(value);
     } else {
       onChange(l);
+      setCustom(false);
+    }
+  }
+
+  function confirmCustom() {
+    var v = (customVal || "").trim();
+    if (v) {
+      onChange(v);
       setCustom(false);
     }
   }
@@ -1384,13 +1401,12 @@ function StandortPicker({ value, onChange, locations }) {
           <input
             className="input-dark"
             style={{ flex:1 }}
-            value={customVal !== "" ? customVal : (isCustom ? value : "")}
+            value={customVal}
             placeholder="Eigenen Standort eingeben..."
             onChange={function(e){ setCustomVal(e.target.value); }}
-            onBlur={function(){ if (customVal.trim()) { onChange(customVal.trim()); setCustom(false); } }}
+            onBlur={confirmCustom}
           />
-          <button type="button" className="mini-btn start"
-            onClick={function(){ if (customVal.trim()) { onChange(customVal.trim()); setCustom(false); } }}>
+          <button type="button" className="mini-btn start" onClick={confirmCustom}>
             ✓
           </button>
         </div>
@@ -1471,11 +1487,19 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   useEffect(function() {
     if (!prefill) return;
     setVehicleType(prefill.vehicle_type || prefill.vehicleType || "truck");
-    setVehicle({ plate:prefill.plate || "", brand:"", type:prefill.vehicle_type || "truck", isNew:false });
+    // Ищем существующую машину в БД по plate — чтобы подтянуть brand/model которые ввели раньше
+    var existingVeh = (vehicles || []).find(function(v){ return v.plate === prefill.plate; });
+    setVehicle({
+      id: existingVeh ? existingVeh.id : undefined,
+      plate: prefill.plate || "",
+      brand: existingVeh ? (existingVeh.brand || "") : "",
+      type: prefill.vehicle_type || (existingVeh && existingVeh.type) || "truck",
+      isNew: !existingVeh
+    });
     setLocation(prefill.location || "Werkstatt");
     setWorkType(prefill.work_type || "emergency");
     setDescription(prefill.description || prefill.note || "");
-  }, [prefill && prefill.id]);
+  }, [prefill && prefill.id, vehicles.length]);
 
   function save() {
     if (savingRef.current) return; // защита от двойного нажатия
