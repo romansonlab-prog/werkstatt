@@ -1647,6 +1647,86 @@ function Fahrzeugakte({ vehicle, jobs, invoices, inspections, onClose }) {
   var totalInvCost = vInvoices.reduce(function(s,i){ return s+(Number(i.amount)||0); }, 0);
   var totalMin = vJobs.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
 
+  // KPI расчёты
+  var vKpi = (function(){
+    // Verfügbarkeit%: дней с хотя бы 1 job / дней с момента первого job
+    var doneJobs = vJobs.filter(function(j){ return j.status === "done"; });
+    var uniqueDaysDown = {};
+    doneJobs.forEach(function(j){ if (j.date) uniqueDaysDown[j.date] = 1; });
+    var firstDate = vJobs.length ? (vJobs[vJobs.length-1].date || (vJobs[vJobs.length-1].created_at||"").slice(0,10)) : null;
+    var totalDays = firstDate ? Math.max(1, Math.round((new Date()-new Date(firstDate))/(1000*60*60*24))) : null;
+    var downDays = Object.keys(uniqueDaysDown).length;
+    var verfuegbarkeit = totalDays ? Math.max(0, Math.round((1 - downDays/totalDays)*100)) : null;
+
+    // €/km: только если есть jobs с km_stand
+    var kmJobs = vJobs.filter(function(j){ return j.km_stand && Number(j.km_stand) > 0; })
+      .sort(function(a,b){ return Number(a.km_stand)-Number(b.km_stand); });
+    var euroPerKm = null;
+    if (kmJobs.length >= 2) {
+      var kmRange = Number(kmJobs[kmJobs.length-1].km_stand) - Number(kmJobs[0].km_stand);
+      if (kmRange > 0) euroPerKm = (totalJobCost + totalInvCost) / kmRange;
+    }
+
+    // MTBF: среднее время между поломками (breakdowns) в днях
+    var breakdowns = vJobs.filter(function(j){ return j.work_type === "breakdown" || j.work_type === "tire" || j.work_type === "emergency"; })
+      .sort(function(a,b){ return (a.date||"").localeCompare(b.date||""); });
+    var mtbf = null;
+    if (breakdowns.length >= 2) {
+      var gaps = [];
+      for (var bi=1; bi<breakdowns.length; bi++) {
+        var d1 = new Date(breakdowns[bi-1].date||breakdowns[bi-1].created_at);
+        var d2 = new Date(breakdowns[bi].date||breakdowns[bi].created_at);
+        var gapDays = Math.round((d2-d1)/(1000*60*60*24));
+        if (gapDays > 0) gaps.push(gapDays);
+      }
+      if (gaps.length) mtbf = Math.round(gaps.reduce(function(s,g){ return s+g; },0)/gaps.length);
+    }
+
+    return { verfuegbarkeit:verfuegbarkeit, euroPerKm:euroPerKm, mtbf:mtbf, totalDays:totalDays, downDays:downDays };
+  })();
+
+  // Lebenslauf chart ref
+  var lebenslaufChartRef = useRef(null);
+  var lebenslaufChartInst = useRef(null);
+
+  useEffect(function(){
+    if (tab !== "kosten") return;
+    if (!lebenslaufChartRef.current) return;
+    if (lebenslaufChartInst.current) lebenslaufChartInst.current.destroy();
+    // Группируем по месяцам
+    var byMonth = {};
+    vJobs.forEach(function(j){
+      var d = j.date||(j.created_at||"").slice(0,7);
+      var m = d.slice(0,7);
+      if (!m) return;
+      if (!byMonth[m]) byMonth[m] = 0;
+      byMonth[m] += (Number(j.cost)||0) + (Number(j.labor_cost)||0) + (Number(j.parts_cost)||0);
+    });
+    var months = Object.keys(byMonth).sort();
+    if (months.length < 2) return;
+    lebenslaufChartInst.current = new Chart(lebenslaufChartRef.current, {
+      type: "line",
+      data: {
+        labels: months.map(function(m){ var d=new Date(m+"-01"); return d.toLocaleDateString("de-DE",{month:"short",year:"2-digit"}); }),
+        datasets: [{
+          data: months.map(function(m){ return Math.round(byMonth[m]); }),
+          borderColor: "#ffa500", backgroundColor: "rgba(255,165,0,0.08)",
+          tension: 0.4, pointRadius: 4, pointBackgroundColor: "#ffa500",
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return ctx.parsed.y.toLocaleString("de-DE")+" €"; } } } },
+        scales: {
+          x:{ ticks:{color:"rgba(255,255,255,0.4)",font:{size:10}}, grid:{display:false} },
+          y:{ ticks:{color:"rgba(255,255,255,0.4)",font:{size:10},callback:function(v){ return v>=1000?(v/1000).toFixed(0)+"k":v; }}, grid:{color:"rgba(255,255,255,0.05)"} }
+        }
+      }
+    });
+    return function(){ if (lebenslaufChartInst.current) lebenslaufChartInst.current.destroy(); };
+  }, [tab, vJobs.length]);
+
   function exportLebenslauf() {
     var jobRows = vJobs.map(function(j){
       return "<tr><td>"+(j.date||"—")+"</td><td>"+(WORK_TYPES[j.work_type]||j.work_type||"—")+"</td>"+
@@ -1910,7 +1990,34 @@ function Fahrzeugakte({ vehicle, jobs, invoices, inspections, onClose }) {
         {/* KOSTEN */}
         {tab === "kosten" && (
           <div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+            {/* KPI НА МАШИНУ */}
+            {(vKpi.verfuegbarkeit !== null || vKpi.euroPerKm !== null || vKpi.mtbf !== null) && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:16 }}>
+                {vKpi.verfuegbarkeit !== null && (
+                  <div style={{ borderRadius:12, padding:"14px 16px", background: vKpi.verfuegbarkeit >= 80 ? "rgba(34,197,94,0.1)" : vKpi.verfuegbarkeit >= 60 ? "rgba(255,165,0,0.1)" : "rgba(239,68,68,0.1)", border:"1px solid "+(vKpi.verfuegbarkeit>=80?"rgba(34,197,94,0.3)":vKpi.verfuegbarkeit>=60?"rgba(255,165,0,0.3)":"rgba(239,68,68,0.3)") }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Verfügbarkeit</div>
+                    <div style={{ fontSize:28, fontWeight:900, color: vKpi.verfuegbarkeit>=80?"#22c55e":vKpi.verfuegbarkeit>=60?"#ffa500":"#ef4444" }}>{vKpi.verfuegbarkeit}%</div>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:4 }}>{vKpi.downDays} Tage in Reparatur</div>
+                  </div>
+                )}
+                {vKpi.euroPerKm !== null && (
+                  <div style={{ borderRadius:12, padding:"14px 16px", background:"rgba(96,165,250,0.08)", border:"1px solid rgba(96,165,250,0.2)" }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>€ / km</div>
+                    <div style={{ fontSize:28, fontWeight:900, color:"#60a5fa" }}>{vKpi.euroPerKm.toFixed(2)}</div>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:4 }}>Gesamtkosten je km</div>
+                  </div>
+                )}
+                {vKpi.mtbf !== null && (
+                  <div style={{ borderRadius:12, padding:"14px 16px", background:"rgba(168,85,247,0.08)", border:"1px solid rgba(168,85,247,0.2)" }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>MTBF</div>
+                    <div style={{ fontSize:28, fontWeight:900, color:"#a855f7" }}>{vKpi.mtbf}d</div>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:4 }}>Ø Tage zwischen Pannen</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
               {[
                 ["Arbeitskosten gesamt", totalJobCost.toFixed(2)+" €", "#ffa500"],
                 ["Teilekosten gesamt",   totalInvCost.toFixed(2)+" €", "#60a5fa"],
@@ -1928,6 +2035,16 @@ function Fahrzeugakte({ vehicle, jobs, invoices, inspections, onClose }) {
                 );
               })}
             </div>
+
+            {/* LEBENSLAUF CHART */}
+            {vJobs.length >= 2 && (
+              <div style={{ borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", padding:"14px 16px", marginBottom:16 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>Kostenverlauf nach Monat</div>
+                <div style={{ height:110 }}>
+                  <canvas ref={lebenslaufChartRef}></canvas>
+                </div>
+              </div>
+            )}
 
             {/* По годам */}
             {(function(){
@@ -3336,6 +3453,68 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
     byType[t].jobs++;
   });
 
+  // Прогноз бюджета — только для "month"
+  var forecastData = (function(){
+    if (period !== "month") return null;
+    var now = new Date();
+    var dayOfMonth = now.getDate();
+    var daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    if (dayOfMonth === 0) return null;
+    var projected = Math.round(totalAll / dayOfMonth * daysInMonth);
+    var prevM = prev ? jobs.filter(function(j){
+      var d = j.date||(j.created_at||"").slice(0,10);
+      return d >= prev.start && d < prev.end;
+    }).concat(prev ? invoices.filter(function(i){ return (i.date||"") >= prev.start && (i.date||"") < prev.end; }) : []) : [];
+    var prevTotal = prevJobs.reduce(function(s,j){ return s+(Number(j.labor_cost)||0)+(Number(j.parts_cost)||0); },0)
+                  + prevInv.reduce(function(s,i){ return s+(Number(i.amount)||0); },0);
+    var deltaProjPct = prevTotal > 0 ? Math.round((projected - prevTotal) / prevTotal * 100) : null;
+    return { dayOfMonth:dayOfMonth, daysInMonth:daysInMonth, projected:projected, prevTotal:prevTotal, deltaProjPct:deltaProjPct, progressPct: Math.round(dayOfMonth/daysInMonth*100) };
+  })();
+
+  // 12-месячный график для Kosten
+  var last12kosten = [];
+  for (var ki=11; ki>=0; ki--) {
+    var kd = new Date(); kd.setDate(1); kd.setMonth(kd.getMonth()-ki);
+    var kStart = kd.toLocaleDateString("sv-SE");
+    var kEnd = new Date(kd.getFullYear(), kd.getMonth()+1, 1).toLocaleDateString("sv-SE");
+    var kJobs = jobs.filter(function(j){ var d=j.date||(j.created_at||"").slice(0,10); return d>=kStart && d<kEnd; });
+    var kInv  = invoices.filter(function(i){ return (i.date||"")>=kStart && (i.date||"")<kEnd; });
+    var kCost = kJobs.reduce(function(s,j){ return s+(Number(j.labor_cost)||0)+(Number(j.parts_cost)||0); },0)
+               +kInv.reduce(function(s,i){ return s+(Number(i.amount)||0); },0);
+    last12kosten.push({ label: kd.toLocaleDateString("de-DE",{month:"short",year:"2-digit"}), cost: Math.round(kCost) });
+  }
+
+  var kostenChartRef = useRef(null);
+  var kostenChartInst = useRef(null);
+
+  useEffect(function(){
+    if (!kostenChartRef.current) return;
+    if (kostenChartInst.current) kostenChartInst.current.destroy();
+    var maxCost = Math.max.apply(null, last12kosten.map(function(m){ return m.cost; })) || 1;
+    kostenChartInst.current = new Chart(kostenChartRef.current, {
+      type: "bar",
+      data: {
+        labels: last12kosten.map(function(m){ return m.label; }),
+        datasets: [{
+          data: last12kosten.map(function(m){ return m.cost; }),
+          backgroundColor: last12kosten.map(function(m,i){
+            return i === last12kosten.length-1 ? "rgba(255,165,0,0.9)" : "rgba(255,165,0,0.35)";
+          }),
+          borderColor: "#ffa500", borderWidth: 1, borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return ctx.parsed.y.toLocaleString("de-DE")+" €"; } } } },
+        scales: {
+          x:{ ticks:{color:"rgba(255,255,255,0.45)",font:{size:11}}, grid:{display:false} },
+          y:{ ticks:{color:"rgba(255,255,255,0.45)",font:{size:11},callback:function(v){ return v>=1000?(v/1000).toFixed(0)+"k":v; }}, grid:{color:"rgba(255,255,255,0.05)"} }
+        }
+      }
+    });
+    return function(){ if (kostenChartInst.current) kostenChartInst.current.destroy(); };
+  }, [jobs.length, invoices.length, period]);
+
   function exportKosten() {
     var rows = topVeh.map(function(p){
       var v = byVeh[p];
@@ -3389,6 +3568,52 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
           {deltaPct(totalJobs, prevJobsCnt)}
         </div>
       </div>
+
+      {/* ПРОГНОЗ БЮДЖЕТА — только для месяца */}
+      {forecastData && (
+        <div style={{ display:"flex", gap:14, marginBottom:20, flexWrap:"wrap" }}>
+          <div style={{ flex:"1 1 320px", borderRadius:14, background:"linear-gradient(135deg,rgba(255,165,0,0.12),rgba(255,165,0,0.04))", border:"1px solid rgba(255,165,0,0.25)", padding:"20px 24px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+              <div style={{ fontSize:20 }}>📈</div>
+              <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.6)", textTransform:"uppercase", letterSpacing:1 }}>Prognose — laufender Monat</div>
+            </div>
+            <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:6 }}>
+              <div style={{ fontSize:36, fontWeight:900, color:"#ffa500", letterSpacing:"-1px" }}>{forecastData.projected.toLocaleString("de-DE")} €</div>
+              {forecastData.deltaProjPct !== null && (
+                <div style={{ fontSize:13, fontWeight:700, color: forecastData.deltaProjPct > 0 ? "#ef4444" : "#22c55e" }}>
+                  {forecastData.deltaProjPct > 0 ? "▲ +" : "▼ "}{Math.abs(forecastData.deltaProjPct)}% vs Vormonat
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:14 }}>
+              Aktuell: {totalAll.toLocaleString("de-DE",{minimumFractionDigits:0})} € · Tag {forecastData.dayOfMonth} von {forecastData.daysInMonth}
+            </div>
+            <div style={{ height:6, borderRadius:3, background:"rgba(255,255,255,0.08)", overflow:"hidden" }}>
+              <div style={{ height:"100%", borderRadius:3, background:"linear-gradient(90deg,#ffa500,#ffcc66)", width:forecastData.progressPct+"%", transition:"width 0.6s ease" }}></div>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:5 }}>
+              <span>1.</span><span>{forecastData.daysInMonth}.</span>
+            </div>
+          </div>
+
+          <div style={{ flex:"2 1 400px", borderRadius:14, background:"rgba(15,30,60,0.6)", border:"1px solid rgba(255,255,255,0.08)", padding:"16px 20px" }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>12-Monats-Verlauf (€)</div>
+            <div style={{ height:120 }}>
+              <canvas ref={kostenChartRef}></canvas>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Если не месяц — только график */}
+      {!forecastData && (
+        <div style={{ borderRadius:14, background:"rgba(15,30,60,0.6)", border:"1px solid rgba(255,255,255,0.08)", padding:"16px 20px", marginBottom:20 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>12-Monats-Verlauf (€)</div>
+          <div style={{ height:130 }}>
+            <canvas ref={kostenChartRef}></canvas>
+          </div>
+        </div>
+      )}
 
       <div className="g2">
         <div className="panel">
@@ -4906,6 +5131,170 @@ function PinSettingRow({ setting, value, updated, onSave, saving }) {
   );
 }
 
+// === VERGLEICH ===
+function Vergleich({ jobs, invoices, vehicles }) {
+  var _sp = useState("month"); var period = _sp[0]; var setPeriod = _sp[1];
+  var _sm = useState("cost"); var metric = _sm[0]; var setMetric = _sm[1];
+  var verglChartRef = useRef(null);
+  var verglChartInst = useRef(null);
+
+  function getPeriodStart(p) {
+    var d = new Date();
+    if (p === "month")   { d.setDate(1); return d.toLocaleDateString("sv-SE"); }
+    if (p === "quarter") { d.setMonth(Math.floor(d.getMonth()/3)*3,1); return d.toLocaleDateString("sv-SE"); }
+    if (p === "year")    { d.setMonth(0,1); return d.toLocaleDateString("sv-SE"); }
+    return "";
+  }
+
+  var start = getPeriodStart(period);
+  var filtered = start ? jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10)) >= start; }) : jobs;
+  var filtInv  = start ? invoices.filter(function(i){ return (i.date||"") >= start; }) : invoices;
+
+  // Группируем по Niederlassung
+  var niedMap = {};
+  filtered.forEach(function(j){
+    var n = j.workshop_niederlassung_id || "Unbekannt";
+    if (!niedMap[n]) niedMap[n] = { jobs:0, cost:0, labor:0, parts:0, min:0, done:0 };
+    niedMap[n].jobs++;
+    niedMap[n].cost  += (Number(j.labor_cost)||0)+(Number(j.parts_cost)||0);
+    niedMap[n].labor += Number(j.labor_cost)||0;
+    niedMap[n].parts += Number(j.parts_cost)||0;
+    niedMap[n].min   += parseInt(j.work_min||0)||0;
+    if (j.status === "done") niedMap[n].done++;
+  });
+  filtInv.forEach(function(i){
+    var veh = vehicles ? vehicles.find(function(v){ return v.plate === i.vehicle_id; }) : null;
+    var n = (veh && veh.home_niederlassung_id) || "Unbekannt";
+    if (!niedMap[n]) niedMap[n] = { jobs:0, cost:0, labor:0, parts:0, min:0, done:0 };
+    niedMap[n].cost += Number(i.amount)||0;
+    niedMap[n].parts += Number(i.amount)||0;
+  });
+
+  var nieds = Object.keys(niedMap).sort(function(a,b){ return niedMap[b].cost - niedMap[a].cost; });
+  var maxVal = nieds.length ? Math.max.apply(null, nieds.map(function(n){ return niedMap[n][metric === "cost" ? "cost" : metric === "jobs" ? "jobs" : "min"] || 0; })) : 1;
+
+  var COLORS = ["#ffa500","#60a5fa","#22c55e","#a855f7","#ef4444","#f59e0b"];
+
+  useEffect(function(){
+    if (!verglChartRef.current || nieds.length === 0) return;
+    if (verglChartInst.current) verglChartInst.current.destroy();
+    var vals = nieds.map(function(n){
+      if (metric === "jobs") return niedMap[n].jobs;
+      if (metric === "min")  return Math.round(niedMap[n].min/60*10)/10;
+      return Math.round(niedMap[n].cost);
+    });
+    verglChartInst.current = new Chart(verglChartRef.current, {
+      type: "bar",
+      data: {
+        labels: nieds,
+        datasets: [{
+          data: vals,
+          backgroundColor: nieds.map(function(_,i){ return COLORS[i%COLORS.length]+"99"; }),
+          borderColor:      nieds.map(function(_,i){ return COLORS[i%COLORS.length]; }),
+          borderWidth: 1, borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: "y",
+        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){
+          if (metric==="jobs") return ctx.parsed.x+" Aufträge";
+          if (metric==="min")  return ctx.parsed.x+"h Arbeitszeit";
+          return ctx.parsed.x.toLocaleString("de-DE")+" €";
+        } } } },
+        scales: {
+          x:{ ticks:{color:"rgba(255,255,255,0.4)",font:{size:11}}, grid:{color:"rgba(255,255,255,0.05)"} },
+          y:{ ticks:{color:"rgba(255,255,255,0.7)",font:{size:13,weight:"700"}}, grid:{display:false} }
+        }
+      }
+    });
+    return function(){ if (verglChartInst.current) verglChartInst.current.destroy(); };
+  }, [nieds.length, period, metric, jobs.length]);
+
+  if (nieds.length === 0) {
+    return (
+      <div>
+        <div style={{ fontSize:18, fontWeight:900, marginBottom:20 }}>Vergleich — Niederlassungen</div>
+        <div className="panel"><div className="empty">Keine Daten für diesen Zeitraum</div></div>
+      </div>
+    );
+  }
+
+  var totalCost = nieds.reduce(function(s,n){ return s+niedMap[n].cost; },0);
+  var totalJobs = nieds.reduce(function(s,n){ return s+niedMap[n].jobs; },0);
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:8, marginBottom:20, alignItems:"center", flexWrap:"wrap" }}>
+        <div style={{ fontSize:18, fontWeight:900, flex:1 }}>Vergleich — Niederlassungen</div>
+        <div style={{ display:"flex", gap:6 }}>
+          {[["month","Monat"],["quarter","Quartal"],["year","Jahr"],["all","Gesamt"]].map(function(p){
+            return <button key={p[0]} className={"btn-small "+(period===p[0]?"btn-primary":"btn-outline")} onClick={function(){ setPeriod(p[0]); }}>{p[1]}</button>;
+          })}
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          {[["cost","€ Kosten"],["jobs","Aufträge"],["min","Zeit"]].map(function(m){
+            return <button key={m[0]} className={"btn-small "+(metric===m[0]?"btn-primary":"btn-outline")} onClick={function(){ setMetric(m[0]); }}>{m[1]}</button>;
+          })}
+        </div>
+      </div>
+
+      {/* SUMMARY KPI */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
+        <div className="kpi-card orange">
+          <div className="kpi-val">{totalCost.toLocaleString("de-DE",{maximumFractionDigits:0})} €</div>
+          <div className="kpi-label">Gesamtkosten</div>
+        </div>
+        <div className="kpi-card blue">
+          <div className="kpi-val">{totalJobs}</div>
+          <div className="kpi-label">Aufträge gesamt</div>
+        </div>
+        <div className="kpi-card green">
+          <div className="kpi-val">{nieds.length}</div>
+          <div className="kpi-label">Niederlassungen</div>
+        </div>
+      </div>
+
+      {/* CHART */}
+      <div className="panel" style={{ marginBottom:20 }}>
+        <div style={{ height: Math.max(180, nieds.length * 52) }}>
+          <canvas ref={verglChartRef}></canvas>
+        </div>
+      </div>
+
+      {/* DETAIL TABELLE */}
+      <div className="panel">
+        <div className="panel-hd"><div className="panel-title">Detail-Vergleich</div></div>
+        {nieds.map(function(n, idx){
+          var d = niedMap[n];
+          var pct = totalCost > 0 ? Math.round(d.cost/totalCost*100) : 0;
+          var donePct = d.jobs > 0 ? Math.round(d.done/d.jobs*100) : 0;
+          var avgMin = d.jobs > 0 ? Math.round(d.min/d.jobs) : 0;
+          return (
+            <div key={n} style={{ padding:"16px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+                <div style={{ width:10, height:10, borderRadius:"50%", background:COLORS[idx%COLORS.length], flexShrink:0 }}></div>
+                <div style={{ fontWeight:800, fontSize:15, flex:1 }}>{n}</div>
+                <div style={{ fontSize:13, color:"#ffa500", fontWeight:700 }}>{d.cost.toLocaleString("de-DE",{maximumFractionDigits:0})} €</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", minWidth:60, textAlign:"right" }}>{pct}% Anteil</div>
+              </div>
+              <div style={{ height:5, borderRadius:3, background:"rgba(255,255,255,0.07)", marginBottom:10, overflow:"hidden" }}>
+                <div style={{ height:"100%", borderRadius:3, background:COLORS[idx%COLORS.length], width:pct+"%", transition:"width 0.5s ease" }}></div>
+              </div>
+              <div style={{ display:"flex", gap:20, flexWrap:"wrap" }}>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>🔧 <strong style={{ color:"#fff" }}>{d.jobs}</strong> Aufträge</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>✓ <strong style={{ color:"#22c55e" }}>{donePct}%</strong> erledigt</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>⏱ <strong style={{ color:"#fff" }}>{fmtMin(avgMin)}</strong> Ø/Auftrag</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>🔩 <strong style={{ color:"#60a5fa" }}>{d.labor.toLocaleString("de-DE",{maximumFractionDigits:0})} €</strong> Lohn</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>⚙ <strong style={{ color:"#a855f7" }}>{d.parts.toLocaleString("de-DE",{maximumFractionDigits:0})} €</strong> Teile</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
@@ -5061,6 +5450,7 @@ function AppShell({ user, onLogout }) {
     { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
     { k:"archiv",      ic: IC.archive,  label:"Archiv" },
     { k:"monatsbericht", ic: IC.report,  label:"Monatsbericht" },
+    { k:"vergleich",   ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>, label:"Vergleich" },
     { k:"kontakte",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
     { k:"settings",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
   ];
@@ -5069,7 +5459,7 @@ function AppShell({ user, onLogout }) {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", du:"DU Auflieger", waschhalle:"Waschhalle",
     lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Lieferscheine",
-    wartung:"Wartungsplan", archiv:"Archiv", monatsbericht:"Monatsbericht", settings:"Einstellungen", kontakte:"Kontakte"
+    wartung:"Wartungsplan", archiv:"Archiv", monatsbericht:"Monatsbericht", vergleich:"Vergleich — Niederlassungen", settings:"Einstellungen", kontakte:"Kontakte"
   };
 
   return (
@@ -5196,6 +5586,7 @@ function AppShell({ user, onLogout }) {
           {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={fJobs} />}
           {sec === "monatsbericht" && <Monatsbericht jobs={fJobs} washOrders={fWashOrders} inspections={fInspections} alerts={fAlerts} />}
+          {sec === "vergleich"     && <Vergleich jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} />}
           {sec === "kontakte"    && <Kontakte onRefresh={loadAll} />}
           {sec === "settings"    && <Einstellungen vehicles={fVehicles} forklifts={fForklifts} stock={fStock} onRefresh={loadAll} loading={loading} niedList={niedList} />}
         </div>
