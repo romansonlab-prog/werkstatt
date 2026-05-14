@@ -6646,7 +6646,7 @@ function AppShell({ user, onLogout }) {
             <button className="topbar-refresh no-print" onClick={loadAll}>{loading ? "⏳" : "↻ Aktualisieren"}</button>
           </div>
         </div>
-        <InfoBar openAlerts={openAlerts.length} mechanics={getMechanicsFromJobs(fJobs)} jobs={fJobs} />
+        <InfoBar />
 
         <div className="page">
           {sec === "uebersicht"  && <Uebersicht jobs={fJobs} alerts={fAlerts} vehicles={fVehicles} forklifts={fForklifts} washOrders={fWashOrders} inspections={fInspections} />}
@@ -6686,7 +6686,7 @@ var LOCATIONS = [
 
 var WX_ICONS = {0:"☀️",1:"🌤",2:"⛅",3:"☁️",45:"🌫",48:"🌫",51:"🌦",53:"🌦",55:"🌧",61:"🌧",63:"🌧",65:"🌧",71:"🌨",73:"🌨",75:"❄️",80:"🌦",81:"🌧",82:"⛈",95:"⛈",96:"⛈",99:"⛈"};
 
-function InfoBar({ openAlerts, mechanics, jobs }) {
+function InfoBar() {
   var _loc = useState(0); var locIdx = _loc[0]; var setLocIdx = _loc[1];
   var _wx  = useState(null); var wx = _wx[0]; var setWx = _wx[1];
   var _ds  = useState(null); var diesel = _ds[0]; var setDiesel = _ds[1];
@@ -6715,13 +6715,6 @@ function InfoBar({ openAlerts, mechanics, jobs }) {
   useEffect(function(){
     setDiesel("~2,063 €/L");
   }, []);
-
-  // Механики
-  var today = todayIso();
-  var inProgress = mechanics.filter(function(m){
-    return jobs.some(function(j){ return j.mechanic === m.id && j.status === "inProgress" && (j.date||"").slice(0,10) === today; });
-  }).length;
-  var available = mechanics.length - inProgress;
 
   var loc = LOCATIONS[locIdx];
   var temp = wx ? Math.round(wx.temperature_2m) + "°C" : "—";
@@ -6760,25 +6753,6 @@ function InfoBar({ openAlerts, mechanics, jobs }) {
         <span style={{ fontSize:18 }}>📅</span>
         <span style={{ fontSize:17, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>{kw}</span>
         <span style={{ fontSize:14, color:"rgba(255,255,255,0.45)" }}>· {new Date().toLocaleDateString("de-DE",{weekday:"long"})}</span>
-      </div>
-
-      {/* EINGANG STATUS */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"0 28px", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
-        <span style={{ fontSize:18 }}>📥</span>
-        <div>
-          <span style={{ fontSize:20, fontWeight:700, color: openAlerts > 0 ? "#ef4444" : "#22c55e" }}>{openAlerts}</span>
-          <span style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginLeft:6 }}>Eingang offen</span>
-        </div>
-      </div>
-
-      {/* MECHANIKER */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"0 28px", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
-        <span style={{ fontSize:18 }}>🔧</span>
-        <div>
-          <span style={{ fontSize:20, fontWeight:700, color:"#22c55e" }}>{inProgress}</span>
-          <span style={{ fontSize:14, color:"rgba(255,255,255,0.45)", marginLeft:6 }}>in Arbeit</span>
-          <span style={{ fontSize:14, color:"rgba(255,255,255,0.3)", marginLeft:8 }}>/ {available} frei</span>
-        </div>
       </div>
 
       {/* ДИЗЕЛЬ */}
