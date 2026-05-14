@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WerkFlow Fahrer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -41,7 +44,17 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
-    body{background:#0a1730;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh}
+    :root{
+      --accent:#ffa500;--accent-dark:#cc7a00;--accent-glow:rgba(255,165,0,0.35);
+      --bg-base:#080e1a;--bg-card:rgba(13,25,52,0.85);--bg-input:rgba(6,15,38,0.9);
+      --bg-elevated:rgba(18,35,70,0.9);--border:rgba(255,255,255,0.1);
+      --text-primary:#f0f4ff;--text-secondary:rgba(255,255,255,0.55);--text-muted:rgba(255,255,255,0.3);
+      --green:#22c55e;--red:#ef4444;--radius-sm:10px;--radius-md:14px;--radius-lg:18px;
+      --touch:56px;--transition:150ms ease;
+      --font-display:'Barlow Condensed',sans-serif;--font-body:'Barlow',sans-serif;--font-mono:'DM Mono',monospace;
+      --sp1:8px;--sp2:16px;--sp3:24px;
+    }
+    body{background:var(--bg-base);color:var(--text-primary);font-family:var(--font-body);min-height:100vh;min-height:100dvh}
     #root{min-height:100vh;min-height:100dvh}
     button{font:inherit;color:inherit;cursor:pointer}
     input,textarea{font:inherit}
@@ -52,7 +65,7 @@
     @media(min-width:481px){body::before{content:"";position:fixed;inset:0;z-index:1;background:rgba(0,0,0,0.4);pointer-events:none}.scrn{box-shadow:0 0 60px rgba(0,0,0,0.6)}}
     .page-wrap{position:relative;min-height:100vh;min-height:100dvh;padding-bottom:calc(env(safe-area-inset-bottom) + 90px);max-width:480px;margin:0 auto;box-shadow:0 0 60px rgba(0,0,0,0.6)}
     .fixed-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:10;padding:14px 16px calc(env(safe-area-inset-bottom) + 14px);background:linear-gradient(180deg,transparent,rgba(10,23,48,0.96) 30%)}
-    .btn-primary{background:linear-gradient(180deg,#ffa500,#ff8c00);color:#0a1730;border:none;border-radius:12px;font-weight:800;padding:18px;width:100%;box-shadow:0 8px 24px rgba(255,165,0,0.35);font-size:16px}
+    .btn-primary{background:linear-gradient(180deg,var(--accent),var(--accent-dark));color:#0a1730;border:none;border-radius:var(--radius-md);font-family:var(--font-display);font-weight:900;letter-spacing:1px;padding:20px;width:100%;min-height:var(--touch);box-shadow:0 8px 24px var(--accent-glow);font-size:17px;transition:all var(--transition)}
     .btn-primary:disabled{opacity:0.5;cursor:not-allowed}
     .btn-back{width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center;color:#ffa500}
     .input-light{width:100%;padding:14px 14px 14px 44px;background:#fff;color:#0a1730;border:1px solid #e5e7eb;border-radius:12px;font-size:16px;outline:none}
@@ -78,7 +91,7 @@
     .insp-row{display:flex;align-items:center;gap:8px;padding:10px;border-radius:12px;background:rgba(20,40,80,0.50);border:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
     .insp-tag{width:50px;flex-shrink:0;background:#ffa500;color:#0a1730;font-weight:800;font-size:11px;padding:7px 0;text-align:center;border-radius:8px;letter-spacing:0.5px}
     .insp-label{flex:1;min-width:0;font-size:13px;font-weight:600;line-height:1.2}
-    .insp-btn{width:54px;height:42px;flex-shrink:0;padding:0;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:transparent;color:rgba(255,255,255,0.55);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+    .insp-btn{width:56px;height:56px;flex-shrink:0;padding:0;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:transparent;color:var(--text-muted);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all var(--transition)}
     .insp-btn.ok-on{background:rgba(255,165,0,0.18);border-color:#ffa500;color:#ffa500;box-shadow:0 0 0 1px #ffa500}
     .insp-btn.fail-on{background:rgba(255,59,48,0.18);border-color:#ff3b30;color:#ff3b30;box-shadow:0 0 0 1px #ff3b30}
     .insp-hd{display:flex;gap:8px;padding:0 10px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:1.2px}
@@ -90,15 +103,15 @@
     .urg-row.r{border-color:#ff3b30;box-shadow:0 0 0 1px #ff3b30}
     .urg-row.o{border-color:#ffa500;box-shadow:0 0 0 1px #ffa500}
     .urg-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
-    .drop-input{width:100%;padding:14px 16px;background:rgba(20,40,80,0.50);border:1px solid #ffa500;border-radius:12px;color:#fff;outline:none;font-size:15px}
+    .drop-input{width:100%;padding:16px var(--sp2);background:var(--bg-input);border:1.5px solid var(--accent);border-radius:var(--radius-md);color:var(--text-primary);outline:none;font-size:17px;min-height:var(--touch)}
     .drop-input:focus{box-shadow:0 0 0 1px #ffa500}
     .drop-list{position:absolute;top:100%;left:0;right:0;margin-top:6px;padding:6px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);max-height:260px;overflow-y:auto;z-index:30}
     .drop-item{padding:12px 14px;border-radius:8px;color:#fff;cursor:pointer}
     .drop-item:active{background:rgba(255,165,0,0.18);color:#ffa500}
-    .textarea-dark{width:100%;padding:14px;background:rgba(20,40,80,0.45);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;min-height:96px;outline:none}
-    .textarea-dark:focus{border-color:#ffa500}
-    .inp-dark{width:100%;padding:13px 14px;background:rgba(20,40,80,0.45);border:1px solid rgba(255,255,255,0.10);border-radius:12px;color:#fff;outline:none;font-size:15px}
-    .inp-dark:focus{border-color:#ffa500}
+    .textarea-dark{width:100%;padding:16px var(--sp2);background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);min-height:120px;outline:none;font-size:17px;font-family:var(--font-body);resize:none}
+    .textarea-dark:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    .inp-dark{width:100%;padding:16px var(--sp2);background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);outline:none;font-size:17px;font-family:var(--font-body);min-height:var(--touch)}
+    .inp-dark:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
     .label-cap{font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:1.5px;margin-bottom:8px}
     .geo-btn{width:48px;height:48px;border-radius:12px;background:rgba(255,165,0,0.12);border:1px solid rgba(255,165,0,0.5);color:#ffa500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .photo-box{border:2px dashed rgba(255,165,0,0.45);border-radius:14px;padding:22px;text-align:center;color:rgba(255,255,255,0.7);background:rgba(255,165,0,0.04);width:100%}
@@ -115,6 +128,7 @@
     .introjs-skipbutton{color:rgba(255,255,255,0.4)!important}
     .introjs-progressbar{background:#ffa500!important}
     .introjs-progress{background:rgba(255,255,255,0.1)!important}
+    @keyframes voicePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.03)}}
   </style>
   <link rel="manifest" href="manifest-fahrer.json" />
   <meta name="theme-color" content="#1d4ed8" />
@@ -170,8 +184,11 @@ const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 // PIN читается ТОЛЬКО из app_settings.driver_shared_pin — никакого хардкода
 const SESS_KEY = "werkflow_fahrer_v3";
-const LANGS = ["DE","RU","GB","UA","RO","HU","CZ"];
-var LANG_MAP = {"DE":"de","RU":"ru","GB":"en","UA":"uk","RO":"ro","HU":"hu","CZ":"cs"};
+const LANGS = ["DE","RU","GB","UA","RO","HU","CZ","LT","LV"];
+var LANG_MAP = {"DE":"de","RU":"ru","GB":"en","UA":"uk","RO":"ro","HU":"hu","CZ":"cs","LT":"lt","LV":"lv"};
+// Коды для распознавания речи (Web Speech API использует BCP-47)
+var SPEECH_LANG = {"DE":"de-DE","RU":"ru-RU","GB":"en-GB","UA":"uk-UA","RO":"ro-RO","HU":"hu-HU","CZ":"cs-CZ","LT":"lt-LT","LV":"lv-LV"};
+function speechLang(lang){ return SPEECH_LANG[lang] || "de-DE"; }
 
 // ── TRANSLATIONS ──────────────────────────────────────────────────────────────
 var T = {
@@ -411,6 +428,80 @@ cs:{
   bdTypes:[
     {k:"def",tag:"DEF",label:"Porucha"},{k:"sos",tag:"SOS",label:"Nehoda"},
     {k:"tyr",tag:"TYR",label:"Defekt"},{k:"oth",tag:"!",label:"Jiné"},
+  ],
+},
+lt:{
+  label:"Vairuotojas",reg:"PIRMASIS PRISIJUNGIMAS",fn:"Vardas",ln:"Pavardė",cont:"Toliau",pin:"ĮVESKITE PIN",login:"Prisijungti",
+  inspTruck:"Sunkvežimio patikra",inspTrailer:"Puspriekabės patikra",repBreak:"Pranešti apie gedimą",
+  back:"Atgal",vehPh:"Įveskite arba pasirinkite numerį",brandPh:"Markė / Modelis",kmPh:"Rida (neprivaloma)",
+  okH:"OK",nOkH:"NE OK",inspected:"patikrinta",faultShort:"Defektas",
+  defects:"Defektai / pastabos",defectsPh:"Aprašykite defektus...",
+  photoAdd:"Pridėti nuotraukas",submit:"Užbaigti patikrą",sending:"Siunčiama...",
+  sentTitle:"Atlikta!",sentOk:"Ataskaita išsiųsta",newInsp:"Nauja patikra",
+  bdTitle:"Pranešti apie gedimą",bdType:"Gedimo tipas",
+  locLabel:"Vieta",locPh:"Greitkelis A6 km 520...",
+  descLabel:"Aprašymas",descPh:"Kas nutiko?",
+  urgLabel:"Skubumas",urgYes:"REIKIA PAGALBOS",urgNo:"GALI PALAUKTI",
+  sendBtn:"PRANEŠTI",sentBreak:"Išsiųsta!",sentBreakDesc:"Dirbtuvės informuotos",newRep:"Naujas pranešimas",req:"privaloma",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Padangos ir slėgis"},
+    {k:"lgt",tag:"LGT",label:"Apšvietimas ir posūkiai"},
+    {k:"bra",tag:"BRA",label:"Stabdžiai"},
+    {k:"ste",tag:"STE",label:"Vairavimas"},
+    {k:"mot",tag:"MOT",label:"Variklis ir skysčiai"},
+    {k:"auf",tag:"AUF",label:"Kėbulas ir krovinio tvirtinimas"},
+    {k:"spi",tag:"SPI",label:"Veidrodžiai ir matomumas"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Padangos ir slėgis"},
+    {k:"lgt",tag:"LGT",label:"Apšvietimas ir posūkiai"},
+    {k:"box",tag:"BOX",label:"Kėbulas / tentas"},
+    {k:"cpl",tag:"CPL",label:"Sukabinimas ir balnas"},
+    {k:"dr", tag:"DR", label:"Durys ir spynos"},
+    {k:"flr",tag:"FLR",label:"Krovinio grindys"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Gedimas / defektas"},
+    {k:"sos",tag:"SOS",label:"Avarija"},
+    {k:"tyr",tag:"TYR",label:"Padangos gedimas"},
+    {k:"oth",tag:"!",  label:"Kita"},
+  ],
+},
+lv:{
+  label:"Šoferis",reg:"PIRMĀ PIETEIKŠANĀS",fn:"Vārds",ln:"Uzvārds",cont:"Tālāk",pin:"IEVADIET PIN",login:"Pieteikties",
+  inspTruck:"Kravas auto pārbaude",inspTrailer:"Puspiekabes pārbaude",repBreak:"Ziņot par bojājumu",
+  back:"Atpakaļ",vehPh:"Ievadiet vai izvēlieties numuru",brandPh:"Marka / Modelis",kmPh:"Nobraukums (nav obligāts)",
+  okH:"OK",nOkH:"NAV OK",inspected:"pārbaudīts",faultShort:"Defekts",
+  defects:"Defekti / piezīmes",defectsPh:"Aprakstiet defektus...",
+  photoAdd:"Pievienot fotoattēlus",submit:"Pabeigt pārbaudi",sending:"Sūta...",
+  sentTitle:"Pabeigts!",sentOk:"Ziņojums nosūtīts",newInsp:"Jauna pārbaude",
+  bdTitle:"Ziņot par bojājumu",bdType:"Bojājuma veids",
+  locLabel:"Atrašanās vieta",locPh:"Automaģistrāle A6 km 520...",
+  descLabel:"Apraksts",descPh:"Kas notika?",
+  urgLabel:"Steidzamība",urgYes:"NEPIECIEŠAMA PALĪDZĪBA",urgNo:"VAR PAGAIDĪT",
+  sendBtn:"ZIŅOT",sentBreak:"Nosūtīts!",sentBreakDesc:"Darbnīca informēta",newRep:"Jauns ziņojums",req:"obligāts",
+  truckChecks:[
+    {k:"tyr",tag:"TYR",label:"Riepas un spiediens"},
+    {k:"lgt",tag:"LGT",label:"Apgaismojums un pagriezieni"},
+    {k:"bra",tag:"BRA",label:"Bremzes"},
+    {k:"ste",tag:"STE",label:"Stūrēšana"},
+    {k:"mot",tag:"MOT",label:"Dzinējs un šķidrumi"},
+    {k:"auf",tag:"AUF",label:"Virsbūve un kravas nostiprināšana"},
+    {k:"spi",tag:"SPI",label:"Spoguļi un redzamība"},
+  ],
+  trailerChecks:[
+    {k:"tyr",tag:"TYR",label:"Riepas un spiediens"},
+    {k:"lgt",tag:"LGT",label:"Apgaismojums un pagriezieni"},
+    {k:"box",tag:"BOX",label:"Virsbūve / tents"},
+    {k:"cpl",tag:"CPL",label:"Sakabe un segls"},
+    {k:"dr", tag:"DR", label:"Durvis un slēdzenes"},
+    {k:"flr",tag:"FLR",label:"Kravas grīda"},
+  ],
+  bdTypes:[
+    {k:"def",tag:"DEF",label:"Bojājums / defekts"},
+    {k:"sos",tag:"SOS",label:"Avārija"},
+    {k:"tyr",tag:"TYR",label:"Riepas bojājums"},
+    {k:"oth",tag:"!",  label:"Cits"},
   ],
 },
 };
@@ -861,6 +952,9 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
   var _sel=useState(null); var sel=_sel[0]; var setSel=_sel[1];
   var _chk=useState({}); var chk=_chk[0]; var setChk=_chk[1];
   var _notes=useState(""); var notes=_notes[0]; var setNotes=_notes[1];
+  var _svn=useState(false); var voiceNotes=_svn[0]; var setVoiceNotes=_svn[1];
+  var _svnt=useState(""); var voiceNotesText=_svnt[0]; var setVoiceNotesText=_svnt[1];
+  var voiceNotesRef=useRef(null);
   var _km=useState(""); var km=_km[0]; var setKm=_km[1];
   var _ph=useState([]); var photos=_ph[0]; var setPhotos=_ph[1];
   var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
@@ -1011,7 +1105,58 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
 
         <div style={{ marginTop:18,marginBottom:14 }}>
           <div className="label-cap">{t.defects}</div>
-          <textarea className="textarea-dark" placeholder={t.defectsPh} value={notes} onChange={function(e){ setNotes(e.target.value); }} />
+          <textarea className="textarea-dark" placeholder={t.defectsPh} value={notes}
+            onChange={function(e){ setNotes(e.target.value); }}
+            style={{ borderColor:voiceNotes?"var(--red)":undefined, marginBottom:8 }} />
+          {(typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition))&&(
+            <div>
+              <button type="button"
+                onPointerDown={function(e){
+                  e.preventDefault();
+                  if(voiceNotesRef.current)return;
+                  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                  var rec;
+                  try{rec=new SR();}catch(err){return;}
+                  rec.lang=speechLang(lang);rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+                  var finalText="";
+                  rec.onresult=function(ev){
+                    var interim="";finalText="";
+                    for(var i=0;i<ev.results.length;i++){
+                      if(ev.results[i].isFinal){finalText+=ev.results[i][0].transcript+" ";}
+                      else{interim+=ev.results[i][0].transcript;}
+                    }
+                    setVoiceNotesText(finalText+interim);
+                  };
+                  rec.onerror=function(){};
+                  rec.onend=function(){
+                    voiceNotesRef.current=null;setVoiceNotes(false);
+                    var captured=finalText.trim();
+                    if(captured){setNotes(function(prev){return prev?prev+" "+captured:captured;});}
+                    setVoiceNotesText("");
+                  };
+                  voiceNotesRef.current=rec;setVoiceNotesText("");setVoiceNotes(true);
+                  try{rec.start();}catch(err){voiceNotesRef.current=null;setVoiceNotes(false);}
+                }}
+                onPointerUp={function(e){
+                  e.preventDefault();
+                  if(!voiceNotesRef.current)return;
+                  try{voiceNotesRef.current.stop();}catch(err){}
+                }}
+                onPointerLeave={function(e){
+                  if(!voiceNotesRef.current)return;
+                  try{voiceNotesRef.current.stop();}catch(err){}
+                }}
+                onPointerCancel={function(e){
+                  if(!voiceNotesRef.current)return;
+                  try{voiceNotesRef.current.stop();}catch(err){}
+                }}
+                style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"14px",borderRadius:"var(--radius-md)",border:"1.5px solid",borderColor:voiceNotes?"var(--red)":"var(--border)",background:voiceNotes?"rgba(239,68,68,0.1)":"var(--bg-elevated)",color:voiceNotes?"var(--red)":"var(--text-secondary)",fontFamily:"var(--font-display)",fontWeight:700,fontSize:14,letterSpacing:1,minHeight:"var(--touch)",userSelect:"none",WebkitUserSelect:"none",touchAction:"none",animation:voiceNotes?"voicePulse 0.6s infinite":"none"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                {voiceNotes?"Loslassen...":"Gedrückt halten — Sprechen"}
+              </button>
+              {voiceNotes&&voiceNotesText?<div style={{marginTop:6,padding:"8px 12px",borderRadius:"var(--radius-sm)",background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.2)",fontSize:13,color:"rgba(255,255,255,0.7)",fontStyle:"italic"}}>{voiceNotesText}</div>:null}
+            </div>
+          )}
         </div>
 
         <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
@@ -1048,6 +1193,9 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var _gps=useState(false); var gpsLoad=_gps[0]; var setGpsLoad=_gps[1];
   var _gacc=useState(null); var gpsAcc=_gacc[0]; var setGpsAcc=_gacc[1];
   var _desc=useState(_draftInit.desc||""); var desc=_desc[0]; var setDesc=_desc[1];
+  var _svd=useState(false); var voiceDesc=_svd[0]; var setVoiceDesc=_svd[1];
+  var _svdt=useState(""); var voiceDescText=_svdt[0]; var setVoiceDescText=_svdt[1];
+  var voiceDescRef=useRef(null);
   var _ph=useState([]); var photos=_ph[0]; var setPhotos=_ph[1];
   var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
   var _sent=useState(false); var sent=_sent[0]; var setSent=_sent[1];
@@ -1239,7 +1387,58 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
 
         <div style={{ marginBottom:14 }}>
           <div className="label-cap">{(t.descLabel+" *").toUpperCase()}</div>
-          <textarea className="textarea-dark" placeholder={t.descPh} value={desc} onChange={function(e){ setDesc(e.target.value); }} />
+          <textarea className="textarea-dark" placeholder={t.descPh} value={desc}
+            onChange={function(e){ setDesc(e.target.value); }}
+            style={{ borderColor:voiceDesc?"var(--red)":undefined, marginBottom:8 }} />
+          {(typeof window!=="undefined"&&(window.SpeechRecognition||window.webkitSpeechRecognition))&&(
+            <div>
+              <button type="button"
+                onPointerDown={function(e){
+                  e.preventDefault();
+                  if(voiceDescRef.current)return;
+                  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                  var rec;
+                  try{rec=new SR();}catch(err){return;}
+                  rec.lang=speechLang(lang);rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+                  var finalText="";
+                  rec.onresult=function(ev){
+                    var interim="";finalText="";
+                    for(var i=0;i<ev.results.length;i++){
+                      if(ev.results[i].isFinal){finalText+=ev.results[i][0].transcript+" ";}
+                      else{interim+=ev.results[i][0].transcript;}
+                    }
+                    setVoiceDescText(finalText+interim);
+                  };
+                  rec.onerror=function(){};
+                  rec.onend=function(){
+                    voiceDescRef.current=null;setVoiceDesc(false);
+                    var captured=finalText.trim();
+                    if(captured){setDesc(function(prev){return prev?prev+" "+captured:captured;});}
+                    setVoiceDescText("");
+                  };
+                  voiceDescRef.current=rec;setVoiceDescText("");setVoiceDesc(true);
+                  try{rec.start();}catch(err){voiceDescRef.current=null;setVoiceDesc(false);}
+                }}
+                onPointerUp={function(e){
+                  e.preventDefault();
+                  if(!voiceDescRef.current)return;
+                  try{voiceDescRef.current.stop();}catch(err){}
+                }}
+                onPointerLeave={function(e){
+                  if(!voiceDescRef.current)return;
+                  try{voiceDescRef.current.stop();}catch(err){}
+                }}
+                onPointerCancel={function(e){
+                  if(!voiceDescRef.current)return;
+                  try{voiceDescRef.current.stop();}catch(err){}
+                }}
+                style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"14px",borderRadius:"var(--radius-md)",border:"1.5px solid",borderColor:voiceDesc?"var(--red)":"var(--border)",background:voiceDesc?"rgba(239,68,68,0.1)":"var(--bg-elevated)",color:voiceDesc?"var(--red)":"var(--text-secondary)",fontFamily:"var(--font-display)",fontWeight:700,fontSize:14,letterSpacing:1,minHeight:"var(--touch)",userSelect:"none",WebkitUserSelect:"none",touchAction:"none",animation:voiceDesc?"voicePulse 0.6s infinite":"none"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                {voiceDesc?"Loslassen...":"Gedrückt halten — Sprechen"}
+              </button>
+              {voiceDesc&&voiceDescText?<div style={{marginTop:6,padding:"8px 12px",borderRadius:"var(--radius-sm)",background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.2)",fontSize:13,color:"rgba(255,255,255,0.7)",fontStyle:"italic"}}>{voiceDescText}</div>:null}
+            </div>
+          )}
         </div>
 
         <PhotoUpload photos={photos} setPhotos={setPhotos} t={t} />
