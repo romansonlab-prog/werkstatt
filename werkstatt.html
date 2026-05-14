@@ -745,6 +745,23 @@ function clearTimerKeys() {
   } catch(e) {}
 }
 
+// Генерация уникального ID записи БД. Префикс сохраняем для читаемости
+// в таблицах (J = job, DU = inspection и т.д.), хвост — UUID вместо
+// timestamp, чтобы исключить коллизию при одновременном создании.
+function genId(prefix) {
+  var uuid;
+  try {
+    if (window.crypto && window.crypto.randomUUID) {
+      uuid = window.crypto.randomUUID();
+    }
+  } catch(e) {}
+  if (!uuid) {
+    // Fallback для старых браузеров: timestamp + случайный хвост
+    uuid = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 11);
+  }
+  return (prefix || "") + uuid;
+}
+
 function sbInsert(table, payload, minimal) {
   return fetch(SB_URL + "/rest/v1/" + table, {
     method:"POST",
@@ -773,6 +790,26 @@ function sbPatch(table, id, payload) {
     if (!res.ok) return res.text().then(function(t) { throw new Error(table + " patch: " + t); });
     return true;
   });
+}
+
+// Атомарный PATCH с доп. условием в URL (напр. "taken_by=is.null").
+// Возвращает массив изменённых строк — если пусто, условие не выполнилось
+// (кто-то уже изменил запись). Защита от race condition.
+function sbPatchConditional(table, id, extraFilter, payload) {
+  var url = SB_URL + "/rest/v1/" + table + "?id=eq." + encodeURIComponent(id);
+  if (extraFilter) url += "&" + extraFilter;
+  return fetch(url, {
+    method:"PATCH",
+    headers: {
+      "Content-Type":"application/json",
+      "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY,
+      "Prefer":"return=representation"
+    },
+    body: JSON.stringify(payload)
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(t) { throw new Error(table + " patch: " + t); });
+    return res.json();
+  }).then(function(json) { return Array.isArray(json) ? json : []; });
 }
 
 function sbUploadPhoto(path, file) {
@@ -827,7 +864,7 @@ function ensureVehicle(vehicle, vehicles, setVehicles, user) {
   if (exists) return Promise.resolve(exists);
   var nied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
   var row = {
-    id:"V" + Date.now(), plate:vehicle.plate, brand:vehicle.brand || "",
+    id:genId("V"), plate:vehicle.plate, brand:vehicle.brand || "",
     type:vehicle.type || "other",
     home_niederlassung_id: nied,
     tenant_id: "ltg",
@@ -1452,7 +1489,7 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }
   function addShopItem() {
     setShopItems(shopItems.concat([{
 
-      id: "SI" + Date.now(),
+      id: genId("SI"),
       lieferschein:"", datum:todayIso(),
       typ:"", name:"", preis:""
     }]));
@@ -1477,7 +1514,7 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }
     if (scanTarget === "new") {
       // Добавляем новую позицию
       var newItem = {
-        id: "SI" + Date.now(),
+        id: genId("SI"),
         lieferschein: "", datum: todayIso(),
         typ: found ? (found.category||found.typ||"") : "",
         name: found ? (found.name||found.bezeichnung||code) : "Barcode: "+code,
@@ -1550,7 +1587,7 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }
                   <div key={s.id} className="lager-row" style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, background:"rgba(255,255,255,0.04)", marginBottom:6, cursor:"pointer" }}
                     onClick={function(){
                       setShopItems(shopItems.concat([{
-                        id: "SI"+Date.now(), lieferschein:"", datum:todayIso(),
+                        id: genId("SI"), lieferschein:"", datum:todayIso(),
                         typ: s.category||s.typ||"", name: s.name||s.bezeichnung||"",
                         preis: String(s.price||s.preis||"")
                       }]));
@@ -1766,7 +1803,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
     if (creatingJobRef.current) return;  // создаётся прямо сейчас
     if (!vehicle || !vehicle.plate) return; // без машины не создаём
     creatingJobRef.current = true;
-    var newId = "J" + Date.now();
+    var newId = genId("J");
     var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
     var payload = {
       id: newId,
@@ -1823,7 +1860,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       partsNote = "Neu aus Lager (Buchung folgt)";
     }
     var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
-    var totalCost = laborCost + partsCost;
 
     // Новая запись в журнал пауз
     var prevLog = (prefill && prefill.pause_log) ? prefill.pause_log : [];
@@ -1863,7 +1899,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           parts_note: partsNote || null,
           parts_items: partsType === "shop" ? JSON.stringify(shopItems) : null,
           colleague: colleague ? (colleagueName || "Kollege") : null,
-          cost: totalCost,
           labor_cost: laborCost,
           parts_cost: partsCost,
           photos: photoUrls.length,
@@ -1977,7 +2012,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
     savingRef.current = true;
     setSaving(true);
     // Если заказ уже создан при старте таймера — используем его id, иначе новый
-    var jobId = jobIdRef.current || ("J" + Date.now());
+    var jobId = jobIdRef.current || genId("J");
     var jobAlreadyInDb = !!jobIdRef.current;
 
     var partsNote = "";
@@ -2004,7 +2039,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       })
       .then(function(photoUrls) {
         var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
-        var totalCost = laborCost + partsCost;
         var vehicleHomeNied = (savedVehicleRow && savedVehicleRow.home_niederlassung_id)
           ? savedVehicleRow.home_niederlassung_id : workshopNied;
         var payload = {
@@ -2027,7 +2061,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           tire_new_sn: workType === "tireChange" && tireNewSn.trim() ? tireNewSn.trim() : null,
           tire_old_sn: workType === "tireChange" && tireOldSn.trim() ? tireOldSn.trim() : null,
           tire_condition: workType === "tireChange" ? tireNewCond : null,
-          cost: totalCost,
           labor_cost: laborCost,
           parts_cost: partsCost,
           photos: photoUrls.length,
@@ -2428,7 +2461,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                       amt = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
                     }
                     var inv = {
-                      id: "LS" + Date.now(),
+                      id: genId("LS"),
                       date: rDate,
                       supplier: rSupplier.trim() || "Unbekannt",
                       invoice_nr: rNr.trim() || null,
@@ -2535,10 +2568,25 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
       return;
     }
     setUpdating(true);
-    var patch = {};
+
     if (action === "take") {
-      patch = { taken_by: user.id, taken_by_name: user.name };
-    } else if (action === "reject") {
+      // Атомарно: берём алерт только если taken_by ещё пуст
+      sbPatchConditional("alerts", a.id, "taken_by=is.null",
+        { taken_by: user.id, taken_by_name: user.name })
+        .then(function(rows) {
+          setUpdating(false);
+          setModal(null);
+          if (rows.length === 0) {
+            showToast("Bereits von einem anderen Mechaniker übernommen");
+          }
+          onRefresh();
+        })
+        .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
+      return;
+    }
+
+    var patch = {};
+    if (action === "reject") {
       patch = { status:"rejected", reject_reason: reason };
     } else if (action === "defer") {
       patch = { status:"pending", reject_reason: reason };
@@ -2549,10 +2597,31 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
   }
 
   function doCreate(a) {
-    // При создании заказа — блокируем алерт для других
-    sbPatch("alerts", a.id, { taken_by: user.id, taken_by_name: user.name })
-      .catch(function(){});
-    onCreate(a);
+    // Атомарно пытаемся занять алерт. Если уже взят другим механиком —
+    // форму НЕ открываем, только уведомляем. Просмотр остаётся, оформление — нет.
+    setUpdating(true);
+    sbPatchConditional("alerts", a.id, "taken_by=is.null",
+      { taken_by: user.id, taken_by_name: user.name })
+      .then(function(rows) {
+        setUpdating(false);
+        if (rows.length === 0) {
+          // Условие taken_by=is.null не сработало — кто-то уже взял.
+          // Исключение: мы сами уже держим этот алерт — тогда можно продолжать.
+          if (a.taken_by === user.id) {
+            onCreate(a);
+          } else {
+            showToast("Bereits von " + (a.taken_by_name || "einem anderen Mechaniker") + " übernommen");
+            onRefresh();
+          }
+          return;
+        }
+        // Успешно заняли — открываем форму заказа
+        onCreate(Object.assign({}, a, { taken_by: user.id, taken_by_name: user.name }));
+      })
+      .catch(function(e) {
+        setUpdating(false);
+        alert("Fehler: " + e.message);
+      });
   }
 
   return (
@@ -2657,8 +2726,8 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
 
             {!takenByOther && (
               <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-                <button className="save-btn" type="button"
-                  style={{ flex:2, marginTop:0, marginBottom:0, padding:14, fontSize:14 }}
+                <button className="save-btn" type="button" disabled={updating}
+                  style={{ flex:2, marginTop:0, marginBottom:0, padding:14, fontSize:14, opacity: updating ? 0.6 : 1 }}
                   onClick={function(){ doCreate(a); }}>
                   + Auftrag erstellen
                 </button>
@@ -3298,7 +3367,7 @@ function DUAuflieger({ user, vehicles, onRefresh }) {
       if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
     }
     setSaving(true);
-    var id = "DU" + Date.now();
+    var id = genId("DU");
     var payload = {
       id: id,
       type: "du_auflieger",
@@ -4042,7 +4111,7 @@ function App() {
       ? { id: knownUser.id, name: fullName, avatar: knownUser.avatar||avatar,
           role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
           app_access:["werkstatt"], tenant_id:"ltg" }
-      : { id:"wk_"+Date.now(), name:fullName, avatar:avatar,
+      : { id:genId("wk_"), name:fullName, avatar:avatar,
           role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
           app_access:["werkstatt"], tenant_id:"ltg" };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
