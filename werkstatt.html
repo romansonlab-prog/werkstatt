@@ -812,6 +812,22 @@ function sbPatchConditional(table, id, extraFilter, payload) {
   }).then(function(json) { return Array.isArray(json) ? json : []; });
 }
 
+// Вызов RPC-функции Postgres. Используется для атомарных операций,
+// которые должны выполниться целиком или не выполниться вовсе (транзакция).
+function sbRpc(fnName, params) {
+  return fetch(SB_URL + "/rest/v1/rpc/" + fnName, {
+    method:"POST",
+    headers: {
+      "Content-Type":"application/json",
+      "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY
+    },
+    body: JSON.stringify(params || {})
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(t) { throw new Error(fnName + " rpc: " + t); });
+    return res.json();
+  });
+}
+
 function sbUploadPhoto(path, file) {
   return fetch(SB_URL + "/storage/v1/object/job-photos/" + path, {
     method:"POST",
@@ -1822,9 +1838,13 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       tenant_id: "ltg",
       created_at: new Date().toISOString()
     };
-    sbInsert("jobs", payload, true)
-      .then(function() {
-        jobIdRef.current = newId;
+    sbRpc("create_job_from_alert", {
+      p_job: payload,
+      p_alert_id: (prefill && prefill.id) ? prefill.id : null
+    })
+      .then(function(returnedId) {
+        // RPC возвращает id созданного заказа (текстом)
+        jobIdRef.current = returnedId || newId;
         creatingJobRef.current = false;
       })
       .catch(function(e) {
@@ -2087,18 +2107,18 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           payload.paused_at = null;
         }
         if (workMin > 0) payload.finished_at = new Date().toISOString();
-        // Если заказ уже создан при старте — обновляем (PATCH), иначе создаём (INSERT)
+        // Если заказ уже создан при старте — обновляем (PATCH).
+        // Заявка в этом случае уже закрыта RPC при создании заказа.
         if (jobAlreadyInDb) {
           return sbPatch("jobs", jobId, payload);
         }
+        // Заказ ещё не создавался (механик сразу нажал "Speichern" без таймера).
+        // Создаём через RPC — атомарно: заказ + закрытие заявки одной транзакцией.
         payload.created_at = new Date().toISOString();
-        return sbInsert("jobs", payload, true);
-      })
-      .then(function() {
-        if (prefill && prefill.id) {
-          return sbPatch("alerts", prefill.id, { status:"done" }).catch(function(e){ console.warn(e); });
-        }
-        return Promise.resolve();
+        return sbRpc("create_job_from_alert", {
+          p_job: payload,
+          p_alert_id: (prefill && prefill.id) ? prefill.id : null
+        });
       })
       .then(function() {
         // Черновик очищаем после успешного сохранения
