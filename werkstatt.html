@@ -1222,10 +1222,13 @@ function VehicleInput({ vehicles, value, onChange, vehicleType, onOpenChange }) 
         onBlur={function(){ setTimeout(function(){ commit(); changeOpen(false); }, 180); }}
       />
       {plate.trim() && (
-        <input className="input-dark" style={{ marginTop:8 }} value={brand} placeholder="Marke / Modell (optional)"
-          onChange={function(e){ setBrand(e.target.value); }}
-          onBlur={function(){ commit(); }}
-        />
+        <div>
+          <div className="label-cap" style={{ visibility:"hidden" }}>Marke</div>
+          <input className="input-dark" value={brand} placeholder="Marke / Modell (optional)"
+            onChange={function(e){ setBrand(e.target.value); }}
+            onBlur={function(){ commit(); }}
+          />
+        </div>
       )}
       {open && filtered.length > 0 && (
         <div className="dropdown-list">
@@ -2129,7 +2132,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
             }}>
               {VEHICLE_TYPES.map(function(vt) { return <option key={vt[0]} value={vt[0]}>{vt[1]}</option>; })}
             </select>
-            <div className="label-cap" style={{ marginTop:8 }}>Standort</div>
+            <div className="label-cap">Standort</div>
             <StandortPicker value={location} onChange={setLocation} locations={locations} />
           </div>
           <div>
