@@ -1947,8 +1947,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               var finalText = "";
               rec.onresult = function(ev){
                 var interim = "";
-                finalText = "";
-                for (var i = 0; i < ev.results.length; i++) {
+                // обрабатываем только НОВЫЕ результаты начиная с resultIndex
+                for (var i = ev.resultIndex; i < ev.results.length; i++) {
                   if (ev.results[i].isFinal) {
                     finalText += ev.results[i][0].transcript + " ";
                   } else {
@@ -1967,7 +1967,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                 }
                 setVoiceText("");
               };
-              rec._finalGetter = function(){ return finalText; };
               voiceRef.current = rec;
               setVoiceText("");
               setVoiceActive(true);

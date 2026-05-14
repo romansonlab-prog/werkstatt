@@ -1120,8 +1120,8 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
                   rec.lang=speechLang(lang);rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
                   var finalText="";
                   rec.onresult=function(ev){
-                    var interim="";finalText="";
-                    for(var i=0;i<ev.results.length;i++){
+                    var interim="";
+                    for(var i=ev.resultIndex;i<ev.results.length;i++){
                       if(ev.results[i].isFinal){finalText+=ev.results[i][0].transcript+" ";}
                       else{interim+=ev.results[i][0].transcript;}
                     }
@@ -1402,8 +1402,8 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
                   rec.lang=speechLang(lang);rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
                   var finalText="";
                   rec.onresult=function(ev){
-                    var interim="";finalText="";
-                    for(var i=0;i<ev.results.length;i++){
+                    var interim="";
+                    for(var i=ev.resultIndex;i<ev.results.length;i++){
                       if(ev.results[i].isFinal){finalText+=ev.results[i][0].transcript+" ";}
                       else{interim+=ev.results[i][0].transcript;}
                     }
