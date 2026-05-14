@@ -1699,6 +1699,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var _sdesc = useState(prefill && prefill.description ? prefill.description : (_draft.description || ""));
   var description = _sdesc[0]; var setDescription = _sdesc[1];
   var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
+  var _svoiceText = useState(""); var voiceText = _svoiceText[0]; var setVoiceText = _svoiceText[1];
   var voiceRef = useRef(null);
   var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
   var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
@@ -2009,7 +2010,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               <line x1="12" y1="19" x2="12" y2="23"/>
               <line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
-            {voiceActive ? "● Aufnahme läuft — Tippen zum Stoppen" : "🎤 Spracheingabe starten"}
+            {voiceActive ? "● Aufnahme läuft — Tippen zum Stoppen" : "Spracheingabe starten"}
           </button>
         )}
         {voiceActive && voiceText ? (
