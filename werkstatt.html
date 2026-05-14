@@ -1700,6 +1700,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var description = _sdesc[0]; var setDescription = _sdesc[1];
   var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
   var _svoiceText = useState(""); var voiceText = _svoiceText[0]; var setVoiceText = _svoiceText[1];
+  var _svoiceDebug = useState(""); var voiceDebug = _svoiceDebug[0]; var setVoiceDebug = _svoiceDebug[1];
   var voiceRef = useRef(null);
   var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
   var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
@@ -1935,22 +1936,32 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
           <button type="button"
             onClick={function(){
+              setVoiceDebug("1. Klick erkannt");
               // Если запись идёт — останавливаем
               if (voiceRef.current) {
                 var recOld = voiceRef.current;
                 voiceRef.current = null;
                 setVoiceActive(false);
+                setVoiceDebug("Gestoppt durch Klick");
                 try { recOld.stop(); } catch(err){}
                 return;
               }
               // Запуск новой записи
               var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+              setVoiceDebug("2. SR-Objekt: " + (SR ? "vorhanden" : "FEHLT"));
               var rec;
-              try { rec = new SR(); } catch(err){ alert("Spracherkennung nicht verfügbar"); return; }
+              try { rec = new SR(); } catch(err){ setVoiceDebug("FEHLER bei new SR(): " + err.message); return; }
+              setVoiceDebug("3. SR erstellt");
               rec.lang = "de-DE";
               rec.continuous = true;
               rec.interimResults = true;
               var finalText = "";
+              rec.onstart = function(){
+                setVoiceDebug("5. ✓ Aufnahme gestartet — sprechen!");
+              };
+              rec.onaudiostart = function(){
+                setVoiceDebug("6. Audio empfangen");
+              };
               rec.onresult = function(ev){
                 var interim = "";
                 finalText = "";
@@ -1962,24 +1973,22 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                   }
                 }
                 setVoiceText(finalText + interim);
+                setVoiceDebug("7. Erkannt: " + (finalText + interim).slice(0, 30));
               };
               rec.onerror = function(ev){
-                console.log("Speech error:", ev.error);
-                if (ev.error === "no-speech" || ev.error === "aborted") {
-                  // не критично — просто продолжаем или останавливаем тихо
-                } else {
-                  alert("Spracherkennung Fehler: " + ev.error);
-                }
+                setVoiceDebug("FEHLER: " + ev.error + (ev.message ? " — " + ev.message : ""));
                 voiceRef.current = null;
                 setVoiceActive(false);
               };
               rec.onend = function(){
-                // запись завершилась (сама или по stop) — сохраняем текст
                 voiceRef.current = null;
                 setVoiceActive(false);
                 var captured = finalText.trim();
                 if (captured) {
                   setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
+                  setVoiceDebug("Fertig — Text gespeichert");
+                } else {
+                  setVoiceDebug("Beendet — kein Text erkannt");
                 }
                 setVoiceText("");
               };
@@ -1988,8 +1997,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               setVoiceActive(true);
               try {
                 rec.start();
+                setVoiceDebug("4. rec.start() aufgerufen");
               } catch(err){
-                console.log("start failed:", err);
+                setVoiceDebug("FEHLER bei start(): " + err.message);
                 voiceRef.current = null;
                 setVoiceActive(false);
               }
@@ -2013,6 +2023,13 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
             {voiceActive ? "● Aufnahme läuft — Tippen zum Stoppen" : "Spracheingabe starten"}
           </button>
         )}
+        {voiceDebug ? (
+          <div style={{ marginTop:8, padding:"10px 12px", borderRadius:"var(--radius-sm)",
+            background:"rgba(96,165,250,0.1)", border:"1px solid rgba(96,165,250,0.35)",
+            fontSize:13, color:"#93c5fd", fontFamily:"var(--font-mono)", wordBreak:"break-word" }}>
+            🔍 {voiceDebug}
+          </div>
+        ) : null}
         {voiceActive && voiceText ? (
           <div style={{ marginTop:8, padding:"12px 14px", borderRadius:"var(--radius-sm)",
             background:"rgba(239,68,68,0.07)", border:"1px solid rgba(239,68,68,0.2)",
