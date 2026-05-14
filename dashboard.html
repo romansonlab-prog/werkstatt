@@ -1137,13 +1137,28 @@ function translateToDE(text) {
 }
 
 // === EINGANG ===
-function Eingang({ alerts, onRefresh, loading }) {
+function Eingang({ alerts, jobs, onRefresh, loading }) {
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
   var _su = useState(false); var updating = _su[0]; var setUpdating = _su[1];
   var _df = useState(todayIso()); var dateFilter = _df[0]; var setDateFilter = _df[1];
   var _ep = useState({}); var expandedPhotos = _ep[0]; var setExpandedPhotos = _ep[1];
   var _tr = useState({}); var translations = _tr[0]; var setTranslations = _tr[1];
   var _sa = useState(null); var selectedAlert = _sa[0]; var setSelectedAlert = _sa[1];
+  var _snav = useState(null); var navOpenId = _snav[0]; var setNavOpenId = _snav[1];
+
+  function parseCoords(loc) {
+    if (!loc) return null;
+    var m = loc.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+    if (m) return { lat: m[1], lng: m[2] };
+    return null;
+  }
+
+  function openNavApp(app, coords) {
+    var url;
+    if (app === "google") url = "https://maps.google.com/?q=" + coords.lat + "," + coords.lng;
+    else if (app === "waze") url = "https://waze.com/ul?ll=" + coords.lat + "," + coords.lng + "&navigate=yes";
+    if (url) window.open(url, "_blank");
+  }
   function togglePhotos(id){ setExpandedPhotos(function(prev){ var n=Object.assign({},prev); n[id]=!n[id]; return n; }); }
 
   useEffect(function(){
@@ -1387,7 +1402,53 @@ function Eingang({ alerts, onRefresh, loading }) {
                     </div>
                     {/* ЛОКАЦИЯ */}
                     <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
-                      <div style={{ fontSize:14, color:"rgba(255,255,255,0.6)" }}>{a.location||"—"}</div>
+                      {(function(){
+                        var coords = parseCoords(a.location);
+                        var isOpen = navOpenId === a.id;
+                        return (
+                          <div>
+                            <div onClick={function(){ if(coords) setNavOpenId(isOpen ? null : a.id); }}
+                              style={{ fontSize:14, color: coords ? "#ffa500" : "rgba(255,255,255,0.6)",
+                                cursor: coords ? "pointer" : "default",
+                                textDecoration: coords ? "underline" : "none",
+                                textDecorationStyle:"dotted", lineHeight:1.4 }}>
+                              {a.location||"—"}
+                              {coords && <span style={{ marginLeft:4, fontSize:11 }}>{isOpen?"▲":"▼"}</span>}
+                            </div>
+                            {isOpen && coords && (
+                              <div style={{ display:"flex", flexDirection:"column", gap:6, marginTop:8 }}>
+                                <button type="button" onClick={function(){ openNavApp("google", coords); }}
+                                  style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px",
+                                    borderRadius:10, border:"1.5px solid rgba(66,133,244,0.5)",
+                                    background:"rgba(66,133,244,0.1)", color:"#4285F4",
+                                    fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                                  Google Maps
+                                </button>
+                                <button type="button" onClick={function(){ openNavApp("waze", coords); }}
+                                  style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px",
+                                    borderRadius:10, border:"1.5px solid rgba(0,210,255,0.4)",
+                                    background:"rgba(0,210,255,0.08)", color:"#00D2FF",
+                                    fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="10" r="6"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>
+                                  Waze
+                                </button>
+                                <button type="button" onClick={function(){
+                                    if(navigator.clipboard) navigator.clipboard.writeText(a.location||"");
+                                    setNavOpenId(null);
+                                  }}
+                                  style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px",
+                                    borderRadius:10, border:"1.5px solid rgba(255,255,255,0.15)",
+                                    background:"rgba(255,255,255,0.05)", color:"rgba(255,255,255,0.6)",
+                                    fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                  Kopieren
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     {/* МЕХАНИК */}
                     <div style={{ padding:"0 12px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
@@ -1431,46 +1492,223 @@ function Eingang({ alerts, onRefresh, loading }) {
             })()
         }
       </div>
-      {selectedAlert && (
-        <div onClick={function(){ setSelectedAlert(null); }} style={{
-          position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200,
-          display:"flex", alignItems:"center", justifyContent:"center", padding:40
-        }}>
-          <div onClick={function(e){ e.stopPropagation(); }} style={{
-            background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
-            borderRadius:20, padding:36, maxWidth:680, width:"100%",
-            boxShadow:"0 24px 60px rgba(0,0,0,0.6)"
+      {selectedAlert && (function(){
+        var a = selectedAlert;
+        var linkedJob = (jobs || []).find(function(j){ return j.alert_id === a.id; });
+        var coords = parseCoords(a.location);
+        return (
+          <div onClick={function(){ setSelectedAlert(null); }} style={{
+            position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:200,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:"20px",
+            overflowY:"auto"
           }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-              {urgBadge(selectedAlert.urgency)}
-              <span style={{ fontSize:26, fontWeight:900, letterSpacing:2, fontFamily:"monospace" }}>
-                {selectedAlert.plate||"—"}
-              </span>
-              <span style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginLeft:"auto" }}>
-                {fmtDateTime(selectedAlert.created_at)} · {selectedAlert.sender||""}
-              </span>
-            </div>
-            <div style={{ fontSize:22, fontWeight:600, color:"#fff", lineHeight:1.6, marginBottom:16 }}>
-              {translations[selectedAlert.id] || selectedAlert.description || "—"}
-            </div>
-            {translations[selectedAlert.id] && translations[selectedAlert.id] !== selectedAlert.description && (
-              <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontStyle:"italic", marginBottom:20, paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-                Original: {selectedAlert.description}
+            <div onClick={function(e){ e.stopPropagation(); }} style={{
+              background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
+              borderRadius:20, maxWidth:760, width:"100%",
+              boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden"
+            }}>
+              {/* Шапка */}
+              <div style={{ background: a.urgency === "sos" ? "linear-gradient(135deg,#7f1d1d,#b91c1c)" :
+                a.urgency === "urgent" ? "linear-gradient(135deg,#713f12,#92400e)" : "linear-gradient(135deg,#1e3a5f,#1e4fa0)",
+                padding:"20px 28px", display:"flex", alignItems:"center", gap:16 }}>
+                <div style={{ fontSize:32 }}>{a.urgency === "sos" ? "🚨" : a.urgency === "urgent" ? "⚠️" : "📋"}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:24, fontWeight:900, color:"#fff", fontFamily:"monospace", letterSpacing:2 }}>
+                    {a.plate || "—"}
+                  </div>
+                  <div style={{ fontSize:13, color:"rgba(255,255,255,0.6)", marginTop:3 }}>
+                    {fmtDateTime(a.created_at)} · {a.sender || ""} · {a.sender_app === "stapler" ? "Stapler" : "Fahrer"}
+                  </div>
+                </div>
+                {urgBadge(a.urgency)}
+                <button onClick={function(){ setSelectedAlert(null); }}
+                  style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff",
+                    width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
               </div>
-            )}
-            {selectedAlert.location && (
-              <div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", marginBottom:20 }}>
-                📍 {selectedAlert.location}
+
+              <div style={{ display:"flex", gap:0 }}>
+                {/* ЛЕВАЯ ЧАСТЬ — сигнал от водителя */}
+                <div style={{ flex:1, padding:"24px 28px", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,165,0,0.7)",
+                    textTransform:"uppercase", letterSpacing:1, marginBottom:16 }}>
+                    📡 Meldung vom Fahrer
+                  </div>
+
+                  {/* Описание */}
+                  <div style={{ fontSize:17, fontWeight:600, color:"#fff", lineHeight:1.6, marginBottom:16 }}>
+                    {translations[a.id] || a.description || "—"}
+                  </div>
+                  {translations[a.id] && translations[a.id] !== a.description && (
+                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", fontStyle:"italic",
+                      marginBottom:16, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+                      Original: {a.description}
+                    </div>
+                  )}
+
+                  {/* Standort */}
+                  {a.location && (
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                        letterSpacing:0.5, marginBottom:6 }}>Standort</div>
+                      <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", lineHeight:1.5, marginBottom:8 }}>
+                        📍 {a.location}
+                      </div>
+                      {coords && (
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button type="button" onClick={function(){ openNavApp("google", coords); }}
+                            style={{ flex:1, padding:"8px 10px", borderRadius:8,
+                              border:"1.5px solid rgba(66,133,244,0.5)",
+                              background:"rgba(66,133,244,0.1)", color:"#4285F4",
+                              fontWeight:700, fontSize:12, cursor:"pointer" }}>
+                            Google Maps
+                          </button>
+                          <button type="button" onClick={function(){ openNavApp("waze", coords); }}
+                            style={{ flex:1, padding:"8px 10px", borderRadius:8,
+                              border:"1.5px solid rgba(0,210,255,0.4)",
+                              background:"rgba(0,210,255,0.08)", color:"#00D2FF",
+                              fontWeight:700, fontSize:12, cursor:"pointer" }}>
+                            Waze
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Фото от водителя */}
+                  {(function(){
+                    var photos = [];
+                    try { photos = Array.isArray(a.photo_urls) ? a.photo_urls : JSON.parse(a.photo_urls||"[]"); } catch(e){}
+                    return photos.length > 0 ? (
+                      <div>
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                          letterSpacing:0.5, marginBottom:6 }}>Fotos vom Fahrer</div>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                          {photos.map(function(u,i){
+                            return <a key={i} href={u} target="_blank" rel="noreferrer">
+                              <img src={u} alt="" style={{ width:80, height:80, objectFit:"cover",
+                                borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} />
+                            </a>;
+                          })}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+
+                {/* ПРАВАЯ ЧАСТЬ — работа механика */}
+                <div style={{ flex:1, padding:"24px 28px" }}>
+                  <div style={{ fontSize:11, fontWeight:700,
+                    color: linkedJob ? "rgba(34,197,94,0.8)" : "rgba(255,255,255,0.3)",
+                    textTransform:"uppercase", letterSpacing:1, marginBottom:16 }}>
+                    {linkedJob ? "🔧 Aufgabe des Mechanikers" : "⏳ Noch nicht bearbeitet"}
+                  </div>
+
+                  {linkedJob ? (
+                    <div>
+                      {/* Механик */}
+                      <div style={{ marginBottom:14 }}>
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                          letterSpacing:0.5, marginBottom:4 }}>Mechaniker</div>
+                        <div style={{ fontSize:15, fontWeight:700, color:"#fff" }}>
+                          {linkedJob.mechanic_name || linkedJob.mechanic || "—"}
+                          {linkedJob.colleague ? (" + " + linkedJob.colleague) : ""}
+                        </div>
+                      </div>
+
+                      {/* Статус */}
+                      <div style={{ marginBottom:14 }}>
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                          letterSpacing:0.5, marginBottom:4 }}>Status</div>
+                        {statusBadge(linkedJob.status)}
+                      </div>
+
+                      {/* Zeiten */}
+                      <div style={{ marginBottom:14,
+                        display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+                        <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
+                          <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>{fmtMin(linkedJob.work_min||0)}</div>
+                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", marginTop:2 }}>Arbeit</div>
+                        </div>
+                        <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
+                          <div style={{ fontSize:16, fontWeight:800, color:"rgba(255,165,0,0.9)" }}>
+                            {(linkedJob.travel_to_min||0)+(linkedJob.travel_back_min||0) > 0
+                              ? fmtMin((linkedJob.travel_to_min||0)+(linkedJob.travel_back_min||0))
+                              : "—"}
+                          </div>
+                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", marginTop:2 }}>Fahrzeit</div>
+                        </div>
+                        <div style={{ background:"rgba(255,165,0,0.1)", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
+                          <div style={{ fontSize:16, fontWeight:800, color:"#ffa500" }}>
+                            {linkedJob.cost ? Number(linkedJob.cost).toFixed(2)+" €" : "—"}
+                          </div>
+                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", marginTop:2 }}>Kosten</div>
+                        </div>
+                      </div>
+
+                      {/* Beschreibung механика */}
+                      {linkedJob.description && (
+                        <div style={{ marginBottom:14 }}>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                            letterSpacing:0.5, marginBottom:6 }}>Beschreibung</div>
+                          <div style={{ fontSize:14, color:"rgba(255,255,255,0.8)", lineHeight:1.5,
+                            background:"rgba(255,255,255,0.04)", borderRadius:8, padding:"10px 12px" }}>
+                            {linkedJob.description}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Запчасти */}
+                      {linkedJob.parts_note && (
+                        <div style={{ marginBottom:14 }}>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                            letterSpacing:0.5, marginBottom:6 }}>Teile & Material</div>
+                          <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", lineHeight:1.5,
+                            background:"rgba(255,255,255,0.04)", borderRadius:8, padding:"10px 12px" }}>
+                            {linkedJob.parts_note}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Фото от механика */}
+                      {(function(){
+                        var photos = [];
+                        try { photos = Array.isArray(linkedJob.photo_urls) ? linkedJob.photo_urls : JSON.parse(linkedJob.photo_urls||"[]"); } catch(e){}
+                        return photos.length > 0 ? (
+                          <div>
+                            <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", textTransform:"uppercase",
+                              letterSpacing:0.5, marginBottom:6 }}>Fotos vom Mechaniker</div>
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                              {photos.map(function(u,i){
+                                return <a key={i} href={u} target="_blank" rel="noreferrer">
+                                  <img src={u} alt="" style={{ width:80, height:80, objectFit:"cover",
+                                    borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} />
+                                </a>;
+                              })}
+                            </div>
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : (
+                    <div style={{ padding:"24px 0", textAlign:"center" }}>
+                      <div style={{ fontSize:40, marginBottom:12 }}>⏳</div>
+                      <div style={{ fontSize:14, color:"rgba(255,255,255,0.4)" }}>
+                        Noch kein Mechaniker hat diese Meldung angenommen
+                      </div>
+                      {a.taken_by_name && (
+                        <div style={{ fontSize:13, color:"rgba(255,165,0,0.7)", marginTop:8 }}>
+                          Übernommen von: {a.taken_by_name}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-            <button onClick={function(){ setSelectedAlert(null); }} style={{
-              fontSize:15, padding:"10px 32px", borderRadius:10, fontWeight:700,
-              background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
-              color:"#fff", cursor:"pointer"
-            }}>Schließen</button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -1656,6 +1894,7 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
           var inProgress = mj.filter(function(j){ return j.status==="inProgress"; }).length;
           var paused = mj.filter(function(j){ return j.status==="paused"; }).length;
           var totalMin = mj.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
+          var totalTravelMin = mj.reduce(function(s,j){ return s+(parseInt(j.travel_to_min||0)||0)+(parseInt(j.travel_back_min||0)||0); }, 0);
           var totalCost = mj.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
           var isExp = expanded === mech.id;
 
@@ -1701,6 +1940,13 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                   <div style={{ fontSize:22, fontWeight:700, color:"#fff", lineHeight:1 }}>{fmtMin(totalMin)}</div>
                   <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Arbeitszeit</div>
                 </div>
+                {/* FAHRZEIT */}
+                {totalTravelMin > 0 && (
+                  <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
+                    <div style={{ fontSize:22, fontWeight:700, color:"rgba(255,165,0,0.8)", lineHeight:1 }}>{fmtMin(totalTravelMin)}</div>
+                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Fahrzeit</div>
+                  </div>
+                )}
                 {/* KOSTEN */}
                 <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
                   <div style={{ fontSize:22, fontWeight:700, color:"#ffa500", lineHeight:1 }}>{totalCost.toFixed(0)} €</div>
@@ -1723,7 +1969,7 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                         <thead>
                           <tr>
                             <th>Fahrzeug</th><th>Typ</th><th>Standort</th>
-                            <th>Beschreibung</th><th>Zeit</th><th>Kosten</th><th>Status</th><th></th>
+                            <th>Beschreibung</th><th>Arbeit</th><th>Fahrt</th><th>Kosten</th><th>Status</th><th></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1738,6 +1984,11 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                                 <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{j.location||"—"}</td>
                                 <td style={{ fontSize:12, maxWidth:200, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{j.description||"—"}</td>
                                 <td>{fmtMin(j.work_min||0)}</td>
+                                <td style={{ color: (j.travel_to_min||0)+(j.travel_back_min||0) > 0 ? "rgba(255,165,0,0.8)" : "rgba(255,255,255,0.3)" }}>
+                                  {(j.travel_to_min||0)+(j.travel_back_min||0) > 0
+                                    ? fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))
+                                    : "—"}
+                                </td>
                                 <td>{j.cost ? Number(j.cost).toFixed(2)+" €" : "—"}</td>
                                 <td>{statusBadge(j.status)}</td>
                                 <td style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{jPhotos.length?(isExpJ?"▲":"📷 "+jPhotos.length):""}</td>
@@ -5877,7 +6128,7 @@ function AppShell({ user, onLogout }) {
 
         <div className="page">
           {sec === "uebersicht"  && <Uebersicht jobs={fJobs} alerts={fAlerts} vehicles={fVehicles} forklifts={fForklifts} washOrders={fWashOrders} inspections={fInspections} />}
-          {sec === "eingang"     && <Eingang alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
+          {sec === "eingang"     && <Eingang alerts={fAlerts} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "mechaniker"  && <Mechaniker jobs={fJobs} alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
           {sec === "technik"     && <Technik vehicles={fVehicles} forklifts={fForklifts} jobs={fJobs} invoices={fInvoices} inspections={fInspections} />}
           {sec === "inspektion"  && <Inspektion inspections={fInspections} onRefresh={loadAll} loading={loading} />}
