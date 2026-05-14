@@ -1123,14 +1123,16 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
 // === TRANSLATE ===
 function translateToDE(text) {
   if (!text || !text.trim()) return Promise.resolve(text);
-  // detect if already german (basic check)
-  var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q=" + encodeURIComponent(text);
-  return fetch(url)
+  return fetch("https://vtswzvrflqoueowylidy.supabase.co/functions/v1/translate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + SB_KEY
+    },
+    body: JSON.stringify({ text: text, target_lang: "DE" })
+  })
     .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d && d[0] && d[0][0] && d[0][0][0]) return d[0][0][0];
-      return text;
-    })
+    .then(function(d){ return (d && d.translated) ? d.translated : text; })
     .catch(function(){ return text; });
 }
 
