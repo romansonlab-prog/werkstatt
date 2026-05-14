@@ -730,11 +730,12 @@ function ReportForm({ user, onSent }) {
                   rec.lang="de-DE"; rec.continuous=true; rec.interimResults=true; rec.maxAlternatives=1;
                   var finalText="";
                   rec.onresult=function(ev){
-                    var interim="";
-                    for(var i=ev.resultIndex;i<ev.results.length;i++){
-                      if(ev.results[i].isFinal){ finalText+=ev.results[i][0].transcript+" "; }
+                    var built=""; var interim="";
+                    for(var i=0;i<ev.results.length;i++){
+                      if(ev.results[i].isFinal){ built+=ev.results[i][0].transcript+" "; }
                       else{ interim+=ev.results[i][0].transcript; }
                     }
+                    finalText=built;
                     setVoiceText(finalText+interim);
                   };
                   rec.onerror=function(){};
