@@ -646,16 +646,14 @@ function WaschApp({ user, onLogout }) {
                       var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
                       var rec;
                       try{rec=new SR();}catch(err){return;}
-                      rec.lang="de-DE";rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+                      rec.lang="de-DE";rec.continuous=false;rec.interimResults=true;rec.maxAlternatives=1;
                       var finalText="";
                       rec.onresult=function(ev){
-                        var built=""; var interim="";
-                        for(var i=0;i<ev.results.length;i++){
-                          if(ev.results[i].isFinal){built+=ev.results[i][0].transcript+" ";}
-                          else{interim+=ev.results[i][0].transcript;}
-                        }
-                        finalText=built;
-                        setVoiceNoteText(finalText+interim);
+                        var last=ev.results[ev.results.length-1];
+                        if(!last) return;
+                        var txt=last[0].transcript;
+                        if(last.isFinal){ finalText=txt; }
+                        setVoiceNoteText(txt);
                       };
                       rec.onerror=function(){};
                       rec.onend=function(){

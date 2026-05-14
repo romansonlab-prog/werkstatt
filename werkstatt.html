@@ -1941,24 +1941,18 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               var rec;
               try { rec = new SR(); } catch(err){ return; }
               rec.lang = "de-DE";
-              rec.continuous = true;
+              rec.continuous = false;
               rec.interimResults = true;
               rec.maxAlternatives = 1;
               var finalText = "";
               rec.onresult = function(ev){
-                // Пересобираем ВСЁ заново из ev.results — не доверяем resultIndex
-                // (на Android resultIndex ненадёжен, даёт дубли)
-                var built = "";
-                var interim = "";
-                for (var i = 0; i < ev.results.length; i++) {
-                  if (ev.results[i].isFinal) {
-                    built += ev.results[i][0].transcript + " ";
-                  } else {
-                    interim += ev.results[i][0].transcript;
-                  }
+                var last = ev.results[ev.results.length - 1];
+                if (!last) return;
+                var txt = last[0].transcript;
+                if (last.isFinal) {
+                  finalText = txt;
                 }
-                finalText = built;
-                setVoiceText(finalText + interim);
+                setVoiceText(txt);
               };
               rec.onerror = function(){};
               rec.onend = function(){

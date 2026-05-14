@@ -118,8 +118,8 @@
     .progress-box{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid rgba(34,197,94,0.30);background:rgba(34,197,94,0.06);border-radius:12px;font-weight:600}
     .progress-box.bad{border-color:rgba(255,59,48,0.40);background:rgba(255,59,48,0.06)}
     .lang-switch{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(20,40,80,0.65);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
-    .lang-menu{position:absolute;top:calc(100% + 6px);right:0;padding:6px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);display:flex;gap:6px;z-index:50}
-    .lang-menu button{width:42px;padding:8px 0;text-align:center;border:1px solid rgba(255,255,255,0.18);border-radius:8px;font-weight:700;font-size:12px;background:transparent;color:#fff}
+    .lang-menu{position:absolute;top:calc(100% + 6px);right:0;padding:8px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);display:grid;grid-template-columns:repeat(3,1fr);gap:6px;z-index:50;width:170px}
+    .lang-menu button{width:100%;padding:10px 0;text-align:center;border:1px solid rgba(255,255,255,0.18);border-radius:8px;font-weight:700;font-size:13px;background:transparent;color:#fff}
     .lang-menu button.on{background:#ffa500;border-color:#ffa500;color:#0a1730}
     .introjs-tooltip{background:#0f1e3d!important;border:1px solid rgba(255,165,0,0.3)!important;color:#fff!important;border-radius:14px!important;max-width:280px!important}
     .introjs-tooltiptext{color:rgba(255,255,255,0.85)!important;font-size:14px!important;line-height:1.5!important}
@@ -1117,16 +1117,14 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
                   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
                   var rec;
                   try{rec=new SR();}catch(err){return;}
-                  rec.lang=speechLang(lang);rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+                  rec.lang=speechLang(lang);rec.continuous=false;rec.interimResults=true;rec.maxAlternatives=1;
                   var finalText="";
                   rec.onresult=function(ev){
-                    var built=""; var interim="";
-                    for(var i=0;i<ev.results.length;i++){
-                      if(ev.results[i].isFinal){built+=ev.results[i][0].transcript+" ";}
-                      else{interim+=ev.results[i][0].transcript;}
-                    }
-                    finalText=built;
-                    setVoiceNotesText(finalText+interim);
+                    var last=ev.results[ev.results.length-1];
+                    if(!last) return;
+                    var txt=last[0].transcript;
+                    if(last.isFinal){ finalText=txt; }
+                    setVoiceNotesText(txt);
                   };
                   rec.onerror=function(){};
                   rec.onend=function(){
@@ -1400,16 +1398,14 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
                   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
                   var rec;
                   try{rec=new SR();}catch(err){return;}
-                  rec.lang=speechLang(lang);rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+                  rec.lang=speechLang(lang);rec.continuous=false;rec.interimResults=true;rec.maxAlternatives=1;
                   var finalText="";
                   rec.onresult=function(ev){
-                    var built=""; var interim="";
-                    for(var i=0;i<ev.results.length;i++){
-                      if(ev.results[i].isFinal){built+=ev.results[i][0].transcript+" ";}
-                      else{interim+=ev.results[i][0].transcript;}
-                    }
-                    finalText=built;
-                    setVoiceDescText(finalText+interim);
+                    var last=ev.results[ev.results.length-1];
+                    if(!last) return;
+                    var txt=last[0].transcript;
+                    if(last.isFinal){ finalText=txt; }
+                    setVoiceDescText(txt);
                   };
                   rec.onerror=function(){};
                   rec.onend=function(){
