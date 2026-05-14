@@ -322,6 +322,16 @@ function todayIso() { return new Date().toLocaleDateString("sv-SE"); }
 function fmtDate(d) { if (!d) return "—"; try { return new Date(d).toLocaleDateString("de-DE"); } catch(e){ return d; } }
 function fmtDateTime(d) { if (!d) return "—"; try { return new Date(d).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch(e){ return d; } }
 function fmtMin(m) { m=parseInt(m||0)||0; if(!m) return "0 min"; var h=Math.floor(m/60),mm=m%60; return h ? h+"h "+mm+"min" : mm+" min"; }
+// Парсинг журнала пауз заказа (pause_log из таблицы jobs)
+function parsePauseLog(j) {
+  if (!j || !j.pause_log) return [];
+  var log = j.pause_log;
+  if (typeof log === "string") { try { log = JSON.parse(log); } catch(e) { return []; } }
+  return Array.isArray(log) ? log : [];
+}
+function totalPauseMin(j) {
+  return parsePauseLog(j).reduce(function(s,p){ return s + (p.minutes || 0); }, 0);
+}
 function dateDiff(d) { if (!d) return null; return Math.round((new Date(d) - new Date()) / 86400000); }
 
 function docStatus(diff) {
@@ -977,8 +987,9 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
     var mj = todayJobs.filter(function(j){ return j.mechanic===m.id; });
     var active = mj.filter(function(j){ return j.status==="inProgress"; }).length;
     var done = mj.filter(function(j){ return j.status==="done"; }).length;
+    var paused = mj.filter(function(j){ return j.status==="paused"; }).length;
     return { name:m.name, avatar:m.name.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(),
-      total:mj.length, active:active, done:done,
+      total:mj.length, active:active, done:done, paused:paused,
       status: active>0?"inArbeit":mj.length>0?"verfügbar":"verfügbar" };
   });
 
@@ -1030,6 +1041,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
                   <div style={{ fontSize:16, fontWeight:600, color:"#fff" }}>{m.name}</div>
                   <div style={{ fontSize:13, marginTop:2, color: m.active>0?"#22c55e":"rgba(255,255,255,0.4)" }}>
                     {m.active>0 ? "● In Arbeit" : "○ Verfügbar"}
+                    {m.paused>0 ? <span style={{ color:"#ffa500" }}>{" · ⏸ " + m.paused + " pausiert"}</span> : null}
                   </div>
                 </div>
                 <div style={{ textAlign:"center", padding:"0 16px", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>
@@ -1797,6 +1809,36 @@ function Eingang({ alerts, jobs, onRefresh, loading }) {
                         </div>
                       )}
 
+                      {/* Журнал пауз заказа */}
+                      {(function(){
+                        var pLog = parsePauseLog(linkedJob);
+                        if (!pLog.length) return null;
+                        var tPause = totalPauseMin(linkedJob);
+                        return (
+                          <div style={{ marginBottom:14 }}>
+                            <div style={{ fontSize:11, color:"rgba(255,165,0,0.85)", textTransform:"uppercase",
+                              letterSpacing:0.5, marginBottom:6, fontWeight:700 }}>
+                              Pausen{tPause > 0 ? " — gesamt " + fmtMin(tPause) : ""}
+                            </div>
+                            <div style={{ background:"rgba(255,165,0,0.07)", border:"1px solid rgba(255,165,0,0.2)",
+                              borderRadius:8, padding:"10px 12px" }}>
+                              {pLog.map(function(p, i){
+                                var t = p.start ? new Date(p.start).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : "";
+                                return (
+                                  <div key={i} style={{ fontSize:13, marginBottom: i < pLog.length-1 ? 6 : 0, lineHeight:1.4 }}>
+                                    <span style={{ color:"rgba(255,165,0,0.85)", fontWeight:700 }}>{t}</span>
+                                    {p.minutes
+                                      ? <span style={{ color:"rgba(255,255,255,0.45)" }}> · {fmtMin(p.minutes)}</span>
+                                      : <span style={{ color:"#ffa500" }}> · läuft</span>}
+                                    <span style={{ color:"rgba(255,255,255,0.8)" }}> — {p.reason}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* Запчасти */}
                       {linkedJob.parts_note && (
                         <div style={{ marginBottom:14 }}>
@@ -2115,16 +2157,19 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                         <thead>
                           <tr>
                             <th>Fahrzeug</th><th>Typ</th><th>Standort</th>
-                            <th>Beschreibung</th><th>Arbeit</th><th>Fahrt</th><th>Kosten</th><th>Status</th><th></th>
+                            <th>Beschreibung</th><th>Arbeit</th><th>Fahrt</th><th>Pause</th><th>Kosten</th><th>Status</th><th></th>
                           </tr>
                         </thead>
                         <tbody>
                           {mj.map(function(j){
                             var jPhotos = [];
                             try { jPhotos = Array.isArray(j.photo_urls) ? j.photo_urls : (typeof j.photo_urls==="string" ? JSON.parse(j.photo_urls||"[]") : []); } catch(e){}
+                            var jPauses = parsePauseLog(j);
+                            var jPauseMin = totalPauseMin(j);
+                            var canExpand = jPhotos.length > 0 || jPauses.length > 0;
                             var isExpJ = expanded === ("m_"+j.id);
                             return [
-                              <tr key={j.id} style={{ cursor: jPhotos.length?"pointer":"default" }} onClick={function(){ if(jPhotos.length) setExpanded(isExpJ?null:("m_"+j.id)); }}>
+                              <tr key={j.id} style={{ cursor: canExpand?"pointer":"default" }} onClick={function(){ if(canExpand) setExpanded(isExpJ?null:("m_"+j.id)); }}>
                                 <td><strong>{j.plate||"—"}</strong></td>
                                 <td>{WORK_TYPES[j.work_type]||j.work_type||"—"}</td>
                                 <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{j.location||"—"}</td>
@@ -2135,18 +2180,42 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                                     ? fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))
                                     : "—"}
                                 </td>
+                                <td style={{ color: jPauseMin > 0 ? "rgba(255,165,0,0.8)" : "rgba(255,255,255,0.3)" }}>
+                                  {jPauseMin > 0 ? fmtMin(jPauseMin) : (jPauses.length > 0 ? "läuft" : "—")}
+                                </td>
                                 <td>{j.cost ? Number(j.cost).toFixed(2)+" €" : "—"}</td>
                                 <td>{statusBadge(j.status)}</td>
-                                <td style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{jPhotos.length?(isExpJ?"▲":"📷 "+jPhotos.length):""}</td>
+                                <td style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{canExpand?(isExpJ?"▲":((jPhotos.length?"📷"+jPhotos.length:"")+(jPauses.length?" ⏸"+jPauses.length:""))):""}</td>
                               </tr>,
-                              isExpJ && jPhotos.length > 0 && (
+                              isExpJ && canExpand && (
                                 <tr key={j.id+"_ph"}>
-                                  <td colSpan={8} style={{ padding:"10px 14px", background:"rgba(0,0,0,0.2)" }}>
-                                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                                      {jPhotos.map(function(u,i){
-                                        return <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} /></a>;
-                                      })}
-                                    </div>
+                                  <td colSpan={10} style={{ padding:"12px 14px", background:"rgba(0,0,0,0.2)" }}>
+                                    {jPauses.length > 0 && (
+                                      <div style={{ marginBottom: jPhotos.length ? 12 : 0 }}>
+                                        <div style={{ fontSize:11, color:"rgba(255,165,0,0.85)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:6, fontWeight:700 }}>
+                                          Pausen{jPauseMin > 0 ? " — gesamt " + fmtMin(jPauseMin) : ""}
+                                        </div>
+                                        {jPauses.map(function(p,i){
+                                          var t = p.start ? new Date(p.start).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : "";
+                                          return (
+                                            <div key={i} style={{ fontSize:13, marginBottom: i < jPauses.length-1 ? 5 : 0, lineHeight:1.4 }}>
+                                              <span style={{ color:"rgba(255,165,0,0.85)", fontWeight:700 }}>{t}</span>
+                                              {p.minutes
+                                                ? <span style={{ color:"rgba(255,255,255,0.45)" }}> · {fmtMin(p.minutes)}</span>
+                                                : <span style={{ color:"#ffa500" }}> · läuft</span>}
+                                              <span style={{ color:"rgba(255,255,255,0.8)" }}> — {p.reason}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                    {jPhotos.length > 0 && (
+                                      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                                        {jPhotos.map(function(u,i){
+                                          return <a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{ width:80, height:80, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)" }} /></a>;
+                                        })}
+                                      </div>
+                                    )}
                                   </td>
                                 </tr>
                               )
@@ -3643,6 +3712,8 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
   var totalJobs     = mJobs.length;
   var doneJobs      = mJobs.filter(function(j) { return j.status === "done"; }).length;
   var totalMin      = mJobs.reduce(function(s, j) { return s + (parseInt(j.work_min || 0) || 0); }, 0);
+  var totalPause    = mJobs.reduce(function(s, j) { return s + totalPauseMin(j); }, 0);
+  var pausedJobsCnt = mJobs.filter(function(j) { return parsePauseLog(j).length > 0; }).length;
   var totalLabor    = mJobs.reduce(function(s, j) { return s + (Number(j.labor_cost) || 0); }, 0);
   var totalParts    = mJobs.reduce(function(s, j) { return s + (Number(j.parts_cost) || 0); }, 0);
   var totalCost     = totalLabor + totalParts;
@@ -3656,12 +3727,13 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
   mJobs.forEach(function(j) {
     var key = j.mechanic || "unbekannt";
     var name = j.mechanic_name || j.mechanic || "Unbekannt";
-    if (!byMech[key]) byMech[key] = { name: name, jobs: 0, done: 0, min: 0, labor: 0, parts: 0 };
+    if (!byMech[key]) byMech[key] = { name: name, jobs: 0, done: 0, min: 0, labor: 0, parts: 0, pauseMin: 0 };
     byMech[key].jobs++;
     if (j.status === "done") byMech[key].done++;
     byMech[key].min   += parseInt(j.work_min || 0) || 0;
     byMech[key].labor += Number(j.labor_cost) || 0;
     byMech[key].parts += Number(j.parts_cost) || 0;
+    byMech[key].pauseMin += totalPauseMin(j);
   });
   var mechArr = Object.keys(byMech).map(function(k) { return byMech[k]; })
     .sort(function(a, b) { return b.jobs - a.jobs; });
@@ -3710,6 +3782,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
           "<td style='text-align:center'>" + mch.jobs + "</td>" +
           "<td style='text-align:center'>" + mch.done + "</td>" +
           "<td style='text-align:center'>" + fmtMin(mch.min) + "</td>" +
+          "<td style='text-align:center'>" + (mch.pauseMin > 0 ? fmtMin(mch.pauseMin) : "—") + "</td>" +
           "<td style='text-align:right'>" + mch.labor.toFixed(2) + " €</td>" +
           "<td style='text-align:right'>" + mch.parts.toFixed(2) + " €</td>" +
           "<td style='text-align:right;font-weight:700'>" + (mch.labor + mch.parts).toFixed(2) + " €</td>" +
@@ -3785,6 +3858,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
           "<div class='kpi'><div class='kpi-val'>" + totalJobs + "</div><div class='kpi-lab'>Aufträge gesamt</div></div>" +
           "<div class='kpi'><div class='kpi-val green'>" + doneJobs + "</div><div class='kpi-lab'>Abgeschlossen</div></div>" +
           "<div class='kpi'><div class='kpi-val orange'>" + fmtMin(totalMin) + "</div><div class='kpi-lab'>Arbeitszeit</div></div>" +
+          (totalPause > 0 ? "<div class='kpi'><div class='kpi-val orange'>" + fmtMin(totalPause) + "</div><div class='kpi-lab'>Pausen (" + pausedJobsCnt + " Aufträge)</div></div>" : "") +
           "<div class='kpi'><div class='kpi-val'>" + mWash.length + "</div><div class='kpi-lab'>Wäschen</div></div>" +
           "<div class='kpi'><div class='kpi-val'>" + mInsp.length + "</div><div class='kpi-lab'>Inspektionen</div></div>" +
           "<div class='kpi'><div class='kpi-val'>" + mAlerts.length + "</div><div class='kpi-lab'>Meldungen</div></div>" +
@@ -3799,9 +3873,9 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
 
         (mechArr.length > 0 ? (
           "<h2>🔧 Mechaniker</h2>" +
-          "<table><thead><tr><th>Name</th><th>Aufträge</th><th>Fertig</th><th>Arbeitszeit</th><th>Lohnkosten</th><th>Ersatzteile</th><th>Gesamt</th></tr></thead><tbody>" +
+          "<table><thead><tr><th>Name</th><th>Aufträge</th><th>Fertig</th><th>Arbeitszeit</th><th>Pausen</th><th>Lohnkosten</th><th>Ersatzteile</th><th>Gesamt</th></tr></thead><tbody>" +
           mechRows +
-          "<tr class='total-row'><td>Gesamt</td><td style='text-align:center'>" + totalJobs + "</td><td style='text-align:center'>" + doneJobs + "</td><td style='text-align:center'>" + fmtMin(totalMin) + "</td><td style='text-align:right'>" + totalLabor.toFixed(2) + " €</td><td style='text-align:right'>" + totalParts.toFixed(2) + " €</td><td style='text-align:right'>" + totalCost.toFixed(2) + " €</td></tr>" +
+          "<tr class='total-row'><td>Gesamt</td><td style='text-align:center'>" + totalJobs + "</td><td style='text-align:center'>" + doneJobs + "</td><td style='text-align:center'>" + fmtMin(totalMin) + "</td><td style='text-align:center'>" + (totalPause > 0 ? fmtMin(totalPause) : "—") + "</td><td style='text-align:right'>" + totalLabor.toFixed(2) + " €</td><td style='text-align:right'>" + totalParts.toFixed(2) + " €</td><td style='text-align:right'>" + totalCost.toFixed(2) + " €</td></tr>" +
           "</tbody></table>"
         ) : "") +
 
@@ -3909,6 +3983,8 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
         ["Aufträge gesamt", totalJobs],
         ["Abgeschlossen", doneJobs],
         ["Arbeitszeit (min)", totalMin],
+        ["Pausen (min)", totalPause],
+        ["Aufträge mit Pause", pausedJobsCnt],
         ["Lohnkosten (€)", Number(totalLabor.toFixed(2))],
         ["Ersatzteile (€)", Number(totalParts.toFixed(2))],
         ["Werkstatt gesamt (€)", Number(totalCost.toFixed(2))],
@@ -3923,17 +3999,17 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
       addSheet("Übersicht", uebersicht, [28, 22], 5);
 
       // Лист 2 — Mechaniker
-      var mechSheet = [["Name", "Aufträge", "Fertig", "Arbeitszeit (min)", "Lohnkosten (€)", "Ersatzteile (€)", "Gesamt (€)"]];
+      var mechSheet = [["Name", "Aufträge", "Fertig", "Arbeitszeit (min)", "Pausen (min)", "Lohnkosten (€)", "Ersatzteile (€)", "Gesamt (€)"]];
       mechArr.forEach(function(mch){
         mechSheet.push([
-          mch.name, mch.jobs, mch.done, mch.min,
+          mch.name, mch.jobs, mch.done, mch.min, mch.pauseMin,
           Number(mch.labor.toFixed(2)), Number(mch.parts.toFixed(2)),
           Number((mch.labor + mch.parts).toFixed(2))
         ]);
       });
-      mechSheet.push(["Gesamt", totalJobs, doneJobs, totalMin,
+      mechSheet.push(["Gesamt", totalJobs, doneJobs, totalMin, totalPause,
         Number(totalLabor.toFixed(2)), Number(totalParts.toFixed(2)), Number(totalCost.toFixed(2))]);
-      addSheet("Mechaniker", mechSheet, [22, 12, 10, 18, 16, 16, 14], 0);
+      addSheet("Mechaniker", mechSheet, [22, 12, 10, 18, 16, 16, 16, 14], 0);
 
       // Лист 3 — Auftragstypen
       var typeSheet = [["Typ", "Anzahl", "Anteil %"]];
