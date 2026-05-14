@@ -1232,46 +1232,31 @@ function VehicleInput({ vehicles, value, onChange, vehicleType }) {
   );
 }
 
-// === п.6: TimerBox с паузой и описанием ===
-function TimerBox({ label, value, setValue, withPause, onFirstStart }) {
+// === TimerBox: замер времени (Start / Stop / Manuell) ===
+function TimerBox({ label, value, setValue, onFirstStart }) {
   var _sa = useState(false); var active = _sa[0]; var setActive = _sa[1];
   var _ss = useState(0); var sec = _ss[0]; var setSec = _ss[1];
-  var _spaused = useState(false); var paused = _spaused[0]; var setPaused = _spaused[1];
-  var _spm = useState(false); var pauseModal = _spm[0]; var setPauseModal = _spm[1];
-  var _spr = useState(""); var pauseReason = _spr[0]; var setPauseReason = _spr[1];
-  var _splog = useState([]); var pauseLog = _splog[0]; var setPauseLog = _splog[1];
   var _smm = useState(false); var manual = _smm[0]; var setManual = _smm[1];
   var _sh = useState(""); var h = _sh[0]; var setH = _sh[1];
   var _sm = useState(""); var m = _sm[0]; var setM = _sm[1];
 
   useEffect(function() {
-    if (!active || paused) return;
+    if (!active) return;
     var id = setInterval(function() { setSec(function(s) { return s + 1; }); }, 1000);
     return function() { clearInterval(id); };
-  }, [active, paused]);
+  }, [active]);
 
   function start() {
     if (onFirstStart) onFirstStart();
-    setActive(true); setPaused(false);
+    setActive(true);
   }
 
   function stop() {
-    setActive(false); setPaused(false);
+    setActive(false);
     var min = Math.max(1, Math.round(sec / 60));
     setValue((value || 0) + min);
     setSec(0);
   }
-
-  function requestPause() { setPauseModal(true); setPauseReason(""); }
-
-  function confirmPause() {
-    if (!pauseReason.trim()) { alert("Bitte Grund angeben."); return; }
-    setPaused(true);
-    setPauseLog(pauseLog.concat([{ time: new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}), reason:pauseReason }]));
-    setPauseModal(false); setPauseReason("");
-  }
-
-  function resume() { setPaused(false); }
 
   function applyManual() {
     var hh = parseInt(h || "0", 10) || 0;
@@ -1283,30 +1268,20 @@ function TimerBox({ label, value, setValue, withPause, onFirstStart }) {
     setValue(total); setManual(false); setH(""); setM("");
   }
 
-  var running = active && !paused;
-  var statusColor = running ? "#22c55e" : (paused ? "#ffa500" : "#fff");
+  var running = active;
+  var statusColor = running ? "#22c55e" : "#fff";
 
   return (
     <div className="timer-card">
       <div className="timer-label">{label}</div>
       <div className="timer-time" style={{ color:statusColor }}>
         {active ? fmtSec(sec) : fmtMin(value)}
-        {paused && <span style={{ fontSize:13, marginLeft:8, fontWeight:700, color:"#ffa500" }}>PAUSE</span>}
       </div>
       <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
         {!active && (
           <button className="mini-btn start" type="button" onClick={start}>▶ Start</button>
         )}
-        {running && withPause && (
-          <button className="mini-btn pause" type="button" onClick={requestPause}>⏸ Pause</button>
-        )}
-        {running && (
-          <button className="mini-btn stop" type="button" onClick={stop}>■ Stop</button>
-        )}
-        {paused && (
-          <button className="mini-btn start" type="button" onClick={resume}>▶ Weiter</button>
-        )}
-        {paused && (
+        {active && (
           <button className="mini-btn stop" type="button" onClick={stop}>■ Stop</button>
         )}
         {!active && (
@@ -1316,35 +1291,6 @@ function TimerBox({ label, value, setValue, withPause, onFirstStart }) {
           <button className="mini-btn" type="button" onClick={function(){ setValue(0); setSec(0); }}>↺ Reset</button>
         )}
       </div>
-
-      {pauseLog.length > 0 && (
-        <div style={{ marginTop:10 }}>
-          {pauseLog.map(function(p, i) {
-            return (
-              <div key={i} style={{ fontSize:11, color:"rgba(255,165,0,0.75)", marginTop:3 }}>
-                ⏸ {p.time} — {p.reason}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {pauseModal && (
-        <div className="modal-back" onClick={function(){ setPauseModal(false); }}>
-          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
-            <div style={{ fontSize:18, fontWeight:800, marginBottom:12 }}>⏸ Pause — Grund angeben</div>
-            <textarea className="textarea-dark" value={pauseReason}
-              onChange={function(e){ setPauseReason(e.target.value); }}
-              placeholder="z.B. Warte auf Ersatzteil, Mittagspause, Kundengespräch..."
-              style={{ minHeight:80, marginBottom:14 }}
-            />
-            <div style={{ display:"flex", gap:10 }}>
-              <button className="btn-primary" type="button" style={{ flex:1 }} onClick={confirmPause}>Bestätigen</button>
-              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }} onClick={function(){ setPauseModal(false); }}>Abbrechen</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {manual && (
         <div className="modal-back" onClick={function(){ setManual(false); }}>
@@ -2312,25 +2258,25 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       <div className="glass-panel">
         <div className="panel-title">⏱ Zeiten</div>
         <div className="grid2">
-          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} withPause={false} onFirstStart={ensureJobCreated} />
-          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} withPause={false} onFirstStart={ensureJobCreated} />
+          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} onFirstStart={ensureJobCreated} />
+          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} onFirstStart={ensureJobCreated} />
         </div>
         <div style={{ height:10 }}></div>
-        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} withPause={true} onFirstStart={ensureJobCreated} />
+        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} onFirstStart={ensureJobCreated} />
       </div>
 
-      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+      <div style={{ display:"flex", gap:10, marginTop:6, marginBottom:20 }}>
         <button className="save-btn" type="button" disabled={saving} onClick={save}
-          style={{ flex:2, marginTop:0 }}>
+          style={{ flex:2, marginTop:0, marginBottom:0 }}>
           {saving ? "Speichert..." : "💾 BERICHT SPEICHERN"}
         </button>
         {jobIdRef.current && (
           <button type="button" disabled={saving}
             onClick={function(){ setPauseModal(true); setPauseReason(""); }}
-            style={{ flex:1, padding:"16px 12px", borderRadius:14,
-              border:"1.5px solid rgba(255,165,0,0.5)", background:"rgba(255,165,0,0.1)",
+            style={{ flex:1, padding:18, borderRadius:14,
+              border:"2px solid #ffa500", background:"rgba(255,165,0,0.12)",
               color:"#ffa500", fontFamily:"var(--font-display)", fontWeight:800,
-              fontSize:15, letterSpacing:0.5, cursor:"pointer" }}>
+              fontSize:17, cursor:"pointer", opacity: saving ? 0.5 : 1 }}>
             ⏸ PAUSE
           </button>
         )}
