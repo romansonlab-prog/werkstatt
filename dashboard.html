@@ -1032,7 +1032,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
       {/* MECHANIKER STATUS + INSPEKTIONEN */}
       <div className="g2" style={{ marginBottom:16 }}>
         <div className="panel">
-          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>🔧 Mechaniker heute</div></div>
+          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>Mechaniker heute</div></div>
           {mechStatus.map(function(m){
             return (
               <div key={m.name} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
@@ -1058,7 +1058,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
         </div>
 
         <div className="panel">
-          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>📋 Inspektionen heute</div></div>
+          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>Inspektionen heute</div></div>
           {todayInsp.length === 0
             ? <div className="empty" style={{ padding:"20px 0" }}>Noch keine Inspektionen heute</div>
             : todayInsp.map(function(ins){
@@ -1088,7 +1088,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
       <div className="g2" style={{ marginBottom:16 }}>
         <div className="panel">
           <div className="panel-hd">
-            <div className="panel-title" style={{ fontSize:15 }}>📊 Aufträge letzte 30 Tage</div>
+            <div className="panel-title" style={{ fontSize:15 }}>Aufträge letzte 30 Tage</div>
             <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)" }}>
               Ø {(jobs.filter(function(j){ return (j.date||(j.created_at||"").slice(0,10))>=thirtyAgo; }).length/30).toFixed(1)}/Tag
             </div>
@@ -1099,21 +1099,23 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
         </div>
 
         <div className="panel">
-          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>📋 Aktivität heute</div></div>
+          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>Aktivität heute</div></div>
           {activity.length === 0
             ? <div className="empty" style={{ padding:"20px 0" }}>Noch keine Aktivität heute</div>
-            : activity.slice(0,8).map(function(ev, i){
-                return (
-                  <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
-                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", minWidth:36, marginTop:3, fontFamily:"monospace" }}>{ev.time}</div>
-                    <div style={{ fontSize:18, marginTop:1 }}>{ev.icon}</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:"#fff" }}>{ev.text}</div>
-                      <div style={{ fontSize:12, color:ev.color, marginTop:2 }}>{ev.sub}</div>
+            : <div style={{ maxHeight:248, overflowY:"auto" }}>
+                {activity.map(function(ev, i){
+                  return (
+                    <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", minWidth:36, marginTop:3, fontFamily:"monospace" }}>{ev.time}</div>
+                      <div style={{ fontSize:18, marginTop:1 }}>{ev.icon}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:14, fontWeight:600, color:"#fff" }}>{ev.text}</div>
+                        <div style={{ fontSize:12, color:ev.color, marginTop:2 }}>{ev.sub}</div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
           }
         </div>
       </div>
@@ -1121,56 +1123,59 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
       {/* TÜV ALARM + TOP PROBLEMFAHRZEUGE */}
       <div className="g2">
         <div className="panel">
-          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>⚠️ Dokumente-Alarm</div></div>
+          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>Dokumente-Alarm</div></div>
           {tuevAlarm.length === 0
-            ? <div className="empty" style={{ padding:"20px 0", color:"#22c55e" }}>✅ Alle Dokumente in Ordnung</div>
-            : tuevAlarm.map(function(v){
-                var fields = [
-                  {label:"TÜV", date:v.tuev},
-                  {label:"UVV", date:v.uvv||v.uvv_datum},
-                  {label:"Versicherung", date:v.insurance},
-                  {label:"Wartung", date:v.next_service}
-                ].filter(function(f){ return f.date && dateDiff(f.date)!==null && dateDiff(f.date)<30; });
-                return (
-                  <div key={v.id||v.nummer} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-                    <div style={{ fontSize:20 }}>🚛</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:16, fontWeight:700 }}>{v.plate||v.nummer||"—"}</div>
-                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:2 }}>{v.brand||v.hersteller||""} {v.model||""}</div>
+            ? <div className="empty" style={{ padding:"20px 0", color:"#22c55e" }}>Alle Dokumente in Ordnung</div>
+            : <div style={{ maxHeight:280, overflowY:"auto" }}>
+                {tuevAlarm.map(function(v){
+                  var fields = [
+                    {label:"TÜV", date:v.tuev},
+                    {label:"UVV", date:v.uvv||v.uvv_datum},
+                    {label:"Versicherung", date:v.insurance},
+                    {label:"Wartung", date:v.next_service}
+                  ].filter(function(f){ return f.date && dateDiff(f.date)!==null && dateDiff(f.date)<30; });
+                  return (
+                    <div key={v.id||v.nummer} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:16, fontWeight:700 }}>{v.plate||v.nummer||"—"}</div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:2 }}>{v.brand||v.hersteller||""} {v.model||""}</div>
+                      </div>
+                      <div>
+                        {fields.map(function(f){
+                          var d = dateDiff(f.date);
+                          return (
+                            <div key={f.label} style={{ fontSize:13, fontWeight:700, color: d<0?"#ef4444":d<10?"#ef4444":"#ffa500", textAlign:"right" }}>
+                              {f.label}: {d<0?"ABGELAUFEN":d+" Tage"}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div>
-                      {fields.map(function(f){
-                        var d = dateDiff(f.date);
-                        return (
-                          <div key={f.label} style={{ fontSize:13, fontWeight:700, color: d<0?"#ef4444":d<10?"#ef4444":"#ffa500", textAlign:"right" }}>
-                            {f.label}: {d<0?"ABGELAUFEN":d+" Tage"}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
           }
         </div>
 
         <div className="panel">
-          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>🔥 Top Problemfahrzeuge (30 Tage)</div></div>
+          <div className="panel-hd"><div className="panel-title" style={{ fontSize:15 }}>Top Problemfahrzeuge (30 Tage)</div></div>
           {topArr.length === 0
             ? <div className="empty" style={{ padding:"20px 0" }}>Keine Daten</div>
-            : topArr.map(function(plate, i){
-                var cnt = topProblems[plate];
-                return (
-                  <div key={plate} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
-                    <div style={{ width:30, height:30, borderRadius:"50%", background: i===0?"rgba(239,68,68,0.15)":"rgba(255,165,0,0.1)", color: i===0?"#ef4444":"#ffa500", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:14, flexShrink:0 }}>{i+1}</div>
-                    <div style={{ flex:1, fontSize:17, fontWeight:700, fontFamily:"monospace", letterSpacing:1 }}>{plate}</div>
-                    <div style={{ fontSize:15, fontWeight:800, color: i===0?"#ef4444":"#ffa500" }}>{cnt}x</div>
-                    <div style={{ width:80, height:6, borderRadius:3, background:"rgba(255,255,255,0.08)", overflow:"hidden" }}>
-                      <div style={{ height:"100%", background: i===0?"#ef4444":"#ffa500", width:(cnt/topProblems[topArr[0]]*100)+"%", borderRadius:3 }}></div>
+            : <div style={{ maxHeight:280, overflowY:"auto" }}>
+                {topArr.map(function(plate, i){
+                  var cnt = topProblems[plate];
+                  return (
+                    <div key={plate} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ width:30, height:30, borderRadius:"50%", background: i===0?"rgba(239,68,68,0.15)":"rgba(255,165,0,0.1)", color: i===0?"#ef4444":"#ffa500", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:14, flexShrink:0 }}>{i+1}</div>
+                      <div style={{ flex:1, fontSize:17, fontWeight:700, fontFamily:"monospace", letterSpacing:1 }}>{plate}</div>
+                      <div style={{ fontSize:15, fontWeight:800, color: i===0?"#ef4444":"#ffa500" }}>{cnt}x</div>
+                      <div style={{ width:80, height:6, borderRadius:3, background:"rgba(255,255,255,0.08)", overflow:"hidden" }}>
+                        <div style={{ height:"100%", background: i===0?"#ef4444":"#ffa500", width:(cnt/topProblems[topArr[0]]*100)+"%", borderRadius:3 }}></div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
           }
         </div>
       </div>
@@ -1178,7 +1183,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
       {/* ТРЕНД 12 МЕСЯЦЕВ */}
       <div className="panel" style={{ marginTop:16, marginBottom:16 }}>
         <div className="panel-hd">
-          <div className="panel-title" style={{ fontSize:15 }}>📈 Trend — letzte 12 Monate</div>
+          <div className="panel-title" style={{ fontSize:15 }}>Trend — letzte 12 Monate</div>
           <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>
             Aufträge (orange) · Kosten € (blau)
           </div>
@@ -1191,7 +1196,7 @@ function Uebersicht({ jobs, alerts, vehicles, forklifts, washOrders, inspections
       {/* СРАВНЕНИЕ ФИЛИАЛОВ */}
       <div className="panel" style={{ marginBottom:16 }}>
         <div className="panel-hd">
-          <div className="panel-title" style={{ fontSize:15 }}>🏢 Niederlassungen — Vergleich (laufender Monat)</div>
+          <div className="panel-title" style={{ fontSize:15 }}>Niederlassungen — Vergleich (laufender Monat)</div>
         </div>
         {(function(){
           var monthStart = (function(){ var d=new Date(); d.setDate(1); return d.toLocaleDateString("sv-SE"); })();
@@ -2030,7 +2035,7 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
 
           {/* Топ медленных */}
           <div className="panel">
-            <div className="panel-hd"><div className="panel-title">🐢 Langsamste Abschlüsse (Top 10)</div></div>
+            <div className="panel-hd"><div className="panel-title">Langsamste Abschlüsse (Top 10)</div></div>
             {slaData.slowJobs.length === 0
               ? <div className="empty">Keine Daten</div>
               : <table className="tbl">
@@ -3509,7 +3514,7 @@ function Lager({ stock, onRefresh, loading }) {
     <div>
       {low.length > 0 && (
         <div className="panel" style={{ borderColor:"rgba(239,68,68,0.3)", background:"rgba(60,10,20,0.7)", marginBottom:16 }}>
-          <div className="panel-hd"><div className="panel-title" style={{ color:"#ef4444" }}>⚠️ Nachbestellen erforderlich ({low.length})</div></div>
+          <div className="panel-hd"><div className="panel-title" style={{ color:"#ef4444" }}>Nachbestellen erforderlich ({low.length})</div></div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             {low.map(function(s){ return <span key={s.id} className="badge badge-red">{s.name}: {s.qty} {s.unit||"Stk"}</span>; })}
           </div>
