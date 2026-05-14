@@ -1671,7 +1671,9 @@ function StandortPicker({ value, onChange, locations }) {
             onChange={function(e){ setCustomVal(e.target.value); }}
             onBlur={confirmCustom}
           />
-          <button type="button" className="mini-btn start" onClick={confirmCustom}>
+          <button type="button" className="mini-btn start"
+            style={{ minWidth:48, minHeight:48, fontSize:18, padding:"0 14px" }}
+            onClick={confirmCustom}>
             ✓
           </button>
         </div>
@@ -1755,7 +1757,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   useEffect(function() {
     if (!prefill) return;
     setVehicleType(prefill.vehicle_type || prefill.vehicleType || "truck");
-    // Ищем существующую машину в БД по plate — чтобы подтянуть brand/model которые ввели раньше
     var existingVeh = (vehicles || []).find(function(v){ return v.plate === prefill.plate; });
     setVehicle({
       id: existingVeh ? existingVeh.id : undefined,
@@ -1767,7 +1768,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
     setLocation(prefill.location || "Werkstatt");
     setWorkType(prefill.work_type || "emergency");
     setDescription(prefill.description || prefill.note || "");
-  }, [prefill && prefill.id, vehicles.length]);
+  }, [prefill ? prefill.id : null, vehicles.length]);
 
   function save() {
     if (savingRef.current) return; // защита от двойного нажатия
@@ -3267,6 +3268,153 @@ function Einstellungen({ stock, jobs, user, loading, onRefresh, onLogout }) {
   );
 }
 
+// === SOS SCREEN — экран подтверждения перед принятием SOS ===
+function SOSScreen({ alert: a, onAccept, onBack, vehicles }) {
+  var _snav = useState(false); var navOpen = _snav[0]; var setNavOpen = _snav[1];
+
+  function parseCoords(loc) {
+    if (!loc) return null;
+    var m = loc.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+    if (m) return { lat: m[1], lng: m[2] };
+    return null;
+  }
+
+  var coords = parseCoords(a.location);
+  var existingVeh = (vehicles || []).find(function(v){ return v.plate === a.plate; });
+  var brand = existingVeh ? (existingVeh.brand || "") : "";
+
+  function openNav(app) {
+    if (!coords) return;
+    var url;
+    if (app === "google") url = "https://maps.google.com/?q=" + coords.lat + "," + coords.lng;
+    else if (app === "waze") url = "https://waze.com/ul?ll=" + coords.lat + "," + coords.lng + "&navigate=yes";
+    window.open(url, "_blank");
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:999, background:"rgba(8,14,26,0.97)",
+      display:"flex", flexDirection:"column", maxWidth:480, margin:"0 auto" }}>
+
+      {/* Шапка */}
+      <div style={{ background:"linear-gradient(135deg,#7f1d1d,#b91c1c)", padding:"20px 20px 16px",
+        display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ fontSize:36, animation:"voicePulse 0.8s infinite" }}>🚨</div>
+        <div>
+          <div style={{ color:"#fff", fontFamily:"var(--font-display)", fontWeight:900,
+            fontSize:22, letterSpacing:1 }}>SOS — NOTRUF</div>
+          <div style={{ color:"rgba(255,255,255,0.7)", fontSize:13, marginTop:2 }}>
+            {a.created_at ? new Date(a.created_at).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : ""}
+            {" · "}{a.sender || a.sender_app || "Fahrer"}
+          </div>
+        </div>
+      </div>
+
+      {/* Карточка данных */}
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 16px 0" }}>
+
+        {/* Машина */}
+        <div className="glass-panel" style={{ marginBottom:12 }}>
+          <div className="label-cap">🚛 Fahrzeug</div>
+          <div style={{ fontSize:22, fontWeight:800, color:"#fff", marginTop:4 }}>
+            {a.plate || "—"}
+          </div>
+          {brand ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.6)", marginTop:2 }}>{brand}</div> : null}
+        </div>
+
+        {/* Описание проблемы */}
+        <div className="glass-panel" style={{ marginBottom:12 }}>
+          <div className="label-cap">⚠️ Problem</div>
+          <div style={{ fontSize:16, color:"#fff", marginTop:6, lineHeight:1.5, whiteSpace:"pre-wrap" }}>
+            {a.description || a.note || "Keine Beschreibung"}
+          </div>
+        </div>
+
+        {/* Standort с навигацией */}
+        <div className="glass-panel" style={{ marginBottom:12 }}>
+          <div className="label-cap">📍 Standort</div>
+          <div onClick={function(){ if(coords) setNavOpen(!navOpen); }}
+            style={{ marginTop:6, cursor: coords ? "pointer" : "default",
+              color: coords ? "#ffa500" : "rgba(255,255,255,0.6)",
+              fontSize:14, lineHeight:1.5,
+              textDecoration: coords ? "underline" : "none",
+              textDecorationStyle:"dotted" }}>
+            {a.location || "Kein Standort"}
+            {coords ? <span style={{ marginLeft:8, fontWeight:700 }}>{navOpen ? "▲" : "▼"}</span> : null}
+          </div>
+          {navOpen && coords && (
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:10 }}>
+              <button type="button" onClick={function(){ openNav("google"); }}
+                style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px",
+                  borderRadius:12, border:"1.5px solid rgba(66,133,244,0.5)",
+                  background:"rgba(66,133,244,0.1)", color:"#4285F4",
+                  fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                Google Maps öffnen
+              </button>
+              <button type="button" onClick={function(){ openNav("waze"); }}
+                style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px",
+                  borderRadius:12, border:"1.5px solid rgba(0,210,255,0.4)",
+                  background:"rgba(0,210,255,0.08)", color:"#00D2FF",
+                  fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="10" r="6"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>
+                Waze öffnen
+              </button>
+              <button type="button" onClick={function(){
+                  if(navigator.clipboard) navigator.clipboard.writeText(a.location||"");
+                  setNavOpen(false);
+                }}
+                style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px",
+                  borderRadius:12, border:"1.5px solid rgba(255,255,255,0.15)",
+                  background:"rgba(255,255,255,0.05)", color:"rgba(255,255,255,0.7)",
+                  fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Adresse kopieren
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Фото если есть */}
+        {a.photo_urls && normalizeUrls(a.photo_urls).length > 0 && (
+          <div className="glass-panel" style={{ marginBottom:12 }}>
+            <div className="label-cap">📷 Fotos</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:8 }}>
+              {normalizeUrls(a.photo_urls).slice(0,4).map(function(url, i){
+                return (
+                  <img key={i} src={url} alt="" onClick={function(){ window.open(url,"_blank"); }}
+                    style={{ width:72, height:72, objectFit:"cover", borderRadius:8, cursor:"pointer" }} />
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Кнопки действий */}
+      <div style={{ padding:"16px", display:"flex", flexDirection:"column", gap:10,
+        paddingBottom:"calc(16px + env(safe-area-inset-bottom))" }}>
+        <button type="button" onClick={function(){ onAccept(a); }}
+          style={{ width:"100%", padding:"18px 20px", borderRadius:14,
+            background:"linear-gradient(135deg,#16a34a,#15803d)",
+            border:"none", color:"#fff",
+            fontFamily:"var(--font-display)", fontWeight:900, fontSize:18, letterSpacing:1,
+            boxShadow:"0 6px 24px rgba(22,163,74,0.4)", cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:12 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Annehmen — Auftrag erstellen
+        </button>
+        <button type="button" onClick={onBack}
+          style={{ width:"100%", padding:"14px 20px", borderRadius:14,
+            background:"transparent", border:"1.5px solid rgba(255,255,255,0.2)",
+            color:"rgba(255,255,255,0.6)",
+            fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+          ← Zurück zum Eingang
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _stab = useState("new"); var tab = _stab[0]; var setTab = _stab[1];
@@ -3279,6 +3427,7 @@ function AppShell({ user, onLogout }) {
   var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
   var _sprefill = useState(null); var prefill = _sprefill[0]; var setPrefill = _sprefill[1];
   var _sdbOk = useState(null); var dbOk = _sdbOk[0]; var setDbOk = _sdbOk[1];
+  var _ssos = useState(null); var sosAlert = _ssos[0]; var setSosAlert = _ssos[1];
   var prevAlertCount = useRef(0);
   var wsRef = useRef(null);
 
@@ -3393,11 +3542,17 @@ function AppShell({ user, onLogout }) {
   var openAlerts = alerts.filter(function(a) { return a.status !== "done" && a.status !== "rejected"; });
 
   function createFromAlert(a) {
-    setPrefill(Object.assign({},a,{
+    setSosAlert(a);
+  }
+
+  function acceptSos(a) {
+    setSosAlert(null);
+    var p = Object.assign({}, a, {
       vehicle_type: a.vehicle_type || a.vehicleType || "truck",
-      work_type:"emergency",
-      photo_urls:normalizeUrls(a.photo_urls)
-    }));
+      work_type: "emergency",
+      photo_urls: normalizeUrls(a.photo_urls)
+    });
+    setPrefill(p);
     setTab("new");
   }
 
@@ -3429,6 +3584,15 @@ function AppShell({ user, onLogout }) {
             <div className="emergency-count">{openAlerts.length}</div>
           </div>
         )}
+
+      {sosAlert && (
+        <SOSScreen
+          alert={sosAlert}
+          vehicles={vehicles}
+          onAccept={acceptSos}
+          onBack={function(){ setSosAlert(null); }}
+        />
+      )}
 
         {tab === "new" && (
           <NewJob vehicles={vehicles} setVehicles={setVehicles}
