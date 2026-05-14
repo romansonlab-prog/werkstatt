@@ -1936,34 +1936,34 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
           <button type="button"
             onClick={function(){
-              setVoiceDebug("1. Klick erkannt");
+              setVoiceDebug(function(p){ return "1. Klick erkannt"; });
               // Если запись идёт — останавливаем
               if (voiceRef.current) {
                 var recOld = voiceRef.current;
                 voiceRef.current = null;
                 setVoiceActive(false);
-                setVoiceDebug("Gestoppt durch Klick");
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "Gestoppt durch Klick"; });
                 try { recOld.stop(); } catch(err){}
                 return;
               }
 
               function startRecognition() {
                 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-                setVoiceDebug("3. SR-Objekt: " + (SR ? "vorhanden" : "FEHLT"));
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "3. SR-Objekt: " + (SR ? "vorhanden" : "FEHLT"); });
                 var rec;
-                try { rec = new SR(); } catch(err){ setVoiceDebug("FEHLER bei new SR(): " + err.message); return; }
+                try { rec = new SR(); } catch(err){ setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER bei new SR(): " + err.message; }); return; }
                 rec.lang = "de-DE";
                 rec.continuous = true;
                 rec.interimResults = true;
                 var finalText = "";
                 rec.onstart = function(){
-                  setVoiceDebug("5. ✓ Aufnahme läuft — sprechen Sie jetzt!");
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "5. AUFNAHME LAEUFT - sprechen!"; });
                 };
                 rec.onaudiostart = function(){
-                  setVoiceDebug("6. Mikrofon aktiv");
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "6. Mikrofon aktiv"; });
                 };
                 rec.onspeechstart = function(){
-                  setVoiceDebug("6b. Sprache erkannt...");
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "6b. Sprache erkannt"; });
                 };
                 rec.onresult = function(ev){
                   var interim = "";
@@ -1976,10 +1976,10 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                     }
                   }
                   setVoiceText(finalText + interim);
-                  setVoiceDebug("7. Erkannt: " + (finalText + interim).slice(0, 30));
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "7. Erkannt: " + (finalText + interim).slice(0, 30); });
                 };
                 rec.onerror = function(ev){
-                  setVoiceDebug("FEHLER: " + ev.error + (ev.message ? " — " + ev.message : ""));
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER: " + ev.error + (ev.message ? " - " + ev.message : ""); });
                   voiceRef.current = null;
                   setVoiceActive(false);
                 };
@@ -1989,9 +1989,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                   var captured = finalText.trim();
                   if (captured) {
                     setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
-                    setVoiceDebug("Fertig — Text gespeichert");
+                    setVoiceDebug(function(p){ return (p?p+"\n":"") + "Fertig - Text gespeichert"; });
                   } else {
-                    setVoiceDebug("Beendet — kein Text erkannt");
+                    setVoiceDebug(function(p){ return (p?p+"\n":"") + "Beendet - kein Text erkannt"; });
                   }
                   setVoiceText("");
                 };
@@ -2000,24 +2000,24 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                 setVoiceActive(true);
                 try {
                   rec.start();
-                  setVoiceDebug("4. rec.start() aufgerufen — warte auf Start...");
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "4. rec.start() OK - warte..."; });
                 } catch(err){
-                  setVoiceDebug("FEHLER bei start(): " + err.message);
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER bei start(): " + err.message; });
                   voiceRef.current = null;
                   setVoiceActive(false);
                 }
               }
 
               // Сначала явно будим микрофон через getUserMedia, потом запускаем распознавание
-              setVoiceDebug("2. Frage Mikrofon-Zugriff an...");
+              setVoiceDebug(function(p){ return (p?p+"\n":"") + "2. Frage Mikrofon an..."; });
               if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
                   // микрофон разбужен — закрываем поток, он больше не нужен, SR откроет свой
                   stream.getTracks().forEach(function(tr){ tr.stop(); });
-                  setVoiceDebug("2b. Mikrofon-Zugriff OK");
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "2b. Mikrofon-Zugriff OK"; });
                   setTimeout(startRecognition, 300);
                 }).catch(function(err){
-                  setVoiceDebug("FEHLER Mikrofon: " + err.name + " — " + err.message);
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER Mikrofon: " + err.name + " - " + err.message; });
                 });
               } else {
                 // нет getUserMedia — пробуем напрямую
@@ -2046,8 +2046,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         {voiceDebug ? (
           <div style={{ marginTop:8, padding:"10px 12px", borderRadius:"var(--radius-sm)",
             background:"rgba(96,165,250,0.1)", border:"1px solid rgba(96,165,250,0.35)",
-            fontSize:13, color:"#93c5fd", fontFamily:"var(--font-mono)", wordBreak:"break-word" }}>
-            🔍 {voiceDebug}
+            fontSize:12, color:"#93c5fd", fontFamily:"var(--font-mono)", wordBreak:"break-word",
+            whiteSpace:"pre-line", lineHeight:1.6 }}>
+            {voiceDebug}
           </div>
         ) : null}
         {voiceActive && voiceText ? (
