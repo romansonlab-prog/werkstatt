@@ -1700,7 +1700,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var description = _sdesc[0]; var setDescription = _sdesc[1];
   var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
   var _svoiceText = useState(""); var voiceText = _svoiceText[0]; var setVoiceText = _svoiceText[1];
-  var _svoiceDebug = useState(""); var voiceDebug = _svoiceDebug[0]; var setVoiceDebug = _svoiceDebug[1];
   var voiceRef = useRef(null);
   var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
   var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
@@ -1935,45 +1934,17 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           style={{ borderColor: voiceActive ? "var(--red)" : undefined, marginBottom:8 }} />
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
           <button type="button"
-            onClick={function(){
-              // Если запись идёт — останавливаем
-              if (voiceRef.current) {
-                var recOld = voiceRef.current;
-                voiceRef.current = null;
-                try { recOld.stop(); } catch(err){}
-                setVoiceActive(false);
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "Gestoppt durch Klick"; });
-                return;
-              }
-
-              setVoiceDebug(function(p){ return "1. Start..."; });
-
+            onPointerDown={function(e){
+              e.preventDefault();
+              if (voiceRef.current) return;
               var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
               var rec;
-              try {
-                rec = new SR();
-              } catch(err){
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER new SR: " + err.message; });
-                return;
-              }
-
+              try { rec = new SR(); } catch(err){ return; }
               rec.lang = "de-DE";
-              rec.continuous = false;
+              rec.continuous = true;
               rec.interimResults = true;
               rec.maxAlternatives = 1;
-
               var finalText = "";
-              var gotError = "";
-
-              rec.onstart = function(){
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "2. LAEUFT - jetzt sprechen!"; });
-              };
-              rec.onaudiostart = function(){
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "3. Mikrofon aktiv"; });
-              };
-              rec.onspeechstart = function(){
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "4. Sprache hoerbar"; });
-              };
               rec.onresult = function(ev){
                 var interim = "";
                 finalText = "";
@@ -1986,34 +1957,37 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                 }
                 setVoiceText(finalText + interim);
               };
-              rec.onerror = function(ev){
-                gotError = ev.error;
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER: " + ev.error; });
-              };
+              rec.onerror = function(){};
               rec.onend = function(){
                 voiceRef.current = null;
                 setVoiceActive(false);
                 var captured = finalText.trim();
                 if (captured) {
                   setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FERTIG: " + captured.slice(0,40); });
-                } else if (!gotError) {
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "Beendet - kein Text"; });
                 }
                 setVoiceText("");
               };
-
+              rec._finalGetter = function(){ return finalText; };
               voiceRef.current = rec;
+              setVoiceText("");
               setVoiceActive(true);
-
-              // Запускаем сразу, без задержек и getUserMedia
-              try {
-                rec.start();
-              } catch(err){
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER start(): " + err.message; });
-                voiceRef.current = null;
-                setVoiceActive(false);
-              }
+              try { rec.start(); } catch(err){ voiceRef.current = null; setVoiceActive(false); }
+            }}
+            onPointerUp={function(e){
+              e.preventDefault();
+              if (!voiceRef.current) return;
+              var rec = voiceRef.current;
+              try { rec.stop(); } catch(err){}
+            }}
+            onPointerLeave={function(e){
+              if (!voiceRef.current) return;
+              var rec = voiceRef.current;
+              try { rec.stop(); } catch(err){}
+            }}
+            onPointerCancel={function(e){
+              if (!voiceRef.current) return;
+              var rec = voiceRef.current;
+              try { rec.stop(); } catch(err){}
             }}
             style={{
               width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
@@ -2022,7 +1996,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               background: voiceActive ? "rgba(239,68,68,0.1)" : "var(--bg-elevated)",
               color: voiceActive ? "var(--red)" : "var(--text-secondary)",
               fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, letterSpacing:1,
-              minHeight:"56px", transition:"all var(--transition)",
+              minHeight:"56px", transition:"background 0.1s, border-color 0.1s",
+              touchAction:"none", userSelect:"none", WebkitUserSelect:"none",
               animation: voiceActive ? "voicePulse 0.8s infinite" : "none"
             }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2031,17 +2006,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               <line x1="12" y1="19" x2="12" y2="23"/>
               <line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
-            {voiceActive ? "● Aufnahme läuft — Tippen zum Stoppen" : "Spracheingabe starten"}
+            {voiceActive ? "Sprechen Sie jetzt — loslassen zum Speichern" : "Mikrofon gedrückt halten"}
           </button>
         )}
-        {voiceDebug ? (
-          <div style={{ marginTop:8, padding:"10px 12px", borderRadius:"var(--radius-sm)",
-            background:"rgba(96,165,250,0.1)", border:"1px solid rgba(96,165,250,0.35)",
-            fontSize:12, color:"#93c5fd", fontFamily:"var(--font-mono)", wordBreak:"break-word",
-            whiteSpace:"pre-line", lineHeight:1.6 }}>
-            {voiceDebug}
-          </div>
-        ) : null}
         {voiceActive && voiceText ? (
           <div style={{ marginTop:8, padding:"12px 14px", borderRadius:"var(--radius-sm)",
             background:"rgba(239,68,68,0.07)", border:"1px solid rgba(239,68,68,0.2)",

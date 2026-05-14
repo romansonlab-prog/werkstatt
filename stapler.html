@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WerkFlow Stapler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
 
   <!-- === Sentry/Glitchtip Error Monitoring ===
        Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
@@ -39,9 +40,22 @@
     })();
   </script>
   <style>
+    :root {
+      --accent:#ffa500; --accent-dark:#cc7a00; --accent-glow:rgba(255,165,0,0.35);
+      --bg-base:#080e1a; --bg-card:rgba(13,25,52,0.85); --bg-input:rgba(6,15,38,0.9);
+      --bg-elevated:rgba(18,35,70,0.9); --border:rgba(255,255,255,0.1);
+      --text-primary:#f0f4ff; --text-secondary:rgba(255,255,255,0.55); --text-muted:rgba(255,255,255,0.3);
+      --green:#22c55e; --red:#ef4444; --blue:#60a5fa;
+      --radius-sm:10px; --radius-md:14px; --radius-lg:18px;
+      --touch:56px; --transition:150ms ease;
+      --font-display:'Barlow Condensed',sans-serif;
+      --font-body:'Barlow',sans-serif;
+      --font-mono:'DM Mono',monospace;
+      --sp1:8px; --sp2:16px; --sp3:24px;
+    }
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
-    body{background:#0a1730;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;min-height:100dvh}
+    body{background:var(--bg-base);color:var(--text-primary);font-family:var(--font-body);min-height:100vh;min-height:100dvh}
     #root{min-height:100vh;min-height:100dvh}
     .bg-image{position:fixed;inset:0;z-index:0;background-color:#0a1730;background-image:linear-gradient(180deg,rgba(10,23,48,0.35) 0%,rgba(10,23,48,0.7) 60%,rgba(10,23,48,0.92) 100%),url("./bg-truck.png");background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
     button{font:inherit;color:inherit;cursor:pointer}
@@ -52,17 +66,17 @@
 
     .scrn{position:relative;z-index:2;min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);display:flex;flex-direction:column;max-width:480px;margin:0 auto;width:100%}
 
-    .btn-primary{background:linear-gradient(180deg,#ffa500,#ff8c00);color:#0a1730;border:none;border-radius:12px;font-weight:800;padding:18px;width:100%;box-shadow:0 8px 24px rgba(255,165,0,0.35);font-size:16px}
+    .btn-primary{background:linear-gradient(180deg,var(--accent),var(--accent-dark));color:#0a1730;border:none;border-radius:var(--radius-md);font-family:var(--font-display);font-weight:900;letter-spacing:1px;padding:20px;width:100%;min-height:var(--touch);box-shadow:0 8px 24px var(--accent-glow);font-size:17px;transition:all var(--transition)}
     .btn-primary:disabled{opacity:0.5;cursor:not-allowed}
     .btn-danger{background:linear-gradient(180deg,#ef4444,#dc2626);color:#fff;border:none;border-radius:12px;font-weight:800;padding:18px;width:100%;box-shadow:0 8px 24px rgba(239,68,68,0.35);font-size:16px}
     .btn-danger:disabled{opacity:0.5;cursor:not-allowed}
 
     .input-light{width:100%;padding:14px 14px 14px 44px;background:#fff;color:#0a1730;border:1px solid #e5e7eb;border-radius:12px;font-size:16px;outline:none}
     .input-light:focus{border-color:#ffa500}
-    .input-dark{width:100%;padding:13px 14px;background:rgba(9,27,58,0.74);border:1px solid rgba(255,255,255,0.16);border-radius:12px;color:#fff;outline:none;font-size:15px}
-    .input-dark:focus{border-color:#ffa500;box-shadow:0 0 0 1px rgba(255,165,0,0.4)}
-    .textarea-dark{width:100%;padding:13px 14px;background:rgba(9,27,58,0.74);border:1px solid rgba(255,255,255,0.16);border-radius:12px;color:#fff;min-height:90px;outline:none;font-size:15px}
-    .textarea-dark:focus{border-color:#ffa500}
+    .input-dark{width:100%;padding:16px var(--sp2);background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);outline:none;font-size:17px;font-family:var(--font-body);min-height:var(--touch)}
+    .input-dark:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+    .textarea-dark{width:100%;padding:16px var(--sp2);background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);min-height:120px;outline:none;font-size:17px;font-family:var(--font-body);resize:none}
+    .textarea-dark:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
 
     .keypad-btn{width:70px;height:70px;border-radius:50%;background:rgba(3,12,28,0.18);border:1.5px solid rgba(255,255,255,0.35);color:#fff;font-size:28px;font-weight:500;display:flex;align-items:center;justify-content:center}
     .keypad-btn:active{background:rgba(255,255,255,0.10)}
@@ -77,10 +91,10 @@
     .slider-marks{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-around;padding:0 90px 0 80px;pointer-events:none}
     .slider-mark{width:2px;height:24px;background:rgba(255,255,255,0.2);border-radius:2px}
 
-    .glass-panel{background:rgba(15,39,78,0.64);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:16px;margin-bottom:13px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-    .label-cap{font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:1.5px;margin-bottom:8px}
-    .tile-btn{padding:12px 8px;border-radius:12px;text-align:center;border:1px solid rgba(255,255,255,0.14);background:rgba(9,27,58,0.72);color:#fff;font-size:13px;font-weight:700}
-    .tile-btn.active{border-color:#ffa500;background:rgba(255,165,0,0.12);color:#ffa500;box-shadow:0 0 0 1px #ffa500}
+    .glass-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--sp2);margin-bottom:var(--sp2);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+    .label-cap{font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--text-secondary);letter-spacing:2px;text-transform:uppercase;margin-bottom:var(--sp1)}
+    .tile-btn{padding:16px 8px;border-radius:var(--radius-md);text-align:center;border:1.5px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:var(--font-display);font-size:13px;font-weight:700;min-height:var(--touch);transition:all var(--transition)}
+    .tile-btn.active{border-color:var(--accent);background:rgba(255,165,0,0.12);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
     .urg-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:rgba(20,40,80,0.45);font-weight:700;margin-bottom:8px;cursor:pointer}
     .urg-row.r{border-color:#ff3b30;background:rgba(239,68,68,0.10);box-shadow:0 0 0 1px #ff3b30}
     .urg-row.o{border-color:#ffa500;background:rgba(255,165,0,0.10);box-shadow:0 0 0 1px #ffa500}
@@ -90,7 +104,7 @@
     .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
     .photo-thumb{position:relative;aspect-ratio:1/1;overflow:hidden;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:#061326}
     .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .photo-thumb button{position:absolute;right:4px;top:4px;width:22px;height:22px;border:0;border-radius:50%;background:rgba(0,0,0,0.75);color:#fff;font-weight:800;font-size:13px}
+    .photo-thumb button{position:absolute;right:5px;top:5px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(0,0,0,0.8);color:#fff;font-weight:800;font-size:15px}
 
     .white-card{margin-top:28px;background:#fff;color:#0a1730;border-radius:24px;padding:28px 24px;box-shadow:0 22px 60px rgba(0,0,0,0.45)}
     .light-label{color:#102d62;font-size:16px;font-weight:800;margin-bottom:10px}
@@ -118,13 +132,8 @@
     .status-box.w{background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.35)}
     .status-box.p{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35)}
     .status-box.d{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35)}
-    .introjs-tooltip{background:#0f1e3d!important;border:1px solid rgba(255,165,0,0.3)!important;color:#fff!important;border-radius:14px!important;max-width:280px!important}
-    .introjs-tooltiptext{color:rgba(255,255,255,0.85)!important;font-size:14px!important;line-height:1.5!important}
-    .introjs-button{background:rgba(255,165,0,0.15)!important;border:1px solid rgba(255,165,0,0.4)!important;color:#ffa500!important;border-radius:8px!important;font-weight:700!important}
-    .introjs-button:hover{background:rgba(255,165,0,0.3)!important}
-    .introjs-skipbutton{color:rgba(255,255,255,0.4)!important}
-    .introjs-progressbar{background:#ffa500!important}
-    .introjs-progress{background:rgba(255,255,255,0.1)!important}
+    /* voice pulse */
+    @keyframes voicePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.03)}}
   </style>
   <link rel="manifest" href="manifest-stapler.json" />
   <meta name="theme-color" content="#15803d" />
@@ -600,6 +609,9 @@ function ReportForm({ user, onSent }) {
   var _fk  = useState(_draftInit.fk||null); var fk = _fk[0]; var setFk = _fk[1];
   var _urg = useState(_draftInit.urg||""); var urg = _urg[0]; var setUrg = _urg[1];
   var _dsc = useState(_draftInit.dsc||""); var dsc = _dsc[0]; var setDsc = _dsc[1];
+  var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
+  var _svoiceText = useState(""); var voiceText = _svoiceText[0]; var setVoiceText = _svoiceText[1];
+  var voiceRef = useRef(null);
   var _nm  = useState(user.name || ""); var nm = _nm[0]; var setNm = _nm[1];
   var _ph  = useState([]); var ph = _ph[0]; var setPh = _ph[1];
   var _snd = useState(false); var snd = _snd[0]; var setSnd = _snd[1];
@@ -704,7 +716,57 @@ function ReportForm({ user, onSent }) {
           <div className="label-cap">📝 PROBLEMBESCHREIBUNG *</div>
           <textarea className="textarea-dark" value={dsc}
             onChange={function(e){ setDsc(e.target.value); }}
-            placeholder="z.B. Stapler fährt nicht an, Hydraulik defekt..." />
+            placeholder="z.B. Stapler fährt nicht an, Hydraulik defekt..."
+            style={{ borderColor: voiceActive ? "var(--red)" : undefined, marginBottom:8 }} />
+          {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
+            <div>
+              <button type="button"
+                onPointerDown={function(e){
+                  e.preventDefault();
+                  if(voiceRef.current) return;
+                  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+                  var rec;
+                  try{ rec=new SR(); }catch(err){ return; }
+                  rec.lang="de-DE"; rec.continuous=true; rec.interimResults=true; rec.maxAlternatives=1;
+                  var finalText="";
+                  rec.onresult=function(ev){
+                    var interim=""; finalText="";
+                    for(var i=0;i<ev.results.length;i++){
+                      if(ev.results[i].isFinal){ finalText+=ev.results[i][0].transcript+" "; }
+                      else{ interim+=ev.results[i][0].transcript; }
+                    }
+                    setVoiceText(finalText+interim);
+                  };
+                  rec.onerror=function(){};
+                  rec.onend=function(){
+                    voiceRef.current=null; setVoiceActive(false);
+                    var captured=finalText.trim();
+                    if(captured){ setDsc(function(prev){ return prev?prev+" "+captured:captured; }); }
+                    setVoiceText("");
+                  };
+                  voiceRef.current=rec; setVoiceText(""); setVoiceActive(true);
+                  try{rec.start();}catch(err){ voiceRef.current=null; setVoiceActive(false); }
+                }}
+                onPointerUp={function(e){
+                  e.preventDefault();
+                  if(!voiceRef.current) return;
+                  try{ voiceRef.current.stop(); }catch(err){}
+                }}
+                onPointerLeave={function(e){
+                  if(!voiceRef.current) return;
+                  try{ voiceRef.current.stop(); }catch(err){}
+                }}
+                onPointerCancel={function(e){
+                  if(!voiceRef.current) return;
+                  try{ voiceRef.current.stop(); }catch(err){}
+                }}
+                style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:12,padding:"16px",borderRadius:"var(--radius-md)",border:"1.5px solid",borderColor:voiceActive?"var(--red)":"var(--border)",background:voiceActive?"rgba(239,68,68,0.1)":"var(--bg-elevated)",color:voiceActive?"var(--red)":"var(--text-secondary)",fontFamily:"var(--font-display)",fontWeight:700,fontSize:14,letterSpacing:1,minHeight:"var(--touch)",transition:"background 0.1s, border-color 0.1s",userSelect:"none",WebkitUserSelect:"none",touchAction:"none",animation:voiceActive?"voicePulse 0.6s infinite":"none" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                {voiceActive ? "Loslassen zum Speichern..." : "Gedrückt halten — Sprechen"}
+              </button>
+              {voiceActive && voiceText ? <div style={{ marginTop:8,padding:"10px 12px",borderRadius:"var(--radius-sm)",background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.2)",fontSize:13,color:"rgba(255,255,255,0.7)",fontStyle:"italic" }}>{voiceText}</div> : null}
+            </div>
+          )}
         </div>
 
         <div className="glass-panel">
