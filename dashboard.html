@@ -4282,15 +4282,42 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
   var prevAll   = prevLabor + prevParts + prevInvAmt;
   var prevJobsCnt = prevJobs.length;
 
-  var byVeh = {};
+  // === Kosten nach Fahrzeugtyp ===
+  var _svt2 = useState("all"); var vTypeFilter = _svt2[0]; var setVTypeFilter = _svt2[1];
+  var _svs  = useState(""); var vSearch = _svs[0]; var setVSearch = _svs[1];
+
+  // Маппинг vehicle_type → немецкое название
+  var VEH_TYPE_LABELS = {
+    truck: "LKW", semiTrailer: "Sattelauflieger", trailer: "Anhänger",
+    forklift: "Stapler", pkw: "PKW", van: "Transporter", other: "Sonstiges"
+  };
+
+  // Группируем jobs по plate
+  var byVehFull = {};
   filtered.forEach(function(j){
     if (!j.plate) return;
-    if (!byVeh[j.plate]) byVeh[j.plate] = { labor:0, parts:0, jobs:0, min:0 };
-    byVeh[j.plate].labor += Number(j.labor_cost)||0;
-    byVeh[j.plate].parts += Number(j.parts_cost)||0;
-    byVeh[j.plate].jobs++;
-    byVeh[j.plate].min += parseInt(j.work_min||0)||0;
+    if (!byVehFull[j.plate]) byVehFull[j.plate] = {
+      labor:0, parts:0, inv:0, jobs:0, min:0,
+      vtype: j.vehicle_type || "other"
+    };
+    byVehFull[j.plate].labor += Number(j.labor_cost)||0;
+    byVehFull[j.plate].parts += Number(j.parts_cost)||0;
+    byVehFull[j.plate].jobs++;
+    byVehFull[j.plate].min += parseInt(j.work_min||0)||0;
+    // vehicle_type обновляем если есть (берём последний непустой)
+    if (j.vehicle_type) byVehFull[j.plate].vtype = j.vehicle_type;
   });
+
+  // Добавляем invoices к записям по plate
+  filtInv.forEach(function(i){
+    if (!i.vehicle_id) return;
+    var p = i.vehicle_id;
+    if (!byVehFull[p]) byVehFull[p] = { labor:0, parts:0, inv:0, jobs:0, min:0, vtype:"other" };
+    byVehFull[p].inv += Number(i.amount)||0;
+  });
+
+  // Для Top 10 (совместимость с exportKosten) — берём топ 10 по сумме
+  var byVeh = byVehFull;
   var topVeh = Object.keys(byVeh).sort(function(a,b){
     return (byVeh[b].labor+byVeh[b].parts) - (byVeh[a].labor+byVeh[a].parts);
   }).slice(0,10);
@@ -4375,9 +4402,12 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
   }, [jobs.length, invoices.length, period]);
 
   function exportKosten() {
-    var rows = topVeh.map(function(p){
-      var v = byVeh[p];
-      return "<tr><td>"+p+"</td><td>"+(v.labor.toFixed(2))+" €</td><td>"+(v.parts.toFixed(2))+" €</td><td>"+((v.labor+v.parts).toFixed(2))+" €</td><td>"+v.jobs+"</td><td>"+fmtMin(v.min)+"</td></tr>";
+    var rows = Object.keys(byVehFull).sort(function(a,b){
+      return (byVehFull[b].labor+byVehFull[b].parts+byVehFull[b].inv) - (byVehFull[a].labor+byVehFull[a].parts+byVehFull[a].inv);
+    }).map(function(p){
+      var v = byVehFull[p];
+      var ges = v.labor+v.parts+v.inv;
+      return "<tr><td>"+p+"</td><td>"+(v.labor.toFixed(2))+" €</td><td>"+(v.parts.toFixed(2))+" €</td><td>"+(v.inv>0?v.inv.toFixed(2)+" €":"—")+"</td><td>"+ges.toFixed(2)+" €</td><td>"+v.jobs+"</td><td>"+fmtMin(v.min)+"</td></tr>";
     }).join("");
     var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Kostenanalyse</title>"+baseReportStyle()+"</head><body>"+
       "<h1>WerkFlow — Kostenanalyse</h1><h2>Zeitraum: "+fmtDate(start)+" — heute</h2>"+
@@ -4385,21 +4415,25 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
       "<div class='sum-item'><div class='sum-val'>"+totalLabor.toFixed(2)+" €</div><div class='sum-lab'>Lohnkosten</div></div>"+
       "<div class='sum-item'><div class='sum-val'>"+totalParts.toFixed(2)+" €</div><div class='sum-lab'>Ersatzteile</div></div>"+
       "<div class='sum-item'><div class='sum-val'>"+totalInv.toFixed(2)+" €</div><div class='sum-lab'>Rechnungen</div></div></div>"+
-      "<h2 style='margin-bottom:10px'>Kosten je Fahrzeug</h2>"+
-      "<table><thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Gesamt</th><th>Aufträge</th><th>Arbeitszeit</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<h2 style='margin-bottom:10px'>Kosten nach Fahrzeugtyp</h2>"+
+      "<table><thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Extern</th><th>Gesamt</th><th>Aufträge</th><th>Arbeitszeit</th></tr></thead><tbody>"+rows+"</tbody></table>"+
       "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
     printHtml(html, "Kostenanalyse");
   }
 
   function exportKostenXlsx() {
-    var headers = ["Kennzeichen", "Lohnkosten (€)", "Ersatzteile (€)", "Gesamt (€)", "Aufträge", "Arbeitszeit (min)"];
-    var rows = topVeh.map(function(p){
-      var v = byVeh[p];
+    var headers = ["Kennzeichen", "Typ", "Lohnkosten (€)", "Ersatzteile (€)", "Extern. Rechnungen (€)", "Gesamt (€)", "Aufträge", "Arbeitszeit (min)"];
+    var rows = Object.keys(byVehFull).sort(function(a,b){
+      return (byVehFull[b].labor+byVehFull[b].parts+byVehFull[b].inv) - (byVehFull[a].labor+byVehFull[a].parts+byVehFull[a].inv);
+    }).map(function(p){
+      var v = byVehFull[p];
       return {
         "Kennzeichen": p,
+        "Typ": VEH_TYPE_LABELS[v.vtype] || v.vtype || "",
         "Lohnkosten (€)": Number(v.labor.toFixed(2)),
         "Ersatzteile (€)": Number(v.parts.toFixed(2)),
-        "Gesamt (€)": Number((v.labor+v.parts).toFixed(2)),
+        "Extern. Rechnungen (€)": Number(v.inv.toFixed(2)),
+        "Gesamt (€)": Number((v.labor+v.parts+v.inv).toFixed(2)),
         "Aufträge": v.jobs,
         "Arbeitszeit (min)": v.min
       };
@@ -4492,31 +4526,152 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
         </div>
       )}
 
-      <div className="g2">
-        <div className="panel">
-          <div className="panel-hd"><div className="panel-title">Kosten je Fahrzeug (Top 10)</div></div>
-          {topVeh.length === 0 ? <div className="empty">Keine Daten</div> :
-            <table className="tbl">
-              <thead><tr><th>Kennzeichen</th><th>Lohn</th><th>Teile</th><th>Gesamt</th><th>Aufträge</th></tr></thead>
-              <tbody>
-                {topVeh.map(function(p){
-                  var v = byVeh[p];
-                  var total = v.labor + v.parts;
+      {/* === KOSTEN NACH FAHRZEUGTYP (заменяет Top 10) === */}
+      {(function(){
+        var VT_TABS = [
+          { k:"all",         l:"Alle" },
+          { k:"truck",       l:"LKW" },
+          { k:"semiTrailer", l:"Sattelauflieger" },
+          { k:"forklift",    l:"Stapler" },
+          { k:"pkw",         l:"PKW" },
+          { k:"other",       l:"Sonstiges" }
+        ];
+
+        // Все plates, отфильтрованные по типу и поиску
+        var allPlates = Object.keys(byVehFull).filter(function(p){
+          var v = byVehFull[p];
+          var typeMatch = vTypeFilter === "all" || v.vtype === vTypeFilter ||
+            (vTypeFilter === "other" && !VEH_TYPE_LABELS[v.vtype]);
+          var searchMatch = !vSearch || p.toLowerCase().includes(vSearch.toLowerCase());
+          return typeMatch && searchMatch;
+        }).sort(function(a,b){
+          var va = byVehFull[a]; var vb = byVehFull[b];
+          return (vb.labor+vb.parts+vb.inv) - (va.labor+va.parts+va.inv);
+        });
+
+        // Итоговая строка по выбранному типу
+        var sumLabor = 0; var sumParts = 0; var sumInv = 0; var sumJobs = 0; var sumMin = 0;
+        allPlates.forEach(function(p){
+          var v = byVehFull[p];
+          sumLabor += v.labor; sumParts += v.parts; sumInv += v.inv;
+          sumJobs += v.jobs; sumMin += v.min;
+        });
+        var sumGesamt = sumLabor + sumParts + sumInv;
+
+        return (
+          <div className="panel" style={{ marginBottom:20 }}>
+            <div className="panel-hd" style={{ flexWrap:"wrap", gap:8 }}>
+              <div className="panel-title" style={{ flex:"1 1 auto" }}>Kosten nach Fahrzeugtyp</div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+                {VT_TABS.map(function(tab){
                   return (
-                    <tr key={p}>
-                      <td><strong>{p}</strong></td>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{v.labor.toFixed(2)} €</td>
-                      <td style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{v.parts.toFixed(2)} €</td>
-                      <td style={{ color:"#ffa500", fontWeight:700 }}>{total.toFixed(2)} €</td>
-                      <td style={{ fontSize:12 }}>{v.jobs}</td>
-                    </tr>
+                    <button key={tab.k}
+                      className={"btn-small " + (vTypeFilter===tab.k ? "btn-primary" : "btn-outline")}
+                      onClick={function(){ setVTypeFilter(tab.k); }}>
+                      {tab.l}
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
-          }
-        </div>
+                <input
+                  className="inp"
+                  style={{ width:130, padding:"4px 10px", fontSize:12, marginLeft:4 }}
+                  placeholder="Suche Kennz."
+                  value={vSearch}
+                  onChange={function(e){ setVSearch(e.target.value); }}
+                />
+              </div>
+            </div>
 
+            {/* Итоговая строка по выбранному типу */}
+            {allPlates.length > 0 && (
+              <div style={{
+                display:"flex", gap:16, flexWrap:"wrap",
+                background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.2)",
+                borderRadius:8, padding:"10px 16px", margin:"0 0 12px 0", alignItems:"center"
+              }}>
+                <div style={{ fontWeight:700, fontSize:13, minWidth:120 }}>
+                  {vTypeFilter==="all" ? "Alle Typen" : (VEH_TYPE_LABELS[vTypeFilter]||vTypeFilter)}
+                  <span style={{ fontWeight:400, fontSize:11, color:"rgba(255,255,255,0.45)", marginLeft:6 }}>
+                    {allPlates.length} Fahrzeuge · {sumJobs} Auftr.
+                  </span>
+                </div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>
+                  Lohn: <strong style={{ color:"#fff" }}>{sumLabor.toFixed(0)} €</strong>
+                </div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>
+                  Teile: <strong style={{ color:"#fff" }}>{sumParts.toFixed(0)} €</strong>
+                </div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>
+                  Extern: <strong style={{ color:"#fff" }}>{sumInv.toFixed(0)} €</strong>
+                </div>
+                <div style={{ fontSize:14, fontWeight:900, color:"#ffa500", marginLeft:"auto" }}>
+                  ∑ {sumGesamt.toLocaleString("de-DE", { minimumFractionDigits:2, maximumFractionDigits:2 })} €
+                </div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+                  {Math.round(sumMin/60)} h
+                </div>
+              </div>
+            )}
+
+            {allPlates.length === 0
+              ? <div className="empty">Keine Daten</div>
+              : (
+                <div style={{ overflowX:"auto" }}>
+                  <table className="tbl">
+                    <thead>
+                      <tr>
+                        <th>Kennzeichen</th>
+                        <th>Typ</th>
+                        <th style={{ textAlign:"right" }}>Lohn</th>
+                        <th style={{ textAlign:"right" }}>Teile</th>
+                        <th style={{ textAlign:"right" }}>Extern. Rechng.</th>
+                        <th style={{ textAlign:"right", color:"#ffa500" }}>Gesamt</th>
+                        <th style={{ textAlign:"center" }}>Auftr.</th>
+                        <th style={{ textAlign:"right", color:"rgba(255,255,255,0.4)" }}>Zeit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allPlates.map(function(p){
+                        var v = byVehFull[p];
+                        var ges = v.labor + v.parts + v.inv;
+                        var h = Math.floor(v.min/60);
+                        var mm = v.min % 60;
+                        var zeitStr = h ? (h + "h " + mm + "min") : (mm + " min");
+                        return (
+                          <tr key={p}>
+                            <td><strong>{p}</strong></td>
+                            <td style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>
+                              {VEH_TYPE_LABELS[v.vtype] || v.vtype || "—"}
+                            </td>
+                            <td style={{ textAlign:"right", fontSize:12, color:"rgba(255,255,255,0.6)" }}>
+                              {v.labor.toFixed(2)} €
+                            </td>
+                            <td style={{ textAlign:"right", fontSize:12, color:"rgba(255,255,255,0.6)" }}>
+                              {v.parts.toFixed(2)} €
+                            </td>
+                            <td style={{ textAlign:"right", fontSize:12, color:v.inv>0?"rgba(255,255,255,0.7)":"rgba(255,255,255,0.25)" }}>
+                              {v.inv > 0 ? (v.inv.toFixed(2) + " €") : "—"}
+                            </td>
+                            <td style={{ textAlign:"right", color:"#ffa500", fontWeight:700 }}>
+                              {ges.toFixed(2)} €
+                            </td>
+                            <td style={{ textAlign:"center", fontSize:12 }}>{v.jobs}</td>
+                            <td style={{ textAlign:"right", fontSize:11, color:"rgba(255,255,255,0.35)" }}>
+                              {zeitStr}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
+          </div>
+        );
+      })()}
+
+      <div className="g2" style={{ marginTop:0 }}>
         <div className="panel">
           <div className="panel-hd"><div className="panel-title">Kosten je Mechaniker</div></div>
           {Object.keys(byMech).length === 0 ? <div className="empty">Keine Daten</div> :
@@ -4545,6 +4700,8 @@ function Kosten({ jobs, invoices, vehicles, forklifts }) {
             })}
           </div>
         </div>
+
+        <div className="panel" style={{ visibility:"hidden", pointerEvents:"none" }}></div>
       </div>
     </div>
   );
