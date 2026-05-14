@@ -1210,7 +1210,7 @@ function VehicleInput({ vehicles, value, onChange, vehicleType }) {
 }
 
 // === п.6: TimerBox с паузой и описанием ===
-function TimerBox({ label, value, setValue, withPause }) {
+function TimerBox({ label, value, setValue, withPause, onFirstStart }) {
   var _sa = useState(false); var active = _sa[0]; var setActive = _sa[1];
   var _ss = useState(0); var sec = _ss[0]; var setSec = _ss[1];
   var _spaused = useState(false); var paused = _spaused[0]; var setPaused = _spaused[1];
@@ -1227,7 +1227,10 @@ function TimerBox({ label, value, setValue, withPause }) {
     return function() { clearInterval(id); };
   }, [active, paused]);
 
-  function start() { setActive(true); setPaused(false); }
+  function start() {
+    if (onFirstStart) onFirstStart();
+    setActive(true); setPaused(false);
+  }
 
   function stop() {
     setActive(false); setPaused(false);
@@ -1253,6 +1256,7 @@ function TimerBox({ label, value, setValue, withPause }) {
     if (mm < 0 || mm > 59) { alert("Ungültige Minuten."); return; }
     var total = hh * 60 + mm;
     if (total > 24 * 60) { alert("Maximal 24 Stunden."); return; }
+    if (onFirstStart) onFirstStart();
     setValue(total); setManual(false); setH(""); setM("");
   }
 
@@ -1729,6 +1733,46 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   // Защита от двойного сохранения (синхронная, не зависит от setState)
   var savingRef = useRef(false);
   var rSavingRef = useRef(false);
+  // ID заказа в базе: создаётся при первом старте таймера (Кусок 1 переделки)
+  var jobIdRef = useRef(prefill && prefill.continueJobId ? prefill.continueJobId : null);
+  var creatingJobRef = useRef(false);
+
+  // Создаёт заказ в базе при первом действии (Start таймера / Manuell).
+  // Идемпотентно: если заказ уже создан или создаётся — ничего не делает.
+  function ensureJobCreated() {
+    if (jobIdRef.current) return;        // уже создан
+    if (creatingJobRef.current) return;  // создаётся прямо сейчас
+    if (!vehicle || !vehicle.plate) return; // без машины не создаём
+    creatingJobRef.current = true;
+    var newId = "J" + Date.now();
+    var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
+    var payload = {
+      id: newId,
+      mechanic: user.id || "roman",
+      vehicle_type: vehicleType,
+      plate: vehicle.plate,
+      location: location,
+      work_type: workType,
+      description: description,
+      status: "inProgress",
+      date: todayIso(),
+      started_at: new Date().toISOString(),
+      source: prefill ? "eingang" : "werkstatt",
+      alert_id: prefill && prefill.id ? prefill.id : null,
+      workshop_niederlassung_id: workshopNied,
+      tenant_id: "ltg",
+      created_at: new Date().toISOString()
+    };
+    sbInsert("jobs", payload, true)
+      .then(function() {
+        jobIdRef.current = newId;
+        creatingJobRef.current = false;
+      })
+      .catch(function(e) {
+        creatingJobRef.current = false;
+        console.warn("Job-Erstellung fehlgeschlagen:", e);
+      });
+  }
 
   // Автосохранение черновика — только если форма открыта вручную (не prefill)
   useEffect(function() {
@@ -1776,7 +1820,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
     if (colleague && !colleagueName) { alert("Bitte Kollegen auswählen."); return; }
     savingRef.current = true;
     setSaving(true);
-    var jobId = "J" + Date.now();
+    // Если заказ уже создан при старте таймера — используем его id, иначе новый
+    var jobId = jobIdRef.current || ("J" + Date.now());
+    var jobAlreadyInDb = !!jobIdRef.current;
 
     var partsNote = "";
     var partsCost = 0;
@@ -1835,9 +1881,14 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
           workshop_niederlassung_id: workshopNied,
           vehicle_home_niederlassung_id: vehicleHomeNied,
-          tenant_id: "ltg",
-          created_at: new Date().toISOString()
+          tenant_id: "ltg"
         };
+        if (workMin > 0) payload.finished_at = new Date().toISOString();
+        // Если заказ уже создан при старте — обновляем (PATCH), иначе создаём (INSERT)
+        if (jobAlreadyInDb) {
+          return sbPatch("jobs", jobId, payload);
+        }
+        payload.created_at = new Date().toISOString();
         return sbInsert("jobs", payload, true);
       })
       .then(function() {
@@ -1850,6 +1901,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         // Черновик очищаем после успешного сохранения
         try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
         var jid = jobId;
+        jobIdRef.current = null; // заказ завершён — форма свободна для нового
+        creatingJobRef.current = false;
         // Полный сброс формы — включая vehicle и colleague, чтобы случайное повторное нажатие не создало пустую запись
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
         setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
@@ -2093,11 +2146,11 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       <div className="glass-panel">
         <div className="panel-title">⏱ Zeiten</div>
         <div className="grid2">
-          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} withPause={false} />
-          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} withPause={false} />
+          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} withPause={false} onFirstStart={ensureJobCreated} />
+          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} withPause={false} onFirstStart={ensureJobCreated} />
         </div>
         <div style={{ height:10 }}></div>
-        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} withPause={true} />
+        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} withPause={true} onFirstStart={ensureJobCreated} />
       </div>
 
       <button className="save-btn" type="button" disabled={saving} onClick={save}>
