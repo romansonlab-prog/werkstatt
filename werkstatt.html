@@ -736,6 +736,15 @@ function showToast(msg) {
   } catch(e) {}
 }
 
+// Чистка ключей таймеров — вызывать при завершении/паузе заказа и при открытии нового
+function clearTimerKeys() {
+  try {
+    localStorage.removeItem("wf_timer_hinfahrt");
+    localStorage.removeItem("wf_timer_rueckfahrt");
+    localStorage.removeItem("wf_timer_arbeitszeit");
+  } catch(e) {}
+}
+
 function sbInsert(table, payload, minimal) {
   return fetch(SB_URL + "/rest/v1/" + table, {
     method:"POST",
@@ -1232,30 +1241,66 @@ function VehicleInput({ vehicles, value, onChange, vehicleType }) {
   );
 }
 
-// === TimerBox: замер времени (Start / Stop / Manuell) ===
-function TimerBox({ label, value, setValue, onFirstStart }) {
-  var _sa = useState(false); var active = _sa[0]; var setActive = _sa[1];
-  var _ss = useState(0); var sec = _ss[0]; var setSec = _ss[1];
+// === TimerBox: замер времени по реальным часам (переживает сворачивание и перезагрузку) ===
+// storageKey — уникальный ключ для localStorage, чтобы старт пережил перезагрузку страницы
+function TimerBox({ label, value, setValue, onFirstStart, storageKey }) {
+  var TIMER_CAP_HOURS = 12; // потолок: дольше — подозрение что забыли выключить
+  var lsKey = "wf_timer_" + (storageKey || label);
+
+  var _sstart = useState(null); var startTs = _sstart[0]; var setStartTs = _sstart[1];
+  var _stick = useState(0); var tick = _stick[0]; var setTick = _stick[1]; // только для перерисовки
   var _smm = useState(false); var manual = _smm[0]; var setManual = _smm[1];
   var _sh = useState(""); var h = _sh[0]; var setH = _sh[1];
   var _sm = useState(""); var m = _sm[0]; var setM = _sm[1];
+  var _swarn = useState(false); var capWarn = _swarn[0]; var setCapWarn = _swarn[1];
 
+  var active = startTs !== null;
+
+  // При маунте — восстанавливаем незакрытый старт из localStorage
+  useEffect(function() {
+    try {
+      var saved = localStorage.getItem(lsKey);
+      if (saved) {
+        var ts = parseInt(saved, 10);
+        if (ts && !isNaN(ts)) {
+          var elapsedH = (Date.now() - ts) / 3600000;
+          if (elapsedH > TIMER_CAP_HOURS) {
+            // Слишком долго — не доверяем, показываем предупреждение
+            setCapWarn(true);
+            localStorage.removeItem(lsKey);
+          } else {
+            setStartTs(ts);
+          }
+        }
+      }
+    } catch(e) {}
+  }, []);
+
+  // Тикалка — только перерисовывает экран раз в секунду, источник правды = startTs
   useEffect(function() {
     if (!active) return;
-    var id = setInterval(function() { setSec(function(s) { return s + 1; }); }, 1000);
+    var id = setInterval(function() { setTick(function(t) { return t + 1; }); }, 1000);
     return function() { clearInterval(id); };
   }, [active]);
 
+  // Сколько секунд прошло с момента старта (по реальным часам)
+  function elapsedSec() {
+    if (startTs === null) return 0;
+    return Math.max(0, Math.floor((Date.now() - startTs) / 1000));
+  }
+
   function start() {
     if (onFirstStart) onFirstStart();
-    setActive(true);
+    var ts = Date.now();
+    setStartTs(ts);
+    try { localStorage.setItem(lsKey, String(ts)); } catch(e) {}
   }
 
   function stop() {
-    setActive(false);
-    var min = Math.max(1, Math.round(sec / 60));
+    var min = Math.max(1, Math.round(elapsedSec() / 60));
     setValue((value || 0) + min);
-    setSec(0);
+    setStartTs(null);
+    try { localStorage.removeItem(lsKey); } catch(e) {}
   }
 
   function applyManual() {
@@ -1265,18 +1310,34 @@ function TimerBox({ label, value, setValue, onFirstStart }) {
     var total = hh * 60 + mm;
     if (total > 24 * 60) { alert("Maximal 24 Stunden."); return; }
     if (onFirstStart) onFirstStart();
+    // Если таймер шёл — останавливаем его, ручной ввод заменяет результат
+    if (active) {
+      setStartTs(null);
+      try { localStorage.removeItem(lsKey); } catch(e) {}
+    }
     setValue(total); setManual(false); setH(""); setM("");
   }
 
-  var running = active;
-  var statusColor = running ? "#22c55e" : "#fff";
+  function resetTimer() {
+    setValue(0);
+    setStartTs(null);
+    setCapWarn(false);
+    try { localStorage.removeItem(lsKey); } catch(e) {}
+  }
+
+  var statusColor = active ? "#22c55e" : "#fff";
 
   return (
     <div className="timer-card">
       <div className="timer-label">{label}</div>
       <div className="timer-time" style={{ color:statusColor }}>
-        {active ? fmtSec(sec) : fmtMin(value)}
+        {active ? fmtSec(elapsedSec()) : fmtMin(value)}
       </div>
+      {capWarn && (
+        <div style={{ fontSize:12, color:"#ffa500", marginBottom:8, lineHeight:1.4 }}>
+          ⚠ Timer lief sehr lange — bitte Zeit manuell prüfen und über „Manuell“ korrigieren.
+        </div>
+      )}
       <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
         {!active && (
           <button className="mini-btn start" type="button" onClick={start}>▶ Start</button>
@@ -1288,7 +1349,7 @@ function TimerBox({ label, value, setValue, onFirstStart }) {
           <button className="mini-btn" type="button" onClick={function(){ setManual(true); }}>✎ Manuell</button>
         )}
         {!!value && !active && (
-          <button className="mini-btn" type="button" onClick={function(){ setValue(0); setSec(0); }}>↺ Reset</button>
+          <button className="mini-btn" type="button" onClick={resetTimer}>↺ Reset</button>
         )}
       </div>
 
@@ -1825,6 +1886,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         // Чистим форму — заказ ушёл в Meine
         jobIdRef.current = null;
         creatingJobRef.current = false;
+        clearTimerKeys();
         setPauseModal(false); setPauseReason("");
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
         setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
@@ -1846,6 +1908,13 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   }
 
   // Автосохранение черновика — только если форма открыта вручную (не prefill)
+  // При открытии нового заказа (не продолжение) — чистим возможные «висячие» timer-ключи
+  useEffect(function() {
+    if (prefill && prefill.continueJobId) return; // продолжение — ключи не трогаем
+    if (jobIdRef.current) return; // заказ уже идёт — не трогаем
+    clearTimerKeys();
+  }, []);
+
   useEffect(function() {
     if (prefill) return;
     try {
@@ -2015,6 +2084,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         var jid = jobId;
         jobIdRef.current = null; // заказ завершён — форма свободна для нового
         creatingJobRef.current = false;
+        clearTimerKeys();
         // Полный сброс формы — включая vehicle и colleague, чтобы случайное повторное нажатие не создало пустую запись
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
         setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
@@ -2258,11 +2328,11 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       <div className="glass-panel">
         <div className="panel-title">⏱ Zeiten</div>
         <div className="grid2">
-          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} onFirstStart={ensureJobCreated} />
-          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} onFirstStart={ensureJobCreated} />
+          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} onFirstStart={ensureJobCreated} storageKey="hinfahrt" />
+          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} onFirstStart={ensureJobCreated} storageKey="rueckfahrt" />
         </div>
         <div style={{ height:10 }}></div>
-        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} onFirstStart={ensureJobCreated} />
+        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} onFirstStart={ensureJobCreated} storageKey="arbeitszeit" />
       </div>
 
       <div style={{ display:"flex", gap:10, marginTop:6, marginBottom:20 }}>
