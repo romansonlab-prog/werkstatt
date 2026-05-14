@@ -1699,7 +1699,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   var _sdesc = useState(prefill && prefill.description ? prefill.description : (_draft.description || ""));
   var description = _sdesc[0]; var setDescription = _sdesc[1];
   var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
-  var _svoiceText = useState(""); var voiceText = _svoiceText[0]; var setVoiceText = _svoiceText[1];
   var voiceRef = useRef(null);
   var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
   var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
@@ -1930,88 +1929,61 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         </div>
         <div className="label-cap" style={{ marginTop:14 }}>Fehlerbeschreibung</div>
         <textarea className="textarea-dark" value={description} onChange={function(e){ setDescription(e.target.value); }}
-          placeholder="Fehlerbeschreibung eingeben..."
+          placeholder={voiceActive ? "Spricht... jetzt sprechen" : "Fehlerbeschreibung eingeben..."}
           style={{ borderColor: voiceActive ? "var(--red)" : undefined, marginBottom:8 }} />
-
-        {/* Push-to-talk кнопка — показываем только если API доступен */}
-        {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (function(){
-
-          function startRecording() {
-            if (voiceActive) return;
-            var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            var rec = new SR();
-            rec.lang = "de-DE";
-            rec.continuous = true;
-            rec.interimResults = true;
-            rec.onresult = function(e) {
-              var interim = "";
-              var final = "";
-              for (var i = e.resultIndex; i < e.results.length; i++) {
-                if (e.results[i].isFinal) { final += e.results[i][0].transcript; }
-                else { interim += e.results[i][0].transcript; }
-              }
-              setVoiceText(interim || final);
-              if (final) { setVoiceText(final); }
-            };
-            rec.onerror = function(){ stopRecording(rec); };
-            rec.onend = function(){};
-            voiceRef.current = rec;
-            setVoiceText("");
-            setVoiceActive(true);
-            try { rec.start(); } catch(e){}
-          }
-
-          function stopRecording() {
-            setVoiceActive(false);
-            if (voiceRef.current) {
-              try { voiceRef.current.stop(); } catch(e){}
-              voiceRef.current = null;
-            }
-            setVoiceText(function(t){
-              if (t && t.trim()) {
-                setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
-              }
-              return "";
-            });
-          }
-
-          return (
-            <div>
-              <button type="button"
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-                onMouseLeave={function(){ if (voiceActive) stopRecording(); }}
-                onTouchStart={function(e){ e.preventDefault(); startRecording(); }}
-                onTouchEnd={function(e){ e.preventDefault(); stopRecording(); }}
-                style={{
-                  width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
-                  padding:"18px", borderRadius:"var(--radius-md)", border:"1.5px solid",
-                  borderColor: voiceActive ? "var(--red)" : "var(--border)",
-                  background: voiceActive ? "rgba(239,68,68,0.12)" : "var(--bg-elevated)",
-                  color: voiceActive ? "var(--red)" : "var(--text-secondary)",
-                  fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, letterSpacing:1,
-                  minHeight:"64px", transition:"all 0.1s ease",
-                  animation: voiceActive ? "voicePulse 0.6s infinite" : "none",
-                  userSelect:"none", WebkitUserSelect:"none"
-                }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                  <line x1="12" y1="19" x2="12" y2="23"/>
-                  <line x1="8" y1="23" x2="16" y2="23"/>
-                </svg>
-                {voiceActive ? "Loslassen zum Speichern..." : "Gedrückt halten — Sprechen"}
-              </button>
-              {voiceActive && voiceText ? (
-                <div style={{ marginTop:8, padding:"12px 14px", borderRadius:"var(--radius-sm)",
-                  background:"rgba(239,68,68,0.07)", border:"1px solid rgba(239,68,68,0.2)",
-                  fontSize:14, color:"rgba(255,255,255,0.7)", fontStyle:"italic", lineHeight:1.5 }}>
-                  {voiceText}
-                </div>
-              ) : null}
-            </div>
-          );
-        })()}
+        {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
+          <button type="button"
+            onMouseDown={function(){
+              if (voiceActive) return;
+              var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+              var rec = new SR(); rec.lang="de-DE"; rec.continuous=true; rec.interimResults=false;
+              rec.onresult=function(e){ var t=Array.from(e.results).map(function(r){ return r[0].transcript; }).join(" "); setDescription(function(prev){ return prev?prev+" "+t:t; }); };
+              rec.onerror=function(){ setVoiceActive(false); }; rec.onend=function(){};
+              voiceRef.current=rec; setVoiceActive(true); try{rec.start();}catch(err){}
+            }}
+            onMouseUp={function(){
+              setVoiceActive(false);
+              if (voiceRef.current) { try{voiceRef.current.stop();}catch(e){} voiceRef.current=null; }
+            }}
+            onMouseLeave={function(){
+              if (!voiceActive) return;
+              setVoiceActive(false);
+              if (voiceRef.current) { try{voiceRef.current.stop();}catch(e){} voiceRef.current=null; }
+            }}
+            onTouchStart={function(e){
+              e.preventDefault();
+              if (voiceActive) return;
+              var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+              var rec = new SR(); rec.lang="de-DE"; rec.continuous=true; rec.interimResults=false;
+              rec.onresult=function(ev){ var t=Array.from(ev.results).map(function(r){ return r[0].transcript; }).join(" "); setDescription(function(prev){ return prev?prev+" "+t:t; }); };
+              rec.onerror=function(){ setVoiceActive(false); }; rec.onend=function(){};
+              voiceRef.current=rec; setVoiceActive(true); try{rec.start();}catch(err){}
+            }}
+            onTouchEnd={function(e){
+              e.preventDefault();
+              setVoiceActive(false);
+              if (voiceRef.current) { try{voiceRef.current.stop();}catch(e){} voiceRef.current=null; }
+            }}
+            style={{
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+              padding:"16px", borderRadius:"var(--radius-md)", border:"1.5px solid",
+              borderColor: voiceActive ? "var(--red)" : "var(--border)",
+              background: voiceActive ? "rgba(239,68,68,0.1)" : "var(--bg-elevated)",
+              color: voiceActive ? "var(--red)" : "var(--text-secondary)",
+              fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, letterSpacing:1,
+              minHeight:"56px", transition:"all var(--transition)", touchAction:"none",
+              userSelect:"none", WebkitUserSelect:"none",
+              animation: voiceActive ? "voicePulse 0.8s infinite" : "none"
+            }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            {voiceActive ? "Loslassen zum Speichern..." : "Gedrückt halten — Sprechen"}
+          </button>
+        )}
       </div>
 
       {workType === "tireChange" && (
