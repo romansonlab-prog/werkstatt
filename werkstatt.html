@@ -1933,75 +1933,65 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           style={{ borderColor: voiceActive ? "var(--red)" : undefined, marginBottom:8 }} />
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
           <button type="button"
-            onPointerDown={function(e){
-              e.preventDefault();
-              if (voiceActive || voiceRef.current) return;
+            onClick={function(){
+              // Если запись идёт — останавливаем
+              if (voiceRef.current) {
+                var recOld = voiceRef.current;
+                voiceRef.current = null;
+                setVoiceActive(false);
+                try { recOld.stop(); } catch(err){}
+                return;
+              }
+              // Запуск новой записи
               var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
               var rec;
-              try { rec = new SR(); } catch(err){ return; }
+              try { rec = new SR(); } catch(err){ alert("Spracherkennung nicht verfügbar"); return; }
               rec.lang = "de-DE";
               rec.continuous = true;
               rec.interimResults = true;
+              var finalText = "";
               rec.onresult = function(ev){
-                var t = "";
+                var interim = "";
+                finalText = "";
                 for (var i = 0; i < ev.results.length; i++) {
-                  t += ev.results[i][0].transcript;
+                  if (ev.results[i].isFinal) {
+                    finalText += ev.results[i][0].transcript + " ";
+                  } else {
+                    interim += ev.results[i][0].transcript;
+                  }
                 }
-                setVoiceText(t);
+                setVoiceText(finalText + interim);
               };
               rec.onerror = function(ev){
                 console.log("Speech error:", ev.error);
-                setVoiceActive(false);
+                if (ev.error === "no-speech" || ev.error === "aborted") {
+                  // не критично — просто продолжаем или останавливаем тихо
+                } else {
+                  alert("Spracherkennung Fehler: " + ev.error);
+                }
                 voiceRef.current = null;
+                setVoiceActive(false);
               };
               rec.onend = function(){
-                // если запись закончилась сама — сохраняем что есть
+                // запись завершилась (сама или по stop) — сохраняем текст
+                voiceRef.current = null;
                 setVoiceActive(false);
+                var captured = finalText.trim();
+                if (captured) {
+                  setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
+                }
+                setVoiceText("");
               };
               voiceRef.current = rec;
               setVoiceText("");
               setVoiceActive(true);
-              try { rec.start(); } catch(err){ console.log("start failed:", err); setVoiceActive(false); voiceRef.current = null; }
-            }}
-            onPointerUp={function(e){
-              e.preventDefault();
-              if (!voiceRef.current) return;
-              var rec = voiceRef.current;
-              voiceRef.current = null;
-              setVoiceActive(false);
-              try { rec.stop(); } catch(err){}
-              setVoiceText(function(t){
-                if (t && t.trim()) {
-                  setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
-                }
-                return "";
-              });
-            }}
-            onPointerLeave={function(e){
-              if (!voiceRef.current) return;
-              var rec = voiceRef.current;
-              voiceRef.current = null;
-              setVoiceActive(false);
-              try { rec.stop(); } catch(err){}
-              setVoiceText(function(t){
-                if (t && t.trim()) {
-                  setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
-                }
-                return "";
-              });
-            }}
-            onPointerCancel={function(e){
-              if (!voiceRef.current) return;
-              var rec = voiceRef.current;
-              voiceRef.current = null;
-              setVoiceActive(false);
-              try { rec.stop(); } catch(err){}
-              setVoiceText(function(t){
-                if (t && t.trim()) {
-                  setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
-                }
-                return "";
-              });
+              try {
+                rec.start();
+              } catch(err){
+                console.log("start failed:", err);
+                voiceRef.current = null;
+                setVoiceActive(false);
+              }
             }}
             style={{
               width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
@@ -2010,8 +2000,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               background: voiceActive ? "rgba(239,68,68,0.1)" : "var(--bg-elevated)",
               color: voiceActive ? "var(--red)" : "var(--text-secondary)",
               fontFamily:"var(--font-display)", fontWeight:700, fontSize:15, letterSpacing:1,
-              minHeight:"56px", transition:"all var(--transition)", touchAction:"none",
-              userSelect:"none", WebkitUserSelect:"none",
+              minHeight:"56px", transition:"all var(--transition)",
               animation: voiceActive ? "voicePulse 0.8s infinite" : "none"
             }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2020,9 +2009,16 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
               <line x1="12" y1="19" x2="12" y2="23"/>
               <line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
-            {voiceActive ? "Loslassen zum Speichern..." : "Gedrückt halten — Sprechen"}
+            {voiceActive ? "● Aufnahme läuft — Tippen zum Stoppen" : "🎤 Spracheingabe starten"}
           </button>
         )}
+        {voiceActive && voiceText ? (
+          <div style={{ marginTop:8, padding:"12px 14px", borderRadius:"var(--radius-sm)",
+            background:"rgba(239,68,68,0.07)", border:"1px solid rgba(239,68,68,0.2)",
+            fontSize:14, color:"rgba(255,255,255,0.7)", fontStyle:"italic", lineHeight:1.5 }}>
+            {voiceText}
+          </div>
+        ) : null}
       </div>
 
       {workType === "tireChange" && (
