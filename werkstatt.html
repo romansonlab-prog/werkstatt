@@ -1936,92 +1936,83 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
           <button type="button"
             onClick={function(){
-              setVoiceDebug(function(p){ return "1. Klick erkannt"; });
               // Если запись идёт — останавливаем
               if (voiceRef.current) {
                 var recOld = voiceRef.current;
                 voiceRef.current = null;
+                try { recOld.stop(); } catch(err){}
                 setVoiceActive(false);
                 setVoiceDebug(function(p){ return (p?p+"\n":"") + "Gestoppt durch Klick"; });
-                try { recOld.stop(); } catch(err){}
                 return;
               }
 
-              function startRecognition() {
-                var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-                setVoiceDebug(function(p){ return (p?p+"\n":"") + "3. SR-Objekt: " + (SR ? "vorhanden" : "FEHLT"); });
-                var rec;
-                try { rec = new SR(); } catch(err){ setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER bei new SR(): " + err.message; }); return; }
-                rec.lang = "de-DE";
-                rec.continuous = true;
-                rec.interimResults = true;
-                var finalText = "";
-                rec.onstart = function(){
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "5. AUFNAHME LAEUFT - sprechen!"; });
-                };
-                rec.onaudiostart = function(){
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "6. Mikrofon aktiv"; });
-                };
-                rec.onspeechstart = function(){
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "6b. Sprache erkannt"; });
-                };
-                rec.onresult = function(ev){
-                  var interim = "";
-                  finalText = "";
-                  for (var i = 0; i < ev.results.length; i++) {
-                    if (ev.results[i].isFinal) {
-                      finalText += ev.results[i][0].transcript + " ";
-                    } else {
-                      interim += ev.results[i][0].transcript;
-                    }
-                  }
-                  setVoiceText(finalText + interim);
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "7. Erkannt: " + (finalText + interim).slice(0, 30); });
-                };
-                rec.onerror = function(ev){
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER: " + ev.error + (ev.message ? " - " + ev.message : ""); });
-                  voiceRef.current = null;
-                  setVoiceActive(false);
-                };
-                rec.onend = function(){
-                  voiceRef.current = null;
-                  setVoiceActive(false);
-                  var captured = finalText.trim();
-                  if (captured) {
-                    setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
-                    setVoiceDebug(function(p){ return (p?p+"\n":"") + "Fertig - Text gespeichert"; });
-                  } else {
-                    setVoiceDebug(function(p){ return (p?p+"\n":"") + "Beendet - kein Text erkannt"; });
-                  }
-                  setVoiceText("");
-                };
-                voiceRef.current = rec;
-                setVoiceText("");
-                setVoiceActive(true);
-                try {
-                  rec.start();
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "4. rec.start() OK - warte..."; });
-                } catch(err){
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER bei start(): " + err.message; });
-                  voiceRef.current = null;
-                  setVoiceActive(false);
-                }
+              setVoiceDebug(function(p){ return "1. Start..."; });
+
+              var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+              var rec;
+              try {
+                rec = new SR();
+              } catch(err){
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER new SR: " + err.message; });
+                return;
               }
 
-              // Сначала явно будим микрофон через getUserMedia, потом запускаем распознавание
-              setVoiceDebug(function(p){ return (p?p+"\n":"") + "2. Frage Mikrofon an..."; });
-              if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
-                  // микрофон разбужен — закрываем поток, он больше не нужен, SR откроет свой
-                  stream.getTracks().forEach(function(tr){ tr.stop(); });
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "2b. Mikrofon-Zugriff OK"; });
-                  setTimeout(startRecognition, 300);
-                }).catch(function(err){
-                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER Mikrofon: " + err.name + " - " + err.message; });
-                });
-              } else {
-                // нет getUserMedia — пробуем напрямую
-                startRecognition();
+              rec.lang = "de-DE";
+              rec.continuous = false;
+              rec.interimResults = true;
+              rec.maxAlternatives = 1;
+
+              var finalText = "";
+              var gotError = "";
+
+              rec.onstart = function(){
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "2. LAEUFT - jetzt sprechen!"; });
+              };
+              rec.onaudiostart = function(){
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "3. Mikrofon aktiv"; });
+              };
+              rec.onspeechstart = function(){
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "4. Sprache hoerbar"; });
+              };
+              rec.onresult = function(ev){
+                var interim = "";
+                finalText = "";
+                for (var i = 0; i < ev.results.length; i++) {
+                  if (ev.results[i].isFinal) {
+                    finalText += ev.results[i][0].transcript + " ";
+                  } else {
+                    interim += ev.results[i][0].transcript;
+                  }
+                }
+                setVoiceText(finalText + interim);
+              };
+              rec.onerror = function(ev){
+                gotError = ev.error;
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER: " + ev.error; });
+              };
+              rec.onend = function(){
+                voiceRef.current = null;
+                setVoiceActive(false);
+                var captured = finalText.trim();
+                if (captured) {
+                  setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "FERTIG: " + captured.slice(0,40); });
+                } else if (!gotError) {
+                  setVoiceDebug(function(p){ return (p?p+"\n":"") + "Beendet - kein Text"; });
+                }
+                setVoiceText("");
+              };
+
+              voiceRef.current = rec;
+              setVoiceActive(true);
+
+              // Запускаем сразу, без задержек и getUserMedia
+              try {
+                rec.start();
+              } catch(err){
+                setVoiceDebug(function(p){ return (p?p+"\n":"") + "FEHLER start(): " + err.message; });
+                voiceRef.current = null;
+                setVoiceActive(false);
               }
             }}
             style={{
