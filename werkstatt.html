@@ -1598,12 +1598,12 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }
                 </div>
                 <div className="grid2" style={{ marginBottom:8 }}>
                   <div>
-                    <div className="label-cap">Lieferschein-Nr.</div>
+                    <div className="label-cap" style={{ minHeight:32, display:"flex", alignItems:"flex-end" }}>Lieferschein-Nr.</div>
                     <input className="input-dark" value={item.lieferschein} placeholder="Nr. 12345"
                       onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
                   </div>
                   <div>
-                    <div className="label-cap">Datum</div>
+                    <div className="label-cap" style={{ minHeight:32, display:"flex", alignItems:"flex-end" }}>Datum</div>
                     <input type="date" className="input-dark" value={item.datum}
                       onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
                   </div>
@@ -2399,13 +2399,13 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
 
             <div className="grid2" style={{ marginBottom:10 }}>
               <div>
-                <div className="label-cap">Lieferschein-Nr.</div>
+                <div className="label-cap" style={{ minHeight:32, display:"flex", alignItems:"flex-end" }}>Lieferschein-Nr.</div>
                 <input className="input-dark" value={rNr}
                   onChange={function(e){ setRNr(e.target.value); }}
                   placeholder="LS-12345" />
               </div>
               <div>
-                <div className="label-cap">Datum</div>
+                <div className="label-cap" style={{ minHeight:32, display:"flex", alignItems:"flex-end" }}>Datum</div>
                 <input type="date" className="input-dark" value={rDate}
                   onChange={function(e){ setRDate(e.target.value); }} />
               </div>
