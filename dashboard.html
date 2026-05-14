@@ -38,7 +38,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;background:#0f1623;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -427,7 +427,7 @@ function exportXlsx(rows, headers, title, meta) {
   }
   var now = new Date();
   var aoa = [];
-  // Служебная шапка — чтобы файл выглядел как документ, а не дамп
+  // Служебная шапка
   aoa.push(["WerkFlow — " + (title || "Export")]);
   aoa.push(["LTG Landauer Transportgesellschaft Doll KG"]);
   aoa.push(["Erstellt: " + now.toLocaleDateString("de-DE") + " " + now.toLocaleTimeString("de-DE", { hour:"2-digit", minute:"2-digit" })]);
@@ -436,7 +436,7 @@ function exportXlsx(rows, headers, title, meta) {
   }
   aoa.push(["Datensätze: " + rows.length]);
   aoa.push([]); // пустая строка-разделитель
-  // Заголовки таблицы
+  var headerRowIdx = aoa.length; // индекс строки заголовков таблицы (0-based)
   aoa.push(headers);
   // Данные
   rows.forEach(function(r){
@@ -447,17 +447,60 @@ function exportXlsx(rows, headers, title, meta) {
   });
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  // Ширина колонок — авто по содержимому
-  var colWidths = headers.map(function(h, ci){
+
+  // Ширина колонок
+  ws["!cols"] = headers.map(function(h){
     var maxLen = String(h).length;
     rows.forEach(function(r){
       var v = r[h];
       var len = (v === null || v === undefined) ? 0 : String(v).length;
       if (len > maxLen) maxLen = len;
     });
-    return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+    return { wch: Math.min(Math.max(maxLen + 2, 12), 55) };
   });
-  ws["!cols"] = colWidths;
+
+  // Объединяем ячейки служебной шапки на всю ширину таблицы
+  var lastCol = headers.length - 1;
+  ws["!merges"] = [];
+  for (var hi = 0; hi < headerRowIdx - 1; hi++) {
+    ws["!merges"].push({ s:{r:hi,c:0}, e:{r:hi,c:lastCol} });
+  }
+
+  // Заморозка: всё до строки данных включительно (шапка + заголовки таблицы)
+  ws["!freeze"] = { xSplit:0, ySplit:headerRowIdx + 1, topLeftCell:XLSX.utils.encode_cell({r:headerRowIdx+1,c:0}), activePane:"bottomLeft", state:"frozen" };
+  // SheetJS использует !freeze не везде — дублируем через стандартный механизм
+  ws["!freeze"] = XLSX.utils.encode_cell({ r:headerRowIdx + 1, c:0 });
+
+  // Стилизация ячеек (работает в SheetJS community для шрифта/выравнивания)
+  function styleCell(addr, style){
+    if (!ws[addr]) ws[addr] = { t:"s", v:"" };
+    ws[addr].s = style;
+  }
+  // Заголовок отчёта — крупный жирный
+  styleCell("A1", { font:{ bold:true, sz:15, color:{rgb:"0A1730"} } });
+  styleCell("A2", { font:{ sz:11, color:{rgb:"666666"} } });
+  styleCell("A3", { font:{ sz:10, color:{rgb:"999999"} } });
+  // Строка заголовков таблицы — жирная, тёмный фон, белый текст
+  headers.forEach(function(h, ci){
+    var addr = XLSX.utils.encode_cell({ r:headerRowIdx, c:ci });
+    styleCell(addr, {
+      font:{ bold:true, sz:11, color:{rgb:"FFFFFF"} },
+      fill:{ fgColor:{ rgb:"0A1730" } },
+      alignment:{ horizontal:"left", vertical:"center" }
+    });
+  });
+
+  // Числовой формат для колонок с числами/€
+  headers.forEach(function(h, ci){
+    var isNum = /€|min|km|anzahl|aufträge|bestand|minimum/i.test(h);
+    if (!isNum) return;
+    for (var ri = 0; ri < rows.length; ri++) {
+      var addr = XLSX.utils.encode_cell({ r:headerRowIdx + 1 + ri, c:ci });
+      if (ws[addr] && typeof ws[addr].v === "number") {
+        ws[addr].z = /€/.test(h) ? "#,##0.00" : "#,##0";
+      }
+    }
+  });
 
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Bericht");
@@ -3834,9 +3877,24 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
       var now = new Date();
       var wb = XLSX.utils.book_new();
 
-      function addSheet(name, aoa, colWidths) {
+      function addSheet(name, aoa, colWidths, headerRow) {
         var ws = XLSX.utils.aoa_to_sheet(aoa);
         if (colWidths) ws["!cols"] = colWidths.map(function(w){ return { wch: w }; });
+        // Стилизуем строку заголовков таблицы (если указана)
+        if (headerRow !== undefined && aoa[headerRow]) {
+          aoa[headerRow].forEach(function(h, ci){
+            var addr = XLSX.utils.encode_cell({ r:headerRow, c:ci });
+            if (!ws[addr]) ws[addr] = { t:"s", v:h };
+            ws[addr].s = {
+              font:{ bold:true, sz:11, color:{rgb:"FFFFFF"} },
+              fill:{ fgColor:{ rgb:"0A1730" } },
+              alignment:{ horizontal:"left" }
+            };
+          });
+          ws["!freeze"] = XLSX.utils.encode_cell({ r:headerRow + 1, c:0 });
+        }
+        // Заголовок отчёта (A1) — жирный, если первая ячейка похожа на title
+        if (ws["A1"]) ws["A1"].s = { font:{ bold:true, sz:14, color:{rgb:"0A1730"} } };
         XLSX.utils.book_append_sheet(wb, ws, name);
       }
 
@@ -3862,7 +3920,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
         ["Meldungen offen", openAlertsM],
         ["Meldungen erledigt", doneAlertsM]
       ];
-      addSheet("Übersicht", uebersicht, [28, 22]);
+      addSheet("Übersicht", uebersicht, [28, 22], 5);
 
       // Лист 2 — Mechaniker
       var mechSheet = [["Name", "Aufträge", "Fertig", "Arbeitszeit (min)", "Lohnkosten (€)", "Ersatzteile (€)", "Gesamt (€)"]];
@@ -3875,14 +3933,14 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
       });
       mechSheet.push(["Gesamt", totalJobs, doneJobs, totalMin,
         Number(totalLabor.toFixed(2)), Number(totalParts.toFixed(2)), Number(totalCost.toFixed(2))]);
-      addSheet("Mechaniker", mechSheet, [22, 12, 10, 18, 16, 16, 14]);
+      addSheet("Mechaniker", mechSheet, [22, 12, 10, 18, 16, 16, 14], 0);
 
       // Лист 3 — Auftragstypen
       var typeSheet = [["Typ", "Anzahl", "Anteil %"]];
       typeArr.forEach(function(t){
         typeSheet.push([t, byType[t], Math.round(byType[t] / Math.max(totalJobs, 1) * 100)]);
       });
-      addSheet("Auftragstypen", typeSheet, [28, 12, 12]);
+      addSheet("Auftragstypen", typeSheet, [28, 12, 12], 0);
 
       // Лист 4 — Top-Fahrzeuge
       var vehSheet = [["Kennzeichen", "Aufträge", "Arbeitszeit (min)", "Kosten (€)"]];
@@ -3890,7 +3948,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
         var v = byVeh[plate];
         vehSheet.push([plate, v.jobs, v.min, Number(v.cost.toFixed(2))]);
       });
-      addSheet("Top-Fahrzeuge", vehSheet, [16, 12, 18, 14]);
+      addSheet("Top-Fahrzeuge", vehSheet, [16, 12, 18, 14], 0);
 
       // Лист 5 — Waschhalle
       if (washTypeArr.length > 0) {
@@ -3898,7 +3956,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
         washTypeArr.forEach(function(t){
           washSheet.push([t, byWashType[t].count, Number(byWashType[t].rev.toFixed(2))]);
         });
-        addSheet("Waschhalle", washSheet, [28, 12, 14]);
+        addSheet("Waschhalle", washSheet, [28, 12, 14], 0);
       }
 
       // Лист 6 — Alle Aufträge (полный список)
@@ -3917,7 +3975,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
           statusDE(j.status)
         ]);
       });
-      addSheet("Alle Aufträge", jobSheet, [12, 14, 18, 16, 40, 16, 14, 12, 14]);
+      addSheet("Alle Aufträge", jobSheet, [12, 14, 18, 16, 40, 16, 14, 12, 14], 0);
 
       var fname = "WerkFlow_Monatsbericht_" + m.label.replace(/ /g, "_") + ".xlsx";
       XLSX.writeFile(wb, fname);
