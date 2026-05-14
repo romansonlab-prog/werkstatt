@@ -2129,7 +2129,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
             }}>
               {VEHICLE_TYPES.map(function(vt) { return <option key={vt[0]} value={vt[0]}>{vt[1]}</option>; })}
             </select>
-            <div className="label-cap" style={{ marginTop:12 }}>Standort</div>
+            <div className="label-cap" style={{ marginTop:8 }}>Standort</div>
             <StandortPicker value={location} onChange={setLocation} locations={locations} />
           </div>
           <div>
