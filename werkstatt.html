@@ -1946,62 +1946,82 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
                 try { recOld.stop(); } catch(err){}
                 return;
               }
-              // Запуск новой записи
-              var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-              setVoiceDebug("2. SR-Objekt: " + (SR ? "vorhanden" : "FEHLT"));
-              var rec;
-              try { rec = new SR(); } catch(err){ setVoiceDebug("FEHLER bei new SR(): " + err.message); return; }
-              setVoiceDebug("3. SR erstellt");
-              rec.lang = "de-DE";
-              rec.continuous = true;
-              rec.interimResults = true;
-              var finalText = "";
-              rec.onstart = function(){
-                setVoiceDebug("5. ✓ Aufnahme gestartet — sprechen!");
-              };
-              rec.onaudiostart = function(){
-                setVoiceDebug("6. Audio empfangen");
-              };
-              rec.onresult = function(ev){
-                var interim = "";
-                finalText = "";
-                for (var i = 0; i < ev.results.length; i++) {
-                  if (ev.results[i].isFinal) {
-                    finalText += ev.results[i][0].transcript + " ";
-                  } else {
-                    interim += ev.results[i][0].transcript;
+
+              function startRecognition() {
+                var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                setVoiceDebug("3. SR-Objekt: " + (SR ? "vorhanden" : "FEHLT"));
+                var rec;
+                try { rec = new SR(); } catch(err){ setVoiceDebug("FEHLER bei new SR(): " + err.message); return; }
+                rec.lang = "de-DE";
+                rec.continuous = true;
+                rec.interimResults = true;
+                var finalText = "";
+                rec.onstart = function(){
+                  setVoiceDebug("5. ✓ Aufnahme läuft — sprechen Sie jetzt!");
+                };
+                rec.onaudiostart = function(){
+                  setVoiceDebug("6. Mikrofon aktiv");
+                };
+                rec.onspeechstart = function(){
+                  setVoiceDebug("6b. Sprache erkannt...");
+                };
+                rec.onresult = function(ev){
+                  var interim = "";
+                  finalText = "";
+                  for (var i = 0; i < ev.results.length; i++) {
+                    if (ev.results[i].isFinal) {
+                      finalText += ev.results[i][0].transcript + " ";
+                    } else {
+                      interim += ev.results[i][0].transcript;
+                    }
                   }
-                }
-                setVoiceText(finalText + interim);
-                setVoiceDebug("7. Erkannt: " + (finalText + interim).slice(0, 30));
-              };
-              rec.onerror = function(ev){
-                setVoiceDebug("FEHLER: " + ev.error + (ev.message ? " — " + ev.message : ""));
-                voiceRef.current = null;
-                setVoiceActive(false);
-              };
-              rec.onend = function(){
-                voiceRef.current = null;
-                setVoiceActive(false);
-                var captured = finalText.trim();
-                if (captured) {
-                  setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
-                  setVoiceDebug("Fertig — Text gespeichert");
-                } else {
-                  setVoiceDebug("Beendet — kein Text erkannt");
-                }
+                  setVoiceText(finalText + interim);
+                  setVoiceDebug("7. Erkannt: " + (finalText + interim).slice(0, 30));
+                };
+                rec.onerror = function(ev){
+                  setVoiceDebug("FEHLER: " + ev.error + (ev.message ? " — " + ev.message : ""));
+                  voiceRef.current = null;
+                  setVoiceActive(false);
+                };
+                rec.onend = function(){
+                  voiceRef.current = null;
+                  setVoiceActive(false);
+                  var captured = finalText.trim();
+                  if (captured) {
+                    setDescription(function(prev){ return prev ? prev + " " + captured : captured; });
+                    setVoiceDebug("Fertig — Text gespeichert");
+                  } else {
+                    setVoiceDebug("Beendet — kein Text erkannt");
+                  }
+                  setVoiceText("");
+                };
+                voiceRef.current = rec;
                 setVoiceText("");
-              };
-              voiceRef.current = rec;
-              setVoiceText("");
-              setVoiceActive(true);
-              try {
-                rec.start();
-                setVoiceDebug("4. rec.start() aufgerufen");
-              } catch(err){
-                setVoiceDebug("FEHLER bei start(): " + err.message);
-                voiceRef.current = null;
-                setVoiceActive(false);
+                setVoiceActive(true);
+                try {
+                  rec.start();
+                  setVoiceDebug("4. rec.start() aufgerufen — warte auf Start...");
+                } catch(err){
+                  setVoiceDebug("FEHLER bei start(): " + err.message);
+                  voiceRef.current = null;
+                  setVoiceActive(false);
+                }
+              }
+
+              // Сначала явно будим микрофон через getUserMedia, потом запускаем распознавание
+              setVoiceDebug("2. Frage Mikrofon-Zugriff an...");
+              if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+                  // микрофон разбужен — закрываем поток, он больше не нужен, SR откроет свой
+                  stream.getTracks().forEach(function(tr){ tr.stop(); });
+                  setVoiceDebug("2b. Mikrofon-Zugriff OK");
+                  setTimeout(startRecognition, 300);
+                }).catch(function(err){
+                  setVoiceDebug("FEHLER Mikrofon: " + err.name + " — " + err.message);
+                });
+              } else {
+                // нет getUserMedia — пробуем напрямую
+                startRecognition();
               }
             }}
             style={{
