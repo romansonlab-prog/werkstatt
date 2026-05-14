@@ -248,8 +248,8 @@
     .panel-title {
       display:flex; align-items:center; gap:10px; margin-bottom:var(--sp2);
       font-family:var(--font-display);
-      font-size:15px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase;
-      color:var(--text-primary);
+      font-size:18px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase;
+      color:#ffa500;
     }
 
     .chips { display:flex; flex-wrap:wrap; gap:10px; }
@@ -307,6 +307,7 @@
       font-family:var(--font-display); letter-spacing:0.5px;
       border:1.5px solid var(--border); background:transparent; color:var(--text-primary);
       min-height:var(--touch); transition:all var(--transition);
+      display:flex; align-items:center; justify-content:center; gap:6px;
     }
     .mini-btn:active { transform:scale(0.96); }
     .mini-btn.start { border-color:var(--green); color:var(--green); background:rgba(34,197,94,0.08); }
@@ -616,7 +617,6 @@ const VEHICLE_TYPES = [
 const WORK_TYPES = [
   ["repair","Reparatur"],
   ["tireChange","Reifenwechsel"],
-  ["wash","Waschen"],
   ["emergency","Notruf"]
 ];
 
@@ -1145,8 +1145,13 @@ function PhotoCapture({ photos, setPhotos }) {
   return (
     <div>
       <input ref={ref} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={onFiles} />
-      <button className="photo-box" type="button" onClick={function(){ if (ref.current) ref.current.click(); }}>
-        📷 Foto aufnehmen
+      <button className="photo-box" type="button" onClick={function(){ if (ref.current) ref.current.click(); }}
+        style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"28px 16px" }}>
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffa500" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span style={{ fontFamily:"var(--font-display)", fontWeight:800, fontSize:16, letterSpacing:1, color:"#fff" }}>Foto aufnehmen</span>
       </button>
       {photos.length > 0 && (
         <div className="photo-grid">
@@ -1338,18 +1343,22 @@ function TimerBox({ label, value, setValue, onFirstStart, storageKey }) {
           ⚠ Timer lief sehr lange — bitte Zeit manuell prüfen und über „Manuell“ korrigieren.
         </div>
       )}
-      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
         {!active && (
-          <button className="mini-btn start" type="button" onClick={start}>▶ Start</button>
+          <button className="mini-btn start" type="button" onClick={start}
+            style={{ width:"100%", justifyContent:"center" }}>▶ Start</button>
         )}
         {active && (
-          <button className="mini-btn stop" type="button" onClick={stop}>■ Stop</button>
+          <button className="mini-btn stop" type="button" onClick={stop}
+            style={{ width:"100%", justifyContent:"center" }}>■ Stop</button>
         )}
         {!active && (
-          <button className="mini-btn" type="button" onClick={function(){ setManual(true); }}>✎ Manuell</button>
+          <button className="mini-btn" type="button" onClick={function(){ setManual(true); }}
+            style={{ width:"100%", justifyContent:"center" }}>✎ Manuell</button>
         )}
         {!!value && !active && (
-          <button className="mini-btn" type="button" onClick={resetTimer}>↺ Reset</button>
+          <button className="mini-btn" type="button" onClick={resetTimer}
+            style={{ width:"100%", justifyContent:"center" }}>↺ Reset</button>
         )}
       </div>
 
@@ -1636,80 +1645,51 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }
   );
 }
 
-// === StandortPicker — плитки как Arbeitstyp ===
+// === StandortPicker — выпадающий список (стиль как Fahrzeugtyp) ===
 function StandortPicker({ value, onChange, locations }) {
   var LOCS = (locations && locations.length) ? locations : LOCATIONS_FALLBACK;
-  var _sc = useState(false); var custom = _sc[0]; var setCustom = _sc[1];
-
   var isCustom = value && !LOCS.includes(value);
-  // Инициализируем customVal значением из value (если оно кастомное),
-  // чтобы кнопка ✓ работала сразу без необходимости что-то печатать
+  var _sc = useState(isCustom); var custom = _sc[0]; var setCustom = _sc[1];
   var _si = useState(isCustom ? value : ""); var customVal = _si[0]; var setCustomVal = _si[1];
 
-  // Синхронизируем customVal с входящим value (например, при prefill из алерта)
   useEffect(function(){
-    if (isCustom && value !== customVal) {
-      setCustomVal(value);
-    }
+    if (isCustom && value !== customVal) setCustomVal(value);
   }, [value]);
 
-  function pick(l) {
-    if (l === "__custom__") {
+  function onSelect(e) {
+    var v = e.target.value;
+    if (v === "__custom__") {
       setCustom(true);
       if (isCustom) setCustomVal(value);
     } else {
-      onChange(l);
       setCustom(false);
+      onChange(v);
     }
   }
 
   function confirmCustom() {
     var v = (customVal || "").trim();
-    if (v) {
-      onChange(v);
-      setCustom(false);
-    }
+    if (v) onChange(v);
   }
 
-  var allItems = LOCS.concat(["__custom__"]);
+  var selectVal = (custom || isCustom) ? "__custom__" : (value || "");
 
   return (
     <div>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-        {allItems.map(function(l) {
-          var isCustomBtn = l === "__custom__";
-          var isActive = isCustomBtn ? (custom || isCustom) : value === l;
-          return (
-            <button key={l} type="button"
-              onClick={function(){ pick(l); }}
-              style={{
-                padding:"10px 14px", borderRadius:999,
-                border: isActive ? "1px solid #ffa500" : "1px solid rgba(255,255,255,0.18)",
-                background: isActive ? "#ffa500" : "rgba(9,27,58,0.72)",
-                color: isActive ? "#0a1730" : "#fff",
-                fontSize:13, fontWeight:700,
-                boxShadow: isActive ? "0 4px 14px rgba(255,165,0,0.3)" : "none"
-              }}>
-              {isCustomBtn ? (isCustom ? ("✎ " + value) : "✎ Eigener...") : l}
-            </button>
-          );
-        })}
-      </div>
+      <select className="select-dark" value={selectVal} onChange={onSelect}>
+        {!value && <option value="">Standort wählen</option>}
+        {LOCS.map(function(l) { return <option key={l} value={l}>{l}</option>; })}
+        <option value="__custom__">Eigener Standort...</option>
+      </select>
       {(custom || isCustom) && (
-        <div style={{ display:"flex", gap:8, marginTop:10 }}>
-          <input
-            className="input-dark"
-            style={{ flex:1 }}
-            value={customVal}
+        <div style={{ display:"flex", gap:8, marginTop:8 }}>
+          <input className="input-dark" style={{ flex:1 }} value={customVal}
             placeholder="Eigenen Standort eingeben..."
             onChange={function(e){ setCustomVal(e.target.value); }}
-            onBlur={confirmCustom}
-          />
+            onBlur={confirmCustom} />
           <button type="button" className="mini-btn start"
             style={{ minWidth:48, minHeight:48, fontSize:18, padding:"0 14px" }}
-            onClick={confirmCustom}>
-            ✓
-          </button>
+            onClick={confirmCustom}>✓</button>
         </div>
       )}
     </div>
@@ -2131,9 +2111,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         </div>
       )}
 
-      {/* п.4: Fahrzeug + Standort выпадающий */}
+      {/* Fahrzeug + Standort */}
       <div className="glass-panel">
-        <div className="panel-title">🚚 Fahrzeug</div>
+        <div className="panel-title">Fahrzeug</div>
         <div className="grid2">
           <div>
             <div className="label-cap">Fahrzeugtyp</div>
@@ -2145,20 +2125,29 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
             </select>
           </div>
           <div>
-            <div className="label-cap">Kennzeichen / Nr.</div>
-            <VehicleInput vehicles={vehicles} value={vehicle} onChange={setVehicle} vehicleType={vehicleType} />
+            <div className="label-cap">Standort</div>
+            <StandortPicker value={location} onChange={setLocation} locations={locations} />
           </div>
         </div>
-        <div className="label-cap" style={{ marginTop:10 }}>Standort</div>
-        <StandortPicker value={location} onChange={setLocation} locations={locations} />
+        <div style={{ marginTop:12 }}>
+          <div className="label-cap">Kennzeichen / Nr.</div>
+          <VehicleInput vehicles={vehicles} value={vehicle} onChange={setVehicle} vehicleType={vehicleType} />
+        </div>
       </div>
 
       <div className="glass-panel">
-        <div className="panel-title">🔧 Arbeitstyp</div>
-        <div className="chips">
+        <div className="panel-title">Arbeitstyp</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:8 }}>
           {WORK_TYPES.map(function(wt) {
+            var act = workType === wt[0];
             return (
-              <button key={wt[0]} className={"chip" + (workType === wt[0] ? " active" : "")} type="button" onClick={function(){ setWorkType(wt[0]); }}>
+              <button key={wt[0]} type="button" onClick={function(){ setWorkType(wt[0]); }}
+                style={{ padding:"16px 8px", borderRadius:"var(--radius-sm)",
+                  border: act ? "1.5px solid #ffa500" : "1.5px solid var(--border)",
+                  background: act ? "rgba(255,165,0,0.12)" : "var(--bg-input)",
+                  color: act ? "#ffa500" : "var(--text-primary)",
+                  fontFamily:"var(--font-body)", fontWeight:700, fontSize:15,
+                  minHeight:"var(--touch)", cursor:"pointer" }}>
                 {wt[1]}
               </button>
             );
@@ -2252,16 +2241,28 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
 
       {workType === "tireChange" && (
         <div className="glass-panel">
-          <div className="panel-title">🔄 Reifenwechsel — Serien-Nummern</div>
+          <div className="panel-title">Reifenwechsel — Serien-Nummern</div>
           <div style={{ marginBottom:12 }}>
             <div className="label-cap">Neue Reifen — Serien-Nr. (eingebaut)</div>
             <input className="input-dark" value={tireNewSn} onChange={function(e){ setTireNewSn(e.target.value); }} placeholder="SN123456, SN123457..." />
             <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Mehrere Nummern mit Komma trennen</div>
           </div>
           <div style={{ marginBottom:8 }}>
-            <div style={{ display:"flex", gap:10, marginBottom:8 }}>
-              <button type="button" className={"chip" + (tireNewCond==="new"?" active":"")} onClick={function(){ setTireNewCond("new"); }}>🟢 Neu</button>
-              <button type="button" className={"chip" + (tireNewCond==="used"?" active":"")} onClick={function(){ setTireNewCond("used"); }}>🟡 Gebraucht</button>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:8 }}>
+              {[["new","Neu"],["used","Gebraucht"]].map(function(opt){
+                var act = tireNewCond === opt[0];
+                return (
+                  <button key={opt[0]} type="button" onClick={function(){ setTireNewCond(opt[0]); }}
+                    style={{ padding:"15px 8px", borderRadius:"var(--radius-sm)",
+                      border: act ? "1.5px solid #ffa500" : "1.5px solid var(--border)",
+                      background: act ? "rgba(255,165,0,0.12)" : "var(--bg-input)",
+                      color: act ? "#ffa500" : "var(--text-primary)",
+                      fontFamily:"var(--font-body)", fontWeight:700, fontSize:15,
+                      minHeight:"var(--touch)", cursor:"pointer" }}>
+                    {opt[1]}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)", paddingTop:12 }}>
@@ -2273,21 +2274,21 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       )}
 
       <div className="glass-panel">
-        <div className="panel-title">📷 Fotos</div>
+        <div className="panel-title">Fotos</div>
         <PhotoCapture photos={photos} setPhotos={setPhotos} />
       </div>
 
       {/* п.5: Teile & Material */}
       <div className="glass-panel">
-        <div className="panel-title">📦 Teile &amp; Material</div>
+        <div className="panel-title">Teile &amp; Material</div>
         <TeilePicker partsType={partsType} setPartsType={setPartsType} shopItems={shopItems} setShopItems={setShopItems} stock={stock} />
       </div>
 
       <div className="glass-panel">
-        <div className="panel-title">👥 Mechaniker</div>
+        <div className="panel-title">Mechaniker</div>
         <div className="grid2">
-          <button type="button" className={"chip" + (!colleague ? " active" : "")} onClick={function(){ setColleague(false); }}>👤 Allein</button>
-          <button type="button" className={"chip" + (colleague ? " active" : "")} onClick={function(){ setColleague(true); }}>👥 Mit Kollegen</button>
+          <button type="button" className={"chip" + (!colleague ? " active" : "")} onClick={function(){ setColleague(false); }}>Allein</button>
+          <button type="button" className={"chip" + (colleague ? " active" : "")} onClick={function(){ setColleague(true); }}>Mit Kollegen</button>
         </div>
         {colleague && (function(){
           var myNied = user && user.niederlassung_id;
@@ -2324,13 +2325,12 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         })()}
       </div>
 
-      {/* п.6: Таймер Arbeitszeit с паузой */}
+      {/* Таймеры */}
       <div className="glass-panel">
-        <div className="panel-title">⏱ Zeiten</div>
-        <div className="grid2">
-          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} onFirstStart={ensureJobCreated} storageKey="hinfahrt" />
-          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} onFirstStart={ensureJobCreated} storageKey="rueckfahrt" />
-        </div>
+        <div className="panel-title">Zeiten</div>
+        <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} onFirstStart={ensureJobCreated} storageKey="hinfahrt" />
+        <div style={{ height:10 }}></div>
+        <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} onFirstStart={ensureJobCreated} storageKey="rueckfahrt" />
         <div style={{ height:10 }}></div>
         <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} onFirstStart={ensureJobCreated} storageKey="arbeitszeit" />
       </div>
@@ -3323,7 +3323,7 @@ function DUAuflieger({ user, vehicles, onRefresh }) {
         </div>
 
         <div className="glass-panel">
-          <div className="label-cap">🚛 Fahrzeug (Auflieger)</div>
+          <div className="label-cap">Fahrzeug (Auflieger)</div>
           <VehicleInput vehicles={vehicles} value={plate} onChange={setPlate} vehicleType="trailer" />
         </div>
 
@@ -3634,7 +3634,7 @@ function SOSScreen({ alert: a, onAccept, onBack, vehicles }) {
 
         {/* Машина */}
         <div className="glass-panel" style={{ marginBottom:12 }}>
-          <div className="label-cap">🚛 Fahrzeug</div>
+          <div className="label-cap">Fahrzeug</div>
           <div style={{ fontSize:22, fontWeight:800, color:"#fff", marginTop:4 }}>
             {a.plate || "—"}
           </div>
