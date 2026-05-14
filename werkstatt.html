@@ -714,6 +714,28 @@ function sbSelect(table, query) {
   }).then(function(json) { return Array.isArray(json) ? json : []; });
 }
 
+// Простой глобальный toast — короткое уведомление снизу экрана
+function showToast(msg) {
+  try {
+    var existing = document.getElementById("wf-toast");
+    if (existing) existing.remove();
+    var el = document.createElement("div");
+    el.id = "wf-toast";
+    el.textContent = msg;
+    el.style.cssText = "position:fixed;left:50%;bottom:90px;transform:translateX(-50%);" +
+      "background:rgba(13,25,52,0.97);color:#fff;padding:13px 22px;border-radius:14px;" +
+      "border:1px solid rgba(255,165,0,0.4);font-size:14px;font-weight:600;z-index:9999;" +
+      "box-shadow:0 8px 28px rgba(0,0,0,0.5);max-width:88%;text-align:center;" +
+      "font-family:var(--font-display),sans-serif;opacity:0;transition:opacity 0.25s";
+    document.body.appendChild(el);
+    requestAnimationFrame(function(){ el.style.opacity = "1"; });
+    setTimeout(function(){
+      el.style.opacity = "0";
+      setTimeout(function(){ if (el.parentNode) el.remove(); }, 300);
+    }, 2600);
+  } catch(e) {}
+}
+
 function sbInsert(table, payload, minimal) {
   return fetch(SB_URL + "/rest/v1/" + table, {
     method:"POST",
@@ -776,8 +798,9 @@ function dataUrlToBlob(dataUrl) {
 function uploadAllPhotos(jobId, photos) {
   if (!photos || !photos.length) return Promise.resolve([]);
   var promises = photos.map(function(p, i) {
+    // Существующее фото (уже загружено ранее, есть url) — оставляем как есть
+    if (p.existing && p.url) return Promise.resolve(p.url);
     // Берём сжатую версию (compressPhoto уже сделал её при выборе файла).
-    // Это в разы уменьшает объём загрузки и место в Storage.
     var blob = p.base64 ? dataUrlToBlob(p.base64) : null;
     if (!blob && p.file) blob = p.file; // fallback на оригинал, если что-то пошло не так
     if (!blob) return Promise.resolve(null);
@@ -1121,7 +1144,7 @@ function PhotoCapture({ photos, setPhotos }) {
           {photos.map(function(p, i) {
             return (
               <div className="photo-thumb" key={i}>
-                <img src={p.base64} alt="" />
+                <img src={p.base64 || p.url} alt="" />
                 <button type="button" onClick={function(){ setPhotos(photos.filter(function(_,idx){ return idx !== i; })); }}>×</button>
               </div>
             );
@@ -1736,6 +1759,9 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
   // ID заказа в базе: создаётся при первом старте таймера (Кусок 1 переделки)
   var jobIdRef = useRef(prefill && prefill.continueJobId ? prefill.continueJobId : null);
   var creatingJobRef = useRef(false);
+  // Пауза всего заказа
+  var _spjm = useState(false); var pauseModal = _spjm[0]; var setPauseModal = _spjm[1];
+  var _spjr = useState(""); var pauseReason = _spjr[0]; var setPauseReason = _spjr[1];
 
   // Создаёт заказ в базе при первом действии (Start таймера / Manuell).
   // Идемпотентно: если заказ уже создан или создаётся — ничего не делает.
@@ -1771,6 +1797,105 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       .catch(function(e) {
         creatingJobRef.current = false;
         console.warn("Job-Erstellung fehlgeschlagen:", e);
+      });
+  }
+
+  // Пауза всего заказа: сохраняет текущее состояние в базу со статусом paused,
+  // пишет запись в pause_log, чистит форму. Заказ уходит в Meine → Pausiert.
+  function pauseJob() {
+    if (savingRef.current) return;
+    if (!jobIdRef.current) {
+      alert("Auftrag noch nicht gestartet — bitte zuerst einen Timer starten.");
+      return;
+    }
+    if (!pauseReason.trim()) { alert("Bitte Grund angeben."); return; }
+    savingRef.current = true;
+    setSaving(true);
+
+    // Считаем стоимость как в save()
+    var partsNote = "";
+    var partsCost = 0;
+    if (partsType === "shop") {
+      var shopValid = shopItems.filter(function(i){ return i.name.trim() || i.typ.trim(); });
+      partsNote = shopValid.map(function(i){
+        return [i.typ, i.name, i.lieferschein ? "LS:" + i.lieferschein : "", i.datum, i.preis ? i.preis + " EUR" : ""].filter(Boolean).join(" | ");
+      }).join("\n");
+      partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
+    } else if (partsType === "used") {
+      partsNote = "Gebrauchtteil";
+    } else if (partsType === "lager") {
+      partsNote = "Neu aus Lager (Buchung folgt)";
+    }
+    var laborCost = userRate ? Math.round((workMin / 60) * userRate * 100) / 100 : 0;
+    var totalCost = laborCost + partsCost;
+
+    // Новая запись в журнал пауз
+    var prevLog = (prefill && prefill.pause_log) ? prefill.pause_log : [];
+    if (typeof prevLog === "string") { try { prevLog = JSON.parse(prevLog); } catch(e) { prevLog = []; } }
+    if (!Array.isArray(prevLog)) prevLog = [];
+    // Закрываем предыдущую незакрытую паузу (если механик вернулся и снова откладывает)
+    prevLog = prevLog.map(function(p){
+      if (p.end) return p;
+      var endT = new Date();
+      var startT = p.start ? new Date(p.start) : endT;
+      var mins = Math.max(0, Math.round((endT - startT) / 60000));
+      return Object.assign({}, p, { end: endT.toISOString(), minutes: mins });
+    });
+    var newLogEntry = {
+      start: new Date().toISOString(),
+      end: null,
+      reason: pauseReason.trim(),
+      minutes: null
+    };
+    var newLog = prevLog.concat([newLogEntry]);
+
+    uploadAllPhotos(jobIdRef.current, photos)
+      .then(function(photoUrls) {
+        var patch = {
+          vehicle_type: vehicleType,
+          plate: vehicle.plate,
+          location: location,
+          work_type: workType,
+          description: description,
+          status: "paused",
+          paused_at: new Date().toISOString(),
+          pause_log: JSON.stringify(newLog),
+          travel_to_min: travelTo,
+          travel_back_min: travelBack,
+          work_min: workMin,
+          parts_type: partsType,
+          parts_note: partsNote || null,
+          parts_items: partsType === "shop" ? JSON.stringify(shopItems) : null,
+          colleague: colleague ? (colleagueName || "Kollege") : null,
+          cost: totalCost,
+          labor_cost: laborCost,
+          parts_cost: partsCost,
+          photos: photoUrls.length,
+          photo_urls: JSON.stringify(photoUrls)
+        };
+        return sbPatch("jobs", jobIdRef.current, patch);
+      })
+      .then(function() {
+        // Чистим форму — заказ ушёл в Meine
+        jobIdRef.current = null;
+        creatingJobRef.current = false;
+        setPauseModal(false); setPauseReason("");
+        setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
+        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+        setVehicle(null); setColleague(false); setColleagueName("");
+        setTireNewSn(""); setTireOldSn("");
+        try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+        if (onClear) onClear();
+        if (onSaved) onSaved();
+        setSaving(false);
+        savingRef.current = false;
+        showToast("Auftrag pausiert — in Meine verschoben");
+      })
+      .catch(function(e) {
+        console.error(e);
+        alert("Fehler: " + (e.message || e));
+        setSaving(false);
+        savingRef.current = false;
       });
   }
 
@@ -1812,6 +1937,33 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
     setLocation(prefill.location || "Werkstatt");
     setWorkType(prefill.work_type || "emergency");
     setDescription(prefill.description || prefill.note || "");
+    // Если это продолжение отложенного заказа — восстанавливаем всё состояние
+    if (prefill.continueJobId) {
+      jobIdRef.current = prefill.continueJobId;
+      creatingJobRef.current = false;
+      setTravelTo(prefill.travel_to_min || 0);
+      setTravelBack(prefill.travel_back_min || 0);
+      setWorkMin(prefill.work_min || 0);
+      if (prefill.parts_type) setPartsType(prefill.parts_type);
+      if (prefill.parts_items) {
+        try {
+          var items = typeof prefill.parts_items === "string"
+            ? JSON.parse(prefill.parts_items) : prefill.parts_items;
+          if (Array.isArray(items) && items.length) setShopItems(items);
+        } catch(e) {}
+      }
+      if (prefill.colleague) {
+        setColleague(true);
+        setColleagueName(prefill.colleague);
+      }
+      // Восстанавливаем фото заказа
+      var existingPhotos = normalizeUrls(prefill.photo_urls);
+      if (existingPhotos && existingPhotos.length) {
+        setPhotos(existingPhotos.map(function(url){
+          return { url: url, existing: true };
+        }));
+      }
+    }
   }, [prefill ? prefill.id : null, vehicles.length]);
 
   function save() {
@@ -1883,6 +2035,20 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           vehicle_home_niederlassung_id: vehicleHomeNied,
           tenant_id: "ltg"
         };
+        // Закрываем незакрытую паузу в журнале (если заказ продолжали из паузы)
+        var savePrevLog = (prefill && prefill.pause_log) ? prefill.pause_log : [];
+        if (typeof savePrevLog === "string") { try { savePrevLog = JSON.parse(savePrevLog); } catch(e) { savePrevLog = []; } }
+        if (Array.isArray(savePrevLog) && savePrevLog.length) {
+          var closedLog = savePrevLog.map(function(p){
+            if (p.end) return p;
+            var endT = new Date();
+            var startT = p.start ? new Date(p.start) : endT;
+            var mins = Math.max(0, Math.round((endT - startT) / 60000));
+            return Object.assign({}, p, { end: endT.toISOString(), minutes: mins });
+          });
+          payload.pause_log = JSON.stringify(closedLog);
+          payload.paused_at = null;
+        }
         if (workMin > 0) payload.finished_at = new Date().toISOString();
         // Если заказ уже создан при старте — обновляем (PATCH), иначе создаём (INSERT)
         if (jobAlreadyInDb) {
@@ -2153,9 +2319,47 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} withPause={true} onFirstStart={ensureJobCreated} />
       </div>
 
-      <button className="save-btn" type="button" disabled={saving} onClick={save}>
-        {saving ? "Speichert..." : "💾 BERICHT SPEICHERN"}
-      </button>
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button className="save-btn" type="button" disabled={saving} onClick={save}
+          style={{ flex:2, marginTop:0 }}>
+          {saving ? "Speichert..." : "💾 BERICHT SPEICHERN"}
+        </button>
+        {jobIdRef.current && (
+          <button type="button" disabled={saving}
+            onClick={function(){ setPauseModal(true); setPauseReason(""); }}
+            style={{ flex:1, padding:"16px 12px", borderRadius:14,
+              border:"1.5px solid rgba(255,165,0,0.5)", background:"rgba(255,165,0,0.1)",
+              color:"#ffa500", fontFamily:"var(--font-display)", fontWeight:800,
+              fontSize:15, letterSpacing:0.5, cursor:"pointer" }}>
+            ⏸ PAUSE
+          </button>
+        )}
+      </div>
+
+      {pauseModal && (
+        <div className="modal-back" onClick={function(){ setPauseModal(false); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:18, fontWeight:800, marginBottom:6 }}>⏸ Auftrag pausieren</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", marginBottom:14 }}>
+              Der Auftrag wird in „Meine“ abgelegt. Du kannst ihn später fortsetzen.
+            </div>
+            <div className="label-cap">Grund der Pause</div>
+            <textarea className="textarea-dark" value={pauseReason}
+              onChange={function(e){ setPauseReason(e.target.value); }}
+              placeholder="z.B. Ersatzteil holen, dringender Notruf, Mittagspause..."
+              style={{ minHeight:90, marginBottom:14 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn-primary" type="button" style={{ flex:1 }}
+                disabled={saving} onClick={pauseJob}>
+                {saving ? "..." : "Pausieren"}
+              </button>
+              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }}
+                onClick={function(){ setPauseModal(false); }}>Abbrechen</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {rechnungModal && (
         <div className="modal-back" onClick={function(){ setRechnungModal(false); alert("Bericht gespeichert!"); }}>
@@ -2485,27 +2689,50 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
 }
 
 // === MEINE AUFTRÄGE ===
-function MeineAuftraege({ jobs, user, onRefresh, loading }) {
-  var _spause = useState(null); var pauseTarget = _spause[0]; var setPauseTarget = _spause[1];
-  var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
+function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
+  var _stab = useState("active"); var subTab = _stab[0]; var setSubTab = _stab[1];
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
 
-  var myJobs = (jobs || [])
-    .filter(function(j) { return j.mechanic === (user && user.id); })
-    .filter(function(j) { return j.status !== "done"; });
+  var mine = (jobs || []).filter(function(j) { return j.mechanic === (user && user.id); });
 
-  // Все заказы механика за сегодня (включая done) для экспорта
-  var todayJobs = (jobs || []).filter(function(j) {
-    return j.mechanic === (user && user.id) &&
+  // В работе — статус inProgress
+  var activeJobs = mine.filter(function(j) { return j.status === "inProgress"; });
+  // На паузе — статус paused
+  var pausedJobs = mine.filter(function(j) { return j.status === "paused"; });
+  // Завершённые сегодня — done с сегодняшней датой
+  var doneToday = mine.filter(function(j) {
+    return j.status === "done" &&
       (j.date || (j.created_at || "").slice(0,10)) === todayIso();
   });
+
+  // Все заказы за сегодня для отчёта (все статусы)
+  var todayJobs = mine.filter(function(j) {
+    return (j.date || (j.created_at || "").slice(0,10)) === todayIso();
+  });
+
+  function parsePauseLog(j) {
+    var log = j.pause_log;
+    if (!log) return [];
+    if (typeof log === "string") { try { log = JSON.parse(log); } catch(e) { return []; } }
+    return Array.isArray(log) ? log : [];
+  }
+
+  function totalPauseMin(j) {
+    return parsePauseLog(j).reduce(function(s, p) { return s + (p.minutes || 0); }, 0);
+  }
 
   function exportDay() {
     var date = todayIso();
     var totalMin = todayJobs.reduce(function(s,j){ return s + (j.work_min || 0); }, 0);
     var totalCost = todayJobs.reduce(function(s,j){ return s + (Number(j.cost) || 0); }, 0);
+    var totalPause = todayJobs.reduce(function(s,j){ return s + totalPauseMin(j); }, 0);
     var rows = todayJobs.map(function(j) {
-      var statusDE = j.status === "done" ? "Fertig" : j.status === "inProgress" ? "In Arbeit" : j.status === "paused" ? "Pause" : "Neu";
+      var statusDE = j.status === "done" ? "Fertig" : j.status === "inProgress" ? "In Arbeit" : j.status === "paused" ? "Pausiert" : "Neu";
+      var statusColor = j.status === "done" ? "#16a34a" : j.status === "paused" ? "#ea7b00" : "#1e4fa0";
+      var pLog = parsePauseLog(j);
+      var pauseInfo = pLog.length > 0
+        ? pLog.map(function(p){ return p.reason + (p.minutes ? " (" + fmtMin(p.minutes) + ")" : ""); }).join("; ")
+        : "—";
       return "<tr>" +
         "<td>" + (j.plate || "—") + "</td>" +
         "<td>" + (labelFrom(WORK_TYPES, j.work_type) || "") + "</td>" +
@@ -2513,42 +2740,43 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
         "<td>" + (j.description ? j.description.slice(0,80) : "") + "</td>" +
         "<td>" + fmtMin(j.work_min || 0) + "</td>" +
         "<td>" + fmtMin((j.travel_to_min||0)+(j.travel_back_min||0)) + "</td>" +
-        "<td>" + (j.cost ? Number(j.cost).toFixed(2) + " €" : "—") + "</td>" +
-        "<td style='color:" + (j.status === "done" ? "green" : "orange") + ";font-weight:bold'>" + statusDE + "</td>" +
+        "<td>" + pauseInfo + "</td>" +
+        "<td>" + (j.cost ? Number(j.cost).toFixed(2) + " EUR" : "—") + "</td>" +
+        "<td style='color:" + statusColor + ";font-weight:bold'>" + statusDE + "</td>" +
         "</tr>";
     }).join("");
     var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
       "<title>Tagesbericht " + date + "</title>" +
-      "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:900px;margin:0 auto}" +
+      "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:980px;margin:0 auto}" +
       "h1{color:#0a1730;margin-bottom:4px}h2{color:#555;font-size:14px;font-weight:normal;margin-bottom:20px}" +
       "table{width:100%;border-collapse:collapse;margin-bottom:20px}" +
       "td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:13px}" +
       "th{background:#0a1730;color:#fff;font-size:12px;letter-spacing:0.5px}" +
       "tr:nth-child(even){background:#f8f9fc}" +
-      ".summary{display:flex;gap:24px;background:#f0f4ff;border-radius:12px;padding:16px 20px;margin-bottom:24px}" +
+      ".summary{display:flex;gap:24px;background:#f0f4ff;border-radius:12px;padding:16px 20px;margin-bottom:24px;flex-wrap:wrap}" +
       ".sum-item{text-align:center}.sum-val{font-size:24px;font-weight:900;color:#0a1730}" +
       ".sum-lab{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}" +
       "</style></head><body>" +
-      "<h1>WerkFlow — Tagesbericht</h1>" +
-      "<h2>" + user.name + " · " + dateDMY(date) + "</h2>" +
+      "<h1>WerkFlow - Tagesbericht</h1>" +
+      "<h2>" + user.name + " - " + dateDMY(date) + "</h2>" +
       "<div class='summary'>" +
       "<div class='sum-item'><div class='sum-val'>" + todayJobs.length + "</div><div class='sum-lab'>Aufträge</div></div>" +
       "<div class='sum-item'><div class='sum-val'>" + fmtMin(totalMin) + "</div><div class='sum-lab'>Arbeitszeit</div></div>" +
-      "<div class='sum-item'><div class='sum-val'>" + totalCost.toFixed(2) + " €</div><div class='sum-lab'>Gesamtkosten</div></div>" +
+      "<div class='sum-item'><div class='sum-val'>" + fmtMin(totalPause) + "</div><div class='sum-lab'>Pausen</div></div>" +
+      "<div class='sum-item'><div class='sum-val'>" + totalCost.toFixed(2) + " EUR</div><div class='sum-lab'>Gesamtkosten</div></div>" +
       "</div>" +
-      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Kosten</th><th>Status</th></tr></thead>" +
+      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Pausen</th><th>Kosten</th><th>Status</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></body></html>";
 
     var fileName = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
 
-    // Web Share API — системный диалог "Поделиться" на мобильных
     if (navigator.share && navigator.canShare) {
       var blob = new Blob([html], { type:"text/html" });
       var file = new File([blob], fileName, { type:"text/html" });
       if (navigator.canShare({ files:[file] })) {
         navigator.share({
-          title: "Tagesbericht " + user.name + " · " + dateDMY(date),
-          text: "WerkFlow Tagesbericht: " + todayJobs.length + " Aufträge, " + fmtMin(totalMin) + ", " + totalCost.toFixed(2) + " €",
+          title: "Tagesbericht " + user.name + " - " + dateDMY(date),
+          text: "WerkFlow Tagesbericht: " + todayJobs.length + " Aufträge, " + fmtMin(totalMin) + ", " + totalCost.toFixed(2) + " EUR",
           files: [file]
         }).catch(function(e){
           if (e.name !== "AbortError") fallbackDownload(html, fileName);
@@ -2556,7 +2784,6 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
         return;
       }
     }
-    // Fallback: обычное скачивание (десктоп или старые браузеры)
     fallbackDownload(html, fileName);
   }
 
@@ -2568,27 +2795,83 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
     URL.revokeObjectURL(url);
   }
 
-  function changeStatus(job, newStatus, pauseNote) {
+  function markDone(job) {
+    if (!window.confirm("Auftrag als erledigt markieren?")) return;
     setUpdating(true);
-    var patch = { status:newStatus };
-    if (pauseNote) patch.pause_note = pauseNote;
-    if (newStatus === "done") patch.finished_at = new Date().toISOString();
-    sbPatch("jobs", job.id, patch)
+    sbPatch("jobs", job.id, { status:"done", finished_at: new Date().toISOString() })
       .then(function() { setUpdating(false); if (onRefresh) onRefresh(); })
       .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
   }
 
-  function confirmPause() {
-    if (!reason.trim()) { alert("Bitte Grund angeben."); return; }
-    changeStatus(pauseTarget, "paused", reason);
-    setPauseTarget(null); setReason("");
+  // Карточка заказа
+  function jobCard(j, mode) {
+    var pLog = parsePauseLog(j);
+    var tPause = totalPauseMin(j);
+    return (
+      <div key={j.id} className="alert-card">
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:8 }}>
+          <div>
+            <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || "Ohne Kennzeichen"}</div>
+            <div className="meta" style={{ marginTop:4 }}>📍 {j.location || "Werkstatt"} · {labelFrom(WORK_TYPES, j.work_type)}</div>
+          </div>
+          <span className={"badge " + (mode === "active" ? "green" : mode === "paused" ? "orange" : "gray")}>
+            {mode === "active" ? "In Arbeit" : mode === "paused" ? "Pausiert" : "Fertig"}
+          </span>
+        </div>
+        {j.description && <div style={{ fontSize:13, lineHeight:1.4, marginBottom:8, whiteSpace:"pre-wrap" }}>{j.description}</div>}
+        <div className="meta" style={{ marginTop:4 }}>
+          ⏱ {fmtMin(j.work_min || 0)} · Fahrt: {fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))}
+          {tPause > 0 ? " · Pause: " + fmtMin(tPause) : ""}
+        </div>
+        {pLog.length > 0 && (
+          <div className="pause-reason-box" style={{ marginTop:8 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,165,0,0.85)", marginBottom:6 }}>PAUSEN-JOURNAL</div>
+            {pLog.map(function(p, i){
+              var t = p.start ? new Date(p.start).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : "";
+              return (
+                <div key={i} style={{ fontSize:13, marginBottom: i < pLog.length-1 ? 5 : 0, lineHeight:1.4 }}>
+                  <span style={{ color:"rgba(255,165,0,0.8)", fontWeight:700 }}>{t}</span>
+                  {p.minutes ? <span style={{ color:"rgba(255,255,255,0.5)" }}> · {fmtMin(p.minutes)}</span> : <span style={{ color:"#ffa500" }}> · läuft</span>}
+                  <span style={{ color:"rgba(255,255,255,0.85)" }}> — {p.reason}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
+          {mode === "paused" && (
+            <button className="mini-btn start" type="button" disabled={updating}
+              onClick={function(){ if (onContinueJob) onContinueJob(j); }}>
+              ▶ Weiterarbeiten
+            </button>
+          )}
+          {mode === "active" && (
+            <button className="mini-btn start" type="button" disabled={updating}
+              onClick={function(){ if (onContinueJob) onContinueJob(j); }}>
+              ▶ Öffnen
+            </button>
+          )}
+          {(mode === "active" || mode === "paused") && (
+            <button className="mini-btn stop" type="button" disabled={updating}
+              onClick={function(){ markDone(j); }}>
+              ■ Fertig
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
-  function statusLabel(s) {
-    if (s === "inProgress") return { text:"In Arbeit", cls:"green" };
-    if (s === "paused")     return { text:"Pause",    cls:"orange" };
-    return { text:"Neu", cls:"blue" };
-  }
+  var tabs = [
+    { key:"active", label:"In Arbeit", count:activeJobs.length },
+    { key:"paused", label:"Pausiert",  count:pausedJobs.length },
+    { key:"done",   label:"Erledigt",  count:doneToday.length }
+  ];
+
+  var currentList = subTab === "active" ? activeJobs : subTab === "paused" ? pausedJobs : doneToday;
+  var emptyText = subTab === "active" ? "Keine Aufträge in Arbeit"
+    : subTab === "paused" ? "Keine pausierten Aufträge"
+    : "Heute noch nichts abgeschlossen";
 
   return (
     <div>
@@ -2602,75 +2885,43 @@ function MeineAuftraege({ jobs, user, onRefresh, loading }) {
           📄 Tagesbericht
         </button>
       </div>
+
+      {/* Вкладки-фильтры */}
+      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+        {tabs.map(function(t){
+          var isActive = subTab === t.key;
+          return (
+            <button key={t.key} type="button" onClick={function(){ setSubTab(t.key); }}
+              style={{ flex:1, padding:"11px 6px", borderRadius:12,
+                border: isActive ? "1.5px solid #ffa500" : "1px solid rgba(255,255,255,0.15)",
+                background: isActive ? "rgba(255,165,0,0.12)" : "rgba(255,255,255,0.04)",
+                color: isActive ? "#ffa500" : "rgba(255,255,255,0.6)",
+                fontFamily:"var(--font-display)", fontWeight:800, fontSize:13,
+                cursor:"pointer", letterSpacing:0.3 }}>
+              {t.label}
+              <span style={{ display:"block", fontSize:18, marginTop:2,
+                color: isActive ? "#ffa500" : "rgba(255,255,255,0.4)" }}>{t.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {todayJobs.length > 0 && (
-        <div style={{ marginBottom:12, padding:"10px 14px", borderRadius:12, background:"rgba(255,255,255,0.05)", fontSize:12, color:"rgba(255,255,255,0.55)", display:"flex", gap:16 }}>
+        <div style={{ marginBottom:12, padding:"10px 14px", borderRadius:12, background:"rgba(255,255,255,0.05)", fontSize:12, color:"rgba(255,255,255,0.55)", display:"flex", gap:16, flexWrap:"wrap" }}>
           <span>Heute: {todayJobs.length} Aufträge</span>
           <span>⏱ {fmtMin(todayJobs.reduce(function(s,j){ return s + (j.work_min||0); },0))}</span>
           <span>💶 {todayJobs.reduce(function(s,j){ return s + (Number(j.cost)||0); },0).toFixed(2)} €</span>
         </div>
       )}
-      {myJobs.length === 0 && (
-        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>Keine offenen Aufträge</div>
-      )}
-      {myJobs.map(function(j) {
-        var sl = statusLabel(j.status);
-        var isNew    = j.status !== "inProgress" && j.status !== "paused";
-        var isActive = j.status === "inProgress";
-        var isPaused = j.status === "paused";
-        return (
-          <div key={j.id} className="alert-card">
-            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:8 }}>
-              <div>
-                <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || "Ohne Kennzeichen"}</div>
-                <div className="meta" style={{ marginTop:4 }}>📍 {j.location || "Werkstatt"} · {labelFrom(WORK_TYPES, j.work_type)}</div>
-              </div>
-              <span className={"badge " + sl.cls}>{sl.text}</span>
-            </div>
-            {j.description && <div style={{ fontSize:13, lineHeight:1.4, marginBottom:8, whiteSpace:"pre-wrap" }}>{j.description}</div>}
-            {j.pause_note && (
-              <div className="pause-reason-box">
-                <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,165,0,0.8)", marginBottom:4 }}>PAUSE-GRUND</div>
-                <div style={{ fontSize:13 }}>{j.pause_note}</div>
-              </div>
-            )}
-            <div className="meta" style={{ marginTop:8 }}>⏱ {fmtMin(j.work_min || 0)} · Fahrt: {fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))}</div>
-            <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-              {isNew && <button className="mini-btn start" type="button" disabled={updating} onClick={function(){ changeStatus(j, "inProgress"); }}>▶ Starten</button>}
-              {isActive && <button className="mini-btn pause" type="button" disabled={updating} onClick={function(){ setPauseTarget(j); setReason(""); }}>⏸ Pause</button>}
-              {isPaused && <button className="mini-btn start" type="button" disabled={updating} onClick={function(){ changeStatus(j, "inProgress"); }}>▶ Weiter</button>}
-              {(isActive || isPaused) && (
-                <button className="mini-btn stop" type="button" disabled={updating}
-                  onClick={function(){ if (window.confirm("Auftrag als erledigt markieren?")) changeStatus(j, "done"); }}>
-                  ■ Fertig
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
 
-      {pauseTarget && (
-        <div className="modal-back" onClick={function(){ setPauseTarget(null); }}>
-          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
-            <div style={{ fontSize:18, fontWeight:800, marginBottom:14 }}>⏸ Pause — Grund angeben</div>
-            <div style={{ color:"rgba(255,255,255,0.65)", fontSize:13, marginBottom:10 }}>
-              {pauseTarget.plate} · {labelFrom(WORK_TYPES, pauseTarget.work_type)}
-            </div>
-            <textarea className="textarea-dark" value={reason}
-              onChange={function(e){ setReason(e.target.value); }}
-              placeholder="Grund der Pause (z.B. Ersatzteil fehlt, Mittagspause...)"
-              style={{ minHeight:80, marginBottom:14 }}
-            />
-            <div style={{ display:"flex", gap:10 }}>
-              <button className="btn-primary" type="button" style={{ flex:1 }} onClick={confirmPause}>Bestätigen</button>
-              <button className="outline-btn" type="button" style={{ flex:1, padding:14 }} onClick={function(){ setPauseTarget(null); }}>Abbrechen</button>
-            </div>
-          </div>
-        </div>
+      {currentList.length === 0 && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>{emptyText}</div>
       )}
+      {currentList.map(function(j){ return jobCard(j, subTab); })}
     </div>
   );
 }
+
 
 // === LAGER ===
 function Lager({ stock, loading, onRefresh }) {
@@ -3662,7 +3913,18 @@ function AppShell({ user, onLogout }) {
           <Eingang alerts={alerts} user={user} onCreate={createFromAlert} loading={loading} onRefresh={loadAll} />
         )}
         {tab === "jobs" && (
-          <MeineAuftraege jobs={jobs} user={user} onRefresh={loadAll} loading={loading} />
+          <MeineAuftraege jobs={jobs} user={user} onRefresh={loadAll} loading={loading}
+            onContinueJob={function(job){
+              // Открыть отложенный заказ обратно в Auftrag для продолжения
+              var p = Object.assign({}, job, {
+                continueJobId: job.id,
+                vehicle_type: job.vehicle_type || "truck",
+                photo_urls: job.photo_urls
+              });
+              setPrefill(p);
+              setTab("new");
+            }}
+          />
         )}
         {tab === "lager" && (
           <Lager stock={stock} loading={loading} onRefresh={loadAll} />
