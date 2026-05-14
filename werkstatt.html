@@ -1933,36 +1933,75 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
           style={{ borderColor: voiceActive ? "var(--red)" : undefined, marginBottom:8 }} />
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
           <button type="button"
-            onMouseDown={function(){
-              if (voiceActive) return;
-              var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-              var rec = new SR(); rec.lang="de-DE"; rec.continuous=true; rec.interimResults=false;
-              rec.onresult=function(e){ var t=Array.from(e.results).map(function(r){ return r[0].transcript; }).join(" "); setDescription(function(prev){ return prev?prev+" "+t:t; }); };
-              rec.onerror=function(){ setVoiceActive(false); }; rec.onend=function(){};
-              voiceRef.current=rec; setVoiceActive(true); try{rec.start();}catch(err){}
-            }}
-            onMouseUp={function(){
-              setVoiceActive(false);
-              if (voiceRef.current) { try{voiceRef.current.stop();}catch(e){} voiceRef.current=null; }
-            }}
-            onMouseLeave={function(){
-              if (!voiceActive) return;
-              setVoiceActive(false);
-              if (voiceRef.current) { try{voiceRef.current.stop();}catch(e){} voiceRef.current=null; }
-            }}
-            onTouchStart={function(e){
+            onPointerDown={function(e){
               e.preventDefault();
-              if (voiceActive) return;
+              if (voiceActive || voiceRef.current) return;
               var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-              var rec = new SR(); rec.lang="de-DE"; rec.continuous=true; rec.interimResults=false;
-              rec.onresult=function(ev){ var t=Array.from(ev.results).map(function(r){ return r[0].transcript; }).join(" "); setDescription(function(prev){ return prev?prev+" "+t:t; }); };
-              rec.onerror=function(){ setVoiceActive(false); }; rec.onend=function(){};
-              voiceRef.current=rec; setVoiceActive(true); try{rec.start();}catch(err){}
+              var rec;
+              try { rec = new SR(); } catch(err){ return; }
+              rec.lang = "de-DE";
+              rec.continuous = true;
+              rec.interimResults = true;
+              rec.onresult = function(ev){
+                var t = "";
+                for (var i = 0; i < ev.results.length; i++) {
+                  t += ev.results[i][0].transcript;
+                }
+                setVoiceText(t);
+              };
+              rec.onerror = function(ev){
+                console.log("Speech error:", ev.error);
+                setVoiceActive(false);
+                voiceRef.current = null;
+              };
+              rec.onend = function(){
+                // если запись закончилась сама — сохраняем что есть
+                setVoiceActive(false);
+              };
+              voiceRef.current = rec;
+              setVoiceText("");
+              setVoiceActive(true);
+              try { rec.start(); } catch(err){ console.log("start failed:", err); setVoiceActive(false); voiceRef.current = null; }
             }}
-            onTouchEnd={function(e){
+            onPointerUp={function(e){
               e.preventDefault();
+              if (!voiceRef.current) return;
+              var rec = voiceRef.current;
+              voiceRef.current = null;
               setVoiceActive(false);
-              if (voiceRef.current) { try{voiceRef.current.stop();}catch(e){} voiceRef.current=null; }
+              try { rec.stop(); } catch(err){}
+              setVoiceText(function(t){
+                if (t && t.trim()) {
+                  setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
+                }
+                return "";
+              });
+            }}
+            onPointerLeave={function(e){
+              if (!voiceRef.current) return;
+              var rec = voiceRef.current;
+              voiceRef.current = null;
+              setVoiceActive(false);
+              try { rec.stop(); } catch(err){}
+              setVoiceText(function(t){
+                if (t && t.trim()) {
+                  setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
+                }
+                return "";
+              });
+            }}
+            onPointerCancel={function(e){
+              if (!voiceRef.current) return;
+              var rec = voiceRef.current;
+              voiceRef.current = null;
+              setVoiceActive(false);
+              try { rec.stop(); } catch(err){}
+              setVoiceText(function(t){
+                if (t && t.trim()) {
+                  setDescription(function(prev){ return prev ? prev + " " + t.trim() : t.trim(); });
+                }
+                return "";
+              });
             }}
             style={{
               width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
