@@ -1212,21 +1212,61 @@ function compressAll(photos) {
   return Promise.all(photos.map(function(p){ return compressPhoto(p); }));
 }
 // === PhotoCapture & RemotePhotos ===
-function PhotoCapture({ photos, setPhotos }) {
+// Фото-захват с заливкой в Supabase сразу при выборе.
+// photos в стейте = массив { url, uploading?, error? }. Передаём stageId —
+// идентификатор папки в Storage (это будет id заказа).
+function PhotoCapture({ photos, setPhotos, stageId }) {
   var ref = useRef(null);
   function onFiles(e) {
     var files = Array.from(e.target.files || []);
-    Promise.all(files.map(function(file) {
-      return new Promise(function(resolve) {
+    if (!files.length) return;
+
+    // 1. Сразу добавляем плейсхолдеры с base64 (для превью) и uploading=true
+    Promise.all(files.map(function(file){
+      return new Promise(function(resolve){
         var r = new FileReader();
-        r.onload = function(ev) {
+        r.onload = function(ev){
           compressPhoto(ev.target.result).then(function(compressed){
-            resolve({ file:file, base64:compressed });
+            resolve({ base64: compressed, file: file });
           });
         };
         r.readAsDataURL(file);
       });
-    })).then(function(arr) { setPhotos((photos || []).concat(arr)); });
+    })).then(function(prepared){
+      // Добавляем в стейт как загружающиеся (с превью)
+      var withPlaceholders = prepared.map(function(p){
+        return { url: null, base64: p.base64, uploading: true, _tmpId: Math.random().toString(36).slice(2) };
+      });
+      setPhotos(function(prev){ return (prev || []).concat(withPlaceholders); });
+
+      // 2. Заливаем по одному, обновляем стейт по мере готовности
+      withPlaceholders.forEach(function(placeholder, idx){
+        var blob = dataUrlToBlob(prepared[idx].base64);
+        var path = stageId + "/" + Date.now() + "-" + idx + ".jpg";
+        sbUploadPhoto(path, blob)
+          .then(function(url){
+            setPhotos(function(prev){
+              return (prev || []).map(function(p){
+                if (p._tmpId === placeholder._tmpId) {
+                  return { url: url };
+                }
+                return p;
+              });
+            });
+          })
+          .catch(function(err){
+            console.error("Foto-Upload fehlgeschlagen:", err);
+            setPhotos(function(prev){
+              return (prev || []).map(function(p){
+                if (p._tmpId === placeholder._tmpId) {
+                  return Object.assign({}, p, { uploading: false, error: true });
+                }
+                return p;
+              });
+            });
+          });
+      });
+    });
     e.target.value = "";
   }
   return (
@@ -1243,10 +1283,29 @@ function PhotoCapture({ photos, setPhotos }) {
       {photos.length > 0 && (
         <div className="photo-grid">
           {photos.map(function(p, i) {
+            var src = p.url || p.base64 || "";
             return (
-              <div className="photo-thumb" key={i}>
-                <img src={p.base64 || p.url} alt="" />
-                <button type="button" onClick={function(){ setPhotos(photos.filter(function(_,idx){ return idx !== i; })); }}>×</button>
+              <div className="photo-thumb" key={p._tmpId || p.url || i} style={{ position:"relative" }}>
+                <img src={src} alt="" style={{ opacity: p.uploading ? 0.5 : 1 }} />
+                {p.uploading && (
+                  <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:11, fontWeight:800, color:"#ffa500",
+                    background:"rgba(0,0,0,0.4)", borderRadius:8 }}>
+                    Lädt...
+                  </div>
+                )}
+                {p.error && (
+                  <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:11, fontWeight:800, color:"#ef4444",
+                    background:"rgba(0,0,0,0.5)", borderRadius:8 }}>
+                    Fehler ✗
+                  </div>
+                )}
+                <button type="button" onClick={function(){
+                  setPhotos(photos.filter(function(_,idx){ return idx !== i; }));
+                }}>×</button>
               </div>
             );
           })}
@@ -1532,16 +1591,110 @@ function BarcodeScanner({ onDetected, onClose }) {
 }
 
 // === п.5: TeilePicker — 4 типа + несколько позиций из магазина ===
-function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }) {
+// Фото Lieferschein — большая кнопка камеры, одно фото на позицию.
+// Заливается в Supabase Storage сразу при выборе. URL пишется в item.lieferschein_foto.
+function LieferscheinFoto({ item, updateShopItem, stageId }) {
+  var ref = useRef(null);
+  var _su = useState(false); var uploading = _su[0]; var setUploading = _su[1];
+  var _se = useState(false); var error = _se[0]; var setError = _se[1];
+
+  function onFile(e){
+    var file = (e.target.files || [])[0];
+    if (!file) return;
+    setError(false); setUploading(true);
+    var r = new FileReader();
+    r.onload = function(ev){
+      compressPhoto(ev.target.result).then(function(compressed){
+        var blob = dataUrlToBlob(compressed);
+        var path = stageId + "/lieferschein-" + item.id + "-" + Date.now() + ".jpg";
+        sbUploadPhoto(path, blob)
+          .then(function(url){
+            updateShopItem(item.id, "lieferschein_foto", url);
+            setUploading(false);
+          })
+          .catch(function(err){
+            console.error("Lieferschein-Foto-Upload:", err);
+            setUploading(false); setError(true);
+          });
+      });
+    };
+    r.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  function removePhoto(){
+    updateShopItem(item.id, "lieferschein_foto", "");
+  }
+
+  return (
+    <div>
+      <input ref={ref} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={onFile} />
+
+      {!item.lieferschein_foto && !uploading && (
+        <button type="button" onClick={function(){ if (ref.current) ref.current.click(); }}
+          style={{
+            width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
+            padding:"18px 12px", borderRadius:"var(--radius-md)",
+            border:"2px dashed rgba(255,165,0,0.45)",
+            background:"rgba(255,165,0,0.06)",
+            color:"#ffa500",
+            fontFamily:"var(--font-display)", fontWeight:800, fontSize:14, letterSpacing:1,
+            minHeight:"64px", cursor:"pointer"
+          }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          Foto Lieferschein
+        </button>
+      )}
+
+      {uploading && (
+        <div style={{
+          width:"100%", display:"flex", alignItems:"center", justifyContent:"center",
+          padding:"18px 12px", borderRadius:"var(--radius-md)",
+          background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.3)",
+          color:"#ffa500", fontSize:13, fontWeight:700, minHeight:"64px"
+        }}>
+          Lädt hoch...
+        </div>
+      )}
+
+      {item.lieferschein_foto && !uploading && (
+        <div style={{ display:"flex", gap:10, alignItems:"center",
+          padding:"10px", borderRadius:"var(--radius-md)",
+          background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.3)" }}>
+          <a href={item.lieferschein_foto} target="_blank" rel="noopener">
+            <img src={item.lieferschein_foto} alt="Lieferschein"
+              style={{ width:60, height:60, objectFit:"cover", borderRadius:8, display:"block" }} />
+          </a>
+          <div style={{ flex:1, fontSize:12, color:"rgba(255,255,255,0.7)" }}>
+            <div style={{ color:"#22c55e", fontWeight:700, marginBottom:2 }}>✓ Foto gespeichert</div>
+            <div>Tippen zum Vergrößern</div>
+          </div>
+          <button type="button" onClick={removePhoto}
+            style={{ border:0, background:"transparent", color:"#ef4444", fontSize:22, padding:"0 8px", cursor:"pointer" }}>×</button>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ marginTop:6, fontSize:12, color:"#ef4444" }}>
+          Upload fehlgeschlagen. Bitte erneut versuchen.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, stageId }) {
   var _sscan = useState(false); var showScanner = _sscan[0]; var setShowScanner = _sscan[1];
   var _sscanTarget = useState(null); var scanTarget = _sscanTarget[0]; var setScanTarget = _sscanTarget[1];
 
   function addShopItem() {
     setShopItems(shopItems.concat([{
-
       id: genId("SI"),
       lieferschein:"", datum:todayIso(),
-      typ:"", name:"", preis:""
+      preis:"", lieferschein_foto:""
     }]));
   }
 
@@ -1676,62 +1829,51 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock }
           {shopItems.map(function(item, idx) {
             return (
               <div key={item.id} style={{ background:"rgba(9,27,58,0.72)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:14, marginBottom:12 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                  <div style={{ fontSize:12, fontWeight:800, color:"#ffa500", letterSpacing:0.5 }}>POSITION {idx + 1}</div>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                  <div style={{ fontSize:12, fontWeight:800, color:"#ffa500", letterSpacing:0.5 }}>LIEFERSCHEIN {idx + 1}</div>
                   {shopItems.length > 1 && (
                     <button type="button" onClick={function(){ removeShopItem(item.id); }}
-                      style={{ border:0, background:"transparent", color:"#ef4444", fontWeight:800, fontSize:16 }}>✕</button>
+                      style={{ border:0, background:"transparent", color:"#ef4444", fontWeight:800, fontSize:20, lineHeight:1, padding:"0 6px" }}>×</button>
                   )}
                 </div>
-                <div className="grid2" style={{ marginBottom:8 }}>
+
+                {/* Nr + Datum */}
+                <div className="grid2" style={{ marginBottom:10 }}>
                   <div>
-                    <div className="label-cap" style={{ minHeight:32, display:"flex", alignItems:"flex-end" }}>Lieferschein-Nr.</div>
-                    <input className="input-dark" value={item.lieferschein} placeholder="Nr. 12345"
+                    <div className="label-cap">Lieferschein-Nr.</div>
+                    <input className="input-dark" value={item.lieferschein} placeholder="z.B. 12345"
+                      inputMode="numeric"
                       onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
                   </div>
                   <div>
-                    <div className="label-cap" style={{ minHeight:32, display:"flex", alignItems:"flex-end" }}>Datum</div>
+                    <div className="label-cap">Datum</div>
                     <input type="date" className="input-dark" value={item.datum}
                       onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
                   </div>
                 </div>
-                <div className="label-cap">Teiletyp</div>
-                <input className="input-dark" value={item.typ} placeholder="z.B. Bremsscheibe, Ölfilter, Schraube..."
-                  style={{ marginBottom:8 }}
-                  onChange={function(e){ updateShopItem(item.id, "typ", e.target.value); }} />
-                <div className="label-cap">Bezeichnung / Artikelnummer</div>
-                <input className="input-dark" value={item.name} placeholder="Name oder Artikelnr."
-                  style={{ marginBottom:8 }}
-                  onChange={function(e){ updateShopItem(item.id, "name", e.target.value); }} />
-                <button type="button"
-                  style={{
-                    width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:12,
-                    padding:"14px", borderRadius:"var(--radius-md)", marginBottom:8,
-                    border:"1.5px solid rgba(255,165,0,0.3)",
-                    background:"rgba(255,165,0,0.07)",
-                    color:"var(--accent)",
-                    fontFamily:"var(--font-display)", fontWeight:700, fontSize:14, letterSpacing:1,
-                    minHeight:"56px", transition:"all var(--transition)"
-                  }}
-                  onClick={function(){ setScanTarget(item.id); setShowScanner(true); }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  Barcode scannen
-                </button>
+
+                {/* Preis — большой и удобный */}
                 <div className="label-cap">Preis (€)</div>
-                <input className="input-dark" inputMode="decimal" value={item.preis} placeholder="0.00"
+                <input className="input-dark" inputMode="decimal" value={item.preis} placeholder="0,00"
+                  style={{ marginBottom:12, fontSize:18, padding:"14px 14px", fontWeight:700 }}
                   onChange={function(e){ updateShopItem(item.id, "preis", e.target.value.replace(/[^0-9.,]/g,"")); }} />
+
+                {/* Foto Lieferschein — большая кнопка */}
+                <LieferscheinFoto item={item} updateShopItem={updateShopItem} stageId={stageId} />
               </div>
             );
           })}
-          <button className="outline-btn" type="button" onClick={addShopItem} style={{ marginTop:4 }}>
-            + Weiteres Teil hinzufügen
+          <button className="outline-btn" type="button" onClick={addShopItem} style={{ marginTop:4, padding:"14px 12px", fontSize:14 }}>
+            + Weiterer Lieferschein
           </button>
           {shopItems.length > 0 && (
-            <div style={{ marginTop:8, color:"rgba(255,255,255,0.5)", fontSize:12 }}>
-              Gesamt: {shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0).toFixed(2)} €
+            <div style={{ marginTop:10, padding:"10px 14px", borderRadius:10,
+              background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.25)",
+              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:13, color:"rgba(255,255,255,0.7)" }}>Gesamt:</span>
+              <span style={{ fontSize:16, fontWeight:800, color:"#ffa500" }}>
+                {shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0).toFixed(2)} €
+              </span>
             </div>
           )}
         </div>
@@ -1813,14 +1955,45 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
   var _svoice = useState(false); var voiceActive = _svoice[0]; var setVoiceActive = _svoice[1];
   var _svoiceText = useState(""); var voiceText = _svoiceText[0]; var setVoiceText = _svoiceText[1];
   var voiceRef = useRef(null);
-  var _sphotos = useState([]); var photos = _sphotos[0]; var setPhotos = _sphotos[1];
+  // photos — массив элементов вида { url, uploading?:bool, error?:bool }.
+  // URL появляется сразу после загрузки в Supabase Storage. uploading=true
+  // во время заливки (показываем плейсхолдер с прогрессом). Это переживает
+  // перезагрузку формы — потому что в черновик/prefill пишутся URL-ы.
+  var _sphotos = useState(function(){
+    // 1. Если редактируем заказ — берём photo_urls из prefill
+    if (prefill && prefill.continueJobId) {
+      var urls = normalizeUrls(prefill.photo_urls);
+      return urls.map(function(u){ return { url: u }; });
+    }
+    // 2. Иначе — из черновика (если был)
+    if (Array.isArray(_draft.photoUrls)) {
+      return _draft.photoUrls.map(function(u){ return { url: u }; });
+    }
+    return [];
+  });
+  var photos = _sphotos[0]; var setPhotos = _sphotos[1];
+
+  // Сценический ID — на эту сессию формы. До создания заказа фото
+  // заливаются в папку с этим ID. При "AUFTRAG STARTEN" этот ID станет id заказа.
+  // Если редактирование — это id существующего заказа.
+  var _sstage = useState(function(){
+    if (prefill && prefill.continueJobId) return prefill.continueJobId;
+    try {
+      var saved = localStorage.getItem("wf_stage_id");
+      if (saved) return saved;
+    } catch(e){}
+    var fresh = genId("J");
+    try { localStorage.setItem("wf_stage_id", fresh); } catch(e){}
+    return fresh;
+  });
+  var stageId = _sstage[0]; var setStageId = _sstage[1];
   var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
   var _stb = useState(_draft.travelBack || 0); var travelBack = _stb[0]; var setTravelBack = _stb[1];
   var _swm = useState(_draft.workMin || 0); var workMin = _swm[0]; var setWorkMin = _swm[1];
   var _scoll = useState(_draft.colleague || false); var colleague = _scoll[0]; var setColleague = _scoll[1];
   var _scn = useState(_draft.colleagueName || ""); var colleagueName = _scn[0]; var setColleagueName = _scn[1];
   var _spt = useState(_draft.partsType || "none"); var partsType = _spt[0]; var setPartsType = _spt[1];
-  var _ssi = useState(_draft.shopItems || [{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+  var _ssi = useState(_draft.shopItems || [{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
   var shopItems = _ssi[0]; var setShopItems = _ssi[1];
   var _stns = useState(_draft.tireNewSn || ""); var tireNewSn = _stns[0]; var setTireNewSn = _stns[1];
   var _stos = useState(_draft.tireOldSn || ""); var tireOldSn = _stos[0]; var setTireOldSn = _stos[1];
@@ -1920,9 +2093,16 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var partsNote = "";
     var partsCost = 0;
     if (partsType === "shop") {
-      var shopValid = shopItems.filter(function(i){ return i.name.trim() || i.typ.trim(); });
+      var shopValid = shopItems.filter(function(i){ return (i.lieferschein && i.lieferschein.toString().trim()) || (i.preis && i.preis.toString().trim()) || i.lieferschein_foto; });
       partsNote = shopValid.map(function(i){
-        return [i.typ, i.name, i.lieferschein ? "LS:" + i.lieferschein : "", i.datum, i.preis ? i.preis + " EUR" : ""].filter(Boolean).join(" | ");
+        var parts = [
+          i.lieferschein ? "LS Nr. " + i.lieferschein : "",
+          i.datum,
+          i.preis ? i.preis + " EUR" : "",
+          i.typ || i.name ? [i.typ, i.name].filter(Boolean).join(" ") : "",
+          i.lieferschein_foto ? "📎 Foto" : ""
+        ].filter(Boolean);
+        return parts.join(" | ");
       }).join("\n");
       partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
     } else if (partsType === "used") {
@@ -1956,26 +2136,32 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         // status, started_at, work_min, labor_cost — НЕ трогаем (таймер сам считает)
       };
 
-      // Заливаем новые фото если есть (только File-объекты, существующие URL уже сохранены)
-      var newPhotos = (photos || []).filter(function(p){ return p && typeof p !== "string"; });
-      var existingUrls = (photos || []).filter(function(p){ return typeof p === "string"; });
+      // Фото уже залиты в Storage при добавлении — собираем URL-ы из стейта.
+      // Игнорируем те что ещё грузятся (uploading) и упавшие (error).
+      var readyUrls = (photos || [])
+        .filter(function(p){ return p && p.url && !p.uploading && !p.error; })
+        .map(function(p){ return p.url; });
+      updatePayload.photos = readyUrls.length;
+      updatePayload.photo_urls = JSON.stringify(readyUrls);
 
-      var photoChain = newPhotos.length
-        ? uploadAllPhotos(existingId, newPhotos).then(function(urls){
-            var all = existingUrls.concat(urls);
-            updatePayload.photos = all.length;
-            updatePayload.photo_urls = JSON.stringify(all);
-          })
-        : Promise.resolve();
+      // Проверка: нет ли фото которые ещё грузятся
+      var stillUploading = (photos || []).some(function(p){ return p && p.uploading; });
+      if (stillUploading) {
+        setSaving(false);
+        savingRef.current = false;
+        alert("Bitte warten — Fotos werden noch hochgeladen.");
+        return;
+      }
 
-      photoChain
-        .then(function(){ return sbPatch("jobs", existingId, updatePayload); })
+      sbPatch("jobs", existingId, updatePayload)
         .then(function(){
-          // Очищаем форму и возвращаемся в Meine
+          // Очищаем форму и возвращаемся в Meine. Новый stageId для следующей сессии формы.
           jobIdRef.current = null;
           creatingJobRef.current = false;
+          try { localStorage.removeItem("wf_stage_id"); } catch(e){}
+          setStageId(genId("J"));
           setDescription(""); setPhotos([]);
-          setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+          setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
           setVehicle(null); setColleague(false); setColleagueName("");
           setTireNewSn(""); setTireOldSn("");
           try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
@@ -1995,9 +2181,26 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     }
 
     // === РЕЖИМ СОЗДАНИЯ НОВОГО ЗАКАЗА ===
-    var newId = genId("J");
+    // Используем stageId как id заказа — фото уже залиты в эту папку Storage
+    var newId = stageId;
+
+    // Проверка: нет ли фото которые ещё грузятся
+    var stillUploadingNew = (photos || []).some(function(p){ return p && p.uploading; });
+    if (stillUploadingNew) {
+      setSaving(false);
+      savingRef.current = false;
+      alert("Bitte warten — Fotos werden noch hochgeladen.");
+      return;
+    }
+
+    var readyUrlsNew = (photos || [])
+      .filter(function(p){ return p && p.url && !p.uploading && !p.error; })
+      .map(function(p){ return p.url; });
+
     var basePayload = {
       id: newId,
+      photos: readyUrlsNew.length,
+      photo_urls: JSON.stringify(readyUrlsNew),
       mechanic: user.id || "roman",
       vehicle_type: vehicleType,
       plate: vehicle.plate,
@@ -2030,23 +2233,15 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       p_job: basePayload,
       p_alert_id: (prefill && prefill.id) ? prefill.id : null
     })
-    .then(function(returnedId) {
-      var realJobId = returnedId || newId;
-      // Заливаем фото (если есть) и обновляем запись с URL-ами фото
-      if (!photos || !photos.length) return realJobId;
-      return uploadAllPhotos(realJobId, photos).then(function(photoUrls){
-        return sbPatch("jobs", realJobId, {
-          photos: photoUrls.length,
-          photo_urls: JSON.stringify(photoUrls)
-        }).then(function(){ return realJobId; });
-      });
-    })
     .then(function() {
-      // Полная очистка формы — заказ улетел в Meine
+      // Фото уже залиты в Storage и URL-ы записаны в basePayload — ничего больше не делаем
+      // Полная очистка формы — заказ улетел в Meine. Новый stageId для следующего заказа.
       jobIdRef.current = null;
       creatingJobRef.current = false;
+      try { localStorage.removeItem("wf_stage_id"); } catch(e){}
+      setStageId(genId("J"));
       setDescription(""); setPhotos([]);
-      setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+      setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
       setVehicle(null); setColleague(false); setColleagueName("");
       setTireNewSn(""); setTireOldSn("");
       try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
@@ -2080,9 +2275,16 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var partsNote = "";
     var partsCost = 0;
     if (partsType === "shop") {
-      var shopValid = shopItems.filter(function(i){ return i.name.trim() || i.typ.trim(); });
+      var shopValid = shopItems.filter(function(i){ return (i.lieferschein && i.lieferschein.toString().trim()) || (i.preis && i.preis.toString().trim()) || i.lieferschein_foto; });
       partsNote = shopValid.map(function(i){
-        return [i.typ, i.name, i.lieferschein ? "LS:" + i.lieferschein : "", i.datum, i.preis ? i.preis + " EUR" : ""].filter(Boolean).join(" | ");
+        var parts = [
+          i.lieferschein ? "LS Nr. " + i.lieferschein : "",
+          i.datum,
+          i.preis ? i.preis + " EUR" : "",
+          i.typ || i.name ? [i.typ, i.name].filter(Boolean).join(" ") : "",
+          i.lieferschein_foto ? "📎 Foto" : ""
+        ].filter(Boolean);
+        return parts.join(" | ");
       }).join("\n");
       partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
     } else if (partsType === "used") {
@@ -2144,7 +2346,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         clearTimerKeys();
         setPauseModal(false); setPauseReason("");
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
-        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
         setVehicle(null); setColleague(false); setColleagueName("");
         setTireNewSn(""); setTireOldSn("");
         try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
@@ -2187,11 +2389,12 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         partsType: partsType,
         shopItems: shopItems,
         tireNewSn: tireNewSn,
-        tireOldSn: tireOldSn
+        tireOldSn: tireOldSn,
+        photoUrls: photos.filter(function(p){ return p.url && !p.uploading; }).map(function(p){ return p.url; })
       }));
     } catch(e) {}
   }, [vehicleType, vehicle, location, workType, description, travelTo, travelBack,
-      workMin, colleague, colleagueName, partsType, shopItems, tireNewSn, tireOldSn]);
+      workMin, colleague, colleagueName, partsType, shopItems, tireNewSn, tireOldSn, photos]);
 
   useEffect(function() {
     if (!prefill) return;
@@ -2249,9 +2452,16 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var partsNote = "";
     var partsCost = 0;
     if (partsType === "shop") {
-      var shopValid = shopItems.filter(function(i){ return i.name.trim() || i.typ.trim(); });
+      var shopValid = shopItems.filter(function(i){ return (i.lieferschein && i.lieferschein.toString().trim()) || (i.preis && i.preis.toString().trim()) || i.lieferschein_foto; });
       partsNote = shopValid.map(function(i){
-        return [i.typ, i.name, i.lieferschein ? "LS:" + i.lieferschein : "", i.datum, i.preis ? i.preis + " EUR" : ""].filter(Boolean).join(" | ");
+        var parts = [
+          i.lieferschein ? "LS Nr. " + i.lieferschein : "",
+          i.datum,
+          i.preis ? i.preis + " EUR" : "",
+          i.typ || i.name ? [i.typ, i.name].filter(Boolean).join(" ") : "",
+          i.lieferschein_foto ? "📎 Foto" : ""
+        ].filter(Boolean);
+        return parts.join(" | ");
       }).join("\n");
       partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
     } else if (partsType === "used") {
@@ -2340,7 +2550,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         clearTimerKeys();
         // Полный сброс формы — включая vehicle и colleague, чтобы случайное повторное нажатие не создало пустую запись
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
-        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
         setVehicle(null);
         setColleague(false); setColleagueName("");
         setTireNewSn(""); setTireOldSn("");
@@ -2547,13 +2757,13 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
 
       <div className="glass-panel">
         <div className="panel-title">Fotos</div>
-        <PhotoCapture photos={photos} setPhotos={setPhotos} />
+        <PhotoCapture photos={photos} setPhotos={setPhotos} stageId={stageId} />
       </div>
 
       {/* п.5: Teile & Material */}
       <div className="glass-panel">
         <div className="panel-title">Teile &amp; Material</div>
-        <TeilePicker partsType={partsType} setPartsType={setPartsType} shopItems={shopItems} setShopItems={setShopItems} stock={stock} />
+        <TeilePicker partsType={partsType} setPartsType={setPartsType} shopItems={shopItems} setShopItems={setShopItems} stock={stock} stageId={stageId} />
       </div>
 
       <div className="glass-panel">
