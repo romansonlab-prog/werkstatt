@@ -656,6 +656,40 @@ function fmtSec(s) {
     ? h + ":" + String(mn).padStart(2,"0") + ":" + String(sec).padStart(2,"0")
     : String(mn).padStart(2,"0") + ":" + String(sec).padStart(2,"0");
 }
+
+// Сколько секунд реально проработано в заказе на момент `nowMs`.
+// Считается как: (now - started_at) - сумма закрытых пауз - текущая активная пауза.
+// Используется для живого таймера в OpenJobView и для финального расчёта при Fertig.
+function jobElapsedSec(job, nowMs) {
+  if (!job || !job.started_at) return 0;
+  var startMs = new Date(job.started_at).getTime();
+  if (isNaN(startMs)) return 0;
+  var now = nowMs || Date.now();
+  var elapsed = Math.max(0, Math.floor((now - startMs) / 1000));
+  // Вычитаем все закрытые паузы (в pause_log у них есть minutes)
+  var log = job.pause_log;
+  if (typeof log === "string") { try { log = JSON.parse(log); } catch(e) { log = []; } }
+  if (!Array.isArray(log)) log = [];
+  var pauseSec = 0;
+  for (var i = 0; i < log.length; i++) {
+    var p = log[i];
+    if (p.end) {
+      // Закрытая пауза — берём minutes (округление) или считаем заново из start/end
+      if (p.start) {
+        var ps = new Date(p.start).getTime();
+        var pe = new Date(p.end).getTime();
+        if (!isNaN(ps) && !isNaN(pe)) pauseSec += Math.max(0, Math.floor((pe - ps) / 1000));
+      } else if (p.minutes) {
+        pauseSec += p.minutes * 60;
+      }
+    } else if (p.start && job.status === "paused") {
+      // Открытая пауза — заказ на паузе, считаем до сейчас
+      var ps2 = new Date(p.start).getTime();
+      if (!isNaN(ps2)) pauseSec += Math.max(0, Math.floor((now - ps2) / 1000));
+    }
+  }
+  return Math.max(0, elapsed - pauseSec);
+}
 function labelFrom(list, value) {
   var row = list.find(function(x) { return x[0] === value; });
   return row ? row[1] : (value || "");
@@ -2880,10 +2914,271 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
   );
 }
 
+// === LONG-PRESS BUTTON (удержание 2с с прогресс-кольцом) ===
+// Используется для кнопки "Fertig" — защита от случайного нажатия.
+function LongPressButton({ label, color, onComplete, disabled, holdMs }) {
+  var _sa = useState(false); var active = _sa[0]; var setActive = _sa[1];
+  var _sp = useState(0); var progress = _sp[0]; var setProgress = _sp[1];
+  var startMsRef = useRef(0);
+  var rafRef = useRef(0);
+  var doneRef = useRef(false);
+  var holdDuration = holdMs || 2000;
+
+  function tick() {
+    var elapsed = Date.now() - startMsRef.current;
+    var p = Math.min(1, elapsed / holdDuration);
+    setProgress(p);
+    if (p >= 1) {
+      if (!doneRef.current) {
+        doneRef.current = true;
+        setActive(false);
+        setProgress(0);
+        if (onComplete) onComplete();
+      }
+      return;
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  function start(e) {
+    if (disabled) return;
+    if (e && e.preventDefault) e.preventDefault();
+    doneRef.current = false;
+    startMsRef.current = Date.now();
+    setActive(true);
+    setProgress(0);
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  function cancel() {
+    cancelAnimationFrame(rafRef.current);
+    setActive(false);
+    setProgress(0);
+  }
+
+  // Цвет фона прогресса = переданный color, фон кнопки = тот же с прозрачностью
+  var bgFill = color || "#ef4444";
+  var pctText = Math.round(progress * 100);
+
+  return (
+    <button type="button" disabled={disabled}
+      onMouseDown={start} onMouseUp={cancel} onMouseLeave={cancel}
+      onTouchStart={start} onTouchEnd={cancel} onTouchCancel={cancel}
+      style={{
+        position:"relative", overflow:"hidden",
+        flex:1, padding:"16px 12px", borderRadius:14,
+        border: "2px solid " + bgFill,
+        background: active
+          ? "linear-gradient(to right, " + bgFill + " " + pctText + "%, rgba(239,68,68,0.08) " + pctText + "%)"
+          : "rgba(239,68,68,0.08)",
+        color: active && progress > 0.5 ? "#fff" : bgFill,
+        fontFamily:"var(--font-display)", fontWeight:800,
+        fontSize:16, letterSpacing:0.5, cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        transition: active ? "none" : "background 0.2s, color 0.2s",
+        userSelect:"none", WebkitUserSelect:"none", touchAction:"manipulation"
+      }}>
+      {active ? "Halten... " + pctText + "%" : label}
+    </button>
+  );
+}
+
+// === OPEN JOB VIEW (открытый заказ из Meine с живым таймером) ===
+// Полноэкранный просмотр заказа: живой таймер, кнопки Pause / Ändern / Fertig.
+function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter, onFertig }) {
+  // Живой таймер — обновляется каждую секунду пока заказ inProgress
+  var _st = useState(jobElapsedSec(job, Date.now()));
+  var elapsedSec = _st[0]; var setElapsedSec = _st[1];
+
+  useEffect(function(){
+    if (!job || job.status !== "inProgress") {
+      // Если paused или done — фиксируем значение, не тикаем
+      setElapsedSec(jobElapsedSec(job, Date.now()));
+      return;
+    }
+    var iv = setInterval(function(){
+      setElapsedSec(jobElapsedSec(job, Date.now()));
+    }, 1000);
+    return function(){ clearInterval(iv); };
+  }, [job && job.id, job && job.status, job && job.started_at, job && job.pause_log]);
+
+  if (!job) return null;
+
+  var pLog = (function(){
+    var l = job.pause_log;
+    if (typeof l === "string") { try { l = JSON.parse(l); } catch(e) { return []; } }
+    return Array.isArray(l) ? l : [];
+  })();
+
+  var statusLabel = job.status === "done" ? "Erledigt" : job.status === "paused" ? "Pausiert" : "In Arbeit";
+  var statusColor = job.status === "done" ? "#94a3b8" : job.status === "paused" ? "#ffa500" : "#22c55e";
+
+  var photoUrls = (function(){
+    var p = job.photo_urls;
+    if (typeof p === "string") { try { p = JSON.parse(p); } catch(e) { return []; } }
+    return Array.isArray(p) ? p : [];
+  })();
+
+  return (
+    <div style={{ paddingBottom:120 }}>
+      <button type="button" onClick={onClose}
+        style={{ background:"transparent", border:0, color:"rgba(255,255,255,0.65)", fontSize:14, padding:"8px 0", marginBottom:8, cursor:"pointer" }}>
+        ← Zurück zu Meine
+      </button>
+
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+        <div>
+          <div style={{ fontSize:24, fontWeight:900, letterSpacing:0.5 }}>{job.plate || "—"}</div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", marginTop:2 }}>
+            📍 {job.location || "Werkstatt"} · {labelFrom(WORK_TYPES, job.work_type)}
+          </div>
+        </div>
+        <span style={{ padding:"4px 12px", borderRadius:999, fontSize:12, fontWeight:800,
+          background: "rgba(" + (statusColor === "#22c55e" ? "34,197,94" : statusColor === "#ffa500" ? "255,165,0" : "148,163,184") + ",0.15)",
+          color: statusColor, border:"1px solid " + statusColor }}>
+          {statusLabel}
+        </span>
+      </div>
+
+      {/* Большой таймер */}
+      <div style={{
+        background: job.status === "inProgress" ? "rgba(34,197,94,0.08)" : job.status === "paused" ? "rgba(255,165,0,0.08)" : "rgba(148,163,184,0.06)",
+        border: "1px solid " + (job.status === "inProgress" ? "rgba(34,197,94,0.3)" : job.status === "paused" ? "rgba(255,165,0,0.3)" : "rgba(148,163,184,0.2)"),
+        borderRadius:16, padding:"24px 20px", textAlign:"center", marginBottom:16
+      }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.5)", letterSpacing:1.5, marginBottom:8 }}>
+          ARBEITSZEIT
+        </div>
+        <div style={{ fontSize:42, fontWeight:900, fontFamily:"var(--font-display)", letterSpacing:2,
+          color: statusColor, lineHeight:1, fontVariantNumeric:"tabular-nums" }}>
+          {fmtSec(elapsedSec)}
+        </div>
+        {job.status === "paused" && (
+          <div style={{ fontSize:12, color:"#ffa500", marginTop:6, fontWeight:600 }}>
+            ⏸ Pausiert
+          </div>
+        )}
+      </div>
+
+      {job.description && (
+        <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)",
+          borderRadius:12, padding:14, marginBottom:14, fontSize:14, lineHeight:1.5, whiteSpace:"pre-wrap" }}>
+          {job.description}
+        </div>
+      )}
+
+      {/* Запчасти */}
+      {job.parts_note && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#ffa500", letterSpacing:0.5, marginBottom:6 }}>TEILE</div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.8)", whiteSpace:"pre-wrap", lineHeight:1.5 }}>
+            {job.parts_note}
+          </div>
+          {(Number(job.parts_cost) || 0) > 0 && (
+            <div style={{ fontSize:13, color:"#ffa500", fontWeight:700, marginTop:6 }}>
+              Kosten: {Number(job.parts_cost).toFixed(2)} €
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Коллега */}
+      {job.colleague && (
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", marginBottom:14 }}>
+          👤 Mit: <strong>{job.colleague}</strong>
+        </div>
+      )}
+
+      {/* Фото */}
+      {photoUrls.length > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.5)", letterSpacing:0.5, marginBottom:6 }}>
+            FOTOS ({photoUrls.length})
+          </div>
+          <div style={{ display:"flex", gap:8, overflowX:"auto" }}>
+            {photoUrls.map(function(url, i){
+              return (
+                <a key={i} href={url} target="_blank" rel="noopener" style={{ flexShrink:0 }}>
+                  <img src={url} alt="" style={{ width:90, height:90, borderRadius:10, objectFit:"cover", border:"1px solid rgba(255,255,255,0.1)" }} />
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Журнал пауз */}
+      {pLog.length > 0 && (
+        <div className="pause-reason-box" style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,165,0,0.85)", marginBottom:6 }}>PAUSEN-JOURNAL</div>
+          {pLog.map(function(p, i){
+            var t = p.start ? new Date(p.start).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : "";
+            return (
+              <div key={i} style={{ fontSize:13, marginBottom: i < pLog.length-1 ? 5 : 0, lineHeight:1.4 }}>
+                <span style={{ color:"rgba(255,165,0,0.8)", fontWeight:700 }}>{t}</span>
+                {p.minutes ? <span style={{ color:"rgba(255,255,255,0.5)" }}> · {fmtMin(p.minutes)}</span> : <span style={{ color:"#ffa500" }}> · läuft</span>}
+                <span style={{ color:"rgba(255,255,255,0.85)" }}> — {p.reason}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Кнопки действий */}
+      <div style={{ position:"fixed", left:0, right:0, bottom:62, padding:"12px 14px",
+        background:"linear-gradient(to top, rgba(7,18,42,0.98) 0%, rgba(7,18,42,0.85) 80%, transparent 100%)",
+        display:"flex", gap:8, zIndex:50 }}>
+        {/* Ändern — всегда доступна, включая Erledigt */}
+        <button type="button"
+          onClick={function(){ if (onEdit) onEdit(job); }}
+          style={{ flex:1, padding:"16px 12px", borderRadius:14,
+            border:"2px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.05)",
+            color:"#fff", fontFamily:"var(--font-display)", fontWeight:800,
+            fontSize:16, letterSpacing:0.5, cursor:"pointer" }}>
+          ✎ Ändern
+        </button>
+
+        {job.status === "inProgress" && (
+          <button type="button"
+            onClick={function(){ if (onPause) onPause(job); }}
+            style={{ flex:1, padding:"16px 12px", borderRadius:14,
+              border:"2px solid #ffa500", background:"rgba(255,165,0,0.08)",
+              color:"#ffa500", fontFamily:"var(--font-display)", fontWeight:800,
+              fontSize:16, letterSpacing:0.5, cursor:"pointer" }}>
+            ⏸ Pause
+          </button>
+        )}
+
+        {job.status === "paused" && (
+          <button type="button"
+            onClick={function(){ if (onWeiter) onWeiter(job); }}
+            style={{ flex:1, padding:"16px 12px", borderRadius:14,
+              border:"2px solid #22c55e", background:"rgba(34,197,94,0.08)",
+              color:"#22c55e", fontFamily:"var(--font-display)", fontWeight:800,
+              fontSize:16, letterSpacing:0.5, cursor:"pointer" }}>
+            ▶ Weiter
+          </button>
+        )}
+
+        {(job.status === "inProgress" || job.status === "paused") && (
+          <LongPressButton label="■ Fertig (halten)" color="#ef4444"
+            onComplete={function(){ if (onFertig) onFertig(job, elapsedSec); }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // === MEINE AUFTRÄGE ===
 function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
   var _stab = useState("active"); var subTab = _stab[0]; var setSubTab = _stab[1];
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
+
+  // Открытый заказ — полноэкранный просмотр с живым таймером
+  var _soj = useState(null); var openJob = _soj[0]; var setOpenJob = _soj[1];
+  // Модалка паузы (запрос причины)
+  var _spm = useState(null); var pauseModalJob = _spm[0]; var setPauseModalJob = _spm[1];
+  var _spr = useState(""); var pauseReasonInput = _spr[0]; var setPauseReasonInput = _spr[1];
 
   var mine = (jobs || []).filter(function(j) { return j.mechanic === (user && user.id); });
 
@@ -2987,20 +3282,143 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
     URL.revokeObjectURL(url);
   }
 
-  function markDone(job) {
-    if (!window.confirm("Auftrag als erledigt markieren?")) return;
-    setUpdating(true);
-    sbPatch("jobs", job.id, { status:"done", finished_at: new Date().toISOString() })
-      .then(function() { setUpdating(false); if (onRefresh) onRefresh(); })
-      .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
+  // Пауза заказа — открывает модалку с вводом причины
+  function handlePause(job) {
+    setPauseModalJob(job);
+    setPauseReasonInput("");
   }
 
-  // Карточка заказа
+  // Подтверждение паузы — пишем pause_log, status=paused, фиксируем work_min
+  function confirmPause() {
+    if (!pauseModalJob) return;
+    if (!pauseReasonInput.trim()) { alert("Bitte Grund angeben."); return; }
+    var job = pauseModalJob;
+    setUpdating(true);
+
+    var nowMs = Date.now();
+    var workSec = jobElapsedSec(job, nowMs);
+    var workMin = Math.round(workSec / 60);
+    var laborCost = (user && user.rate) ? Math.round((workMin / 60) * user.rate * 100) / 100 : (Number(job.labor_cost) || 0);
+
+    var log = job.pause_log;
+    if (typeof log === "string") { try { log = JSON.parse(log); } catch(e) { log = []; } }
+    if (!Array.isArray(log)) log = [];
+    // Закрываем все открытые паузы (защита от рассогласования)
+    log = log.map(function(p){
+      if (p.end) return p;
+      var endT = new Date();
+      var startT = p.start ? new Date(p.start) : endT;
+      var mins = Math.max(0, Math.round((endT - startT) / 60000));
+      return Object.assign({}, p, { end: endT.toISOString(), minutes: mins });
+    });
+    log.push({
+      start: new Date().toISOString(),
+      end: null,
+      reason: pauseReasonInput.trim(),
+      minutes: null
+    });
+
+    sbPatch("jobs", job.id, {
+      status: "paused",
+      paused_at: new Date().toISOString(),
+      pause_log: JSON.stringify(log),
+      work_min: workMin,
+      labor_cost: laborCost
+    }).then(function(){
+      setUpdating(false);
+      setPauseModalJob(null);
+      setPauseReasonInput("");
+      // Если этот заказ был открыт — закрываем окно (он переехал в Pausiert)
+      if (openJob && openJob.id === job.id) setOpenJob(null);
+      if (onRefresh) onRefresh();
+    }).catch(function(e){
+      setUpdating(false);
+      alert("Fehler: " + (e.message || e));
+    });
+  }
+
+  // Продолжение из паузы — закрываем активную паузу, status=inProgress
+  function handleWeiter(job) {
+    setUpdating(true);
+    var log = job.pause_log;
+    if (typeof log === "string") { try { log = JSON.parse(log); } catch(e) { log = []; } }
+    if (!Array.isArray(log)) log = [];
+    log = log.map(function(p){
+      if (p.end) return p;
+      var endT = new Date();
+      var startT = p.start ? new Date(p.start) : endT;
+      var mins = Math.max(0, Math.round((endT - startT) / 60000));
+      return Object.assign({}, p, { end: endT.toISOString(), minutes: mins });
+    });
+
+    sbPatch("jobs", job.id, {
+      status: "inProgress",
+      paused_at: null,
+      pause_log: JSON.stringify(log)
+    }).then(function(){
+      setUpdating(false);
+      // Обновляем открытый заказ если этот же
+      if (openJob && openJob.id === job.id) {
+        setOpenJob(Object.assign({}, openJob, { status:"inProgress", paused_at:null, pause_log: JSON.stringify(log) }));
+      }
+      if (onRefresh) onRefresh();
+    }).catch(function(e){
+      setUpdating(false);
+      alert("Fehler: " + (e.message || e));
+    });
+  }
+
+  // Финальное завершение через long-press: status=done, фиксируем финальные часы и стоимость
+  function handleFertig(job, elapsedSec) {
+    setUpdating(true);
+    var workMin = Math.round((elapsedSec || jobElapsedSec(job, Date.now())) / 60);
+    var laborCost = (user && user.rate) ? Math.round((workMin / 60) * user.rate * 100) / 100 : (Number(job.labor_cost) || 0);
+
+    // Если есть открытая пауза — закрываем
+    var log = job.pause_log;
+    if (typeof log === "string") { try { log = JSON.parse(log); } catch(e) { log = []; } }
+    if (!Array.isArray(log)) log = [];
+    log = log.map(function(p){
+      if (p.end) return p;
+      var endT = new Date();
+      var startT = p.start ? new Date(p.start) : endT;
+      var mins = Math.max(0, Math.round((endT - startT) / 60000));
+      return Object.assign({}, p, { end: endT.toISOString(), minutes: mins });
+    });
+
+    sbPatch("jobs", job.id, {
+      status: "done",
+      finished_at: new Date().toISOString(),
+      paused_at: null,
+      pause_log: JSON.stringify(log),
+      work_min: workMin,
+      labor_cost: laborCost
+    }).then(function(){
+      setUpdating(false);
+      setOpenJob(null);
+      if (onRefresh) onRefresh();
+      showToast("Auftrag abgeschlossen — " + fmtMin(workMin) + " · " + laborCost.toFixed(2) + " €");
+    }).catch(function(e){
+      setUpdating(false);
+      alert("Fehler: " + (e.message || e));
+    });
+  }
+
+  // Редактирование заказа — открывает форму создания через onContinueJob (старый поток)
+  function handleEdit(job) {
+    setOpenJob(null);
+    if (onContinueJob) onContinueJob(job);
+  }
+
+  // Карточка заказа — тап на карточку открывает полный вид (OpenJobView).
+  // Кнопки внизу карточки — быстрые действия (stopPropagation чтобы не открывать).
   function jobCard(j, mode) {
     var pLog = parsePauseLog(j);
     var tPause = totalPauseMin(j);
     return (
-      <div key={j.id} className="alert-card">
+      <div key={j.id} className="alert-card"
+        onClick={function(){ setOpenJob(j); }}
+        style={{ cursor:"pointer" }}>
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:8 }}>
           <div>
             <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || "Ohne Kennzeichen"}</div>
@@ -3012,7 +3430,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         </div>
         {j.description && <div style={{ fontSize:13, lineHeight:1.4, marginBottom:8, whiteSpace:"pre-wrap" }}>{j.description}</div>}
         <div className="meta" style={{ marginTop:4 }}>
-          ⏱ {fmtMin(j.work_min || 0)} · Fahrt: {fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))}
+          ⏱ {fmtMin(j.work_min || 0)}
           {tPause > 0 ? " · Pause: " + fmtMin(tPause) : ""}
         </div>
         {pLog.length > 0 && (
@@ -3030,26 +3448,25 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
             })}
           </div>
         )}
-        <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-          {mode === "paused" && (
-            <button className="mini-btn start" type="button" disabled={updating}
-              onClick={function(){ if (onContinueJob) onContinueJob(j); }}>
-              ▶ Weiterarbeiten
-            </button>
-          )}
-          {mode === "active" && (
-            <button className="mini-btn start" type="button" disabled={updating}
-              onClick={function(){ if (onContinueJob) onContinueJob(j); }}>
-              ▶ Öffnen
-            </button>
-          )}
-          {(mode === "active" || mode === "paused") && (
-            <button className="mini-btn stop" type="button" disabled={updating}
-              onClick={function(){ markDone(j); }}>
-              ■ Fertig
-            </button>
-          )}
-        </div>
+        {(mode === "active" || mode === "paused") && (
+          <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }} onClick={function(e){ e.stopPropagation(); }}>
+            {mode === "active" && (
+              <button className="mini-btn" type="button" disabled={updating}
+                onClick={function(e){ e.stopPropagation(); handlePause(j); }}
+                style={{ border:"2px solid #ffa500", background:"rgba(255,165,0,0.1)", color:"#ffa500" }}>
+                ⏸ Pause
+              </button>
+            )}
+            {mode === "paused" && (
+              <button className="mini-btn start" type="button" disabled={updating}
+                onClick={function(e){ e.stopPropagation(); handleWeiter(j); }}>
+                ▶ Weiter
+              </button>
+            )}
+            <LongPressButton label="■ Fertig (halten)" color="#ef4444" disabled={updating}
+              onComplete={function(){ handleFertig(j, jobElapsedSec(j, Date.now())); }} />
+          </div>
+        )}
       </div>
     );
   }
@@ -3065,8 +3482,62 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
     : subTab === "paused" ? "Keine pausierten Aufträge"
     : "Heute noch nichts abgeschlossen";
 
+  // Если открыт заказ — берём свежую версию из jobs (на случай обновления данных)
+  var openJobFresh = openJob
+    ? (jobs || []).find(function(j){ return j.id === openJob.id; }) || openJob
+    : null;
+
   return (
     <div>
+      {/* Открытый заказ перекрывает список */}
+      {openJobFresh && (
+        <OpenJobView
+          job={openJobFresh}
+          user={user}
+          onClose={function(){ setOpenJob(null); }}
+          onRefresh={onRefresh}
+          onEdit={handleEdit}
+          onPause={handlePause}
+          onWeiter={handleWeiter}
+          onFertig={handleFertig}
+        />
+      )}
+
+      {/* Модалка паузы — может вызываться как из карточки, так и из OpenJobView */}
+      {pauseModalJob && (
+        <div className="modal-back" onClick={function(){ setPauseModalJob(null); }}>
+          <div className="modal" onClick={function(e){ e.stopPropagation(); }}>
+            <div style={{ fontSize:18, fontWeight:800, marginBottom:6 }}>⏸ Auftrag pausieren</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", marginBottom:14 }}>
+              <strong style={{ color:"#fff" }}>{pauseModalJob.plate}</strong> — Timer wird gestoppt.
+            </div>
+            <div className="label-cap">Grund der Pause</div>
+            <textarea className="textarea-dark" value={pauseReasonInput}
+              onChange={function(e){ setPauseReasonInput(e.target.value); }}
+              placeholder="z.B. Ersatzteil holen, Mittagspause, Kunde wartet..."
+              style={{ minHeight:90, marginBottom:14 }}
+              autoFocus
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn-primary" type="button" style={{ flex:1 }}
+                disabled={updating || !pauseReasonInput.trim()}
+                onClick={confirmPause}>
+                Pausieren
+              </button>
+              <button type="button"
+                style={{ flex:1, padding:14, borderRadius:12,
+                  border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.05)",
+                  color:"#fff", fontFamily:"var(--font-display)", fontWeight:700, cursor:"pointer" }}
+                onClick={function(){ setPauseModalJob(null); setPauseReasonInput(""); }}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Обычный список (скрыт когда открыт заказ) */}
+      <div style={{ display: openJobFresh ? "none" : "block" }}>
       <div className="page-title">Meine <span style={{ color:"#ffa500" }}>Aufträge</span></div>
       <div style={{ display:"flex", gap:8, marginBottom:14 }}>
         <button className="outline-btn" type="button"
@@ -3114,6 +3585,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>{emptyText}</div>
       )}
       {currentList.map(function(j){ return jobCard(j, subTab); })}
+      </div>
     </div>
   );
 }
