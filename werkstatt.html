@@ -871,9 +871,13 @@ function sbUploadPhoto(path, file) {
     },
     body: file
   }).then(function(res) {
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return res.text().then(function(t){
+        throw new Error("Storage " + res.status + ": " + t);
+      });
+    }
     return SB_URL + "/storage/v1/object/public/job-photos/" + path;
-  }).catch(function() { return null; });
+  });
 }
 
 function dataUrlToBlob(dataUrl) {
