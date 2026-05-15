@@ -236,7 +236,13 @@
     @media(max-width:900px){
       .sos-banner { left: 0; }
     }
-  </style>
+  
+    .text-clamp-2 {
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+      overflow:hidden; text-overflow:ellipsis;
+      word-break:break-word; overflow-wrap:break-word;
+    }
+</style>
   <link rel="manifest" href="manifest-dashboard.json" />
   <meta name="theme-color" content="#7c3aed" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -2499,7 +2505,7 @@ function Fahrzeugakte({ vehicle, jobs, invoices, inspections, onClose }) {
                             {j.date||""} · {j.mechanic_name||j.mechanic||"—"} · {j.location||""}
                           </div>
                           {j.description && (
-                            <div style={{ fontSize:13, color:"rgba(255,255,255,0.75)", marginTop:6 }}>
+                            <div className="text-clamp-2" style={{ fontSize:13, color:"rgba(255,255,255,0.75)", marginTop:6 }}>
                               {j.description}
                             </div>
                           )}
@@ -2933,7 +2939,7 @@ function Technik({ vehicles, forklifts, jobs, invoices, inspections }) {
                                 <div key={j.id} style={{ fontSize:12, padding:"5px 0", borderBottom:"1px solid rgba(255,255,255,0.05)", display:"flex", gap:10, flexWrap:"wrap" }}>
                                   <span style={{ color:"rgba(255,255,255,0.5)" }}>{j.date||""}</span>
                                   <span>{WORK_TYPES[j.work_type]||j.work_type||"—"}</span>
-                                  <span style={{ color:"rgba(255,255,255,0.5)" }}>{(j.description||"").slice(0,60)}</span>
+                                  <span className="text-clamp-2" style={{ color:"rgba(255,255,255,0.5)", maxWidth:240, display:"-webkit-box" }}>{j.description||""}</span>
                                   <span style={{ marginLeft:"auto" }}>{fmtMin(j.work_min||0)}</span>
                                   {statusBadge(j.status)}
                                 </div>
