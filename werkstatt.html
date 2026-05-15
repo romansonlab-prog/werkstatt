@@ -3312,7 +3312,7 @@ function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter,
   })();
 
   return (
-    <div style={{ paddingBottom:120 }}>
+    <div style={{ paddingBottom:200 }}>
       <button type="button" onClick={onClose}
         style={{ background:"transparent", border:0, color:"rgba(255,255,255,0.65)", fontSize:14, padding:"8px 0", marginBottom:8, cursor:"pointer" }}>
         ← Zurück zu Meine
@@ -3416,9 +3416,12 @@ function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter,
         </div>
       )}
 
-      {/* Кнопки действий */}
-      <div style={{ position:"fixed", left:0, right:0, bottom:62, padding:"12px 14px",
-        background:"linear-gradient(to top, rgba(7,18,42,0.98) 0%, rgba(7,18,42,0.85) 80%, transparent 100%)",
+      {/* Кнопки действий — закреплены над BottomNav (BottomNav высота 80px + safe-area) */}
+      <div style={{ position:"fixed", left:0, right:0,
+        bottom:"calc(80px + env(safe-area-inset-bottom) + 8px)",
+        padding:"12px 14px",
+        maxWidth:480, marginLeft:"auto", marginRight:"auto",
+        background:"linear-gradient(to top, rgba(7,18,42,0.98) 0%, rgba(7,18,42,0.92) 60%, rgba(7,18,42,0.7) 90%, transparent 100%)",
         display:"flex", gap:8, zIndex:50 }}>
         {/* Ändern — всегда доступна, включая Erledigt */}
         <button type="button"
