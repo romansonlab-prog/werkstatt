@@ -1853,6 +1853,105 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       });
   }
 
+  // Стартует заказ: создаёт его в БД через RPC со status=inProgress и started_at=now(),
+  // заливает фото, чистит форму, переключает на Meine. Таймер работы пойдёт автоматически
+  // (считается от started_at в открытом заказе из Meine).
+  function startAuftrag() {
+    if (savingRef.current) return;
+    if (!vehicle || !vehicle.plate) {
+      alert("Bitte zuerst Fahrzeug auswählen.");
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+
+    // Считаем стоимость запчастей (трудозатраты будут считаться при Fertig)
+    var partsNote = "";
+    var partsCost = 0;
+    if (partsType === "shop") {
+      var shopValid = shopItems.filter(function(i){ return i.name.trim() || i.typ.trim(); });
+      partsNote = shopValid.map(function(i){
+        return [i.typ, i.name, i.lieferschein ? "LS:" + i.lieferschein : "", i.datum, i.preis ? i.preis + " EUR" : ""].filter(Boolean).join(" | ");
+      }).join("\n");
+      partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
+    } else if (partsType === "used") {
+      partsNote = "Gebrauchtteil";
+    } else if (partsType === "lager") {
+      partsNote = "Neu aus Lager (Buchung folgt)";
+    }
+
+    var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
+    var newId = genId("J");
+    var nowIso = new Date().toISOString();
+
+    var basePayload = {
+      id: newId,
+      mechanic: user.id || "roman",
+      vehicle_type: vehicleType,
+      plate: vehicle.plate,
+      location: location,
+      work_type: workType,
+      description: description,
+      status: "inProgress",
+      date: todayIso(),
+      started_at: nowIso,
+      work_min: 0,
+      labor_cost: 0,
+      parts_type: partsType,
+      parts_note: partsNote || null,
+      parts_items: partsType === "shop" ? JSON.stringify(shopItems) : null,
+      parts_cost: partsCost,
+      colleague: colleague ? (colleagueName || "Kollege") : null,
+      tire_new_sn: workType === "tireChange" && tireNewSn.trim() ? tireNewSn.trim() : null,
+      tire_old_sn: workType === "tireChange" && tireOldSn.trim() ? tireOldSn.trim() : null,
+      tire_condition: workType === "tireChange" ? tireNewCond : null,
+      source: prefill ? "eingang" : "werkstatt",
+      alert_id: prefill && prefill.id ? prefill.id : null,
+      incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
+      workshop_niederlassung_id: workshopNied,
+      tenant_id: "ltg",
+      created_at: nowIso
+    };
+
+    // Создаём заказ в БД через RPC (атомарно: заказ + закрытие заявки если из Eingang)
+    sbRpc("create_job_from_alert", {
+      p_job: basePayload,
+      p_alert_id: (prefill && prefill.id) ? prefill.id : null
+    })
+    .then(function(returnedId) {
+      var realJobId = returnedId || newId;
+      // Заливаем фото (если есть) и обновляем запись с URL-ами фото
+      if (!photos || !photos.length) return realJobId;
+      return uploadAllPhotos(realJobId, photos).then(function(photoUrls){
+        return sbPatch("jobs", realJobId, {
+          photos: photoUrls.length,
+          photo_urls: JSON.stringify(photoUrls)
+        }).then(function(){ return realJobId; });
+      });
+    })
+    .then(function() {
+      // Полная очистка формы — заказ улетел в Meine
+      jobIdRef.current = null;
+      creatingJobRef.current = false;
+      setDescription(""); setPhotos([]);
+      setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+      setVehicle(null); setColleague(false); setColleagueName("");
+      setTireNewSn(""); setTireOldSn("");
+      try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+      setSaving(false);
+      savingRef.current = false;
+      if (onClear) onClear();
+      if (onSaved) onSaved();   // → setTab("jobs") в родителе → переключение в Meine
+      showToast("Auftrag gestartet");
+    })
+    .catch(function(e) {
+      console.error(e);
+      alert("Fehler: " + (e.message || e));
+      setSaving(false);
+      savingRef.current = false;
+    });
+  }
+
   // Пауза всего заказа: сохраняет текущее состояние в базу со статусом paused,
   // пишет запись в pause_log, чистит форму. Заказ уходит в Meine → Pausiert.
   function pauseJob() {
@@ -2386,32 +2485,11 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
         })()}
       </div>
 
-      {/* Таймеры */}
-      <div className="glass-panel">
-        <div className="panel-title">Zeiten</div>
-        <div className="grid2">
-          <TimerBox label="Hinfahrt" value={travelTo} setValue={setTravelTo} onFirstStart={ensureJobCreated} storageKey="hinfahrt" />
-          <TimerBox label="Rückfahrt" value={travelBack} setValue={setTravelBack} onFirstStart={ensureJobCreated} storageKey="rueckfahrt" />
-        </div>
-        <div style={{ height:10 }}></div>
-        <TimerBox label="Arbeitszeit" value={workMin} setValue={setWorkMin} onFirstStart={ensureJobCreated} storageKey="arbeitszeit" />
-      </div>
-
-      <div style={{ display:"flex", gap:10, marginTop:6, marginBottom:20 }}>
-        <button className="save-btn" type="button" disabled={saving} onClick={save}
-          style={{ flex:2, marginTop:0, marginBottom:0 }}>
-          {saving ? "Speichert..." : "💾 BERICHT SPEICHERN"}
+      <div style={{ marginTop:6, marginBottom:20 }}>
+        <button className="save-btn" type="button" disabled={saving} onClick={startAuftrag}
+          style={{ width:"100%", marginTop:0, marginBottom:0 }}>
+          {saving ? "Wird gestartet..." : "AUFTRAG STARTEN"}
         </button>
-        {jobIdRef.current && (
-          <button type="button" disabled={saving}
-            onClick={function(){ setPauseModal(true); setPauseReason(""); }}
-            style={{ flex:1, padding:18, borderRadius:14,
-              border:"2px solid #ffa500", background:"rgba(255,165,0,0.12)",
-              color:"#ffa500", fontFamily:"var(--font-display)", fontWeight:800,
-              fontSize:17, cursor:"pointer", opacity: saving ? 0.5 : 1 }}>
-            ⏸ PAUSE
-          </button>
-        )}
       </div>
 
       {pauseModal && (
