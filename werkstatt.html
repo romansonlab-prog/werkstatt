@@ -1792,7 +1792,7 @@ function StandortPicker({ value, onChange, locations }) {
 }
 
 // === NEW JOB FORM ===
-function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSaved, locations, dbUsers, stock }) {
+function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear, onSaved, locations, dbUsers, stock }) {
   // Черновик восстанавливаем только если нет prefill (открыт вручную, не из Eingang)
   var _draft = (function() {
     if (prefill) return {};
@@ -1896,6 +1896,23 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
       alert("Bitte zuerst Fahrzeug auswählen.");
       return;
     }
+
+    // Защита от дубля: если для этой машины у этого механика уже есть открытый
+    // заказ (inProgress/paused) — не даём создать второй. Исключение: режим
+    // редактирования (continueJobId) — там обновление, не создание.
+    if (!(prefill && prefill.continueJobId)) {
+      var openOnSamePlate = (jobs || []).find(function(j){
+        return j.plate === vehicle.plate
+          && j.mechanic === (user && user.id)
+          && (j.status === "inProgress" || j.status === "paused");
+      });
+      if (openOnSamePlate) {
+        var st = openOnSamePlate.status === "paused" ? "pausiert" : "in Arbeit";
+        alert("Für " + vehicle.plate + " läuft bereits ein Auftrag (" + st + ").\nBitte zuerst diesen abschließen oder weiterarbeiten.");
+        return;
+      }
+    }
+
     savingRef.current = true;
     setSaving(true);
 
@@ -1915,9 +1932,70 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, onClear, onSav
     }
 
     var workshopNied = (user && user.niederlassung_id) ? user.niederlassung_id : null;
-    var newId = genId("J");
     var nowIso = new Date().toISOString();
 
+    // === РЕЖИМ РЕДАКТИРОВАНИЯ ===
+    // Если это правка существующего заказа (Ändern из Meine) — обновляем,
+    // не создаём новый. continueJobId приходит в prefill из onContinueJob.
+    if (prefill && prefill.continueJobId) {
+      var existingId = prefill.continueJobId;
+      var updatePayload = {
+        vehicle_type: vehicleType,
+        plate: vehicle.plate,
+        location: location,
+        work_type: workType,
+        description: description,
+        parts_type: partsType,
+        parts_note: partsNote || null,
+        parts_items: partsType === "shop" ? JSON.stringify(shopItems) : null,
+        parts_cost: partsCost,
+        colleague: colleague ? (colleagueName || "Kollege") : null,
+        tire_new_sn: workType === "tireChange" && tireNewSn.trim() ? tireNewSn.trim() : null,
+        tire_old_sn: workType === "tireChange" && tireOldSn.trim() ? tireOldSn.trim() : null,
+        tire_condition: workType === "tireChange" ? tireNewCond : null
+        // status, started_at, work_min, labor_cost — НЕ трогаем (таймер сам считает)
+      };
+
+      // Заливаем новые фото если есть (только File-объекты, существующие URL уже сохранены)
+      var newPhotos = (photos || []).filter(function(p){ return p && typeof p !== "string"; });
+      var existingUrls = (photos || []).filter(function(p){ return typeof p === "string"; });
+
+      var photoChain = newPhotos.length
+        ? uploadAllPhotos(existingId, newPhotos).then(function(urls){
+            var all = existingUrls.concat(urls);
+            updatePayload.photos = all.length;
+            updatePayload.photo_urls = JSON.stringify(all);
+          })
+        : Promise.resolve();
+
+      photoChain
+        .then(function(){ return sbPatch("jobs", existingId, updatePayload); })
+        .then(function(){
+          // Очищаем форму и возвращаемся в Meine
+          jobIdRef.current = null;
+          creatingJobRef.current = false;
+          setDescription(""); setPhotos([]);
+          setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), typ:"", name:"", preis:"" }]);
+          setVehicle(null); setColleague(false); setColleagueName("");
+          setTireNewSn(""); setTireOldSn("");
+          try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+          setSaving(false);
+          savingRef.current = false;
+          if (onClear) onClear();
+          if (onSaved) onSaved();
+          showToast("Auftrag aktualisiert");
+        })
+        .catch(function(e){
+          console.error(e);
+          alert("Fehler: " + (e.message || e));
+          setSaving(false);
+          savingRef.current = false;
+        });
+      return;
+    }
+
+    // === РЕЖИМ СОЗДАНИЯ НОВОГО ЗАКАЗА ===
+    var newId = genId("J");
     var basePayload = {
       id: newId,
       mechanic: user.id || "roman",
@@ -4570,6 +4648,7 @@ function AppShell({ user, onLogout }) {
           <NewJob vehicles={vehicles} setVehicles={setVehicles}
             user={user} userRate={myRate}
             prefill={prefill}
+            jobs={jobs}
             locations={dbLocations}
             dbUsers={dbUsers}
             stock={stock}
