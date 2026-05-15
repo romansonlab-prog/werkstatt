@@ -329,6 +329,13 @@
     .badge.blue   { background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); }
     .badge.gray   { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.18); }
 
+    /* Обрезка длинного описания в карточках — макс 2 строки + троеточие */
+    .text-clamp-2 {
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+      overflow:hidden; text-overflow:ellipsis;
+      word-break:break-word; overflow-wrap:break-word;
+    }
+
     .meta { font-size:12px; color:rgba(255,255,255,0.55); font-weight:500; }
 
     .save-btn {
@@ -2640,7 +2647,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
           })}
         </div>
         <div className="label-cap" style={{ marginTop:14 }}>Fehlerbeschreibung</div>
-        <textarea className="textarea-dark" value={description} onChange={function(e){ setDescription(e.target.value); }}
+        <textarea className="textarea-dark" value={description}
+          onChange={function(e){ setDescription(e.target.value); }}
           placeholder={voiceActive ? "Spricht... jetzt sprechen" : "Fehlerbeschreibung eingeben..."}
           style={{ borderColor: voiceActive ? "var(--red)" : undefined, marginBottom:8 }} />
         {(typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition)) && (
@@ -3138,7 +3146,7 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
                 );
               })()}
             </div>
-            <div style={{ fontSize:14, lineHeight:1.45, marginTop:10, whiteSpace:"pre-wrap" }}>
+            <div className="text-clamp-2" style={{ fontSize:14, lineHeight:1.45, marginTop:10, whiteSpace:"pre-wrap" }}>
               {a.description || a.note || "Keine Beschreibung"}
             </div>
             <RemotePhotos urls={a.photo_urls} />
@@ -3735,7 +3743,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
             {mode === "active" ? "In Arbeit" : mode === "paused" ? "Pausiert" : "Erledigt"}
           </span>
         </div>
-        {j.description && <div style={{ fontSize:13, lineHeight:1.4, marginBottom:8, whiteSpace:"pre-wrap" }}>{j.description}</div>}
+        {j.description && <div className="text-clamp-2" style={{ fontSize:13, lineHeight:1.4, marginBottom:8, whiteSpace:"pre-wrap" }}>{j.description}</div>}
         <div className="meta" style={{ marginTop:4 }}>
           ⏱ {fmtMin(j.work_min || 0)}
           {tPause > 0 ? " · Pause: " + fmtMin(tPause) : ""}
