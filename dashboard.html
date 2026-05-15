@@ -1910,10 +1910,301 @@ function Eingang({ alerts, jobs, onRefresh, loading }) {
 }
 
 // === MECHANIKER ===
+// === JOB DETAIL MODAL ===
+// Полный просмотр заказа в модалке. Используется в Mechaniker и других местах.
+// Показывает: описание, фото, запчасти (с фото Lieferschein), журнал пауз, итоги.
+// Кнопки: Drucken / PDF + Schließen. Работает с заказом любого механика.
+function JobDetailModal({ job, onClose }) {
+  if (!job) return null;
+
+  var pauses = parsePauseLog(job);
+  var pauseMin = totalPauseMin(job);
+
+  var photos = (function(){
+    var p = job.photo_urls;
+    if (typeof p === "string") { try { p = JSON.parse(p); } catch(e) { return []; } }
+    return Array.isArray(p) ? p : [];
+  })();
+
+  // parts_items это shop items (массив объектов) с lieferschein_foto в новой схеме
+  var parts = (function(){
+    var p = job.parts_items;
+    if (typeof p === "string") { try { p = JSON.parse(p); } catch(e) { return []; } }
+    return Array.isArray(p) ? p : [];
+  })();
+
+  var statusLabel = statusDE(job.status);
+  var statusCol = job.status === "done" ? "#22c55e" : job.status === "paused" ? "#ffa500" : job.status === "inProgress" ? "#60a5fa" : "rgba(255,255,255,0.5)";
+
+  function printJob() {
+    var photoHtml = photos.length
+      ? "<h3 style='margin-top:24px'>Fotos (" + photos.length + ")</h3>" +
+        "<div style='display:flex;flex-wrap:wrap;gap:8px'>" +
+        photos.map(function(u){ return "<img src='" + u + "' style='width:200px;height:200px;object-fit:cover;border:1px solid #ccc'/>"; }).join("") +
+        "</div>"
+      : "";
+
+    var partsHtml = parts.length
+      ? "<h3 style='margin-top:24px'>Teile / Lieferscheine</h3>" +
+        "<table style='width:100%;border-collapse:collapse;margin-top:8px'><thead><tr style='background:#f0f4ff'>" +
+        "<th style='padding:8px;border:1px solid #ccc;text-align:left'>Lieferschein-Nr.</th>" +
+        "<th style='padding:8px;border:1px solid #ccc;text-align:left'>Datum</th>" +
+        "<th style='padding:8px;border:1px solid #ccc;text-align:right'>Preis</th>" +
+        "<th style='padding:8px;border:1px solid #ccc;text-align:center'>Foto</th>" +
+        "</tr></thead><tbody>" +
+        parts.map(function(p){
+          var fotoCell = p.lieferschein_foto
+            ? "<img src='" + p.lieferschein_foto + "' style='max-width:140px;max-height:100px;object-fit:contain'/>"
+            : "—";
+          return "<tr>" +
+            "<td style='padding:8px;border:1px solid #ccc'>" + (p.lieferschein || "—") + "</td>" +
+            "<td style='padding:8px;border:1px solid #ccc'>" + (p.datum || "—") + "</td>" +
+            "<td style='padding:8px;border:1px solid #ccc;text-align:right'>" + (p.preis ? p.preis + " €" : "—") + "</td>" +
+            "<td style='padding:8px;border:1px solid #ccc;text-align:center'>" + fotoCell + "</td>" +
+          "</tr>";
+        }).join("") +
+        "</tbody></table>"
+      : "";
+
+    var pauseHtml = pauses.length
+      ? "<h3 style='margin-top:24px'>Pausen-Journal</h3>" +
+        "<table style='width:100%;border-collapse:collapse'><tbody>" +
+        pauses.map(function(p){
+          var t = p.start ? new Date(p.start).toLocaleString("de-DE") : "";
+          var mins = p.minutes ? fmtMin(p.minutes) : "läuft";
+          return "<tr>" +
+            "<td style='padding:6px 10px;border-bottom:1px solid #eee;color:#888'>" + t + "</td>" +
+            "<td style='padding:6px 10px;border-bottom:1px solid #eee'>" + mins + "</td>" +
+            "<td style='padding:6px 10px;border-bottom:1px solid #eee'>" + (p.reason || "") + "</td>" +
+          "</tr>";
+        }).join("") +
+        "</tbody></table>"
+      : "";
+
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Auftrag " + (job.plate || "") + "</title>" +
+      "<style>body{font-family:system-ui,Arial,sans-serif;color:#222;max-width:780px;margin:0 auto;padding:24px;line-height:1.5}" +
+      "h1{color:#0a1730;margin-bottom:4px}" +
+      "h2{color:#555;font-size:14px;font-weight:normal;margin:0 0 20px 0}" +
+      "h3{color:#0a1730;font-size:15px;margin:18px 0 6px 0;padding-bottom:4px;border-bottom:2px solid #ffa500}" +
+      ".info{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;background:#f7f9fc;padding:14px;border-radius:8px;margin:10px 0}" +
+      ".info-row{font-size:13px}.info-row b{color:#555;display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}" +
+      ".desc{background:#fff8e1;border-left:4px solid #ffa500;padding:12px 14px;margin:10px 0;white-space:pre-wrap;font-size:14px}" +
+      "@media print{button{display:none}@page{size:A4;margin:15mm}}</style></head><body>" +
+      "<h1>Auftrag " + (job.plate || "—") + "</h1>" +
+      "<h2>" + (job.date || "") + " · " + (job.mechanic_name || job.mechanic || "—") + " · " + (WORK_TYPES[job.work_type] || job.work_type || "") + "</h2>" +
+      "<div class='info'>" +
+      "<div class='info-row'><b>Status</b>" + statusLabel + "</div>" +
+      "<div class='info-row'><b>Standort</b>" + (job.location || "—") + "</div>" +
+      "<div class='info-row'><b>Arbeitszeit</b>" + fmtMin(job.work_min || 0) + "</div>" +
+      "<div class='info-row'><b>Pause</b>" + (pauseMin > 0 ? fmtMin(pauseMin) : "—") + "</div>" +
+      "<div class='info-row'><b>Lohn</b>" + (Number(job.labor_cost) || 0).toFixed(2) + " €</div>" +
+      "<div class='info-row'><b>Teile</b>" + (Number(job.parts_cost) || 0).toFixed(2) + " €</div>" +
+      "<div class='info-row'><b>Gesamt</b><strong style='color:#ffa500;font-size:14px'>" + (Number(job.cost) || 0).toFixed(2) + " €</strong></div>" +
+      (job.colleague ? "<div class='info-row'><b>Kollege</b>" + job.colleague + "</div>" : "") +
+      "</div>" +
+      (job.description ? "<h3>Beschreibung</h3><div class='desc'>" + job.description.replace(/</g,"&lt;") + "</div>" : "") +
+      partsHtml +
+      photoHtml +
+      pauseHtml +
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:14px;font-weight:700;cursor:pointer;margin-top:24px'>🖨 Drucken / PDF</button>" +
+      "</body></html>";
+
+    var w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); }
+  }
+
+  return (
+    <div onClick={onClose}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000,
+        display:"flex", alignItems:"flex-start", justifyContent:"center",
+        padding:"32px 16px", overflowY:"auto" }}>
+      <div onClick={function(e){ e.stopPropagation(); }}
+        style={{ background:"#0e1d3d", color:"#fff", maxWidth:780, width:"100%",
+          borderRadius:16, border:"1px solid rgba(255,255,255,0.1)",
+          overflow:"hidden", display:"flex", flexDirection:"column" }}>
+
+        {/* Шапка */}
+        <div style={{ padding:"18px 22px", borderBottom:"1px solid rgba(255,255,255,0.08)",
+          display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+          <div>
+            <div style={{ fontSize:22, fontWeight:900, letterSpacing:0.5 }}>{job.plate || "—"}</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", marginTop:3 }}>
+              {job.date || ""} · {job.mechanic_name || job.mechanic || "—"} · {WORK_TYPES[job.work_type] || job.work_type || "—"}
+            </div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:700, color: statusCol }}>
+              <span style={{ width:9, height:9, borderRadius:"50%", background:statusCol }}></span>
+              {statusLabel}
+            </span>
+            <button type="button" onClick={onClose}
+              style={{ border:0, background:"rgba(255,255,255,0.08)", color:"#fff",
+                width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>×</button>
+          </div>
+        </div>
+
+        <div style={{ padding:"18px 22px", maxHeight:"calc(100vh - 200px)", overflowY:"auto" }}>
+
+          {/* Info-grid */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(120px, 1fr))",
+            gap:10, background:"rgba(255,255,255,0.03)", padding:14, borderRadius:10, marginBottom:16 }}>
+            <div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Standort</div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{job.location || "—"}</div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Arbeit</div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{fmtMin(job.work_min || 0)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Pause</div>
+              <div style={{ fontSize:13, fontWeight:600, color: pauseMin > 0 ? "#ffa500" : "rgba(255,255,255,0.5)" }}>
+                {pauseMin > 0 ? fmtMin(pauseMin) : "—"}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Lohn</div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{(Number(job.labor_cost) || 0).toFixed(2)} €</div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Teile</div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{(Number(job.parts_cost) || 0).toFixed(2)} €</div>
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Gesamt</div>
+              <div style={{ fontSize:14, fontWeight:900, color:"#ffa500" }}>{(Number(job.cost) || 0).toFixed(2)} €</div>
+            </div>
+            {job.colleague && (
+              <div>
+                <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Kollege</div>
+                <div style={{ fontSize:13, fontWeight:600 }}>{job.colleague}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Beschreibung */}
+          {job.description && (
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontSize:11, color:"#ffa500", textTransform:"uppercase", letterSpacing:0.5, marginBottom:6, fontWeight:700 }}>
+                Beschreibung
+              </div>
+              <div style={{ background:"rgba(255,165,0,0.06)", borderLeft:"3px solid #ffa500",
+                padding:"12px 14px", borderRadius:6, fontSize:14, lineHeight:1.5,
+                whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
+                {job.description}
+              </div>
+            </div>
+          )}
+
+          {/* Teile / Lieferscheine с фото */}
+          {parts.length > 0 && (
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontSize:11, color:"#ffa500", textTransform:"uppercase", letterSpacing:0.5, marginBottom:8, fontWeight:700 }}>
+                Teile / Lieferscheine ({parts.length})
+              </div>
+              {parts.map(function(p, i){
+                return (
+                  <div key={p.id || i} style={{ display:"flex", gap:12, padding:"10px 12px",
+                    background:"rgba(255,255,255,0.03)", borderRadius:8, marginBottom:8, alignItems:"center" }}>
+                    {p.lieferschein_foto
+                      ? <a href={p.lieferschein_foto} target="_blank" rel="noopener" style={{ flexShrink:0 }}>
+                          <img src={p.lieferschein_foto} alt="Lieferschein"
+                            style={{ width:80, height:80, objectFit:"cover", borderRadius:6, display:"block",
+                              border:"1px solid rgba(255,255,255,0.1)" }} />
+                        </a>
+                      : <div style={{ width:80, height:80, borderRadius:6, background:"rgba(255,255,255,0.05)",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:11, color:"rgba(255,255,255,0.3)", flexShrink:0 }}>kein Foto</div>
+                    }
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>
+                        {p.lieferschein ? "Nr. " + p.lieferschein : (p.name || p.typ || "—")}
+                      </div>
+                      {(p.typ || p.name) && (p.typ + " " + (p.name || "")).trim() && (
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.55)", marginBottom:2 }}>
+                          {[p.typ, p.name].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{p.datum || ""}</div>
+                    </div>
+                    <div style={{ fontSize:14, fontWeight:800, color:"#ffa500" }}>
+                      {p.preis ? p.preis + " €" : "—"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Фото заказа */}
+          {photos.length > 0 && (
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontSize:11, color:"#ffa500", textTransform:"uppercase", letterSpacing:0.5, marginBottom:8, fontWeight:700 }}>
+                Fotos ({photos.length})
+              </div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {photos.map(function(u, i){
+                  return (
+                    <a key={i} href={u} target="_blank" rel="noopener">
+                      <img src={u} alt="" style={{ width:110, height:110, objectFit:"cover", borderRadius:8,
+                        border:"1px solid rgba(255,255,255,0.1)", display:"block" }} />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Журнал пауз */}
+          {pauses.length > 0 && (
+            <div style={{ marginBottom:18 }}>
+              <div style={{ fontSize:11, color:"#ffa500", textTransform:"uppercase", letterSpacing:0.5, marginBottom:8, fontWeight:700 }}>
+                Pausen-Journal {pauseMin > 0 ? "— gesamt " + fmtMin(pauseMin) : ""}
+              </div>
+              {pauses.map(function(p, i){
+                var t = p.start ? new Date(p.start).toLocaleString("de-DE", { hour:"2-digit", minute:"2-digit", day:"2-digit", month:"2-digit" }) : "";
+                return (
+                  <div key={i} style={{ fontSize:13, padding:"7px 12px", lineHeight:1.4,
+                    background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent",
+                    borderRadius:4 }}>
+                    <span style={{ color:"rgba(255,165,0,0.85)", fontWeight:700 }}>{t}</span>
+                    {p.minutes
+                      ? <span style={{ color:"rgba(255,255,255,0.45)" }}> · {fmtMin(p.minutes)}</span>
+                      : <span style={{ color:"#ffa500" }}> · läuft</span>}
+                    <span style={{ color:"rgba(255,255,255,0.85)" }}> — {p.reason}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Кнопки */}
+        <div style={{ padding:"14px 22px", borderTop:"1px solid rgba(255,255,255,0.08)",
+          display:"flex", gap:10, justifyContent:"flex-end" }}>
+          <button type="button" onClick={printJob}
+            style={{ padding:"10px 18px", borderRadius:8, border:"1px solid rgba(255,165,0,0.4)",
+              background:"rgba(255,165,0,0.08)", color:"#ffa500",
+              fontWeight:700, fontSize:13, cursor:"pointer" }}>
+            📄 Drucken / PDF
+          </button>
+          <button type="button" onClick={onClose}
+            style={{ padding:"10px 18px", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)",
+              background:"rgba(255,255,255,0.05)", color:"#fff",
+              fontWeight:700, fontSize:13, cursor:"pointer" }}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Mechaniker({ jobs, alerts, onRefresh, loading }) {
   var _sd = useState(todayIso()); var date = _sd[0]; var setDate = _sd[1];
   var _se = useState(null); var expanded = _se[0]; var setExpanded = _se[1];
   var _st = useState("mechaniker"); var tab = _st[0]; var setTab = _st[1];
+  var _smj = useState(null); var modalJob = _smj[0]; var setModalJob = _smj[1];
 
   var mechanics = getMechanicsFromJobs(jobs);
 
@@ -2184,11 +2475,11 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                             var canExpand = jPhotos.length > 0 || jPauses.length > 0;
                             var isExpJ = expanded === ("m_"+j.id);
                             return [
-                              <tr key={j.id} style={{ cursor: canExpand?"pointer":"default" }} onClick={function(){ if(canExpand) setExpanded(isExpJ?null:("m_"+j.id)); }}>
+                              <tr key={j.id} style={{ cursor:"pointer" }} onClick={function(){ setModalJob(j); }}>
                                 <td><strong>{j.plate||"—"}</strong></td>
                                 <td>{WORK_TYPES[j.work_type]||j.work_type||"—"}</td>
                                 <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{j.location||"—"}</td>
-                                <td style={{ fontSize:12, maxWidth:200, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{j.description||"—"}</td>
+                                <td style={{ fontSize:12, maxWidth:220, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{j.description||"—"}</td>
                                 <td>{fmtMin(j.work_min||0)}</td>
                                 <td style={{ color: (j.travel_to_min||0)+(j.travel_back_min||0) > 0 ? "rgba(255,165,0,0.8)" : "rgba(255,255,255,0.3)" }}>
                                   {(j.travel_to_min||0)+(j.travel_back_min||0) > 0
@@ -2200,9 +2491,9 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                                 </td>
                                 <td>{j.cost ? Number(j.cost).toFixed(2)+" €" : "—"}</td>
                                 <td>{statusBadge(j.status)}</td>
-                                <td style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{canExpand?(isExpJ?"▲":((jPhotos.length?"📷"+jPhotos.length:"")+(jPauses.length?" ⏸"+jPauses.length:""))):""}</td>
+                                <td style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{(jPhotos.length?"📷"+jPhotos.length:"")+(jPauses.length?" ⏸"+jPauses.length:"")}</td>
                               </tr>,
-                              isExpJ && canExpand && (
+                              false && (
                                 <tr key={j.id+"_ph"}>
                                   <td colSpan={10} style={{ padding:"12px 14px", background:"rgba(0,0,0,0.2)" }}>
                                     {jPauses.length > 0 && (
@@ -2246,6 +2537,9 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
         })}
       </div>
       )}
+
+      {/* Модалка с полной информацией о заказе */}
+      <JobDetailModal job={modalJob} onClose={function(){ setModalJob(null); }} />
     </div>
   );
 }
