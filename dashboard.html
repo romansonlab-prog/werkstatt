@@ -296,6 +296,73 @@ const { useState, useEffect, useRef, useCallback } = React;
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 
+// Push: тот же VAPID, что в werkstatt (единая push-система проекта)
+var VAPID_PUBLIC_KEY = "BHSmp029OyyIDAfwXwg1rJ0DmpLjKSxwCYjwFCUisy1ad9TNLJyVCxfMYcmgavDOv5FvejvpdLsczlZJBJolrnM";
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = "=".repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  var raw = atob(base64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+// Подписаться на push. ctx = { userId, userName, role, niederlassungId, app }
+// Идемпотентно: повторный вызов обновляет запись без дублей (upsert по endpoint).
+function pushSubscribe(ctx) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return Promise.resolve({ ok: false, reason: "unsupported" });
+  }
+  if (Notification.permission === "denied") {
+    return Promise.resolve({ ok: false, reason: "denied" });
+  }
+  return navigator.serviceWorker.ready.then(function(reg) {
+    return reg.pushManager.getSubscription().then(function(existing) {
+      if (existing) return existing;
+      return Notification.requestPermission().then(function(perm) {
+        if (perm !== "granted") throw new Error("permission-" + perm);
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      });
+    });
+  }).then(function(sub) {
+    var raw = sub.toJSON();
+    var endpoint = sub.endpoint;
+    var idKey = "push_" + btoa(endpoint).replace(/[^a-zA-Z0-9]/g, "").slice(0, 40);
+    var body = {
+      id: idKey,
+      endpoint: endpoint,
+      p256dh: raw.keys ? raw.keys.p256dh : "",
+      auth: raw.keys ? raw.keys.auth : "",
+      user_id: ctx.userId || null,
+      user_name: ctx.userName || null,
+      role: ctx.role || null,
+      niederlassung_id: ctx.niederlassungId || null,
+      app: ctx.app || null,
+      tenant_id: "ltg",
+      user_agent: (navigator.userAgent || "").slice(0, 250),
+      last_seen_at: new Date().toISOString()
+    };
+    return fetch(SB_URL + "/rest/v1/push_subscriptions?on_conflict=endpoint", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Prefer": "return=minimal,resolution=merge-duplicates"
+      },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      return { ok: r.ok, status: r.status };
+    });
+  }).catch(function(e) {
+    return { ok: false, reason: (e && e.message) || "error" };
+  });
+}
+
 // УСТАРЕЛО: список юзеров теперь грузится из public.users (см. PinLogin)
 // const USERS = [
 //   { id:"chef", name:"Chef", avatar:"CH", pin:"4818", role:"chef" },
@@ -989,6 +1056,13 @@ function PinLogin({ onLogin }) {
         headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal" },
         body:JSON.stringify({ last_login: new Date().toISOString() })
       }).catch(function(){});
+      // Push-подписка только для шефа и Fuhrparkleiter — они получают напоминания о Fristen
+      if (found.role === "chef" || found.role === "fpl") {
+        pushSubscribe({
+          userId: found.id, userName: found.name, role: found.role,
+          niederlassungId: found.niederlassung_id, app: "dashboard"
+        }).catch(function(){});
+      }
       onLogin(sessUser);
     } else {
       setErr(true); setMsg("Falscher PIN");
@@ -7649,6 +7723,7 @@ function AppShell({ user, onLogout }) {
   var _sinv = useState([]); var invoices = _sinv[0]; var setInvoices = _sinv[1];
   var _splans = useState([]); var plans = _splans[0]; var setPlans = _splans[1];
   var _sau = useState([]); var allUsers = _sau[0]; var setAllUsers = _sau[1];
+  var _stk = useState([]); var tasks = _stk[0]; var setTasks = _stk[1];
   var _sload = useState(false); var loading = _sload[0]; var setLoading = _sload[1];
   var _sdb = useState(null); var dbOk = _sdb[0]; var setDbOk = _sdb[1];
   var _sshift = useState(todayIso()); var shiftDate = _sshift[0]; var setShiftDate = _sshift[1];
@@ -7710,11 +7785,13 @@ function AppShell({ user, onLogout }) {
       sbGet("invoices",           "select=*&order=date.desc&limit=300"),
       sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
       sbGet("users",              "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen,fs_kontrolle_letzte,fs_kontrolle_naechste,unterweisung_letzte,unterweisung_naechste&order=name.asc&limit=300"),
+      sbGet("tasks",              "select=*&order=created_at.desc&limit=500"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
       setInvoices(r[7]); setPlans(r[8]);
       setAllUsers(r[9] || []);
+      setTasks(r[10] || []);
       setLoading(false);
       // Проверяем реальное состояние соединения (sbGet глотает ошибки и возвращает [],
       // поэтому отдельным ping определяем: данных нет потому что их нет, или потому что нет сети)
@@ -7840,6 +7917,7 @@ function AppShell({ user, onLogout }) {
   }, [sosAlerts.map(function(a){ return a.id; }).join(",")]);
 
   var openAlerts = fAlerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
+  var openTasks = (tasks || []).filter(function(t){ return t.status !== "erledigt"; }).length;
   var lowStock = fStock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
   var overduePlans = fPlans.filter(function(p){
     if (!p.next_service_date) return false;
@@ -7850,6 +7928,7 @@ function AppShell({ user, onLogout }) {
     // OPERATIV
     { k:"uebersicht",  g:"OPERATIV", ic: IC.home,     label:"Übersicht" },
     { k:"eingang",     g:"OPERATIV", ic: IC.inbox,    label:"Eingang",      badge: openAlerts.length },
+    { k:"aufgaben",    g:"OPERATIV", ic: IC.wrench,   label:"Aufgaben",     badge: openTasks, badgeCls:"orange" },
     { k:"mechaniker",  g:"OPERATIV", ic: IC.wrench,   label:"Mechaniker" },
     // FUHRPARK
     { k:"technik",     g:"FUHRPARK", ic: IC.truck,    label:"Technik" },
@@ -8050,6 +8129,7 @@ function AppShell({ user, onLogout }) {
           {sec === "lager"       && <Lager stock={fStock} onRefresh={loadAll} loading={loading} />}
           {sec === "rechnungen"  && <Rechnungen invoices={fInvoices} vehicles={fVehicles} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} users={fAllUsers} onRefresh={loadAll} loading={loading} />}
+          {sec === "aufgaben"    && <Aufgaben tasks={tasks} users={fAllUsers} vehicles={fVehicles} currentUser={user} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={fJobs} />}
           {sec === "monatsbericht" && <Monatsbericht jobs={fJobs} washOrders={fWashOrders} inspections={fInspections} alerts={fAlerts} />}
           {sec === "vergleich"     && <Vergleich jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} />}
@@ -8151,6 +8231,285 @@ function InfoBar() {
         <div>
           <span style={{ fontSize:20, fontWeight:700, color:"#ffa500" }}>{diesel||"..."}</span>
           <span style={{ fontSize:13, color:"rgba(255,255,255,0.35)", marginLeft:6 }}>Diesel DE Ø</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
+  var _nt = useState({ title:"", assignee:"", plate:"", priority:"normal", due_date:"" });
+  var nt = _nt[0]; var setNt = _nt[1];
+  var _sv = useState(false); var saving = _sv[0]; var setSaving = _sv[1];
+  var _flt = useState("offen"); var flt = _flt[0]; var setFlt = _flt[1];
+  var _fp = useState("all"); var fPerson = _fp[0]; var setFPerson = _fp[1];
+  var _sel = useState([]); var sel = _sel[0]; var setSel = _sel[1];
+  var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
+
+  function showMsg(m) { setMsg(m); setTimeout(function(){ setMsg(""); }, 2500); }
+
+  // Кандидаты-исполнители: механики + водители
+  var assignees = (users || []).filter(function(u){
+    return u.role === "mechaniker" || u.role === "fahrer";
+  }).sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+
+  var prioOpts = [["hoch","Hoch"],["normal","Normal"],["niedrig","Niedrig"]];
+  function prioColor(p) {
+    if (p === "hoch") return "#ef4444";
+    if (p === "niedrig") return "rgba(255,255,255,0.4)";
+    return "#ffa500";
+  }
+  function prioLabel(p) {
+    var o = prioOpts.find(function(x){ return x[0] === p; });
+    return o ? o[1] : p;
+  }
+  function prioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
+
+  function createTask() {
+    if (!nt.title.trim()) { showMsg("Beschreibung fehlt"); return; }
+    if (!nt.assignee) { showMsg("Bitte Person wählen"); return; }
+    setSaving(true);
+    var a = assignees.find(function(u){ return u.id === nt.assignee; });
+    var body = {
+      tenant_id: "ltg",
+      title: nt.title.trim(),
+      assignee_id: nt.assignee,
+      assignee_name: a ? a.name : null,
+      assignee_role: a ? a.role : null,
+      plate: nt.plate.trim() || null,
+      priority: nt.priority,
+      due_date: nt.due_date || null,
+      status: "offen",
+      created_by: currentUser ? currentUser.id : null,
+      created_by_name: currentUser ? currentUser.name : null
+    };
+    sbUpsert("tasks", body).then(function(){
+      setSaving(false);
+      setNt({ title:"", assignee:"", plate:"", priority:"normal", due_date:"" });
+      showMsg("Aufgabe erstellt");
+      onRefresh();
+    }).catch(function(e){ setSaving(false); showMsg("Fehler: " + (e.message||e)); });
+  }
+
+  function changePriority(t, p) {
+    sbPatch("tasks", t.id, { priority: p, updated_at: new Date().toISOString() }).then(function(ok){
+      if (ok) onRefresh();
+    });
+  }
+  function markDone(t) {
+    sbPatch("tasks", t.id, { status:"erledigt", done_at:new Date().toISOString(), updated_at:new Date().toISOString() }).then(function(ok){
+      if (ok) onRefresh();
+    });
+  }
+  function reopen(t) {
+    sbPatch("tasks", t.id, { status:"offen", done_at:null, updated_at:new Date().toISOString() }).then(function(ok){
+      if (ok) onRefresh();
+    });
+  }
+  function deleteTask(t) {
+    fetch(SB_URL + "/rest/v1/tasks?id=eq." + encodeURIComponent(t.id), {
+      method:"DELETE", headers:{ "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY }
+    }).then(function(r){ if (r.ok) onRefresh(); });
+  }
+
+  function toggleSel(id) {
+    var c = sel.slice(); var i = c.indexOf(id);
+    if (i === -1) c.push(id); else c.splice(i, 1);
+    setSel(c);
+  }
+
+  // Фильтрованный список
+  var list = (tasks || []).slice();
+  if (flt === "offen") list = list.filter(function(t){ return t.status !== "erledigt"; });
+  else if (flt === "erledigt") list = list.filter(function(t){ return t.status === "erledigt"; });
+  if (fPerson !== "all") list = list.filter(function(t){ return t.assignee_id === fPerson; });
+  list.sort(function(a,b){
+    var pr = prioRank(a.priority) - prioRank(b.priority);
+    if (pr !== 0) return pr;
+    return (b.created_at||"").localeCompare(a.created_at||"");
+  });
+
+  function toggleAll() {
+    var ids = list.map(function(t){ return t.id; });
+    if (sel.length === ids.length && ids.length > 0) setSel([]);
+    else setSel(ids);
+  }
+  function forExport() {
+    if (sel.length === 0) return list;
+    return list.filter(function(t){ return sel.indexOf(t.id) !== -1; });
+  }
+
+  function exportPdf() {
+    var rows = forExport().map(function(t){
+      return "<tr><td>"+(t.title||"—")+"</td><td>"+(t.assignee_name||"—")+"</td>"+
+        "<td>"+(t.plate||"—")+"</td><td>"+prioLabel(t.priority)+"</td>"+
+        "<td>"+(t.due_date ? isoToDe(t.due_date) : "—")+"</td>"+
+        "<td>"+(t.status === "erledigt" ? "Erledigt" : "Offen")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Aufgaben</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Aufgaben</h1><h2>"+forExport().length+" Aufgaben · Stand: "+new Date().toLocaleDateString("de-DE")+"</h2>"+
+      "<table><thead><tr><th>Aufgabe</th><th>Zugewiesen</th><th>Fahrzeug</th><th>Priorität</th><th>Fällig</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Aufgaben");
+  }
+  function exportXls() {
+    var headers = ["Aufgabe","Zugewiesen","Fahrzeug","Priorität","Fällig","Status","Erstellt von"];
+    var rows = forExport().map(function(t){
+      return {
+        "Aufgabe": t.title || "",
+        "Zugewiesen": t.assignee_name || "",
+        "Fahrzeug": t.plate || "",
+        "Priorität": prioLabel(t.priority),
+        "Fällig": t.due_date ? isoToDe(t.due_date) : "",
+        "Status": t.status === "erledigt" ? "Erledigt" : "Offen",
+        "Erstellt von": t.created_by_name || ""
+      };
+    });
+    exportXlsx(rows, headers, "Aufgaben", null);
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <div className="panel-title-lg">Aufgaben</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-outline btn-small no-print" onClick={exportPdf} title="PDF / Drucken">📄 PDF</button>
+            <button className="btn-outline btn-small no-print" onClick={exportXls} title="Excel-Datei"
+              style={{ borderColor:"rgba(34,197,94,0.4)", color:"#22c55e" }}>📊 Excel</button>
+            <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
+          </div>
+        </div>
+
+        {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.3)", fontSize:13, color:"#22c55e" }}>{msg}</div>}
+
+        {/* Форма создания */}
+        <div style={{ padding:"16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", marginBottom:20 }}>
+          <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>Neue Aufgabe</div>
+          <div style={{ marginBottom:10 }}>
+            <div className="label-cap">Was ist zu tun? *</div>
+            <input className="inp" style={{ width:"100%" }} value={nt.title}
+              placeholder="z.B. Bremsen prüfen, Reifen wechseln, Halle aufräumen..."
+              onChange={function(e){ setNt(Object.assign({},nt,{title:e.target.value})); }} />
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+            <div>
+              <div className="label-cap">Wer? *</div>
+              <select className="inp" style={{ width:"100%" }} value={nt.assignee}
+                onChange={function(e){ setNt(Object.assign({},nt,{assignee:e.target.value})); }}>
+                <option value="">— wählen —</option>
+                {assignees.map(function(u){
+                  return <option key={u.id} value={u.id}>{u.name} ({u.role === "fahrer" ? "Fahrer" : "Mechaniker"})</option>;
+                })}
+              </select>
+            </div>
+            <div>
+              <div className="label-cap">Fahrzeug (optional)</div>
+              <input className="inp" style={{ width:"100%" }} value={nt.plate}
+                placeholder="Kennzeichen, leer = allgemein"
+                onChange={function(e){ setNt(Object.assign({},nt,{plate:e.target.value})); }} />
+            </div>
+            <div>
+              <div className="label-cap">Priorität</div>
+              <select className="inp" style={{ width:"100%" }} value={nt.priority}
+                onChange={function(e){ setNt(Object.assign({},nt,{priority:e.target.value})); }}>
+                {prioOpts.map(function(o){ return <option key={o[0]} value={o[0]}>{o[1]}</option>; })}
+              </select>
+            </div>
+            <div>
+              <div className="label-cap">Fällig bis (optional)</div>
+              <DeDateInput value={isoToDe(nt.due_date)}
+                onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setNt(Object.assign({},nt,{due_date: iso||""})); }} />
+            </div>
+          </div>
+          <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={createTask}>
+            {saving ? "..." : "+ Aufgabe erstellen"}
+          </button>
+        </div>
+
+        {/* Фильтры */}
+        <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+          {[["offen","Offen"],["erledigt","Erledigt"],["all","Alle"]].map(function(f){
+            return <button key={f[0]} className={"btn-small "+(flt===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setFlt(f[0]); }}>{f[1]}</button>;
+          })}
+          <select className="inp" style={{ marginLeft:"auto", minWidth:180 }} value={fPerson}
+            onChange={function(e){ setFPerson(e.target.value); }}>
+            <option value="all">Alle Personen</option>
+            {assignees.map(function(u){ return <option key={u.id} value={u.id}>{u.name}</option>; })}
+          </select>
+        </div>
+
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>
+          {sel.length > 0 ? sel.length + " ausgewählt für Export" : list.length + " Aufgaben (Export: alle gefilterten)"}
+        </div>
+
+        <div style={{ overflowX:"auto" }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width:36 }}>
+                  <input type="checkbox" checked={sel.length === list.length && list.length > 0} onChange={toggleAll} />
+                </th>
+                <th>Aufgabe</th>
+                <th>Zugewiesen</th>
+                <th>Fahrzeug</th>
+                <th>Priorität</th>
+                <th>Fällig</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.length === 0
+                ? <tr><td colSpan="8" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Aufgaben</td></tr>
+                : list.map(function(t){
+                    var checked = sel.indexOf(t.id) !== -1;
+                    var done = t.status === "erledigt";
+                    var dd = t.due_date ? Math.round((new Date(t.due_date).getTime() - Date.now())/86400000) : null;
+                    return (
+                      <tr key={t.id} style={{ opacity: done ? 0.55 : 1, background: checked ? "rgba(255,165,0,0.06)" : "transparent" }}>
+                        <td><input type="checkbox" checked={checked} onChange={function(){ toggleSel(t.id); }} /></td>
+                        <td style={{ fontWeight:600 }}>{t.title}</td>
+                        <td style={{ fontSize:12 }}>
+                          {t.assignee_name||"—"}
+                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)" }}>{t.assignee_role === "fahrer" ? "Fahrer" : "Mechaniker"}</div>
+                        </td>
+                        <td style={{ fontSize:12 }}>{t.plate || <span style={{ color:"rgba(255,255,255,0.3)" }}>—</span>}</td>
+                        <td>
+                          <select value={t.priority} disabled={done}
+                            onChange={function(e){ changePriority(t, e.target.value); }}
+                            style={{ padding:"4px 8px", borderRadius:6, fontSize:12, fontWeight:700,
+                              border:"1px solid "+prioColor(t.priority), background:"rgba(255,255,255,0.05)",
+                              color:prioColor(t.priority) }}>
+                            {prioOpts.map(function(o){ return <option key={o[0]} value={o[0]} style={{ color:"#111" }}>{o[1]}</option>; })}
+                          </select>
+                        </td>
+                        <td style={{ fontSize:12 }}>
+                          {t.due_date
+                            ? <span style={{ color: (dd!==null&&dd<0&&!done)?"#ef4444":(dd!==null&&dd<3&&!done)?"#ffa500":"rgba(255,255,255,0.85)" }}>
+                                {isoToDe(t.due_date)}{dd!==null&&dd<3&&!done ? (dd<0?" ("+Math.abs(dd)+"d überf.)":" (in "+dd+"d)") : ""}
+                              </span>
+                            : <span style={{ color:"rgba(255,255,255,0.3)" }}>—</span>}
+                        </td>
+                        <td style={{ fontSize:12, fontWeight:700, color: done ? "#22c55e" : "rgba(255,255,255,0.6)" }}>
+                          {done ? "Erledigt" : "Offen"}
+                        </td>
+                        <td style={{ whiteSpace:"nowrap" }}>
+                          {done
+                            ? <button className="btn-secondary btn-small" onClick={function(){ reopen(t); }}>↩ Öffnen</button>
+                            : <button className="btn-secondary btn-small" onClick={function(){ markDone(t); }}>✓ Erledigt</button>}
+                          <button className="btn-danger btn-small" style={{ marginLeft:6 }} onClick={function(){ deleteTask(t); }}>✕</button>
+                        </td>
+                      </tr>
+                    );
+                  })
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
+          💡 Aufgaben erscheinen beim Mechaniker im Eingang (werkstatt) bzw. beim Fahrer in der Fahrer-App. Priorität kann jederzeit direkt in der Liste geändert werden.
         </div>
       </div>
     </div>

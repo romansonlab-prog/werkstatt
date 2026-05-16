@@ -3331,11 +3331,77 @@ function playAlertSound() {
 }
 
 // === EINGANG (с taken_by, Ablehnen, Zurückstellen) ===
-function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh }) {
+function Eingang({ alerts, tasks, user, onCreate, onStatusChange, loading, onRefresh }) {
   var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
   var _smodal = useState(null); var modal = _smodal[0]; var setModal = _smodal[1];
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
   var _snav = useState(null); var navOpen = _snav[0]; var setNavOpen = _snav[1];
+  var _tsel = useState([]); var tSel = _tsel[0]; var setTSel = _tsel[1];
+
+  // Задачи для механиков: открытые сверху, отсортированы по приоритету
+  function tPrioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
+  function tPrioColor(p) { return p === "hoch" ? "#ef4444" : p === "niedrig" ? "rgba(255,255,255,0.4)" : "#ffa500"; }
+  function tPrioLabel(p) { return p === "hoch" ? "Hoch" : p === "niedrig" ? "Niedrig" : "Normal"; }
+  var openTasks = (tasks || []).filter(function(t){ return t.status !== "erledigt"; })
+    .sort(function(a,b){ return tPrioRank(a.priority) - tPrioRank(b.priority); });
+  var doneTasks = (tasks || []).filter(function(t){ return t.status === "erledigt"; });
+
+  function taskDone(t) {
+    sbPatch("tasks", t.id, { status:"erledigt", done_at:new Date().toISOString(), updated_at:new Date().toISOString() })
+      .then(function(){ onRefresh(); });
+  }
+  function taskReopen(t) {
+    sbPatch("tasks", t.id, { status:"offen", done_at:null, updated_at:new Date().toISOString() })
+      .then(function(){ onRefresh(); });
+  }
+  function tToggleSel(id) {
+    var c = tSel.slice(); var i = c.indexOf(id);
+    if (i === -1) c.push(id); else c.splice(i, 1);
+    setTSel(c);
+  }
+  function tForExport() {
+    var all = (tasks || []).slice().sort(function(a,b){ return tPrioRank(a.priority) - tPrioRank(b.priority); });
+    if (tSel.length === 0) return all;
+    return all.filter(function(t){ return tSel.indexOf(t.id) !== -1; });
+  }
+  function tIsoToDe(s) {
+    if (!s) return "";
+    var t = String(s).slice(0,10);
+    var m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? m[3]+"."+m[2]+"."+m[1] : "";
+  }
+  function exportTasksPdf() {
+    var rows = tForExport().map(function(t){
+      return "<tr><td>"+(t.title||"—")+"</td><td>"+(t.plate||"—")+"</td>"+
+        "<td>"+tPrioLabel(t.priority)+"</td><td>"+(t.due_date ? tIsoToDe(t.due_date) : "—")+"</td>"+
+        "<td>"+(t.status === "erledigt" ? "Erledigt" : "Offen")+"</td></tr>";
+    }).join("");
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Aufgaben</title>"+
+      "<style>body{font-family:Arial,sans-serif;padding:20px;color:#222}h1{color:#0a1730;margin-bottom:4px}h2{color:#1e4fa0;font-size:14px;font-weight:400;margin-bottom:16px}table{width:100%;border-collapse:collapse}td,th{padding:8px 10px;border-bottom:1px solid #ddd;text-align:left;font-size:12px}th{background:#0a1730;color:#fff}thead{display:table-header-group}tr{page-break-inside:avoid}@media print{button{display:none}}</style></head><body>"+
+      "<h1>WerkFlow — Meine Aufgaben</h1><h2>"+tForExport().length+" Aufgaben · "+(user && user.name ? user.name : "")+" · "+(new Date().toLocaleDateString("de-DE"))+"</h2>"+
+      "<table><thead><tr><th>Aufgabe</th><th>Fahrzeug</th><th>Priorität</th><th>Fällig</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<button onclick='window.print()' style='margin-top:16px;background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    var w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); }
+  }
+  function exportTasksXls() {
+    var sep = ";";
+    var head = ["Aufgabe","Fahrzeug","Prioritaet","Faellig","Status"];
+    function esc(v){ var s = String(v==null?"":v); if (s.indexOf(sep)!==-1||s.indexOf('"')!==-1||s.indexOf("\n")!==-1) s = '"'+s.replace(/"/g,'""')+'"'; return s; }
+    var lines = [head.join(sep)];
+    tForExport().forEach(function(t){
+      lines.push([
+        esc(t.title||""), esc(t.plate||""), esc(tPrioLabel(t.priority)),
+        esc(t.due_date ? tIsoToDe(t.due_date) : ""), esc(t.status === "erledigt" ? "Erledigt" : "Offen")
+      ].join(sep));
+    });
+    var csv = "\uFEFF" + lines.join("\r\n");
+    var blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "Aufgaben_" + todayIso() + ".csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function parseCoords(loc) {
     if (!loc) return null;
@@ -3446,6 +3512,81 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
       <button className="outline-btn" type="button" style={{ marginBottom:14, padding:13 }} onClick={onRefresh}>
         {loading ? "Lädt..." : "↻ Aktualisieren"}
       </button>
+
+      {/* === AUFGABEN (от Fuhrparkleiter) === */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        <div style={{ fontSize:15, fontWeight:800, color:"#ffa500" }}>
+          Aufgaben{openTasks.length > 0 ? " (" + openTasks.length + ")" : ""}
+        </div>
+        {(tasks || []).length > 0 && (
+          <div style={{ display:"flex", gap:6 }}>
+            <button className="mini-btn" type="button" onClick={exportTasksPdf} style={{ borderColor:"#ffa500", color:"#ffa500" }}>📄 PDF</button>
+            <button className="mini-btn" type="button" onClick={exportTasksXls} style={{ borderColor:"#22c55e", color:"#22c55e" }}>📊 Excel</button>
+          </div>
+        )}
+      </div>
+      {(tasks || []).length > 0 && (
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>
+          {tSel.length > 0 ? tSel.length + " ausgewählt für Export" : "Export: alle Aufgaben"}
+        </div>
+      )}
+      {openTasks.length === 0 && (
+        <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.45)", padding:18, marginBottom:14, fontSize:13 }}>
+          Keine offenen Aufgaben
+        </div>
+      )}
+      {openTasks.map(function(t) {
+        var checked = tSel.indexOf(t.id) !== -1;
+        var dd = t.due_date ? Math.round((new Date(t.due_date).getTime() - Date.now())/86400000) : null;
+        return (
+          <div key={t.id} className="alert-card" style={{ borderLeft:"4px solid "+tPrioColor(t.priority), background: checked ? "rgba(255,165,0,0.08)" : "" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                  <span style={{ fontSize:11, fontWeight:800, color:tPrioColor(t.priority), textTransform:"uppercase" }}>{tPrioLabel(t.priority)}</span>
+                  {t.plate && <span style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>· {t.plate}</span>}
+                </div>
+                <div style={{ fontWeight:700, fontSize:15 }}>{t.title}</div>
+                <div className="meta" style={{ marginTop:4 }}>
+                  von {t.created_by_name || "FPL"}
+                  {t.due_date ? " · fällig " + tIsoToDe(t.due_date) + (dd!==null && dd<0 ? " (überfällig)" : dd!==null && dd<3 ? " (in "+dd+"d)" : "") : ""}
+                </div>
+              </div>
+              <input type="checkbox" checked={checked} onChange={function(){ tToggleSel(t.id); }}
+                style={{ width:20, height:20, marginTop:4 }} />
+            </div>
+            <button className="primary-btn" type="button" style={{ marginTop:10, padding:11 }}
+              onClick={function(){ taskDone(t); }}>
+              ✓ Erledigt
+            </button>
+          </div>
+        );
+      })}
+      {doneTasks.length > 0 && (
+        <details style={{ marginBottom:14 }}>
+          <summary style={{ cursor:"pointer", fontSize:13, color:"rgba(255,255,255,0.5)", padding:"6px 0" }}>
+            Erledigte Aufgaben ({doneTasks.length})
+          </summary>
+          {doneTasks.map(function(t) {
+            return (
+              <div key={t.id} className="alert-card" style={{ opacity:0.5 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:14, textDecoration:"line-through" }}>{t.title}</div>
+                    <div className="meta">{t.plate ? t.plate + " · " : ""}erledigt</div>
+                  </div>
+                  <button className="mini-btn" type="button" onClick={function(){ taskReopen(t); }}>↩ Öffnen</button>
+                </div>
+              </div>
+            );
+          })}
+        </details>
+      )}
+
+      {/* === MELDUNGEN (Notrufe von Fahrern) === */}
+      <div style={{ fontSize:15, fontWeight:800, color:"#ffa500", marginBottom:10, marginTop:18 }}>
+        Meldungen{open.length > 0 ? " (" + open.length + ")" : ""}
+      </div>
       {open.length === 0 && (
         <div className="glass-panel" style={{ textAlign:"center", color:"rgba(255,255,255,0.55)", padding:32 }}>
           ✅ Keine neuen Meldungen
@@ -5237,6 +5378,7 @@ function AppShell({ user, onLogout }) {
   var _stab = useState("new"); var tab = _stab[0]; var setTab = _stab[1];
   var _sjobs = useState([]); var jobs = _sjobs[0]; var setJobs = _sjobs[1];
   var _salerts = useState([]); var alerts = _salerts[0]; var setAlerts = _salerts[1];
+  var _stasks = useState([]); var tasks = _stasks[0]; var setTasks = _stasks[1];
   var _svehicles = useState([]); var vehicles = _svehicles[0]; var setVehicles = _svehicles[1];
   var _sstock = useState([]); var stock = _sstock[0]; var setStock = _sstock[1];
   var _susers = useState([]); var dbUsers = _susers[0]; var setDbUsers = _susers[1];
@@ -5260,7 +5402,8 @@ function AppShell({ user, onLogout }) {
       sbSelect("vehicles","select=*&order=plate.asc&limit=500"),
       sbSelect("stock", stockQ),
       sbSelect("users","select=*"),
-      sbSelect("niederlassung_locations", locsQ)
+      sbSelect("niederlassung_locations", locsQ),
+      sbSelect("tasks","select=*&assignee_role=eq.mechaniker&order=created_at.desc&limit=300")
     ]).then(function(results) {
       setJobs(results[0]);
       var rawAlerts = results[1].map(function(a){ return Object.assign({},a,{photo_urls:normalizeUrls(a.photo_urls)}); });
@@ -5277,6 +5420,7 @@ function AppShell({ user, onLogout }) {
       setStock(results[3]);
       if (results[4] && results[4].length) setDbUsers(results[4]);
       if (results[5] && results[5].length) setDbLocations(results[5].map(function(l){ return l.name; }));
+      setTasks(results[6] || []);
       setDbOk(true); setLoading(false);
     }).catch(function(e) {
       console.error(e); setDbOk(false); setLoading(false);
@@ -5463,7 +5607,7 @@ function AppShell({ user, onLogout }) {
           />
         )}
         {tab === "eingang" && (
-          <Eingang alerts={alerts} user={user} onCreate={createFromAlert} loading={loading} onRefresh={loadAll} />
+          <Eingang alerts={alerts} tasks={tasks} user={user} onCreate={createFromAlert} loading={loading} onRefresh={loadAll} />
         )}
         {tab === "jobs" && (
           <MeineAuftraege jobs={jobs} user={user} onRefresh={loadAll} loading={loading}
