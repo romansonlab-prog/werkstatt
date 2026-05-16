@@ -3079,6 +3079,316 @@ function Fahrzeugakte({ vehicle, jobs, invoices, inspections, onClose }) {
 }
 
 // === TECHNIK ===
+// === ANALYTIK — рейтинг техники по затратам ===
+// Фильтры: тип техники + период. Рейтинг машин (Lohn/Teile/Extern/Gesamt),
+// поиск, маркер "дороже среднего", клик → Fahrzeugakte, экспорт PDF/Excel.
+function Analytik({ jobs, invoices, vehicles, forklifts, inspections }) {
+  var _sp = useState("monat"); var period = _sp[0]; var setPeriod = _sp[1];
+  var _sfrom = useState(""); var dFrom = _sfrom[0]; var setDFrom = _sfrom[1];
+  var _sto = useState(""); var dTo = _sto[0]; var setDTo = _sto[1];
+  var _stype = useState("all"); var vType = _stype[0]; var setVType = _stype[1];
+  var _sq = useState(""); var q = _sq[0]; var setQ = _sq[1];
+  var _sakte = useState(null); var akteVehicle = _sakte[0]; var setAkteVehicle = _sakte[1];
+
+  // Определяем границы периода
+  function periodRange() {
+    var now = new Date();
+    var from = null, to = null;
+    if (period === "monat") {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (period === "quartal") {
+      var qStart = Math.floor(now.getMonth() / 3) * 3;
+      from = new Date(now.getFullYear(), qStart, 1);
+      to = new Date(now.getFullYear(), qStart + 3, 0, 23, 59, 59);
+    } else if (period === "jahr") {
+      from = new Date(now.getFullYear(), 0, 1);
+      to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+    } else if (period === "custom") {
+      from = dFrom ? new Date(dFrom + "T00:00:00") : null;
+      to = dTo ? new Date(dTo + "T23:59:59") : null;
+    }
+    return { from: from, to: to };
+  }
+
+  function inPeriod(dateStr) {
+    if (period === "alles") return true;
+    var r = periodRange();
+    if (!dateStr) return false;
+    var d = new Date((dateStr.length <= 10 ? dateStr + "T12:00:00" : dateStr));
+    if (isNaN(d.getTime())) return false;
+    if (r.from && d < r.from) return false;
+    if (r.to && d > r.to) return false;
+    return true;
+  }
+
+  // Тип машины по plate (из vehicles/forklifts или из job.vehicle_type)
+  function typeOfPlate(plate, fallback) {
+    var v = (vehicles || []).find(function(x){ return (x.plate||"") === plate; });
+    if (v && v.type) return v.type;
+    var fk = (forklifts || []).find(function(x){ return (x.nummer||x.plate||"") === plate; });
+    if (fk) return "forklift";
+    return fallback || "other";
+  }
+
+  function typeMatches(t) {
+    if (vType === "all") return true;
+    if (vType === "truck") return t === "truck";
+    if (vType === "trailer") return t === "semiTrailer" || t === "trailer";
+    if (vType === "pkw") return t === "pkw";
+    if (vType === "forklift") return t === "forklift";
+    return true;
+  }
+
+  // Агрегируем по машине
+  var byVeh = {};
+  (jobs || []).forEach(function(j){
+    var d = j.date || (j.created_at || "").slice(0,10);
+    if (!inPeriod(d)) return;
+    var plate = j.plate || "—";
+    var t = typeOfPlate(plate, j.vehicle_type);
+    if (!typeMatches(t)) return;
+    if (!byVeh[plate]) byVeh[plate] = { plate:plate, type:t, jobs:0, lohn:0, teile:0, extern:0 };
+    byVeh[plate].jobs += 1;
+    byVeh[plate].lohn += Number(j.labor_cost) || 0;
+    byVeh[plate].teile += Number(j.parts_cost) || 0;
+  });
+  (invoices || []).forEach(function(i){
+    var d = i.date || (i.created_at || "").slice(0,10);
+    if (!inPeriod(d)) return;
+    var plate = i.vehicle_id || "—";
+    var t = typeOfPlate(plate, null);
+    if (!typeMatches(t)) return;
+    if (!byVeh[plate]) byVeh[plate] = { plate:plate, type:t, jobs:0, lohn:0, teile:0, extern:0 };
+    byVeh[plate].extern += Number(i.amount) || 0;
+  });
+
+  var rows = Object.keys(byVeh).map(function(k){
+    var r = byVeh[k];
+    r.gesamt = r.lohn + r.teile + r.extern;
+    r.avg = r.jobs > 0 ? r.gesamt / r.jobs : 0;
+    return r;
+  }).filter(function(r){
+    if (!q.trim()) return true;
+    return r.plate.toLowerCase().indexOf(q.trim().toLowerCase()) !== -1;
+  }).sort(function(a,b){ return b.gesamt - a.gesamt; });
+
+  // Сводка
+  var sum = rows.reduce(function(s,r){
+    s.jobs += r.jobs; s.lohn += r.lohn; s.teile += r.teile; s.extern += r.extern;
+    return s;
+  }, { jobs:0, lohn:0, teile:0, extern:0 });
+  sum.gesamt = sum.lohn + sum.teile + sum.extern;
+  var avgPerVeh = rows.length > 0 ? sum.gesamt / rows.length : 0;
+  var avgPerJob = sum.jobs > 0 ? sum.gesamt / sum.jobs : 0;
+
+  function eur(n) { return (Number(n)||0).toFixed(2) + " €"; }
+
+  var periodLabel = period === "monat" ? "Dieser Monat"
+    : period === "quartal" ? "Dieses Quartal"
+    : period === "jahr" ? "Dieses Jahr"
+    : period === "alles" ? "Gesamt"
+    : (dFrom || "?") + " — " + (dTo || "?");
+
+  function doExportPdf() {
+    var rowsHtml = rows.map(function(r, i){
+      return "<tr>" +
+        "<td>" + (i+1) + "</td>" +
+        "<td><b>" + r.plate + "</b></td>" +
+        "<td>" + (VEH_TYPES[r.type] || r.type) + "</td>" +
+        "<td style='text-align:center'>" + r.jobs + "</td>" +
+        "<td style='text-align:right'>" + eur(r.lohn) + "</td>" +
+        "<td style='text-align:right'>" + eur(r.teile) + "</td>" +
+        "<td style='text-align:right'>" + eur(r.extern) + "</td>" +
+        "<td style='text-align:right'><b>" + eur(r.gesamt) + "</b></td>" +
+        "<td style='text-align:right'>" + eur(r.avg) + "</td>" +
+      "</tr>";
+    }).join("");
+    var html = "<html><head><meta charset='UTF-8'><title>Analytik</title>" + baseReportStyle() + "</head><body>" +
+      "<h1>Analytik — Kosten je Fahrzeug</h1>" +
+      "<p>Zeitraum: <b>" + periodLabel + "</b> · Typ: <b>" + (vType === "all" ? "Alle" : vType) + "</b> · Stand: " + new Date().toLocaleString("de-DE") + "</p>" +
+      "<table><thead><tr>" +
+      "<th>#</th><th>Kennzeichen</th><th>Typ</th><th>Aufträge</th><th>Lohn</th><th>Teile</th><th>Externe</th><th>Gesamt</th><th>⌀/Reparatur</th>" +
+      "</tr></thead><tbody>" + rowsHtml + "</tbody>" +
+      "<tfoot><tr style='font-weight:bold;background:#f0f4ff'>" +
+      "<td colspan='3'>Summe (" + rows.length + " Fahrzeuge)</td>" +
+      "<td style='text-align:center'>" + sum.jobs + "</td>" +
+      "<td style='text-align:right'>" + eur(sum.lohn) + "</td>" +
+      "<td style='text-align:right'>" + eur(sum.teile) + "</td>" +
+      "<td style='text-align:right'>" + eur(sum.extern) + "</td>" +
+      "<td style='text-align:right'>" + eur(sum.gesamt) + "</td>" +
+      "<td style='text-align:right'>" + eur(avgPerJob) + "</td>" +
+      "</tr></tfoot></table></body></html>";
+    printHtml(html, "Analytik_" + periodLabel.replace(/[^a-zA-Z0-9]/g,"_"));
+  }
+
+  function doExportXlsx() {
+    var data = rows.map(function(r, i){
+      return {
+        "#": i+1,
+        "Kennzeichen": r.plate,
+        "Typ": VEH_TYPES[r.type] || r.type,
+        "Aufträge": r.jobs,
+        "Lohn EUR": Number(r.lohn.toFixed(2)),
+        "Teile EUR": Number(r.teile.toFixed(2)),
+        "Externe EUR": Number(r.extern.toFixed(2)),
+        "Gesamt EUR": Number(r.gesamt.toFixed(2)),
+        "Schnitt/Reparatur EUR": Number(r.avg.toFixed(2))
+      };
+    });
+    exportXlsx(data,
+      ["#","Kennzeichen","Typ","Aufträge","Lohn EUR","Teile EUR","Externe EUR","Gesamt EUR","Schnitt/Reparatur EUR"],
+      "Analytik_Kosten_je_Fahrzeug",
+      [{ label:"Zeitraum", value: periodLabel }, { label:"Typ", value: vType === "all" ? "Alle" : vType }]
+    );
+  }
+
+  var TYPE_TABS = [
+    { k:"all", l:"Alle" },
+    { k:"truck", l:"LKW" },
+    { k:"trailer", l:"Auflieger" },
+    { k:"pkw", l:"PKW" },
+    { k:"forklift", l:"Stapler" }
+  ];
+  var PERIOD_TABS = [
+    { k:"monat", l:"Monat" },
+    { k:"quartal", l:"Quartal" },
+    { k:"jahr", l:"Jahr" },
+    { k:"alles", l:"Alles" },
+    { k:"custom", l:"Zeitraum" }
+  ];
+
+  return (
+    <div>
+      {/* Фильтры */}
+      <div className="panel" style={{ marginBottom:16 }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:12 }}>
+          {TYPE_TABS.map(function(t){
+            return (
+              <button key={t.k}
+                className={"btn-small " + (vType === t.k ? "btn-primary" : "btn-outline")}
+                onClick={function(){ setVType(t.k); }}>{t.l}</button>
+            );
+          })}
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, alignItems:"center" }}>
+          {PERIOD_TABS.map(function(p){
+            return (
+              <button key={p.k}
+                className={"btn-small " + (period === p.k ? "btn-primary" : "btn-outline")}
+                onClick={function(){ setPeriod(p.k); }}>{p.l}</button>
+            );
+          })}
+          {period === "custom" && (
+            <span style={{ display:"flex", gap:6, alignItems:"center", marginLeft:8 }}>
+              <input type="date" className="input-dark" style={{ width:150 }} value={dFrom}
+                onChange={function(e){ setDFrom(e.target.value); }} />
+              <span style={{ color:"rgba(255,255,255,0.5)" }}>—</span>
+              <input type="date" className="input-dark" style={{ width:150 }} value={dTo}
+                onChange={function(e){ setDTo(e.target.value); }} />
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Сводка */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:12, marginBottom:16 }}>
+        {[
+          { l:"Fahrzeuge", v: rows.length, c:"#fff" },
+          { l:"Aufträge", v: sum.jobs, c:"#fff" },
+          { l:"Lohn", v: eur(sum.lohn), c:"#60a5fa" },
+          { l:"Teile", v: eur(sum.teile), c:"#22c55e" },
+          { l:"Externe", v: eur(sum.extern), c:"#a78bfa" },
+          { l:"Gesamt", v: eur(sum.gesamt), c:"#ffa500" },
+          { l:"⌀ / Reparatur", v: eur(avgPerJob), c:"rgba(255,255,255,0.8)" }
+        ].map(function(b, i){
+          return (
+            <div key={i} className="panel" style={{ padding:"14px 16px" }}>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>{b.l}</div>
+              <div style={{ fontSize:20, fontWeight:900, color:b.c }}>{b.v}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Поиск + экспорт */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"center", marginBottom:12 }}>
+        <input className="input-dark" placeholder="Kennzeichen suchen..." value={q}
+          onChange={function(e){ setQ(e.target.value); }}
+          style={{ flex:1, minWidth:200 }} />
+        <button className="btn-outline btn-small no-print" onClick={doExportPdf}>📄 PDF</button>
+        <button className="btn-outline btn-small no-print" onClick={doExportXlsx}
+          style={{ borderColor:"rgba(34,197,94,0.4)", color:"#22c55e" }}>📊 Excel</button>
+      </div>
+
+      {/* Рейтинг */}
+      {rows.length === 0
+        ? <div className="empty" style={{ padding:40, textAlign:"center" }}>Keine Daten für diesen Zeitraum / Filter</div>
+        : (
+          <div className="panel" style={{ padding:0, overflow:"hidden" }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th style={{ width:40 }}>#</th>
+                  <th>Kennzeichen</th>
+                  <th>Typ</th>
+                  <th style={{ textAlign:"center" }}>Aufträge</th>
+                  <th style={{ textAlign:"right" }}>Lohn</th>
+                  <th style={{ textAlign:"right" }}>Teile</th>
+                  <th style={{ textAlign:"right" }}>Externe</th>
+                  <th style={{ textAlign:"right" }}>Gesamt</th>
+                  <th style={{ textAlign:"right" }}>⌀/Rep.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(function(r, i){
+                  var pricey = r.gesamt > avgPerVeh * 1.5 && rows.length > 2;
+                  return (
+                    <tr key={r.plate} style={{ cursor:"pointer" }}
+                      onClick={function(){
+                        var v = (vehicles||[]).find(function(x){ return (x.plate||"")===r.plate; })
+                          || (forklifts||[]).find(function(x){ return (x.nummer||x.plate||"")===r.plate; })
+                          || { plate:r.plate, type:r.type };
+                        setAkteVehicle(v);
+                      }}>
+                      <td style={{ color:"rgba(255,255,255,0.4)" }}>{i+1}</td>
+                      <td>
+                        <b>{r.plate}</b>
+                        {pricey && (
+                          <span title="Deutlich über Durchschnitt" style={{ marginLeft:8, fontSize:11, color:"#ef4444", fontWeight:700 }}>
+                            ▲ teuer
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ color:"rgba(255,255,255,0.6)" }}>{VEH_TYPES[r.type] || r.type}</td>
+                      <td style={{ textAlign:"center" }}>{r.jobs}</td>
+                      <td style={{ textAlign:"right", color:"#60a5fa" }}>{eur(r.lohn)}</td>
+                      <td style={{ textAlign:"right", color:"#22c55e" }}>{eur(r.teile)}</td>
+                      <td style={{ textAlign:"right", color:"#a78bfa" }}>{eur(r.extern)}</td>
+                      <td style={{ textAlign:"right", fontWeight:800, color:"#ffa500" }}>{eur(r.gesamt)}</td>
+                      <td style={{ textAlign:"right", color:"rgba(255,255,255,0.6)" }}>{eur(r.avg)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+
+      {akteVehicle && (
+        <Fahrzeugakte
+          vehicle={akteVehicle}
+          jobs={jobs}
+          invoices={invoices || []}
+          inspections={inspections || []}
+          onClose={function(){ setAkteVehicle(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
 function Technik({ vehicles, forklifts, jobs, invoices, inspections }) {
   var _st = useState("truck"); var vtype = _st[0]; var setVtype = _st[1];
   var _ss = useState(""); var search = _ss[0]; var setSearch = _ss[1];
@@ -7053,6 +7363,7 @@ function AppShell({ user, onLogout }) {
     { k:"eingang",     ic: IC.inbox,    label:"Eingang",      badge: openAlerts.length },
     { k:"mechaniker",  ic: IC.wrench,   label:"Mechaniker" },
     { k:"technik",     ic: IC.truck,    label:"Technik" },
+    { k:"analytik",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>, label:"Analytik" },
     { k:"inspektion",  ic: IC.search,   label:"Inspektion" },
     { k:"du",          ic: IC.archive,  label:"DU Auflieger" },
     { k:"waschhalle",  ic: IC.droplet,  label:"Waschhalle" },
@@ -7071,7 +7382,8 @@ function AppShell({ user, onLogout }) {
     uebersicht:"Übersicht", eingang:"Eingang", mechaniker:"Mechaniker",
     technik:"Technik — Fuhrpark", inspektion:"Inspektion", du:"DU Auflieger", waschhalle:"Waschhalle",
     lager:"Lager", kosten:"Kostenanalyse", rechnungen:"Lieferscheine",
-    wartung:"Wartungsplan", archiv:"Archiv", monatsbericht:"Monatsbericht", vergleich:"Vergleich — Niederlassungen", settings:"Einstellungen", kontakte:"Kontakte"
+    wartung:"Wartungsplan", archiv:"Archiv", monatsbericht:"Monatsbericht", vergleich:"Vergleich — Niederlassungen", settings:"Einstellungen", kontakte:"Kontakte",
+    analytik:"Analytik — Kosten je Fahrzeug"
   };
 
   return (
@@ -7207,6 +7519,7 @@ function AppShell({ user, onLogout }) {
           {sec === "eingang"     && <Eingang alerts={fAlerts} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
           {sec === "mechaniker"  && <Mechaniker jobs={fJobs} alerts={fAlerts} onRefresh={loadAll} loading={loading} />}
           {sec === "technik"     && <Technik vehicles={fVehicles} forklifts={fForklifts} jobs={fJobs} invoices={fInvoices} inspections={fInspections} />}
+          {sec === "analytik"    && <Analytik jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} forklifts={fForklifts} inspections={fInspections} />}
           {sec === "inspektion"  && <Inspektion inspections={fInspections} onRefresh={loadAll} loading={loading} />}
           {sec === "du"          && <DUAufliegerDash inspections={fInspections} onRefresh={loadAll} loading={loading} />}
           {sec === "waschhalle"  && <Waschhalle washOrders={fWashOrders} onRefresh={loadAll} loading={loading} />}
