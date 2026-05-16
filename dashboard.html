@@ -5392,7 +5392,6 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
   var _sv = useState("fristen"); var view = _sv[0]; var setView = _sv[1];
   var _sq = useState(""); var query = _sq[0]; var setQuery = _sq[1];
-  var _ssav = useState(null); var savingCell = _ssav[0]; var setSavingCell = _ssav[1];
   var calRef = useRef(null);
   var calInst = useRef(null);
 
@@ -5435,27 +5434,6 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
     if (st === "warn")    return "Bald fällig";
     if (st === "ok")      return "OK";
     return "Kein Datum";
-  }
-
-  // Сохранить дату в vehicles или users. cellKey уникален для блокировки во время записи.
-  function saveDate(table, id, field, value, cellKey) {
-    setSavingCell(cellKey);
-    var body = {};
-    body[field] = value || null;
-    sbPatch(table, id, body).then(function(ok){
-      setSavingCell(null);
-      if (ok) onRefresh();
-    }).catch(function(){ setSavingCell(null); });
-  }
-
-  // Обработка ввода немецкой даты в текстовое поле. Пусто -> очистить. Битый формат -> подсветить, не сохранять.
-  function onDeDateInput(table, id, field, raw, cellKey, setErr) {
-    var t = String(raw||"").trim();
-    if (!t) { setErr(false); saveDate(table, id, field, null, cellKey); return; }
-    var iso = deToIso(t);
-    if (iso === false) { setErr(true); return; }
-    setErr(false);
-    saveDate(table, id, field, iso, cellKey);
   }
 
   // Машины для вкладки Fristen — с поиском по номеру.
@@ -5679,12 +5657,11 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
                     : frVeh.map(function(v){
                         var st = fristStatus([v.tuev, v.au, v.sp, v.uvv]);
                         function dateCell(field, val) {
-                          var ck = v.id + "_" + field;
                           var d = daysUntil(val);
+                          var clr = d === null ? "rgba(255,255,255,0.3)" : (d<0?"#ef4444":d<14?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.85)");
                           return (
                             <td>
-                              <DeDateInput value={isoToDe(val)} disabled={savingCell === ck} warnDays={d}
-                                onCommit={function(raw, setErr){ onDeDateInput("vehicles", v.id, field, raw, ck, setErr); }} />
+                              <div style={{ fontSize:13, fontWeight:600, color:clr }}>{val ? isoToDe(val) : "—"}</div>
                               {d !== null && d < 60 && (
                                 <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<14?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
                                   {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
@@ -5735,29 +5712,14 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
                     ? <tr><td colSpan="4" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Fahrer</td></tr>
                     : drivers.map(function(u){
                         var st = fristStatus([u.fuehrerschein_ablauf]);
-                        var ckK = u.id + "_fsk";
-                        var ckD = u.id + "_fsd";
                         var d = daysUntil(u.fuehrerschein_ablauf);
-                        var warn = d !== null && d < 30;
+                        var clr = d === null ? "rgba(255,255,255,0.3)" : (d<0?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.85)");
                         return (
                           <tr key={u.id}>
                             <td style={{ fontWeight:700 }}>{u.name||"—"}</td>
+                            <td style={{ fontSize:13 }}>{u.fuehrerschein_klassen || "—"}</td>
                             <td>
-                              <input defaultValue={u.fuehrerschein_klassen||""}
-                                disabled={savingCell === ckK}
-                                placeholder="CE, C, B..."
-                                onBlur={function(e){
-                                  if (e.target.value !== (u.fuehrerschein_klassen||"")) {
-                                    saveDate("users", u.id, "fuehrerschein_klassen", e.target.value, ckK);
-                                  }
-                                }}
-                                style={{ padding:"6px 8px", borderRadius:6, fontSize:12,
-                                  border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.05)",
-                                  color:"#fff", width:"120px" }} />
-                            </td>
-                            <td>
-                              <DeDateInput value={isoToDe(u.fuehrerschein_ablauf)} disabled={savingCell === ckD} warnDays={d}
-                                onCommit={function(raw, setErr){ onDeDateInput("users", u.id, "fuehrerschein_ablauf", raw, ckD, setErr); }} />
+                              <div style={{ fontSize:13, fontWeight:600, color:clr }}>{u.fuehrerschein_ablauf ? isoToDe(u.fuehrerschein_ablauf) : "—"}</div>
                               {d !== null && d < 90 && (
                                 <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
                                   {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
@@ -5779,7 +5741,7 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
             </div>
 
             <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
-              💡 HU/TÜV, AU (Abgasuntersuchung), SP (Sicherheitsprüfung), UVV und Versicherung direkt in der Tabelle bearbeiten — Änderungen werden sofort gespeichert.
+              💡 Übersicht aller Fristen. Daten werden in <strong style={{ color:"rgba(255,255,255,0.6)" }}>Einstellungen → Fahrzeuge / Mitarbeiter</strong> gepflegt.
               Erinnerungen werden automatisch per Push verschickt (30 / 14 / 7 / 1 Tage vorher).
             </div>
           </div>
@@ -6079,8 +6041,9 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
   var _smsg = useState(""); var msg = _smsg[0]; var setMsg = _smsg[1];
 
   // Vehicle form
-  var _vf = useState({ plate:"", brand:"", model:"", type:"truck", tuev:"", insurance:"", uvv:"", next_service:"", mileage:"" });
+  var _vf = useState({ plate:"", brand:"", model:"", type:"truck", tuev:"", au:"", sp:"", insurance:"", uvv:"", next_service:"", mileage:"" });
   var vf = _vf[0]; var setVf = _vf[1];
+  var _vfEdit = useState(null); var vfEditId = _vfEdit[0]; var setVfEditId = _vfEdit[1];
   // Forklift form
   var _ff = useState({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true });
   var ff = _ff[0]; var setFf = _ff[1];
@@ -6128,10 +6091,23 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
     if (!vf.plate.trim()) { showMsg("Kennzeichen ist Pflicht"); return; }
     setSaving(true);
     sbUpsert("vehicles", Object.assign({}, vf, {
-      id: vf.plate.toLowerCase().replace(/\s/g,"-"),
+      id: vfEditId || vf.plate.toLowerCase().replace(/\s/g,"-"),
       mileage: parseInt(vf.mileage||"0")||0
-    })).then(function(){ setSaving(false); showMsg("✅ Fahrzeug gespeichert"); setVf({ plate:"", brand:"", model:"", type:"truck", tuev:"", insurance:"", uvv:"", next_service:"", mileage:"" }); onRefresh(); })
+    })).then(function(){ setSaving(false); showMsg(vfEditId ? "✅ Fahrzeug aktualisiert" : "✅ Fahrzeug gespeichert"); setVf({ plate:"", brand:"", model:"", type:"truck", tuev:"", au:"", sp:"", insurance:"", uvv:"", next_service:"", mileage:"" }); setVfEditId(null); onRefresh(); })
     .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); });
+  }
+  function startEditVehicle(v) {
+    setVf({
+      plate: v.plate||"", brand: v.brand||"", model: v.model||"", type: v.type||"truck",
+      tuev: v.tuev||"", au: v.au||"", sp: v.sp||"", insurance: v.insurance||"",
+      uvv: v.uvv||"", next_service: v.next_service||"", mileage: v.mileage!=null ? String(v.mileage) : ""
+    });
+    setVfEditId(v.id);
+    if (typeof window !== "undefined" && window.scrollTo) window.scrollTo(0, 0);
+  }
+  function cancelEditVehicle() {
+    setVf({ plate:"", brand:"", model:"", type:"truck", tuev:"", au:"", sp:"", insurance:"", uvv:"", next_service:"", mileage:"" });
+    setVfEditId(null);
   }
 
   function saveForklift() {
@@ -6210,6 +6186,8 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
       active: u.active !== false,
       rate_per_hour: u.rate_per_hour ? (parseFloat(u.rate_per_hour)||null) : null,
       notes: (u.notes||"").trim() || null,
+      fuehrerschein_klassen: (u.role === "fahrer" && u.fuehrerschein_klassen) ? String(u.fuehrerschein_klassen).trim() || null : null,
+      fuehrerschein_ablauf: (u.role === "fahrer" && u.fuehrerschein_ablauf) ? u.fuehrerschein_ablauf : null,
       tenant_id: "ltg"
     };
 
@@ -6347,11 +6325,14 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
       {tab === "vehicles" && (
         <div>
           <div className="panel" style={{ marginBottom:16 }}>
-            <div className="panel-hd"><div className="panel-title">Neues Fahrzeug hinzufügen</div></div>
+            <div className="panel-hd"><div className="panel-title">{vfEditId ? "Fahrzeug bearbeiten" : "Neues Fahrzeug hinzufügen"}</div></div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
               <div>
                 <div className="label-cap">Kennzeichen *</div>
-                <input className="inp" style={{ width:"100%" }} value={vf.plate} placeholder="MA-LT 441" onChange={function(e){ setVf(Object.assign({},vf,{plate:e.target.value})); }} />
+                <input className="inp" style={{ width:"100%", opacity: vfEditId ? 0.6 : 1 }} value={vf.plate} placeholder="MA-LT 441"
+                  disabled={!!vfEditId}
+                  onChange={function(e){ setVf(Object.assign({},vf,{plate:e.target.value})); }} />
+                {vfEditId && <div style={{ fontSize:10, marginTop:2, color:"rgba(255,255,255,0.4)" }}>Kennzeichen kann nicht geändert werden</div>}
               </div>
               <div>
                 <div className="label-cap">Typ</div>
@@ -6372,6 +6353,14 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                 <DeDateInput value={isoToDe(vf.tuev)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{tuev: iso||""})); }} />
               </div>
               <div>
+                <div className="label-cap">AU — Abgasuntersuchung (Datum)</div>
+                <DeDateInput value={isoToDe(vf.au)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{au: iso||""})); }} />
+              </div>
+              <div>
+                <div className="label-cap">SP — Sicherheitsprüfung (Datum)</div>
+                <DeDateInput value={isoToDe(vf.sp)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{sp: iso||""})); }} />
+              </div>
+              <div>
                 <div className="label-cap">Versicherung (Datum)</div>
                 <DeDateInput value={isoToDe(vf.insurance)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{insurance: iso||""})); }} />
               </div>
@@ -6388,9 +6377,12 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                 <input className="inp" style={{ width:"100%" }} inputMode="numeric" value={vf.mileage} placeholder="0" onChange={function(e){ setVf(Object.assign({},vf,{mileage:e.target.value})); }} />
               </div>
             </div>
-            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={saveVehicle}>
-              {saving ? "..." : "+ Fahrzeug speichern"}
-            </button>
+            <div style={{ display:"flex", gap:8 }}>
+              <button className="btn-primary" style={{ maxWidth:220 }} disabled={saving} onClick={saveVehicle}>
+                {saving ? "..." : (vfEditId ? "✓ Änderungen speichern" : "+ Fahrzeug speichern")}
+              </button>
+              {vfEditId && <button className="btn-secondary" disabled={saving} onClick={cancelEditVehicle}>Abbrechen</button>}
+            </div>
           </div>
 
           <div className="panel">
@@ -6398,7 +6390,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
             {vehicles.length === 0
               ? <div className="empty">Noch keine Fahrzeuge</div>
               : <table className="tbl">
-                  <thead><tr><th>Kennzeichen</th><th>Typ</th><th>Marke</th><th>TÜV</th><th>UVV</th><th>km</th><th></th></tr></thead>
+                  <thead><tr><th>Kennzeichen</th><th>Typ</th><th>Marke</th><th>TÜV/HU</th><th>AU</th><th>UVV</th><th>km</th><th></th></tr></thead>
                   <tbody>
                     {vehicles.map(function(v){
                       return (
@@ -6407,9 +6399,13 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                           <td style={{ fontSize:12 }}>{VEH_TYPE_OPTS.find(function(o){ return o.k===v.type; }) ? VEH_TYPE_OPTS.find(function(o){ return o.k===v.type; }).l : v.type}</td>
                           <td style={{ fontSize:12 }}>{v.brand||""} {v.model||""}</td>
                           <td style={{ fontSize:12 }}>{fmtDate(v.tuev)||"—"}</td>
+                          <td style={{ fontSize:12 }}>{fmtDate(v.au)||"—"}</td>
                           <td style={{ fontSize:12 }}>{fmtDate(v.uvv)||"—"}</td>
                           <td style={{ fontSize:12 }}>{v.mileage||"—"}</td>
-                          <td><button className="btn-danger btn-small" onClick={function(){ deleteItem("vehicles",v.id); }}>✕</button></td>
+                          <td style={{ whiteSpace:"nowrap" }}>
+                            <button className="btn-secondary btn-small" title="Bearbeiten" onClick={function(){ startEditVehicle(v); }}>✎</button>
+                            <button className="btn-danger btn-small" style={{ marginLeft:6 }} onClick={function(){ deleteItem("vehicles",v.id); }}>✕</button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -6782,6 +6778,22 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                       <div className="label-cap">Notizen</div>
                       <input className="inp" style={{ width:"100%" }} value={uEdit.notes||""}
                         onChange={function(e){ setUEdit(Object.assign({},uEdit,{notes:e.target.value})); }} />
+                    </div>
+                  )}
+
+                  {uEdit.role === "fahrer" && (
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14, padding:"12px", borderRadius:10, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)" }}>
+                      <div style={{ gridColumn:"1 / -1", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>Führerschein</div>
+                      <div>
+                        <div className="label-cap">Klassen</div>
+                        <input className="inp" style={{ width:"100%" }} value={uEdit.fuehrerschein_klassen||""} placeholder="CE, C, BE..."
+                          onChange={function(e){ setUEdit(Object.assign({},uEdit,{fuehrerschein_klassen:e.target.value})); }} />
+                      </div>
+                      <div>
+                        <div className="label-cap">Gültig bis</div>
+                        <DeDateInput value={isoToDe(uEdit.fuehrerschein_ablauf)}
+                          onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{fuehrerschein_ablauf: iso||""})); }} />
+                      </div>
                     </div>
                   )}
 
