@@ -5336,6 +5336,36 @@ function Rechnungen({ invoices, vehicles, jobs, onRefresh, loading }) {
 }
 
 // === WARTUNGSPLAN ===
+// Текстовое поле немецкой даты "15.06.2026" с проверкой и подсветкой ошибки.
+function DeDateInput({ value, disabled, warnDays, onCommit }) {
+  var _e = useState(false); var err = _e[0]; var setErr = _e[1];
+  var _v = useState(value || ""); var txt = _v[0]; var setTxt = _v[1];
+  var lastVal = useRef(value || "");
+  if ((value || "") !== lastVal.current) {
+    lastVal.current = value || "";
+    txt = value || "";
+  }
+  var brd = "rgba(255,255,255,0.15)", bg = "rgba(255,255,255,0.05)";
+  if (warnDays !== null && warnDays !== undefined) {
+    if (warnDays < 0)       { brd = "rgba(239,68,68,0.6)";  bg = "rgba(239,68,68,0.1)"; }
+    else if (warnDays < 14) { brd = "rgba(239,68,68,0.5)";  bg = "rgba(239,68,68,0.08)"; }
+    else if (warnDays < 30) { brd = "rgba(255,165,0,0.5)";  bg = "rgba(255,165,0,0.08)"; }
+  }
+  if (err) { brd = "rgba(239,68,68,0.9)"; bg = "rgba(239,68,68,0.15)"; }
+  return (
+    <div>
+      <input value={txt} disabled={disabled}
+        placeholder="TT.MM.JJJJ" inputMode="numeric"
+        onChange={function(e){ setTxt(e.target.value); if (err) setErr(false); }}
+        onBlur={function(e){ onCommit(e.target.value, setErr); }}
+        onKeyDown={function(e){ if (e.key === "Enter") e.target.blur(); }}
+        style={{ padding:"8px 10px", borderRadius:6, fontSize:13,
+          border:"1px solid "+brd, background:bg, color:"#fff", width:"130px", textAlign:"center" }} />
+      {err && <div style={{ fontSize:10, marginTop:2, color:"#ef4444" }}>Format: TT.MM.JJJJ</div>}
+    </div>
+  );
+}
+
 function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading }) {
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
   var _sv = useState("fristen"); var view = _sv[0]; var setView = _sv[1];
@@ -5385,6 +5415,29 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
     return "Kein Datum";
   }
 
+  // "15.06.2026" -> "2026-06-15" (формат базы). null если неверно/пусто.
+  function deToIso(s) {
+    if (!s) return null;
+    var t = String(s).trim();
+    if (!t) return null;
+    var m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return false; // false = введено что-то, но формат битый
+    var dd = parseInt(m[1], 10), mm = parseInt(m[2], 10), yy = parseInt(m[3], 10);
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
+    var dt = new Date(yy, mm - 1, dd);
+    if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return false;
+    var p = function(n){ return (n < 10 ? "0" : "") + n; };
+    return yy + "-" + p(mm) + "-" + p(dd);
+  }
+  // "2026-06-15" (или ISO) -> "15.06.2026" для показа.
+  function isoToDe(s) {
+    if (!s) return "";
+    var t = String(s).slice(0, 10);
+    var m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    return m[3] + "." + m[2] + "." + m[1];
+  }
+
   // Сохранить дату в vehicles или users. cellKey уникален для блокировки во время записи.
   function saveDate(table, id, field, value, cellKey) {
     setSavingCell(cellKey);
@@ -5394,6 +5447,16 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
       setSavingCell(null);
       if (ok) onRefresh();
     }).catch(function(){ setSavingCell(null); });
+  }
+
+  // Обработка ввода немецкой даты в текстовое поле. Пусто -> очистить. Битый формат -> подсветить, не сохранять.
+  function onDeDateInput(table, id, field, raw, cellKey, setErr) {
+    var t = String(raw||"").trim();
+    if (!t) { setErr(false); saveDate(table, id, field, null, cellKey); return; }
+    var iso = deToIso(t);
+    if (iso === false) { setErr(true); return; }
+    setErr(false);
+    saveDate(table, id, field, iso, cellKey);
   }
 
   // Машины для вкладки Fristen — с поиском по номеру.
@@ -5619,16 +5682,10 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
                         function dateCell(field, val) {
                           var ck = v.id + "_" + field;
                           var d = daysUntil(val);
-                          var warn = d !== null && d < 30;
                           return (
                             <td>
-                              <input type="date" defaultValue={val ? String(val).slice(0,10) : ""}
-                                disabled={savingCell === ck}
-                                onChange={function(e){ saveDate("vehicles", v.id, field, e.target.value, ck); }}
-                                style={{ padding:"6px 8px", borderRadius:6, fontSize:12,
-                                  border:"1px solid " + (warn ? (d<0?"rgba(239,68,68,0.6)":"rgba(255,165,0,0.5)") : "rgba(255,255,255,0.15)"),
-                                  background: warn ? (d<0?"rgba(239,68,68,0.1)":"rgba(255,165,0,0.08)") : "rgba(255,255,255,0.05)",
-                                  color:"#fff", width:"140px" }} />
+                              <DeDateInput value={isoToDe(val)} disabled={savingCell === ck} warnDays={d}
+                                onCommit={function(raw, setErr){ onDeDateInput("vehicles", v.id, field, raw, ck, setErr); }} />
                               {d !== null && d < 60 && (
                                 <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<14?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
                                   {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
@@ -5700,13 +5757,8 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
                                   color:"#fff", width:"120px" }} />
                             </td>
                             <td>
-                              <input type="date" defaultValue={u.fuehrerschein_ablauf ? String(u.fuehrerschein_ablauf).slice(0,10) : ""}
-                                disabled={savingCell === ckD}
-                                onChange={function(e){ saveDate("users", u.id, "fuehrerschein_ablauf", e.target.value, ckD); }}
-                                style={{ padding:"6px 8px", borderRadius:6, fontSize:12,
-                                  border:"1px solid " + (warn ? (d<0?"rgba(239,68,68,0.6)":"rgba(255,165,0,0.5)") : "rgba(255,255,255,0.15)"),
-                                  background: warn ? (d<0?"rgba(239,68,68,0.1)":"rgba(255,165,0,0.08)") : "rgba(255,255,255,0.05)",
-                                  color:"#fff", width:"140px" }} />
+                              <DeDateInput value={isoToDe(u.fuehrerschein_ablauf)} disabled={savingCell === ckD} warnDays={d}
+                                onCommit={function(raw, setErr){ onDeDateInput("users", u.id, "fuehrerschein_ablauf", raw, ckD, setErr); }} />
                               {d !== null && d < 90 && (
                                 <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
                                   {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
