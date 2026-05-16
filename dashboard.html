@@ -809,7 +809,7 @@ function ExportModal() {
 }
 
 function baseReportStyle() {
-  return "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:1000px;margin:0 auto}h1{color:#0a1730;margin-bottom:6px}h2{color:#1e4fa0;font-size:14px;margin-bottom:20px;font-weight:400}table{width:100%;border-collapse:collapse;margin-bottom:20px}td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:12px}th{background:#0a1730;color:#fff;font-size:11px;letter-spacing:0.5px}tr:nth-child(even){background:#f8f9fc}.sum{background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:30px}.sum-item{text-align:center}.sum-val{font-size:22px;font-weight:900;color:#0a1730}.sum-lab{font-size:10px;color:#666;text-transform:uppercase;margin-top:2px}@media print{button{display:none}}</style>";
+  return "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:1000px;margin:0 auto}h1{color:#0a1730;margin-bottom:6px}h2{color:#1e4fa0;font-size:14px;margin-bottom:20px;font-weight:400}table{width:100%;border-collapse:collapse;margin-bottom:20px}td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:12px}th{background:#0a1730;color:#fff;font-size:11px;letter-spacing:0.5px}tr:nth-child(even){background:#f8f9fc}.sum{background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:30px}.sum-item{text-align:center}.sum-val{font-size:22px;font-weight:900;color:#0a1730}.sum-lab{font-size:10px;color:#666;text-transform:uppercase;margin-top:2px}thead{display:table-header-group}tfoot{display:table-footer-group}tr{page-break-inside:avoid}@media print{button{display:none}body{padding:0}table{font-size:11px}td,th{padding:6px 8px}}</style>";
 }
 
 // Строгий Ч/Б документ одной заявки — печать на любом принтере (вкл. ч/б).
@@ -6054,6 +6054,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
   var vf = _vf[0]; var setVf = _vf[1];
   var _vfEdit = useState(null); var vfEditId = _vfEdit[0]; var setVfEditId = _vfEdit[1];
   var _selDrv = useState([]); var selDrivers = _selDrv[0]; var setSelDrivers = _selDrv[1];
+  var _drvModal = useState(null); var drvModal = _drvModal[0]; var setDrvModal = _drvModal[1];
   // Forklift form
   var _ff = useState({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true });
   var ff = _ff[0]; var setFf = _ff[1];
@@ -6173,6 +6174,35 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
       };
     });
     exportXlsx(rows, headers, "Fahrer — Führerschein & Unterweisung", null);
+  }
+
+  // Печать карточки ОДНОГО водителя (досье) — строгий Ч/Б, как exportSingleAlert у механиков
+  function exportSingleFahrer(u) {
+    var nied = (dbNiederlassungen.find(function(n){ return n.id === u.niederlassung_id; })||{}).name || u.niederlassung_id || "—";
+    var rows = [
+      ["Name", u.name||"—"],
+      ["Niederlassung", nied],
+      ["Status", u.active ? "Aktiv" : "Inaktiv"],
+      ["—", "—"],
+      ["Führerschein-Klassen", u.fuehrerschein_klassen||"—"],
+      ["Führerschein gültig bis", u.fuehrerschein_ablauf ? isoToDe(u.fuehrerschein_ablauf) : "—"],
+      ["—", "—"],
+      ["Letzte Führerscheinkontrolle", u.fs_kontrolle_letzte ? isoToDe(u.fs_kontrolle_letzte) : "—"],
+      ["Nächste Führerscheinkontrolle", u.fs_kontrolle_naechste ? isoToDe(u.fs_kontrolle_naechste) : "—"],
+      ["—", "—"],
+      ["Letzte Fahrerunterweisung", u.unterweisung_letzte ? isoToDe(u.unterweisung_letzte) : "—"],
+      ["Nächste Fahrerunterweisung", u.unterweisung_naechste ? isoToDe(u.unterweisung_naechste) : "—"]
+    ];
+    var trs = rows.map(function(r){
+      if (r[0]==="—") return "<tr><td colspan='2' style='border-top:2px solid #0a1730;padding:4px'></td></tr>";
+      return "<tr><th style='width:42%;background:#f0f0f0;color:#111;text-align:left'>"+r[0]+"</th><td>"+r[1]+"</td></tr>";
+    }).join("");
+    var now = new Date();
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Fahrer "+(u.name||"")+"</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Fahrerakte</h1><h2>"+(u.name||"")+" · Stand: "+now.toLocaleDateString("de-DE")+"</h2>"+
+      "<table><tbody>"+trs+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Fahrerakte " + (u.name||""));
   }
 
   function saveForklift() {
@@ -6987,10 +7017,10 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                   </div>
                 </div>
                 <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", padding:"0 0 12px" }}>
-                  Fahrer registrieren sich selbst in der Fahrer-App mit dem gemeinsamen PIN. Führerschein-Daten hier per ✎ pflegen.
+                  Name anklicken = Fahrerakte ansehen/drucken. ✎ = Führerschein-Daten pflegen.
                   {selDrivers.length > 0
-                    ? " Export: " + selDrivers.length + " ausgewählt."
-                    : " Export: alle Fahrer (keine Auswahl)."}
+                    ? " PDF/Excel: " + selDrivers.length + " ausgewählt."
+                    : " Tipp: Einzelne auswählen für gezielten Druck — vollständige Liste besser als Excel exportieren."}
                 </div>
                 {(function(){
                   var fahrer = dbUsers.filter(function(u){ return u.role === "fahrer"; });
@@ -7020,11 +7050,11 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                           return (
                             <tr key={u.id} style={{ opacity: u.active ? 1 : 0.45, background: checked ? "rgba(255,165,0,0.06)" : "transparent" }}>
                               <td><input type="checkbox" checked={checked} onChange={function(){ toggleDriver(u.id); }} /></td>
-                              <td>
+                              <td onClick={function(){ setDrvModal(u); }} style={{ cursor:"pointer" }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                   <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:"#ffa500" }}>{u.avatar||"??"}</div>
                                   <div>
-                                    <strong>{u.name}</strong>
+                                    <strong style={{ textDecoration:"underline", textDecorationColor:"rgba(255,165,0,0.3)" }}>{u.name}</strong>
                                     <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{nied}</div>
                                   </div>
                                 </div>
@@ -7046,11 +7076,69 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                   );
                 })()}
               </div>
+
+              {drvModal && (
+                <div onClick={function(){ setDrvModal(null); }} style={{
+                  position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:200,
+                  display:"flex", alignItems:"center", justifyContent:"center", padding:"20px", overflowY:"auto"
+                }}>
+                  <div onClick={function(e){ e.stopPropagation(); }} style={{
+                    background:"#0d1f3d", border:"1px solid rgba(255,255,255,0.15)",
+                    borderRadius:20, maxWidth:620, width:"100%",
+                    boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden"
+                  }}>
+                    <div style={{ background:"linear-gradient(135deg,#1e3a5f,#1e4fa0)", padding:"20px 28px", display:"flex", alignItems:"center", gap:16 }}>
+                      <div style={{ width:44, height:44, borderRadius:"50%", background:"rgba(255,165,0,0.2)", border:"1px solid rgba(255,165,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:800, color:"#ffa500" }}>{drvModal.avatar||"??"}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:22, fontWeight:900, color:"#fff" }}>{drvModal.name||"—"}</div>
+                        <div style={{ fontSize:13, color:"rgba(255,255,255,0.6)", marginTop:3 }}>Fahrerakte · Führerschein &amp; Unterweisung</div>
+                      </div>
+                      <button onClick={function(){ exportSingleFahrer(drvModal); }} title="Drucken / PDF" className="no-print"
+                        style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", height:36, padding:"0 14px", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                        📄 Drucken / PDF
+                      </button>
+                      <button onClick={function(){ setDrvModal(null); }}
+                        style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer" }}>✕</button>
+                    </div>
+                    <div style={{ padding:"24px 28px" }}>
+                      {(function(){
+                        function row(label, val, soonDays) {
+                          var dd = val ? Math.round((new Date(val).getTime() - Date.now())/86400000) : null;
+                          var clr = dd === null ? "rgba(255,255,255,0.5)" : (dd<0?"#ef4444":(soonDays&&dd<soonDays)?"#ffa500":"#fff");
+                          return (
+                            <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+                              <span style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>{label}</span>
+                              <span style={{ fontSize:14, fontWeight:700, color:clr }}>
+                                {val ? isoToDe(val) : (typeof val === "string" ? "—" : "—")}
+                                {dd !== null && soonDays && dd < soonDays ? (dd<0 ? "  ("+Math.abs(dd)+"d überfällig)" : "  (in "+dd+"d)") : ""}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div>
+                            <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+                              <span style={{ fontSize:13, color:"rgba(255,255,255,0.55)" }}>Führerschein-Klassen</span>
+                              <span style={{ fontSize:14, fontWeight:700, color:"#fff" }}>{drvModal.fuehrerschein_klassen || "—"}</span>
+                            </div>
+                            {row("Führerschein gültig bis", drvModal.fuehrerschein_ablauf, 30)}
+                            {row("Letzte Führerscheinkontrolle", drvModal.fs_kontrolle_letzte, null)}
+                            {row("Nächste Führerscheinkontrolle", drvModal.fs_kontrolle_naechste, 30)}
+                            {row("Letzte Fahrerunterweisung", drvModal.unterweisung_letzte, null)}
+                            {row("Nächste Fahrerunterweisung", drvModal.unterweisung_naechste, 30)}
+                            <div style={{ marginTop:18, display:"flex", gap:8 }}>
+                              <button className="btn-primary btn-small" onClick={function(){ var d=drvModal; setDrvModal(null); setUEdit(Object.assign({},d,{rate_per_hour: d.rate_per_hour ? String(d.rate_per_hour) : "" })); }}>✎ Bearbeiten</button>
+                              <button className="btn-secondary btn-small" onClick={function(){ setDrvModal(null); }}>Schließen</button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-
-          {/* === ALLGEMEINE PINs === */}
-          {mTab === "pins" && (
             <div>
               <div className="panel">
                 <div className="panel-hd"><div className="panel-title">Allgemeine PINs</div></div>
