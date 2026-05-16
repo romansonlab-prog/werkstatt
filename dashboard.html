@@ -7359,23 +7359,28 @@ function AppShell({ user, onLogout }) {
   }).length;
 
   var NAV = [
-    { k:"uebersicht",  ic: IC.home,     label:"Übersicht" },
-    { k:"eingang",     ic: IC.inbox,    label:"Eingang",      badge: openAlerts.length },
-    { k:"mechaniker",  ic: IC.wrench,   label:"Mechaniker" },
-    { k:"technik",     ic: IC.truck,    label:"Technik" },
-    { k:"analytik",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>, label:"Analytik" },
-    { k:"inspektion",  ic: IC.search,   label:"Inspektion" },
-    { k:"du",          ic: IC.archive,  label:"DU Auflieger" },
-    { k:"waschhalle",  ic: IC.droplet,  label:"Waschhalle" },
-    { k:"lager",       ic: IC.box,      label:"Lager",         badge: lowStock, badgeCls:"orange" },
-    { k:"kosten",      ic: IC.euro,     label:"Kosten" },
-    { k:"rechnungen",  ic: IC.receipt,  label:"Lieferscheine" },
-    { k:"wartung",     ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
-    { k:"archiv",      ic: IC.archive,  label:"Archiv" },
-    { k:"monatsbericht", ic: IC.report,  label:"Monatsbericht" },
-    { k:"vergleich",   ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>, label:"Vergleich" },
-    { k:"kontakte",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
-    { k:"settings",    ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
+    // OPERATIV
+    { k:"uebersicht",  g:"OPERATIV", ic: IC.home,     label:"Übersicht" },
+    { k:"eingang",     g:"OPERATIV", ic: IC.inbox,    label:"Eingang",      badge: openAlerts.length },
+    { k:"mechaniker",  g:"OPERATIV", ic: IC.wrench,   label:"Mechaniker" },
+    // FUHRPARK
+    { k:"technik",     g:"FUHRPARK", ic: IC.truck,    label:"Technik" },
+    { k:"inspektion",  g:"FUHRPARK", ic: IC.search,   label:"Inspektion" },
+    { k:"du",          g:"FUHRPARK", ic: IC.archive,  label:"DU Auflieger" },
+    { k:"wartung",     g:"FUHRPARK", ic: IC.calendar, label:"Wartungsplan",  badge: overduePlans, badgeCls:"" },
+    // FINANZEN
+    { k:"analytik",    g:"FINANZEN", ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>, label:"Analytik" },
+    { k:"kosten",      g:"FINANZEN", ic: IC.euro,     label:"Kosten" },
+    { k:"rechnungen",  g:"FINANZEN", ic: IC.receipt,  label:"Lieferscheine" },
+    // LOGISTIK
+    { k:"waschhalle",  g:"LOGISTIK", ic: IC.droplet,  label:"Waschhalle" },
+    { k:"lager",       g:"LOGISTIK", ic: IC.box,      label:"Lager",         badge: lowStock, badgeCls:"orange" },
+    // BERICHTE & SYSTEM
+    { k:"monatsbericht", g:"BERICHTE & SYSTEM", ic: IC.report,  label:"Monatsbericht" },
+    { k:"vergleich",   g:"BERICHTE & SYSTEM", ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>, label:"Vergleich" },
+    { k:"archiv",      g:"BERICHTE & SYSTEM", ic: IC.archive,  label:"Archiv" },
+    { k:"kontakte",    g:"BERICHTE & SYSTEM", ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, label:"Kontakte" },
+    { k:"settings",    g:"BERICHTE & SYSTEM", ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>, label:"Einstellungen" },
   ];
 
   var PAGE_TITLES = {
@@ -7458,13 +7463,23 @@ function AppShell({ user, onLogout }) {
         </div>
 
         <div className="sidebar-nav">
-          {NAV.map(function(n){
+          {NAV.map(function(n, idx){
+            var showGroup = idx === 0 || NAV[idx-1].g !== n.g;
             return (
-              <button key={n.k} className={"nav-item" + (sec===n.k ? " active" : "")} onClick={function(){ setSec(n.k); }}>
-                <span style={{ display:"flex", alignItems:"center", flexShrink:0 }}>{n.ic}</span>
-                <span>{n.label}</span>
-                {n.badge > 0 && <span className={"nav-badge " + (n.badgeCls||"")}>{n.badge}</span>}
-              </button>
+              <React.Fragment key={n.k}>
+                {showGroup && (
+                  <div style={{ padding:"14px 20px 6px", fontSize:10, fontWeight:800,
+                    letterSpacing:1.2, color:"rgba(255,255,255,0.3)", textTransform:"uppercase",
+                    marginTop: idx === 0 ? 0 : 8 }}>
+                    {n.g}
+                  </div>
+                )}
+                <button className={"nav-item" + (sec===n.k ? " active" : "")} onClick={function(){ setSec(n.k); }}>
+                  <span style={{ display:"flex", alignItems:"center", flexShrink:0 }}>{n.ic}</span>
+                  <span>{n.label}</span>
+                  {n.badge > 0 && <span className={"nav-badge " + (n.badgeCls||"")}>{n.badge}</span>}
+                </button>
+              </React.Fragment>
             );
           })}
         </div>
