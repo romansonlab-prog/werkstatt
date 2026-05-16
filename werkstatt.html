@@ -1714,6 +1714,39 @@ function LieferscheinFoto({ item, updateShopItem, stageId }) {
 function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, stageId }) {
   var _sscan = useState(false); var showScanner = _sscan[0]; var setShowScanner = _sscan[1];
   var _sscanTarget = useState(null); var scanTarget = _sscanTarget[0]; var setScanTarget = _sscanTarget[1];
+  // Аккордеон: свёрнута ли форма выбранного типа
+  var _scol = useState(false); var collapsed = _scol[0]; var setCollapsed = _scol[1];
+
+  // Клик по кнопке типа: если кликнули по уже активному типу — сворачиваем/разворачиваем.
+  // Если выбрали другой тип — переключаем и разворачиваем.
+  function pickType(k) {
+    if (k === partsType) {
+      // повторный тап по активному — тоггл сворачивания (кроме "none" — там нечего сворачивать)
+      if (k !== "none") setCollapsed(!collapsed);
+    } else {
+      setPartsType(k);
+      setCollapsed(false);
+    }
+  }
+
+  // Краткая сводка по выбранному типу (для свёрнутого вида)
+  function typeSummary() {
+    if (partsType === "shop") {
+      var lsCount = shopItems.length;
+      var posCount = shopItems.reduce(function(s, ls){
+        return s + (Array.isArray(ls.positionen) ? ls.positionen.length : 0);
+      }, 0);
+      var total = shopItems.reduce(function(s, ls){
+        var pos = Array.isArray(ls.positionen) ? ls.positionen : [];
+        return s + pos.reduce(function(ps, p){ return ps + parsePriceDE(p.preis); }, 0);
+      }, 0);
+      return "Aus dem Laden · " + lsCount + " LS · " + posCount + " Pos. · " + total.toFixed(2) + " €";
+    }
+    if (partsType === "lager") return "Neu aus Lager";
+    if (partsType === "used") return "Gebrauchtteil (B/U)";
+    return "";
+  }
+
 
   function newPosition() {
     return { id: genId("PS"), bez:"", preis:"" };
@@ -1819,19 +1852,40 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
       {/* 4 кнопки типа */}
       <div style={{ display:"flex", gap:8, marginBottom:14 }}>
         {PARTS_TYPES.map(function(pt) {
+          var isActive = partsType === pt.k;
           return (
             <button key={pt.k} type="button"
-              className={"parts-type-btn" + (partsType === pt.k ? " active" : "")}
-              onClick={function(){ setPartsType(pt.k); }}>
+              className={"parts-type-btn" + (isActive ? " active" : "")}
+              onClick={function(){ pickType(pt.k); }}>
               <div style={{ fontSize:20, marginBottom:4 }}>{pt.icon}</div>
               <div style={{ whiteSpace:"pre-line", fontSize:11 }}>{pt.label}</div>
+              {isActive && pt.k !== "none" && (
+                <div style={{ fontSize:14, marginTop:2, color:"#ffa500", lineHeight:1 }}>
+                  {collapsed ? "▾" : "▴"}
+                </div>
+              )}
             </button>
           );
         })}
       </div>
 
+      {/* Свёрнутая сводка — клик разворачивает */}
+      {collapsed && partsType !== "none" && (
+        <div onClick={function(){ setCollapsed(false); }}
+          style={{ cursor:"pointer", padding:"14px 16px", borderRadius:12,
+            background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.25)",
+            display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.85)" }}>
+            {typeSummary()}
+          </span>
+          <span style={{ fontSize:12, color:"#ffa500", fontWeight:700, whiteSpace:"nowrap" }}>
+            ▾ Bearbeiten
+          </span>
+        </div>
+      )}
+
       {/* Neu aus Lager — штрихкод + список */}
-      {partsType === "lager" && (
+      {partsType === "lager" && !collapsed && (
         <div>
           <button type="button"
             style={{
@@ -1884,14 +1938,14 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
       )}
 
       {/* Gebraucht — заглушка */}
-      {partsType === "used" && (
+      {partsType === "used" && !collapsed && (
         <div style={{ padding:"14px 16px", borderRadius:12, background:"rgba(34,197,94,0.07)", border:"1px solid rgba(34,197,94,0.2)", color:"rgba(255,255,255,0.65)", fontSize:13 }}>
           ♻️ Gebrauchtteil wird verwendet. Keine weitere Erfassung notwendig.
         </div>
       )}
 
       {/* Aus dem Laden — Lieferschein с позициями */}
-      {partsType === "shop" && (
+      {partsType === "shop" && !collapsed && (
         <div>
           {shopItems.map(function(item, idx) {
             var positionen = Array.isArray(item.positionen) ? item.positionen : [];
@@ -1906,19 +1960,16 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
                   )}
                 </div>
 
-                {/* Nr + Datum */}
-                <div className="grid2" style={{ marginBottom:14, alignItems:"start" }}>
-                  <div>
-                    <div className="label-cap" style={{ minHeight:34, display:"flex", alignItems:"flex-end", paddingBottom:4 }}>Lieferschein-Nr.</div>
-                    <input className="input-dark" value={item.lieferschein} placeholder="z.B. 12345"
-                      inputMode="numeric"
-                      onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
-                  </div>
-                  <div>
-                    <div className="label-cap" style={{ minHeight:34, display:"flex", alignItems:"flex-end", paddingBottom:4 }}>Datum</div>
-                    <input type="date" className="input-dark" value={item.datum}
-                      onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
-                  </div>
+                {/* Nr + Datum — каждое на всю ширину */}
+                <div style={{ marginBottom:14 }}>
+                  <div className="label-cap" style={{ marginBottom:4 }}>Lieferschein-Nr.</div>
+                  <input className="input-dark" value={item.lieferschein} placeholder="z.B. 12345"
+                    inputMode="numeric" style={{ width:"100%", marginBottom:12 }}
+                    onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
+                  <div className="label-cap" style={{ marginBottom:4 }}>Datum</div>
+                  <input type="date" className="input-dark" value={item.datum}
+                    style={{ width:"100%" }}
+                    onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
                 </div>
 
                 {/* Позиции этого Lieferschein */}
