@@ -712,6 +712,42 @@ function uploadAll(photos, alertId) {
     .then(function(urls){ return urls.filter(Boolean); });
 }
 
+// Ранняя загрузка одного фото во ВРЕМЕННУЮ папку — сразу при добавлении.
+// Так фото переживает выход/вход (URL хранится, не base64 в localStorage).
+// При отправке заявки URL уже готов — перезаливать не нужно.
+// Собирает финальные URL из photos. Большинство уже загружено (uploadPhotoEarly).
+// Если какое-то ещё грузится / не успело — доуливаем по alertId как раньше.
+function collectPhotoUrls(photos, alertId) {
+  if (!photos || !photos.length) return Promise.resolve([]);
+  var ready = [];
+  var pending = [];
+  photos.forEach(function(p){
+    if (typeof p === "string") { pending.push(p); return; }      // старый формат base64
+    if (p && p.url) { ready.push(p.url); return; }                // уже загружено
+    if (p && p.b64) { pending.push(p.b64); return; }              // ещё не успело — догрузим
+  });
+  if (!pending.length) return Promise.resolve(ready);
+  return compressAll(pending)
+    .then(function(c){ return uploadAll(c, alertId); })
+    .then(function(urls){ return ready.concat(urls.filter(Boolean)); });
+}
+
+function uploadPhotoEarly(b64) {
+  if (!b64) return Promise.resolve(null);
+  var tmpId = "_tmp/" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+  return compressPhoto(b64).then(function(c){
+    return fetch(c).then(function(r){ return r.blob(); }).then(function(blob){
+      var ext = blob.type && blob.type.indexOf("png")!==-1?"png":"jpg";
+      var path = "eingang/"+tmpId+"/photo_0."+ext;
+      return fetch(SB_URL+"/storage/v1/object/inspection-photos/"+path, {
+        method:"POST",
+        headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":blob.type||"image/jpeg","x-upsert":"true"},
+        body:blob
+      }).then(function(r){ return r.ok?(SB_URL+"/storage/v1/object/public/inspection-photos/"+path):null; });
+    });
+  }).catch(function(){ return null; });
+}
+
 // ── COMMON ────────────────────────────────────────────────────────────────────
 function Bg() { return <div className="bg-image"></div>; }
 
@@ -822,8 +858,27 @@ function PhotoUpload({ photos, setPhotos, t }) {
     var files=Array.from(e.target.files||[]);
     Promise.all(files.map(function(f){
       return new Promise(function(res){ var r=new FileReader(); r.onload=function(ev){ res(ev.target.result); }; r.readAsDataURL(f); });
-    })).then(function(arr){ setPhotos(photos.concat(arr)); });
+    })).then(function(arr){
+      // Добавляем с флагом uploading, сразу грузим в Storage (переживёт выход/вход)
+      var newItems = arr.map(function(b64){ return { b64:b64, url:null, uploading:true }; });
+      var base = photos.concat(newItems);
+      setPhotos(base);
+      newItems.forEach(function(item, idx){
+        var pos = photos.length + idx;
+        uploadPhotoEarly(item.b64).then(function(url){
+          setPhotos(function(prev){
+            var cp = prev.slice();
+            if (cp[pos]) cp[pos] = Object.assign({}, cp[pos], { url:url, uploading:false });
+            return cp;
+          });
+        });
+      });
+    });
     e.target.value="";
+  }
+  function previewSrc(p){
+    if (typeof p === "string") return p;       // обратная совместимость
+    return (p && (p.b64 || p.url)) || "";
   }
   return (
     <div>
@@ -838,9 +893,13 @@ function PhotoUpload({ photos, setPhotos, t }) {
       {photos.length>0 && (
         <div style={{ display:"flex",gap:8,marginTop:10,flexWrap:"wrap" }}>
           {photos.map(function(p,i){
+            var up = (typeof p === "object" && p && p.uploading);
             return (
               <div key={i} style={{ position:"relative" }}>
-                <img src={p} alt="" style={{ width:70,height:70,objectFit:"cover",borderRadius:8,border:"1px solid rgba(255,255,255,0.2)" }} />
+                <img src={previewSrc(p)} alt="" style={{ width:70,height:70,objectFit:"cover",borderRadius:8,border:"1px solid rgba(255,255,255,0.2)", opacity: up?0.5:1 }} />
+                {up && (
+                  <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, color:"#ffa500", fontWeight:700 }}>...</div>
+                )}
                 <button type="button" onClick={function(){ setPhotos(photos.filter(function(_,j){ return j!==i; })); }}
                   style={{ position:"absolute",top:-6,right:-6,width:20,height:20,border:0,borderRadius:"50%",background:"#ef4444",color:"#fff",fontWeight:800,fontSize:12 }}>×</button>
               </div>
@@ -1154,8 +1213,7 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
       ? sbPost("vehicles",{id:genId("v_"),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:vType,mileage:0}).catch(function(){})
       : Promise.resolve(true);
     saveVeh
-      .then(function(){ return compressAll(photos); })
-      .then(function(compressed){ return uploadAll(compressed,alertId); })
+      .then(function(){ return collectPhotoUrls(photos, alertId); })
       .then(function(urls){
         var checksObj = {}; items.forEach(function(c){ checksObj[c.k]=chk[c.k]||"ok"; });
         var mangelObj = {}; items.forEach(function(c){ if(chk[c.k]==="fail") mangelObj[c.k]=c.label; });
@@ -1362,7 +1420,12 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var _svd=useState(false); var voiceDesc=_svd[0]; var setVoiceDesc=_svd[1];
   var _svdt=useState(""); var voiceDescText=_svdt[0]; var setVoiceDescText=_svdt[1];
   var voiceDescRef=useRef(null);
-  var _ph=useState([]); var photos=_ph[0]; var setPhotos=_ph[1];
+  // Фото: восстанавливаем из черновика только уже загруженные (с url).
+  // base64 в черновик не пишем (большие), поэтому переживают только залитые в Storage.
+  var _ph=useState((_draftInit.photos && _draftInit.photos.length)
+    ? _draftInit.photos.filter(function(x){ return x && x.url; })
+    : []);
+  var photos=_ph[0]; var setPhotos=_ph[1];
   var _snd=useState(false); var sending=_snd[0]; var setSending=_snd[1];
   var _sent=useState(false); var sent=_sent[0]; var setSent=_sent[1];
   var _err=useState(""); var errMsg=_err[0]; var setErrMsg=_err[1];
@@ -1372,11 +1435,17 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
   // Автосохранение черновика
   useEffect(function(){
     try {
+      // В черновик кладём только загруженные фото как {url} — короткие строки.
+      // b64 НЕ сохраняем (раздуют localStorage, лимит ~5MB).
+      var photoMeta = (photos||[])
+        .filter(function(p){ return p && typeof p === "object" && p.url; })
+        .map(function(p){ return { url:p.url }; });
       localStorage.setItem(DRAFT_KEY_FAHRER, JSON.stringify({
-        sel:sel, bType:bType, urg:urg, loc:loc, desc:desc, targetWerkstatt:targetWerkstatt
+        sel:sel, bType:bType, urg:urg, loc:loc, desc:desc, targetWerkstatt:targetWerkstatt,
+        photos: photoMeta
       }));
     } catch(e) {}
-  }, [sel, bType, urg, loc, desc, targetWerkstatt]);
+  }, [sel, bType, urg, loc, desc, targetWerkstatt, photos]);
 
   useEffect(function(){
     sbGet("vehicles","select=id,plate,brand,model&order=plate").then(function(rows){
@@ -1430,8 +1499,7 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
     // Если водитель выбрал "sofort" + другой тип — это просто "urgent"
     var finalUrgency = (bType === "sos") ? "sos" : (urg === "sofort" ? "urgent" : "normal");
     saveVeh
-      .then(function(){ return compressAll(photos); })
-      .then(function(compressed){ return uploadAll(compressed,alertId); })
+      .then(function(){ return collectPhotoUrls(photos, alertId); })
       .then(function(urls){
         return sbPost("alerts",{
           id:alertId,type:bType,plate:sel.plate,location:loc,description:desc,
