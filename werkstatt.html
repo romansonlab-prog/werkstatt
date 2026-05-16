@@ -616,6 +616,74 @@ const { useEffect, useRef, useState } = React;
 const SB_URL = "https://vtswzvrflqoueowylidy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0c3d6dnJmbHFvdWVvd3lsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0OTY4NTEsImV4cCI6MjA5MjA3Mjg1MX0.xfsewg1ZGW4UDlNJAAYR-wwXStcVJIWOyCAOavuxnRI";
 const APP_PIN = "3847";
+// === PUSH-УВЕДОМЛЕНИЯ (клиент) ===
+var VAPID_PUBLIC_KEY = "BHSmp029OyyIDAfwXwg1rJ0DmpLjKSxwCYjwFCUisy1ad9TNLJyVCxfMYcmgavDOv5FvejvpdLsczlZJBJolrnM";
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = "=".repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  var raw = atob(base64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+// Подписаться на push. ctx = { userId, userName, role, niederlassungId, app }
+// Идемпотентно: повторный вызов обновляет запись (last_seen) без дублей.
+function pushSubscribe(ctx) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return Promise.resolve({ ok: false, reason: "unsupported" });
+  }
+  if (Notification.permission === "denied") {
+    return Promise.resolve({ ok: false, reason: "denied" });
+  }
+  return navigator.serviceWorker.ready.then(function(reg) {
+    return reg.pushManager.getSubscription().then(function(existing) {
+      if (existing) return existing;
+      return Notification.requestPermission().then(function(perm) {
+        if (perm !== "granted") throw new Error("permission-" + perm);
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      });
+    });
+  }).then(function(sub) {
+    var raw = sub.toJSON();
+    var endpoint = sub.endpoint;
+    var idKey = "push_" + btoa(endpoint).replace(/[^a-zA-Z0-9]/g, "").slice(0, 40);
+    var body = {
+      id: idKey,
+      endpoint: endpoint,
+      p256dh: raw.keys ? raw.keys.p256dh : "",
+      auth: raw.keys ? raw.keys.auth : "",
+      user_id: ctx.userId || null,
+      user_name: ctx.userName || null,
+      role: ctx.role || null,
+      niederlassung_id: ctx.niederlassungId || null,
+      app: ctx.app || null,
+      tenant_id: "ltg",
+      user_agent: (navigator.userAgent || "").slice(0, 250),
+      last_seen_at: new Date().toISOString()
+    };
+    // upsert по endpoint (merge-duplicates) — одно устройство = одна запись
+    return fetch(SB_URL + "/rest/v1/push_subscriptions?on_conflict=endpoint", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Prefer": "return=minimal,resolution=merge-duplicates"
+      },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      return { ok: r.ok, status: r.status };
+    });
+  }).catch(function(e) {
+    return { ok: false, reason: (e && e.message) || "error" };
+  });
+}
+
 const WERKSTATT_VERSION = "v3-items-supplier-amount";
 const SESSION_KEY = "werkflow_werkstatt_v1";
 const DRAFT_KEY = "draft_werkstatt_job";
@@ -5190,6 +5258,21 @@ function App() {
   var _salerts = useState([]); var alerts = _salerts[0]; var setAlerts = _salerts[1];
   var _users = useState([]); var dbUsers = _users[0]; var setDbUsers = _users[1];
   var _fb = useState(null); var fbPin = _fb[0]; var setFbPin = _fb[1];
+
+  // Подписка на push-уведомления после входа (механики получают пуш о новых заявках)
+  useEffect(function(){
+    if (!user || !user.id) return;
+    var t = setTimeout(function(){
+      pushSubscribe({
+        userId: user.id,
+        userName: user.name,
+        role: user.role || "mechaniker",
+        niederlassungId: user.niederlassung_id || null,
+        app: "werkstatt"
+      });
+    }, 3000);
+    return function(){ clearTimeout(t); };
+  }, [user]);
 
   // Логин по персональному PIN — данные из public.users
   function loginPersonal(u){
