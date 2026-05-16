@@ -6781,14 +6781,13 @@ function Vergleich({ jobs, invoices, vehicles }) {
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
-  // Свёрнутые группы меню. По умолчанию свёрнуты все кроме OPERATIV
-  // (там стартовый раздел Übersicht) — минимум визуального шума.
-  var _scg = useState({ "FUHRPARK":true, "FINANZEN":true, "LOGISTIK":true, "BERICHTE & SYSTEM":true });
-  var collapsedGroups = _scg[0]; var setCollapsedGroups = _scg[1];
+  // Классический аккордеон: одновременно раскрыта только ОДНА группа.
+  // Стартово открыта OPERATIV (там Übersicht). Клик по другому заголовку
+  // раскрывает его и автоматически сворачивает предыдущий.
+  var _scg = useState("OPERATIV");
+  var openGroup = _scg[0]; var setOpenGroup = _scg[1];
   function toggleGroup(g) {
-    var next = Object.assign({}, collapsedGroups);
-    next[g] = !next[g];
-    setCollapsedGroups(next);
+    setOpenGroup(openGroup === g ? null : g);
   }
   var _sj = useState([]); var jobs = _sj[0]; var setJobs = _sj[1];
   var _sa = useState([]); var alerts = _sa[0]; var setAlerts = _sa[1];
@@ -7098,16 +7097,16 @@ function AppShell({ user, onLogout }) {
 
         <div className="sidebar-nav">
           {(function(){
-            // Группа активного раздела всегда раскрыта (текущий пункт виден)
+            // Группа активного раздела учитывается как открытая (текущий пункт виден).
             var activeGroup = (NAV.find(function(x){ return x.k === sec; }) || {}).g;
-            function isGroupCollapsed(g) {
-              return collapsedGroups[g] === true && g !== activeGroup;
+            function isGroupOpen(g) {
+              return g === openGroup || g === activeGroup;
             }
             var out = [];
             NAV.forEach(function(n, idx){
               var firstInGroup = idx === 0 || NAV[idx-1].g !== n.g;
               if (firstInGroup) {
-                var collapsed = isGroupCollapsed(n.g);
+                var grpOpen = isGroupOpen(n.g);
                 out.push(
                   <button key={"grp_" + n.g} type="button"
                     onClick={function(){ toggleGroup(n.g); }}
@@ -7115,17 +7114,17 @@ function AppShell({ user, onLogout }) {
                       padding:"14px 20px 6px", border:0, background:"transparent",
                       cursor:"pointer", textAlign:"left",
                       marginTop: idx === 0 ? 0 : 8 }}>
-                    <span style={{ fontSize:9, color:"rgba(255,255,255,0.35)",
+                    <span style={{ fontSize:9, color:"#ffa500",
                       display:"inline-block",
-                      transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
+                      transform: grpOpen ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
                     <span style={{ fontSize:10, fontWeight:800, letterSpacing:1.2,
-                      color:"rgba(255,255,255,0.3)", textTransform:"uppercase" }}>
+                      color:"#ffa500", textTransform:"uppercase" }}>
                       {n.g}
                     </span>
                   </button>
                 );
               }
-              if (!isGroupCollapsed(n.g)) {
+              if (isGroupOpen(n.g)) {
                 out.push(
                   <button key={n.k} className={"nav-item" + (sec===n.k ? " active" : "")}
                     onClick={function(){ setSec(n.k); }}>
