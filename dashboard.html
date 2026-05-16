@@ -790,6 +790,87 @@ function baseReportStyle() {
   return "<style>body{font-family:Arial,sans-serif;padding:24px;color:#111;max-width:1000px;margin:0 auto}h1{color:#0a1730;margin-bottom:6px}h2{color:#1e4fa0;font-size:14px;margin-bottom:20px;font-weight:400}table{width:100%;border-collapse:collapse;margin-bottom:20px}td,th{padding:9px 11px;border-bottom:1px solid #e0e0e0;text-align:left;font-size:12px}th{background:#0a1730;color:#fff;font-size:11px;letter-spacing:0.5px}tr:nth-child(even){background:#f8f9fc}.sum{background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:30px}.sum-item{text-align:center}.sum-val{font-size:22px;font-weight:900;color:#0a1730}.sum-lab{font-size:10px;color:#666;text-transform:uppercase;margin-top:2px}@media print{button{display:none}}</style>";
 }
 
+// Строгий Ч/Б документ одной заявки — печать на любом принтере (вкл. ч/б).
+// Использует baseReportStyle (чёрный текст, белый фон, тонкие линии).
+function exportSingleAlert(a, linkedJob) {
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function cleanLoc(loc){
+    if(!loc) return "—";
+    var s=String(loc); var p=s.indexOf("|");
+    if(p!==-1) s=s.slice(0,p);
+    s=s.replace(/-?\d+\.\d{3,},\s*-?\d+\.\d{3,}/g,"").replace(/,\s*DE\s*$/i,"").replace(/[,\s]+$/g,"").replace(/^\s+/,"");
+    return s||"—";
+  }
+  var urgTxt = a.urgency==="sos" ? "SOS / Unfall" : a.urgency==="urgent" ? "Dringend" : "Normal";
+  var rows = [
+    ["Auftrag-Nr.", esc(a.plate||"—")],
+    ["Datum / Zeit", esc(fmtDateTime(a.created_at))],
+    ["Fahrer", esc(a.sender||"—")],
+    ["Quelle", a.sender_app==="stapler"?"Stapler":"Fahrer"],
+    ["Priorität", urgTxt],
+    ["Standort", esc(cleanLoc(a.location))],
+    ["Meldung", esc(a.description||"—")]
+  ];
+  if (linkedJob) {
+    rows.push(["—", "—"]);
+    rows.push(["Mechaniker", esc(linkedJob.mechanic_name||linkedJob.mechanic||"—") + (linkedJob.colleague?(" + "+esc(linkedJob.colleague)):"")]);
+    rows.push(["Status", statusDE(linkedJob.status)]);
+    rows.push(["Arbeitszeit", fmtMin(linkedJob.work_min||0)]);
+    rows.push(["Kosten", linkedJob.cost?(Number(linkedJob.cost).toFixed(2)+" EUR"):"—"]);
+    if (linkedJob.description) rows.push(["Arbeitsbeschreibung", esc(linkedJob.description)]);
+    // Pausen
+    var pl = linkedJob.pause_log;
+    if (typeof pl === "string") { try { pl = JSON.parse(pl); } catch(e){ pl=[]; } }
+    if (Array.isArray(pl) && pl.length) {
+      var pmin = pl.reduce(function(s,p){ return s+(parseInt(p.minutes||0)||0); }, 0);
+      rows.push(["Pausen gesamt", fmtMin(pmin) + " (" + pl.length + ")"]);
+    }
+  } else {
+    rows.push(["Status", "Noch nicht bearbeitet"]);
+  }
+  var trs = rows.map(function(r){
+    if (r[0]==="—") return "<tr><td colspan='2' style='border-top:2px solid #0a1730;padding:4px'></td></tr>";
+    return "<tr><th style='width:34%;background:#f0f0f0;color:#111;text-align:left'>"+r[0]+"</th><td>"+r[1]+"</td></tr>";
+  }).join("");
+  var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Auftrag "+esc(a.plate||"")+"</title>"+baseReportStyle()+"</head><body>"+
+    "<h1>WerkFlow — Auftrag "+esc(a.plate||"")+"</h1>"+
+    "<h2>"+esc(fmtDateTime(a.created_at))+" · LTG Landauer Transportgesellschaft</h2>"+
+    "<table><tbody>"+trs+"</tbody></table>"+
+    "<p style='font-size:11px;color:#666;margin-top:30px'>Erstellt: "+new Date().toLocaleString("de-DE")+" · WerkFlow</p>"+
+    "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>Drucken / PDF</button>"+
+    "</body></html>";
+  printHtml(html, "Auftrag_"+(a.plate||"")+"_"+(a.created_at||"").slice(0,10));
+}
+
+function exportSingleAlertXlsx(a, linkedJob) {
+  function cleanLoc(loc){
+    if(!loc) return "—";
+    var s=String(loc); var p=s.indexOf("|");
+    if(p!==-1) s=s.slice(0,p);
+    s=s.replace(/-?\d+\.\d{3,},\s*-?\d+\.\d{3,}/g,"").replace(/,\s*DE\s*$/i,"").replace(/[,\s]+$/g,"").replace(/^\s+/,"");
+    return s||"—";
+  }
+  var headers = ["Feld", "Wert"];
+  var rows = [
+    { "Feld":"Auftrag-Nr.", "Wert": a.plate||"—" },
+    { "Feld":"Datum / Zeit", "Wert": fmtDateTime(a.created_at) },
+    { "Feld":"Fahrer", "Wert": a.sender||"—" },
+    { "Feld":"Priorität", "Wert": a.urgency==="sos"?"SOS / Unfall":a.urgency==="urgent"?"Dringend":"Normal" },
+    { "Feld":"Standort", "Wert": cleanLoc(a.location) },
+    { "Feld":"Meldung", "Wert": a.description||"—" }
+  ];
+  if (linkedJob) {
+    rows.push({ "Feld":"Mechaniker", "Wert": linkedJob.mechanic_name||linkedJob.mechanic||"—" });
+    rows.push({ "Feld":"Status", "Wert": statusDE(linkedJob.status) });
+    rows.push({ "Feld":"Arbeitszeit (min)", "Wert": parseInt(linkedJob.work_min||0)||0 });
+    rows.push({ "Feld":"Kosten (EUR)", "Wert": linkedJob.cost?Number(Number(linkedJob.cost).toFixed(2)):0 });
+    if (linkedJob.description) rows.push({ "Feld":"Arbeitsbeschreibung", "Wert": linkedJob.description });
+  } else {
+    rows.push({ "Feld":"Status", "Wert":"Noch nicht bearbeitet" });
+  }
+  exportXlsx(rows, headers, "Auftrag_"+(a.plate||""), [{ label:"Datum", value: fmtDateTime(a.created_at) }]);
+}
+
 function exportJobs(jobs, title, dateLabel) {
   var total = jobs.length;
   var totalMin = jobs.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
@@ -1724,13 +1805,6 @@ function Eingang({ alerts, jobs, onRefresh, loading }) {
                           📷 {photos.length}
                         </button>
                       )}
-                      {!done && (
-                        <button className="no-print" disabled={updating}
-                          onClick={function(){ markDone(a.id); }}
-                          style={{ fontSize:12, padding:"4px 8px", borderRadius:6, border:"1px solid rgba(34,197,94,0.4)", background:"rgba(34,197,94,0.1)", color:"#22c55e", cursor:"pointer", whiteSpace:"nowrap" }}>
-                          ✓ OK
-                        </button>
-                      )}
                     </div>
                   </div>
                   {/* ФОТО — раскрываются по кнопке */}
@@ -1783,6 +1857,20 @@ function Eingang({ alerts, jobs, onRefresh, loading }) {
                   </div>
                 </div>
                 {urgBadge(a.urgency)}
+                <button onClick={function(){ exportSingleAlert(a, linkedJob); }} title="Drucken / PDF"
+                  className="no-print"
+                  style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff",
+                    height:36, padding:"0 12px", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:6 }}>
+                  📄 PDF
+                </button>
+                <button onClick={function(){ exportSingleAlertXlsx(a, linkedJob); }} title="Excel-Datei"
+                  className="no-print"
+                  style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff",
+                    height:36, padding:"0 12px", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:6 }}>
+                  📊 Excel
+                </button>
                 <button onClick={function(){ setSelectedAlert(null); }}
                   style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff",
                     width:36, height:36, borderRadius:"50%", fontSize:18, cursor:"pointer",
