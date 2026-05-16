@@ -2429,6 +2429,19 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     s = s.replace(/,\s*DE\s*$/i, "").replace(/[,\s]+$/g, "").replace(/^\s+/, "");
     return s || "Standort";
   }
+  // Координаты из строки адреса (для кнопок навигации — механик едет к машине).
+  function njCoords(loc) {
+    if (!loc) return null;
+    var m = String(loc).match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+    if (m) return { lat: m[1], lng: m[2] };
+    return null;
+  }
+  function njOpenNav(app, c) {
+    var url;
+    if (app === "google") url = "https://maps.google.com/?q=" + c.lat + "," + c.lng;
+    else if (app === "waze") url = "https://waze.com/ul?ll=" + c.lat + "," + c.lng + "&navigate=yes";
+    if (url) window.open(url, "_blank");
+  }
   // Черновик восстанавливаем только если нет prefill (открыт вручную, не из Eingang)
   var _draft = (function() {
     if (prefill) return {};
@@ -2985,6 +2998,26 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
           <div className="badge red" style={{ marginBottom:8 }}>Aus Eingang übernommen</div>
           <div style={{ fontSize:18, fontWeight:800, marginTop:6 }}>{prefill.plate || "Ohne Kennzeichen"}</div>
           <div className="meta" style={{ marginTop:5 }}>📍 {cleanAddr(prefill.location)}</div>
+          {njCoords(prefill.location) && (
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              <button type="button" onClick={function(){ njOpenNav("google", njCoords(prefill.location)); }}
+                style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                  padding:"12px 10px", borderRadius:10, border:"1.5px solid rgba(66,133,244,0.5)",
+                  background:"rgba(66,133,244,0.12)", color:"#4285F4",
+                  fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                Google Maps
+              </button>
+              <button type="button" onClick={function(){ njOpenNav("waze", njCoords(prefill.location)); }}
+                style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                  padding:"12px 10px", borderRadius:10, border:"1.5px solid rgba(0,210,255,0.45)",
+                  background:"rgba(0,210,255,0.1)", color:"#00D2FF",
+                  fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="10" r="6"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>
+                Waze
+              </button>
+            </div>
+          )}
           <div style={{ marginTop:8, whiteSpace:"pre-wrap", fontSize:14 }}>{prefill.description || prefill.note}</div>
           <RemotePhotos urls={prefill.photo_urls} />
           <button className="outline-btn" type="button" style={{ marginTop:10, padding:12 }} onClick={onClear}>Vorlage entfernen</button>
@@ -5313,11 +5346,13 @@ function AppShell({ user, onLogout }) {
           </div>
         </div>
 
-        {openAlerts.length > 0 && (
+        {openAlerts.length > 0 && tab !== "eingang" && (
           <div className="emergency-strip" onClick={function(){ setTab("eingang"); }}>
             <div style={{ fontSize:20 }}>🚨</div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontWeight:800, fontSize:14 }}>Neue Meldungen: {openAlerts.length}</div>
+              <div style={{ fontWeight:800, fontSize:14 }}>
+                {openAlerts.length === 1 ? "Neue Meldung — tippen zum Bearbeiten" : "Neue Meldungen: " + openAlerts.length + " — tippen"}
+              </div>
               <div className="meta" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                 {openAlerts[0].plate || ""}{openAlerts[0].description ? " · " + openAlerts[0].description.slice(0,40) : ""}
               </div>
