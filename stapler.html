@@ -227,7 +227,11 @@ function sbPost(table, body) {
     method:"POST",
     headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
     body:JSON.stringify(body)
-  }).then(function(r){ if (!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
+  }).then(function(r){ if (!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; })
+    .catch(function(e){
+      if (isNetworkError(e)) { offlineEnqueue({ table:table, method:"POST", body:body }); return "queued"; }
+      throw e;
+    });
 }
 
 // Понятное сообщение об ошибке: сетевые сбои → дружелюбный текст
@@ -250,6 +254,88 @@ function sbForklift(num) {
     headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
   }).then(function(r){ return r.json(); }).then(function(d){ return d && d[0] ? d[0] : null; }).catch(function(){ return null; });
 }
+
+// === OFFLINE-QUEUE ===
+// Если отправка не прошла из-за сети — запрос кладётся в localStorage-очередь
+// и автоматически повторяется при возврате связи. Данные не теряются.
+var OFFLINE_QUEUE_KEY = "wf_offline_queue";
+function offlineQueueRead() {
+  try {
+    var raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    var arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+function offlineQueueWrite(arr) {
+  try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(arr)); } catch (e) {}
+}
+function offlineQueueSize() { return offlineQueueRead().length; }
+function offlineEnqueue(item) {
+  var q = offlineQueueRead();
+  item.id = "oq_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  item.ts = Date.now();
+  q.push(item);
+  offlineQueueWrite(q);
+  try { window.dispatchEvent(new CustomEvent("wf-queue-changed")); } catch(e) {}
+}
+function isNetworkError(e) {
+  var msg = (e && (e.message || e)) ? String(e.message || e) : "";
+  return !navigator.onLine
+    || /failed to fetch|networkerror|load failed|err_|fetch|timeout/i.test(msg);
+}
+function offlineSendRaw(item) {
+  var url = SB_URL + "/rest/v1/" + item.table + (item.qs ? "?" + item.qs : "");
+  var headers = { "Content-Type":"application/json", "apikey":SB_KEY,
+    "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" };
+  return fetch(url, { method:item.method, headers:headers, body:JSON.stringify(item.body) })
+    .then(function(r){
+      if (!r.ok) {
+        return r.text().then(function(t){
+          if (r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429) {
+            return { ok:false, permanent:true, msg:t };
+          }
+          throw new Error(t);
+        });
+      }
+      return { ok:true };
+    });
+}
+var offlineFlushing = false;
+function offlineFlush() {
+  if (offlineFlushing) return Promise.resolve();
+  if (!navigator.onLine) return Promise.resolve();
+  var q = offlineQueueRead();
+  if (!q.length) return Promise.resolve();
+  offlineFlushing = true;
+  function step() {
+    var cur = offlineQueueRead();
+    if (!cur.length) { offlineFlushing = false;
+      try { window.dispatchEvent(new CustomEvent("wf-queue-changed")); } catch(e) {}
+      return Promise.resolve(); }
+    var item = cur[0];
+    return offlineSendRaw(item).then(function(res){
+      if (res.ok || res.permanent) {
+        var rest = offlineQueueRead();
+        rest.shift();
+        offlineQueueWrite(rest);
+        try { window.dispatchEvent(new CustomEvent("wf-queue-changed")); } catch(e) {}
+        return step();
+      }
+      offlineFlushing = false;
+      return Promise.resolve();
+    }).catch(function(){
+      offlineFlushing = false;
+      return Promise.resolve();
+    });
+  }
+  return step();
+}
+function offlineInit() {
+  window.addEventListener("online", function(){ offlineFlush(); });
+  setTimeout(offlineFlush, 2500);
+  setInterval(function(){ if (navigator.onLine) offlineFlush(); }, 30000);
+}
+offlineInit();
 
 function compressPhoto(b64, maxWidth, quality) {
   maxWidth = maxWidth || 1200;
