@@ -7097,10 +7097,9 @@ function AppShell({ user, onLogout }) {
 
         <div className="sidebar-nav">
           {(function(){
-            // Группа активного раздела учитывается как открытая (текущий пункт виден).
-            var activeGroup = (NAV.find(function(x){ return x.k === sec; }) || {}).g;
+            // Чистый аккордеон: открыта ровно одна группа (openGroup), любую можно свернуть.
             function isGroupOpen(g) {
-              return g === openGroup || g === activeGroup;
+              return g === openGroup;
             }
             var out = [];
             NAV.forEach(function(n, idx){
@@ -7110,14 +7109,15 @@ function AppShell({ user, onLogout }) {
                 out.push(
                   <button key={"grp_" + n.g} type="button"
                     onClick={function(){ toggleGroup(n.g); }}
-                    style={{ display:"flex", alignItems:"center", gap:8, width:"100%",
-                      padding:"14px 20px 6px", border:0, background:"transparent",
+                    style={{ display:"flex", alignItems:"center", gap:10, width:"100%",
+                      padding:"16px 20px 16px", border:0,
+                      background: grpOpen ? "rgba(255,165,0,0.06)" : "transparent",
                       cursor:"pointer", textAlign:"left",
-                      marginTop: idx === 0 ? 0 : 8 }}>
-                    <span style={{ fontSize:9, color:"#ffa500",
-                      display:"inline-block",
+                      borderTop: idx === 0 ? "none" : "1px solid rgba(255,255,255,0.06)" }}>
+                    <span style={{ fontSize:12, color:"#ffa500", fontWeight:900,
+                      display:"inline-block", width:12, textAlign:"center",
                       transform: grpOpen ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
-                    <span style={{ fontSize:10, fontWeight:800, letterSpacing:1.2,
+                    <span style={{ fontSize:13, fontWeight:800, letterSpacing:1,
                       color:"#ffa500", textTransform:"uppercase" }}>
                       {n.g}
                     </span>
