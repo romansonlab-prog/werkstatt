@@ -5336,13 +5336,99 @@ function Rechnungen({ invoices, vehicles, jobs, onRefresh, loading }) {
 }
 
 // === WARTUNGSPLAN ===
-function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
+function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading }) {
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
-  var _sv = useState("list"); var view = _sv[0]; var setView = _sv[1];
+  var _sv = useState("fristen"); var view = _sv[0]; var setView = _sv[1];
+  var _sq = useState(""); var query = _sq[0]; var setQuery = _sq[1];
+  var _ssav = useState(null); var savingCell = _ssav[0]; var setSavingCell = _ssav[1];
   var calRef = useRef(null);
   var calInst = useRef(null);
 
   var allVeh = vehicles.concat(forklifts||[]);
+
+  // Сколько дней до даты d (отрицательное = просрочено). null если даты нет.
+  function daysUntil(d) {
+    if (!d) return null;
+    var ms = new Date(d).getTime();
+    if (isNaN(ms)) return null;
+    return Math.round((ms - Date.now()) / 86400000);
+  }
+
+  // Статус по ближайшему сроку: expired < 0, urgent < 14, warn < 30, ok иначе.
+  // none = ни одной даты не задано.
+  function fristStatus(dates) {
+    var min = null;
+    for (var i = 0; i < dates.length; i++) {
+      var d = daysUntil(dates[i]);
+      if (d === null) continue;
+      if (min === null || d < min) min = d;
+    }
+    if (min === null) return "none";
+    if (min < 0) return "expired";
+    if (min < 14) return "urgent";
+    if (min < 30) return "warn";
+    return "ok";
+  }
+
+  function statusColor(st) {
+    if (st === "expired") return "#ef4444";
+    if (st === "urgent")  return "#ef4444";
+    if (st === "warn")    return "#ffa500";
+    if (st === "ok")      return "#22c55e";
+    return "rgba(255,255,255,0.25)";
+  }
+  function statusLabel(st) {
+    if (st === "expired") return "Überfällig";
+    if (st === "urgent")  return "Dringend";
+    if (st === "warn")    return "Bald fällig";
+    if (st === "ok")      return "OK";
+    return "Kein Datum";
+  }
+
+  // Сохранить дату в vehicles или users. cellKey уникален для блокировки во время записи.
+  function saveDate(table, id, field, value, cellKey) {
+    setSavingCell(cellKey);
+    var body = {};
+    body[field] = value || null;
+    sbPatch(table, id, body).then(function(ok){
+      setSavingCell(null);
+      if (ok) onRefresh();
+    }).catch(function(){ setSavingCell(null); });
+  }
+
+  // Машины для вкладки Fristen — с поиском по номеру.
+  var frVeh = vehicles.slice().sort(function(a,b){
+    return (a.plate||"").localeCompare(b.plate||"");
+  });
+  if (query.trim()) {
+    var qq = query.trim().toLowerCase();
+    frVeh = frVeh.filter(function(v){
+      return ((v.plate||"")+" "+(v.brand||"")+" "+(v.model||"")).toLowerCase().indexOf(qq) !== -1;
+    });
+  }
+  if (filter !== "all") {
+    frVeh = frVeh.filter(function(v){
+      var st = fristStatus([v.tuev, v.au, v.sp, v.uvv]);
+      if (filter === "expired") return st === "expired";
+      if (filter === "urgent")  return st === "expired" || st === "urgent";
+      if (filter === "warn")    return st === "expired" || st === "urgent" || st === "warn";
+      return true;
+    });
+  }
+
+  // Сводка по машинам для KPI-карточек вкладки Fristen
+  var frExpired = 0, frUrgent = 0, frWarn = 0, frNone = 0;
+  vehicles.forEach(function(v){
+    var st = fristStatus([v.tuev, v.au, v.sp, v.uvv]);
+    if (st === "expired") frExpired++;
+    else if (st === "urgent") frUrgent++;
+    else if (st === "warn") frWarn++;
+    else if (st === "none") frNone++;
+  });
+
+  // Водители с правами (только role fahrer)
+  var drivers = (users||[]).filter(function(u){ return u.role === "fahrer"; })
+    .sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
 
   function planStatus(p) {
     var today = new Date();
@@ -5484,6 +5570,7 @@ function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
         <div className="panel-hd">
           <div className="panel-title-lg">Wartungsplan</div>
           <div style={{ display:"flex", gap:8 }}>
+            <button className={"btn-small "+(view==="fristen"?"btn-primary":"btn-outline")} onClick={function(){ setView("fristen"); }}>🛡 Fristen</button>
             <button className={"btn-small "+(view==="list"?"btn-primary":"btn-outline")} onClick={function(){ setView("list"); }}>☰ Liste</button>
             <button className={"btn-small "+(view==="calendar"?"btn-primary":"btn-outline")} onClick={function(){ setView("calendar"); }}>📅 Kalender</button>
             <button className="btn-outline btn-small no-print" onClick={exportPlan} title="PDF / Drucken">📄 PDF</button>
@@ -5492,6 +5579,160 @@ function Wartungsplan({ plans, vehicles, forklifts, onRefresh, loading }) {
             <button className="btn-outline btn-small no-print" onClick={onRefresh}>{loading?"...":"↻"}</button>
           </div>
         </div>
+
+        {view === "fristen" && (
+          <div>
+            <div className="g3" style={{ marginBottom:16 }}>
+              <div className="kpi-card red"><div style={{ fontSize:22, fontWeight:900 }}>{frExpired}</div><div className="kpi-label">Überfällig</div></div>
+              <div className="kpi-card orange"><div style={{ fontSize:22, fontWeight:900 }}>{frUrgent}</div><div className="kpi-label">Dringend (&lt;14 Tage)</div></div>
+              <div className="kpi-card" style={{ borderLeft:"3px solid #ffa500" }}><div style={{ fontSize:22, fontWeight:900 }}>{frWarn}</div><div className="kpi-label">Bald fällig (&lt;30 Tage)</div></div>
+            </div>
+
+            <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+              {[["all","Alle"],["urgent","Dringend"],["warn","Bald fällig"],["expired","Überfällig"]].map(function(f){
+                return <button key={f[0]} className={"btn-small "+(filter===f[0]?"btn-primary":"btn-outline")} onClick={function(){ setFilter(f[0]); }}>{f[1]}</button>;
+              })}
+              <input value={query} onChange={function(e){ setQuery(e.target.value); }}
+                placeholder="Kennzeichen suchen..."
+                style={{ marginLeft:"auto", padding:"8px 12px", borderRadius:8, border:"1px solid rgba(255,255,255,0.15)",
+                  background:"rgba(255,255,255,0.05)", color:"#fff", fontSize:13, minWidth:180 }} />
+            </div>
+
+            <div style={{ overflowX:"auto" }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Fahrzeug</th>
+                    <th>HU / TÜV</th>
+                    <th>AU</th>
+                    <th>SP</th>
+                    <th>UVV</th>
+                    <th>Versicherung</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {frVeh.length === 0
+                    ? <tr><td colSpan="7" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Fahrzeuge</td></tr>
+                    : frVeh.map(function(v){
+                        var st = fristStatus([v.tuev, v.au, v.sp, v.uvv]);
+                        function dateCell(field, val) {
+                          var ck = v.id + "_" + field;
+                          var d = daysUntil(val);
+                          var warn = d !== null && d < 30;
+                          return (
+                            <td>
+                              <input type="date" defaultValue={val ? String(val).slice(0,10) : ""}
+                                disabled={savingCell === ck}
+                                onChange={function(e){ saveDate("vehicles", v.id, field, e.target.value, ck); }}
+                                style={{ padding:"6px 8px", borderRadius:6, fontSize:12,
+                                  border:"1px solid " + (warn ? (d<0?"rgba(239,68,68,0.6)":"rgba(255,165,0,0.5)") : "rgba(255,255,255,0.15)"),
+                                  background: warn ? (d<0?"rgba(239,68,68,0.1)":"rgba(255,165,0,0.08)") : "rgba(255,255,255,0.05)",
+                                  color:"#fff", width:"140px" }} />
+                              {d !== null && d < 60 && (
+                                <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<14?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
+                                  {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
+                        return (
+                          <tr key={v.id}>
+                            <td>
+                              <div style={{ fontWeight:700 }}>{v.plate||"—"}</div>
+                              <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{(v.brand||"")+" "+(v.model||"")}</div>
+                            </td>
+                            {dateCell("tuev", v.tuev)}
+                            {dateCell("au", v.au)}
+                            {dateCell("sp", v.sp)}
+                            {dateCell("uvv", v.uvv)}
+                            {dateCell("insurance", v.insurance)}
+                            <td>
+                              <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontWeight:700, fontSize:12, color:statusColor(st) }}>
+                                <span style={{ width:9, height:9, borderRadius:"50%", background:statusColor(st), display:"inline-block" }}></span>
+                                {statusLabel(st)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            {/* Führerschein водителей */}
+            <div className="panel-title-lg" style={{ marginTop:28, marginBottom:12 }}>Führerschein — Fahrer</div>
+            <div style={{ overflowX:"auto" }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Fahrer</th>
+                    <th>Klassen</th>
+                    <th>Führerschein gültig bis</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drivers.length === 0
+                    ? <tr><td colSpan="4" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Fahrer</td></tr>
+                    : drivers.map(function(u){
+                        var st = fristStatus([u.fuehrerschein_ablauf]);
+                        var ckK = u.id + "_fsk";
+                        var ckD = u.id + "_fsd";
+                        var d = daysUntil(u.fuehrerschein_ablauf);
+                        var warn = d !== null && d < 30;
+                        return (
+                          <tr key={u.id}>
+                            <td style={{ fontWeight:700 }}>{u.name||"—"}</td>
+                            <td>
+                              <input defaultValue={u.fuehrerschein_klassen||""}
+                                disabled={savingCell === ckK}
+                                placeholder="CE, C, B..."
+                                onBlur={function(e){
+                                  if (e.target.value !== (u.fuehrerschein_klassen||"")) {
+                                    saveDate("users", u.id, "fuehrerschein_klassen", e.target.value, ckK);
+                                  }
+                                }}
+                                style={{ padding:"6px 8px", borderRadius:6, fontSize:12,
+                                  border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.05)",
+                                  color:"#fff", width:"120px" }} />
+                            </td>
+                            <td>
+                              <input type="date" defaultValue={u.fuehrerschein_ablauf ? String(u.fuehrerschein_ablauf).slice(0,10) : ""}
+                                disabled={savingCell === ckD}
+                                onChange={function(e){ saveDate("users", u.id, "fuehrerschein_ablauf", e.target.value, ckD); }}
+                                style={{ padding:"6px 8px", borderRadius:6, fontSize:12,
+                                  border:"1px solid " + (warn ? (d<0?"rgba(239,68,68,0.6)":"rgba(255,165,0,0.5)") : "rgba(255,255,255,0.15)"),
+                                  background: warn ? (d<0?"rgba(239,68,68,0.1)":"rgba(255,165,0,0.08)") : "rgba(255,255,255,0.05)",
+                                  color:"#fff", width:"140px" }} />
+                              {d !== null && d < 90 && (
+                                <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
+                                  {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontWeight:700, fontSize:12, color:statusColor(st) }}>
+                                <span style={{ width:9, height:9, borderRadius:"50%", background:statusColor(st), display:"inline-block" }}></span>
+                                {statusLabel(st)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
+              💡 HU/TÜV, AU (Abgasuntersuchung), SP (Sicherheitsprüfung), UVV und Versicherung direkt in der Tabelle bearbeiten — Änderungen werden sofort gespeichert.
+              Erinnerungen werden automatisch per Push verschickt (30 / 14 / 7 / 1 Tage vorher).
+            </div>
+          </div>
+        )}
 
         {view === "calendar" && (
           <div>
@@ -7121,6 +7362,7 @@ function AppShell({ user, onLogout }) {
   var _sins = useState([]); var inspections = _sins[0]; var setInspections = _sins[1];
   var _sinv = useState([]); var invoices = _sinv[0]; var setInvoices = _sinv[1];
   var _splans = useState([]); var plans = _splans[0]; var setPlans = _splans[1];
+  var _sau = useState([]); var allUsers = _sau[0]; var setAllUsers = _sau[1];
   var _sload = useState(false); var loading = _sload[0]; var setLoading = _sload[1];
   var _sdb = useState(null); var dbOk = _sdb[0]; var setDbOk = _sdb[1];
   var _sshift = useState(todayIso()); var shiftDate = _sshift[0]; var setShiftDate = _sshift[1];
@@ -7167,6 +7409,7 @@ function AppShell({ user, onLogout }) {
   var fInspections = filterByNied(inspections,  "niederlassung_id");
   var fInvoices    = filterByNied(invoices,     "niederlassung_id");
   var fPlans       = filterByNied(plans,        "niederlassung_id");
+  var fAllUsers    = filterByNied(allUsers,     "niederlassung_id");
 
   function loadAll() {
     setLoading(true);
@@ -7180,10 +7423,12 @@ function AppShell({ user, onLogout }) {
       sbGet("inspections",        "select=*&order=created_at.desc&limit=300"),
       sbGet("invoices",           "select=*&order=date.desc&limit=300"),
       sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
+      sbGet("users",              "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen&order=name.asc&limit=300"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
       setInvoices(r[7]); setPlans(r[8]);
+      setAllUsers(r[9] || []);
       setLoading(false);
       // Проверяем реальное состояние соединения (sbGet глотает ошибки и возвращает [],
       // поэтому отдельным ping определяем: данных нет потому что их нет, или потому что нет сети)
@@ -7518,7 +7763,7 @@ function AppShell({ user, onLogout }) {
           {sec === "waschhalle"  && <Waschhalle washOrders={fWashOrders} onRefresh={loadAll} loading={loading} />}
           {sec === "lager"       && <Lager stock={fStock} onRefresh={loadAll} loading={loading} />}
           {sec === "rechnungen"  && <Rechnungen invoices={fInvoices} vehicles={fVehicles} jobs={fJobs} onRefresh={loadAll} loading={loading} />}
-          {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} onRefresh={loadAll} loading={loading} />}
+          {sec === "wartung"     && <Wartungsplan plans={fPlans} vehicles={fVehicles} forklifts={fForklifts} users={fAllUsers} onRefresh={loadAll} loading={loading} />}
           {sec === "archiv"      && <Archiv jobs={fJobs} />}
           {sec === "monatsbericht" && <Monatsbericht jobs={fJobs} washOrders={fWashOrders} inspections={fInspections} alerts={fAlerts} />}
           {sec === "vergleich"     && <Vergleich jobs={fJobs} invoices={fInvoices} vehicles={fVehicles} />}
