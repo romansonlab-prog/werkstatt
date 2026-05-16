@@ -214,6 +214,20 @@
       box-shadow:0 0 0 3px var(--accent-glow);
     }
 
+    /* Date input — иконка-стрелка убрана, календарь открывается тапом по всему полю */
+    input.input-dark[type="date"] {
+      -webkit-appearance:none; appearance:none;
+      position:relative; cursor:pointer;
+    }
+    input.input-dark[type="date"]::-webkit-calendar-picker-indicator {
+      position:absolute; inset:0; width:100%; height:100%;
+      margin:0; padding:0; opacity:0; cursor:pointer;
+    }
+    input.input-dark[type="date"]::-webkit-inner-spin-button,
+    input.input-dark[type="date"]::-webkit-clear-button {
+      display:none; -webkit-appearance:none;
+    }
+
     .select-dark {
       width:100%; padding:18px var(--sp2);
       background:var(--bg-input);
@@ -1701,11 +1715,16 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
   var _sscan = useState(false); var showScanner = _sscan[0]; var setShowScanner = _sscan[1];
   var _sscanTarget = useState(null); var scanTarget = _sscanTarget[0]; var setScanTarget = _sscanTarget[1];
 
+  function newPosition() {
+    return { id: genId("PS"), bez:"", preis:"" };
+  }
+
   function addShopItem() {
     setShopItems(shopItems.concat([{
       id: genId("SI"),
       lieferschein:"", datum:todayIso(),
-      preis:"", lieferschein_foto:""
+      lieferschein_foto:"",
+      positionen: [newPosition()]
     }]));
   }
 
@@ -1717,6 +1736,43 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
 
   function removeShopItem(id) {
     setShopItems(shopItems.filter(function(s) { return s.id !== id; }));
+  }
+
+  // Управление позициями (Bezeichnung + Preis) внутри Lieferschein
+  function addPosition(lsId) {
+    setShopItems(shopItems.map(function(s){
+      if (s.id !== lsId) return s;
+      var pos = Array.isArray(s.positionen) ? s.positionen : [];
+      return Object.assign({}, s, { positionen: pos.concat([newPosition()]) });
+    }));
+  }
+
+  function updatePosition(lsId, posId, field, val) {
+    setShopItems(shopItems.map(function(s){
+      if (s.id !== lsId) return s;
+      var pos = Array.isArray(s.positionen) ? s.positionen : [];
+      return Object.assign({}, s, {
+        positionen: pos.map(function(p){
+          return p.id === posId ? Object.assign({}, p, { [field]:val }) : p;
+        })
+      });
+    }));
+  }
+
+  function removePosition(lsId, posId) {
+    setShopItems(shopItems.map(function(s){
+      if (s.id !== lsId) return s;
+      var pos = Array.isArray(s.positionen) ? s.positionen : [];
+      var filtered = pos.filter(function(p){ return p.id !== posId; });
+      // Минимум одна позиция всегда остаётся
+      return Object.assign({}, s, { positionen: filtered.length ? filtered : [newPosition()] });
+    }));
+  }
+
+  // Сумма по одному Lieferschein
+  function lsSum(s) {
+    var pos = Array.isArray(s.positionen) ? s.positionen : [];
+    return pos.reduce(function(sum, p){ return sum + parsePriceDE(p.preis); }, 0);
   }
 
   function handleBarcodeScan(code) {
@@ -1834,10 +1890,12 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
         </div>
       )}
 
-      {/* Aus dem Laden — свободный ввод, несколько позиций */}
+      {/* Aus dem Laden — Lieferschein с позициями */}
       {partsType === "shop" && (
         <div>
           {shopItems.map(function(item, idx) {
+            var positionen = Array.isArray(item.positionen) ? item.positionen : [];
+            var sum = lsSum(item);
             return (
               <div key={item.id} style={{ background:"rgba(9,27,58,0.72)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:14, padding:14, marginBottom:12 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
@@ -1849,27 +1907,61 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
                 </div>
 
                 {/* Nr + Datum */}
-                <div className="grid2" style={{ marginBottom:10 }}>
+                <div className="grid2" style={{ marginBottom:14, alignItems:"start" }}>
                   <div>
-                    <div className="label-cap">Lieferschein-Nr.</div>
+                    <div className="label-cap" style={{ minHeight:34, display:"flex", alignItems:"flex-end", paddingBottom:4 }}>Lieferschein-Nr.</div>
                     <input className="input-dark" value={item.lieferschein} placeholder="z.B. 12345"
                       inputMode="numeric"
                       onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
                   </div>
                   <div>
-                    <div className="label-cap">Datum</div>
+                    <div className="label-cap" style={{ minHeight:34, display:"flex", alignItems:"flex-end", paddingBottom:4 }}>Datum</div>
                     <input type="date" className="input-dark" value={item.datum}
                       onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
                   </div>
                 </div>
 
-                {/* Preis — большой и удобный */}
-                <div className="label-cap">Preis (€)</div>
-                <input className="input-dark" inputMode="decimal" value={item.preis} placeholder="0,00"
-                  style={{ marginBottom:12, fontSize:18, padding:"14px 14px", fontWeight:700 }}
-                  onChange={function(e){ updateShopItem(item.id, "preis", e.target.value.replace(/[^0-9.,]/g,"")); }} />
+                {/* Позиции этого Lieferschein */}
+                <div className="label-cap" style={{ marginBottom:8 }}>Positionen</div>
+                {positionen.map(function(p, pi){
+                  return (
+                    <div key={p.id} style={{ background:"rgba(0,0,0,0.2)", borderRadius:10, padding:"10px 12px", marginBottom:8 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                        <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.45)" }}>Position {pi + 1}</span>
+                        {positionen.length > 1 && (
+                          <button type="button" onClick={function(){ removePosition(item.id, p.id); }}
+                            style={{ border:0, background:"transparent", color:"#ef4444", fontWeight:800, fontSize:16, lineHeight:1, padding:"0 4px" }}>×</button>
+                        )}
+                      </div>
+                      <input className="input-dark" value={p.bez} placeholder="Bezeichnung (optional)"
+                        style={{ marginBottom:8, fontSize:15 }}
+                        onChange={function(e){ updatePosition(item.id, p.id, "bez", e.target.value); }} />
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <input className="input-dark" inputMode="decimal" value={p.preis} placeholder="0,00"
+                          style={{ fontSize:18, padding:"12px 14px", fontWeight:700, flex:1 }}
+                          onChange={function(e){ updatePosition(item.id, p.id, "preis", e.target.value.replace(/[^0-9.,]/g,"")); }} />
+                        <span style={{ fontSize:16, fontWeight:700, color:"rgba(255,255,255,0.5)" }}>€</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <button type="button" onClick={function(){ addPosition(item.id); }}
+                  style={{ width:"100%", padding:"10px", borderRadius:8, marginBottom:12,
+                    border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.04)",
+                    color:"rgba(255,255,255,0.75)", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                  + Position
+                </button>
 
-                {/* Foto Lieferschein — большая кнопка */}
+                {/* Подытог по этому Lieferschein */}
+                {sum > 0 && (
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                    padding:"6px 4px", marginBottom:12, fontSize:13 }}>
+                    <span style={{ color:"rgba(255,255,255,0.5)" }}>Zwischensumme</span>
+                    <span style={{ fontWeight:700, color:"rgba(255,255,255,0.85)" }}>{sum.toFixed(2)} €</span>
+                  </div>
+                )}
+
+                {/* Foto Lieferschein */}
                 <LieferscheinFoto item={item} updateShopItem={updateShopItem} stageId={stageId} />
               </div>
             );
@@ -1877,16 +1969,19 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
           <button className="outline-btn" type="button" onClick={addShopItem} style={{ marginTop:4, padding:"14px 12px", fontSize:14 }}>
             + Weiterer Lieferschein
           </button>
-          {shopItems.length > 0 && (
-            <div style={{ marginTop:10, padding:"10px 14px", borderRadius:10,
-              background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.25)",
-              display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span style={{ fontSize:13, color:"rgba(255,255,255,0.7)" }}>Gesamt:</span>
-              <span style={{ fontSize:16, fontWeight:800, color:"#ffa500" }}>
-                {shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0).toFixed(2)} €
-              </span>
-            </div>
-          )}
+          {(function(){
+            var gesamt = shopItems.reduce(function(s, ls){ return s + lsSum(ls); }, 0);
+            return gesamt > 0 ? (
+              <div style={{ marginTop:10, padding:"12px 16px", borderRadius:10,
+                background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.25)",
+                display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:14, color:"rgba(255,255,255,0.7)", fontWeight:600 }}>Gesamt Teile:</span>
+                <span style={{ fontSize:18, fontWeight:900, color:"#ffa500" }}>
+                  {gesamt.toFixed(2)} €
+                </span>
+              </div>
+            ) : null;
+          })()}
         </div>
       )}
     </div>
@@ -2004,7 +2099,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
   var _scoll = useState(_draft.colleague || false); var colleague = _scoll[0]; var setColleague = _scoll[1];
   var _scn = useState(_draft.colleagueName || ""); var colleagueName = _scn[0]; var setColleagueName = _scn[1];
   var _spt = useState(_draft.partsType || "none"); var partsType = _spt[0]; var setPartsType = _spt[1];
-  var _ssi = useState(_draft.shopItems || [{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
+  var _ssi = useState(_draft.shopItems || [{ id:"SI0", lieferschein:"", datum:todayIso(), lieferschein_foto:"", positionen:[{ id:"PS0", bez:"", preis:"" }] }]);
   var shopItems = _ssi[0]; var setShopItems = _ssi[1];
   var _stns = useState(_draft.tireNewSn || ""); var tireNewSn = _stns[0]; var setTireNewSn = _stns[1];
   var _stos = useState(_draft.tireOldSn || ""); var tireOldSn = _stos[0]; var setTireOldSn = _stos[1];
@@ -2104,18 +2199,29 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var partsNote = "";
     var partsCost = 0;
     if (partsType === "shop") {
-      var shopValid = shopItems.filter(function(i){ return (i.lieferschein && i.lieferschein.toString().trim()) || (i.preis && i.preis.toString().trim()) || i.lieferschein_foto; });
+      // Валиден Lieferschein если есть номер, фото, или хотя бы одна позиция с ценой
+      var shopValid = shopItems.filter(function(i){
+        var hasPos = Array.isArray(i.positionen) && i.positionen.some(function(p){ return p.preis && p.preis.toString().trim(); });
+        return (i.lieferschein && i.lieferschein.toString().trim()) || i.lieferschein_foto || hasPos;
+      });
       partsNote = shopValid.map(function(i){
-        var parts = [
+        var head = [
           i.lieferschein ? "LS Nr. " + i.lieferschein : "",
           i.datum,
-          i.preis ? i.preis + " EUR" : "",
-          i.typ || i.name ? [i.typ, i.name].filter(Boolean).join(" ") : "",
           i.lieferschein_foto ? "📎 Foto" : ""
-        ].filter(Boolean);
-        return parts.join(" | ");
-      }).join("\n");
-      partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
+        ].filter(Boolean).join(" | ");
+        var pos = Array.isArray(i.positionen) ? i.positionen : [];
+        var posLines = pos.filter(function(p){ return (p.bez && p.bez.trim()) || (p.preis && p.preis.toString().trim()); })
+          .map(function(p){
+            return "  • " + [p.bez || "Position", p.preis ? p.preis + " EUR" : ""].filter(Boolean).join(" — ");
+          });
+        return [head].concat(posLines).filter(Boolean).join("\n");
+      }).join("\n\n");
+      // Сумма всех позиций всех Lieferschein
+      partsCost = shopItems.reduce(function(s, ls){
+        var pos = Array.isArray(ls.positionen) ? ls.positionen : [];
+        return s + pos.reduce(function(ps, p){ return ps + parsePriceDE(p.preis); }, 0);
+      }, 0);
     } else if (partsType === "used") {
       partsNote = "Gebrauchtteil";
     } else if (partsType === "lager") {
@@ -2172,7 +2278,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
           try { localStorage.removeItem("wf_stage_id"); } catch(e){}
           setStageId(genId("J"));
           setDescription(""); setPhotos([]);
-          setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
+          setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), lieferschein_foto:"", positionen:[{ id:"PS0", bez:"", preis:"" }] }]);
           setVehicle(null); setColleague(false); setColleagueName("");
           setTireNewSn(""); setTireOldSn("");
           try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
@@ -2252,7 +2358,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       try { localStorage.removeItem("wf_stage_id"); } catch(e){}
       setStageId(genId("J"));
       setDescription(""); setPhotos([]);
-      setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
+      setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), lieferschein_foto:"", positionen:[{ id:"PS0", bez:"", preis:"" }] }]);
       setVehicle(null); setColleague(false); setColleagueName("");
       setTireNewSn(""); setTireOldSn("");
       try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
@@ -2286,18 +2392,29 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var partsNote = "";
     var partsCost = 0;
     if (partsType === "shop") {
-      var shopValid = shopItems.filter(function(i){ return (i.lieferschein && i.lieferschein.toString().trim()) || (i.preis && i.preis.toString().trim()) || i.lieferschein_foto; });
+      // Валиден Lieferschein если есть номер, фото, или хотя бы одна позиция с ценой
+      var shopValid = shopItems.filter(function(i){
+        var hasPos = Array.isArray(i.positionen) && i.positionen.some(function(p){ return p.preis && p.preis.toString().trim(); });
+        return (i.lieferschein && i.lieferschein.toString().trim()) || i.lieferschein_foto || hasPos;
+      });
       partsNote = shopValid.map(function(i){
-        var parts = [
+        var head = [
           i.lieferschein ? "LS Nr. " + i.lieferschein : "",
           i.datum,
-          i.preis ? i.preis + " EUR" : "",
-          i.typ || i.name ? [i.typ, i.name].filter(Boolean).join(" ") : "",
           i.lieferschein_foto ? "📎 Foto" : ""
-        ].filter(Boolean);
-        return parts.join(" | ");
-      }).join("\n");
-      partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
+        ].filter(Boolean).join(" | ");
+        var pos = Array.isArray(i.positionen) ? i.positionen : [];
+        var posLines = pos.filter(function(p){ return (p.bez && p.bez.trim()) || (p.preis && p.preis.toString().trim()); })
+          .map(function(p){
+            return "  • " + [p.bez || "Position", p.preis ? p.preis + " EUR" : ""].filter(Boolean).join(" — ");
+          });
+        return [head].concat(posLines).filter(Boolean).join("\n");
+      }).join("\n\n");
+      // Сумма всех позиций всех Lieferschein
+      partsCost = shopItems.reduce(function(s, ls){
+        var pos = Array.isArray(ls.positionen) ? ls.positionen : [];
+        return s + pos.reduce(function(ps, p){ return ps + parsePriceDE(p.preis); }, 0);
+      }, 0);
     } else if (partsType === "used") {
       partsNote = "Gebrauchtteil";
     } else if (partsType === "lager") {
@@ -2357,7 +2474,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         clearTimerKeys();
         setPauseModal(false); setPauseReason("");
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
-        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
+        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), lieferschein_foto:"", positionen:[{ id:"PS0", bez:"", preis:"" }] }]);
         setVehicle(null); setColleague(false); setColleagueName("");
         setTireNewSn(""); setTireOldSn("");
         try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
@@ -2463,18 +2580,29 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var partsNote = "";
     var partsCost = 0;
     if (partsType === "shop") {
-      var shopValid = shopItems.filter(function(i){ return (i.lieferschein && i.lieferschein.toString().trim()) || (i.preis && i.preis.toString().trim()) || i.lieferschein_foto; });
+      // Валиден Lieferschein если есть номер, фото, или хотя бы одна позиция с ценой
+      var shopValid = shopItems.filter(function(i){
+        var hasPos = Array.isArray(i.positionen) && i.positionen.some(function(p){ return p.preis && p.preis.toString().trim(); });
+        return (i.lieferschein && i.lieferschein.toString().trim()) || i.lieferschein_foto || hasPos;
+      });
       partsNote = shopValid.map(function(i){
-        var parts = [
+        var head = [
           i.lieferschein ? "LS Nr. " + i.lieferschein : "",
           i.datum,
-          i.preis ? i.preis + " EUR" : "",
-          i.typ || i.name ? [i.typ, i.name].filter(Boolean).join(" ") : "",
           i.lieferschein_foto ? "📎 Foto" : ""
-        ].filter(Boolean);
-        return parts.join(" | ");
-      }).join("\n");
-      partsCost = shopItems.reduce(function(s,i){ return s + parsePriceDE(i.preis); }, 0);
+        ].filter(Boolean).join(" | ");
+        var pos = Array.isArray(i.positionen) ? i.positionen : [];
+        var posLines = pos.filter(function(p){ return (p.bez && p.bez.trim()) || (p.preis && p.preis.toString().trim()); })
+          .map(function(p){
+            return "  • " + [p.bez || "Position", p.preis ? p.preis + " EUR" : ""].filter(Boolean).join(" — ");
+          });
+        return [head].concat(posLines).filter(Boolean).join("\n");
+      }).join("\n\n");
+      // Сумма всех позиций всех Lieferschein
+      partsCost = shopItems.reduce(function(s, ls){
+        var pos = Array.isArray(ls.positionen) ? ls.positionen : [];
+        return s + pos.reduce(function(ps, p){ return ps + parsePriceDE(p.preis); }, 0);
+      }, 0);
     } else if (partsType === "used") {
       partsNote = "Gebrauchtteil";
     } else if (partsType === "lager") {
@@ -2561,7 +2689,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         clearTimerKeys();
         // Полный сброс формы — включая vehicle и colleague, чтобы случайное повторное нажатие не создало пустую запись
         setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
-        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), preis:"", lieferschein_foto:"" }]);
+        setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), lieferschein_foto:"", positionen:[{ id:"PS0", bez:"", preis:"" }] }]);
         setVehicle(null);
         setColleague(false); setColleagueName("");
         setTireNewSn(""); setTireOldSn("");
