@@ -837,6 +837,51 @@ function sbSelect(table, query) {
   }).then(function(json) { return Array.isArray(json) ? json : []; });
 }
 
+// "15.06.2026" -> "2026-06-15" (формат БД). null=пусто, false=битый формат.
+function deToIso(s) {
+  if (!s) return null;
+  var t = String(s).trim();
+  if (!t) return null;
+  var m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return false;
+  var dd = parseInt(m[1], 10), mm = parseInt(m[2], 10), yy = parseInt(m[3], 10);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
+  var dt = new Date(yy, mm - 1, dd);
+  if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return false;
+  var p = function(n){ return (n < 10 ? "0" : "") + n; };
+  return yy + "-" + p(mm) + "-" + p(dd);
+}
+function isoToDe(s) {
+  if (!s) return "";
+  var t = String(s).slice(0, 10);
+  var m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  return m[3] + "." + m[2] + "." + m[1];
+}
+// Текстовое поле немецкой даты "15.06.2026" с проверкой формата.
+function DeDateInput(props) {
+  var _e = useState(false); var err = _e[0]; var setErr = _e[1];
+  var _v = useState(props.value || ""); var txt = _v[0]; var setTxt = _v[1];
+  var lastVal = useRef(props.value || "");
+  if ((props.value || "") !== lastVal.current) {
+    lastVal.current = props.value || "";
+    txt = props.value || "";
+  }
+  var brd = err ? "rgba(239,68,68,0.9)" : "rgba(255,255,255,0.15)";
+  var bg = err ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)";
+  return (
+    <div style={{ width: props.fullWidth ? "100%" : "auto" }}>
+      <input className="input-dark" value={txt} disabled={props.disabled}
+        placeholder="TT.MM.JJJJ" inputMode="numeric"
+        onChange={function(e){ setTxt(e.target.value); if (err) setErr(false); }}
+        onBlur={function(e){ props.onCommit(e.target.value, setErr); }}
+        onKeyDown={function(e){ if (e.key === "Enter") e.target.blur(); }}
+        style={{ width: props.fullWidth ? "100%" : "140px", borderColor:brd, background:bg }} />
+      {err && <div style={{ fontSize:11, marginTop:3, color:"#ef4444" }}>Format: TT.MM.JJJJ</div>}
+    </div>
+  );
+}
+
 // Простой глобальный toast — короткое уведомление снизу экрана
 function showToast(msg) {
   try {
@@ -2298,9 +2343,8 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
                     inputMode="numeric" style={{ width:"100%", marginBottom:12 }}
                     onChange={function(e){ updateShopItem(item.id, "lieferschein", e.target.value); }} />
                   <div className="label-cap" style={{ marginBottom:4 }}>Datum</div>
-                  <input type="date" className="input-dark" value={item.datum}
-                    style={{ width:"100%" }}
-                    onChange={function(e){ updateShopItem(item.id, "datum", e.target.value); }} />
+                  <DeDateInput value={isoToDe(item.datum)} fullWidth={true}
+                    onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); updateShopItem(item.id, "datum", iso||""); }} />
                 </div>
 
                 {/* Позиции этого Lieferschein */}

@@ -331,6 +331,28 @@ const VEH_TYPES = {
 function todayIso() { return new Date().toLocaleDateString("sv-SE"); }
 function fmtDate(d) { if (!d) return "—"; try { return new Date(d).toLocaleDateString("de-DE"); } catch(e){ return d; } }
 function fmtDateTime(d) { if (!d) return "—"; try { return new Date(d).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch(e){ return d; } }
+// "15.06.2026" -> "2026-06-15" (формат БД). null=пусто, false=битый формат.
+function deToIso(s) {
+  if (!s) return null;
+  var t = String(s).trim();
+  if (!t) return null;
+  var m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return false;
+  var dd = parseInt(m[1], 10), mm = parseInt(m[2], 10), yy = parseInt(m[3], 10);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
+  var dt = new Date(yy, mm - 1, dd);
+  if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return false;
+  var p = function(n){ return (n < 10 ? "0" : "") + n; };
+  return yy + "-" + p(mm) + "-" + p(dd);
+}
+// "2026-06-15" -> "15.06.2026" для показа.
+function isoToDe(s) {
+  if (!s) return "";
+  var t = String(s).slice(0, 10);
+  var m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  return m[3] + "." + m[2] + "." + m[1];
+}
 function fmtMin(m) { m=parseInt(m||0)||0; if(!m) return "0 min"; var h=Math.floor(m/60),mm=m%60; return h ? h+"h "+mm+"min" : mm+" min"; }
 // Парсинг журнала пауз заказа (pause_log из таблицы jobs)
 function parsePauseLog(j) {
@@ -5415,29 +5437,6 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
     return "Kein Datum";
   }
 
-  // "15.06.2026" -> "2026-06-15" (формат базы). null если неверно/пусто.
-  function deToIso(s) {
-    if (!s) return null;
-    var t = String(s).trim();
-    if (!t) return null;
-    var m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (!m) return false; // false = введено что-то, но формат битый
-    var dd = parseInt(m[1], 10), mm = parseInt(m[2], 10), yy = parseInt(m[3], 10);
-    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
-    var dt = new Date(yy, mm - 1, dd);
-    if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return false;
-    var p = function(n){ return (n < 10 ? "0" : "") + n; };
-    return yy + "-" + p(mm) + "-" + p(dd);
-  }
-  // "2026-06-15" (или ISO) -> "15.06.2026" для показа.
-  function isoToDe(s) {
-    if (!s) return "";
-    var t = String(s).slice(0, 10);
-    var m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!m) return "";
-    return m[3] + "." + m[2] + "." + m[1];
-  }
-
   // Сохранить дату в vehicles или users. cellKey уникален для блокировки во время записи.
   function saveDate(table, id, field, value, cellKey) {
     setSavingCell(cellKey);
@@ -6369,20 +6368,20 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                 <input className="inp" style={{ width:"100%" }} value={vf.model} placeholder="TGX, Actros..." onChange={function(e){ setVf(Object.assign({},vf,{model:e.target.value})); }} />
               </div>
               <div>
-                <div className="label-cap">TÜV (Datum)</div>
-                <input type="date" className="inp" style={{ width:"100%" }} value={vf.tuev} onChange={function(e){ setVf(Object.assign({},vf,{tuev:e.target.value})); }} />
+                <div className="label-cap">TÜV / HU (Datum)</div>
+                <DeDateInput value={isoToDe(vf.tuev)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{tuev: iso||""})); }} />
               </div>
               <div>
                 <div className="label-cap">Versicherung (Datum)</div>
-                <input type="date" className="inp" style={{ width:"100%" }} value={vf.insurance} onChange={function(e){ setVf(Object.assign({},vf,{insurance:e.target.value})); }} />
+                <DeDateInput value={isoToDe(vf.insurance)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{insurance: iso||""})); }} />
               </div>
               <div>
                 <div className="label-cap">UVV (Datum)</div>
-                <input type="date" className="inp" style={{ width:"100%" }} value={vf.uvv} onChange={function(e){ setVf(Object.assign({},vf,{uvv:e.target.value})); }} />
+                <DeDateInput value={isoToDe(vf.uvv)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{uvv: iso||""})); }} />
               </div>
               <div>
                 <div className="label-cap">Nächstes Service</div>
-                <input type="date" className="inp" style={{ width:"100%" }} value={vf.next_service} onChange={function(e){ setVf(Object.assign({},vf,{next_service:e.target.value})); }} />
+                <DeDateInput value={isoToDe(vf.next_service)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setVf(Object.assign({},vf,{next_service: iso||""})); }} />
               </div>
               <div>
                 <div className="label-cap">Kilometerstand</div>
@@ -6461,7 +6460,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
               </div>
               <div>
                 <div className="label-cap">UVV Datum</div>
-                <input type="date" className="inp" style={{ width:"100%" }} value={ff.uvv_datum} onChange={function(e){ setFf(Object.assign({},ff,{uvv_datum:e.target.value})); }} />
+                <DeDateInput value={isoToDe(ff.uvv_datum)} onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setFf(Object.assign({},ff,{uvv_datum: iso||""})); }} />
               </div>
               <div>
                 <div className="label-cap">Kaufpreis (€)</div>
