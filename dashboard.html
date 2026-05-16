@@ -5703,29 +5703,38 @@ function Wartungsplan({ plans, vehicles, forklifts, users, onRefresh, loading })
                   <tr>
                     <th>Fahrer</th>
                     <th>Klassen</th>
-                    <th>Führerschein gültig bis</th>
+                    <th>FS gültig bis</th>
+                    <th>Nächste Kontrolle</th>
+                    <th>Nächste Unterweisung</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {drivers.length === 0
-                    ? <tr><td colSpan="4" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Fahrer</td></tr>
+                    ? <tr><td colSpan="6" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Fahrer</td></tr>
                     : drivers.map(function(u){
-                        var st = fristStatus([u.fuehrerschein_ablauf]);
-                        var d = daysUntil(u.fuehrerschein_ablauf);
-                        var clr = d === null ? "rgba(255,255,255,0.3)" : (d<0?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.85)");
+                        var st = fristStatus([u.fuehrerschein_ablauf, u.fs_kontrolle_naechste, u.unterweisung_naechste]);
+                        function dc(val) {
+                          var dd = daysUntil(val);
+                          var c = dd === null ? "rgba(255,255,255,0.3)" : (dd<0?"#ef4444":dd<30?"#ffa500":"rgba(255,255,255,0.85)");
+                          return (
+                            <td>
+                              <div style={{ fontSize:13, fontWeight:600, color:c }}>{val ? isoToDe(val) : "—"}</div>
+                              {dd !== null && dd < 90 && (
+                                <div style={{ fontSize:10, marginTop:2, color: dd<0?"#ef4444":dd<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
+                                  {dd < 0 ? Math.abs(dd)+"d überfällig" : "in "+dd+"d"}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
                         return (
                           <tr key={u.id}>
                             <td style={{ fontWeight:700 }}>{u.name||"—"}</td>
                             <td style={{ fontSize:13 }}>{u.fuehrerschein_klassen || "—"}</td>
-                            <td>
-                              <div style={{ fontSize:13, fontWeight:600, color:clr }}>{u.fuehrerschein_ablauf ? isoToDe(u.fuehrerschein_ablauf) : "—"}</div>
-                              {d !== null && d < 90 && (
-                                <div style={{ fontSize:10, marginTop:2, color: d<0?"#ef4444":d<30?"#ffa500":"rgba(255,255,255,0.4)" }}>
-                                  {d < 0 ? Math.abs(d)+"d überfällig" : "in "+d+"d"}
-                                </div>
-                              )}
-                            </td>
+                            {dc(u.fuehrerschein_ablauf)}
+                            {dc(u.fs_kontrolle_naechste)}
+                            {dc(u.unterweisung_naechste)}
                             <td>
                               <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontWeight:700, fontSize:12, color:statusColor(st) }}>
                                 <span style={{ width:9, height:9, borderRadius:"50%", background:statusColor(st), display:"inline-block" }}></span>
@@ -6044,6 +6053,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
   var _vf = useState({ plate:"", brand:"", model:"", type:"truck", tuev:"", au:"", sp:"", insurance:"", uvv:"", next_service:"", mileage:"" });
   var vf = _vf[0]; var setVf = _vf[1];
   var _vfEdit = useState(null); var vfEditId = _vfEdit[0]; var setVfEditId = _vfEdit[1];
+  var _selDrv = useState([]); var selDrivers = _selDrv[0]; var setSelDrivers = _selDrv[1];
   // Forklift form
   var _ff = useState({ nummer:"", hersteller:"", model:"", baujahr:"", standort:"", einsatzort:"", fahrgestell:"", betrieb_std:"", uvv_datum:"", kaufpreis:"", leasingrate:"", aktiv:true });
   var ff = _ff[0]; var setFf = _ff[1];
@@ -6108,6 +6118,61 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
   function cancelEditVehicle() {
     setVf({ plate:"", brand:"", model:"", type:"truck", tuev:"", au:"", sp:"", insurance:"", uvv:"", next_service:"", mileage:"" });
     setVfEditId(null);
+  }
+
+  // Выделение водителей
+  function toggleDriver(id) {
+    var cur = selDrivers.slice();
+    var i = cur.indexOf(id);
+    if (i === -1) cur.push(id); else cur.splice(i, 1);
+    setSelDrivers(cur);
+  }
+  function toggleAllDrivers(ids) {
+    if (selDrivers.length === ids.length) setSelDrivers([]);
+    else setSelDrivers(ids.slice());
+  }
+  // Список водителей для экспорта: выделенные, или все если ничего не выделено
+  function driversForExport() {
+    var all = dbUsers.filter(function(u){ return u.role === "fahrer"; });
+    if (selDrivers.length === 0) return all;
+    return all.filter(function(u){ return selDrivers.indexOf(u.id) !== -1; });
+  }
+  function fsExportRowsHtml() {
+    return driversForExport().map(function(u){
+      var nied = (dbNiederlassungen.find(function(n){ return n.id === u.niederlassung_id; })||{}).name || u.niederlassung_id || "—";
+      return "<tr><td>"+(u.name||"—")+"</td><td>"+nied+"</td>"+
+        "<td>"+(u.fuehrerschein_klassen||"—")+"</td>"+
+        "<td>"+(u.fuehrerschein_ablauf ? isoToDe(u.fuehrerschein_ablauf) : "—")+"</td>"+
+        "<td>"+(u.fs_kontrolle_letzte ? isoToDe(u.fs_kontrolle_letzte) : "—")+"</td>"+
+        "<td>"+(u.fs_kontrolle_naechste ? isoToDe(u.fs_kontrolle_naechste) : "—")+"</td>"+
+        "<td>"+(u.unterweisung_letzte ? isoToDe(u.unterweisung_letzte) : "—")+"</td>"+
+        "<td>"+(u.unterweisung_naechste ? isoToDe(u.unterweisung_naechste) : "—")+"</td></tr>";
+    }).join("");
+  }
+  function exportFahrer() {
+    var list = driversForExport();
+    var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Fahrer — Führerschein & Unterweisung</title>"+baseReportStyle()+"</head><body>"+
+      "<h1>WerkFlow — Fahrer: Führerschein &amp; Unterweisung</h1><h2>"+list.length+" Fahrer</h2>"+
+      "<table><thead><tr><th>Name</th><th>Niederlassung</th><th>FS-Klassen</th><th>FS gültig bis</th><th>Letzte Kontrolle</th><th>Nächste Kontrolle</th><th>Letzte Unterweisung</th><th>Nächste Unterweisung</th></tr></thead><tbody>"+fsExportRowsHtml()+"</tbody></table>"+
+      "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
+    printHtml(html, "Fahrer — Führerschein");
+  }
+  function exportFahrerXlsx() {
+    var headers = ["Name", "Niederlassung", "FS-Klassen", "FS gültig bis", "Letzte Kontrolle", "Nächste Kontrolle", "Letzte Unterweisung", "Nächste Unterweisung"];
+    var rows = driversForExport().map(function(u){
+      var nied = (dbNiederlassungen.find(function(n){ return n.id === u.niederlassung_id; })||{}).name || u.niederlassung_id || "";
+      return {
+        "Name": u.name || "",
+        "Niederlassung": nied,
+        "FS-Klassen": u.fuehrerschein_klassen || "",
+        "FS gültig bis": u.fuehrerschein_ablauf ? isoToDe(u.fuehrerschein_ablauf) : "",
+        "Letzte Kontrolle": u.fs_kontrolle_letzte ? isoToDe(u.fs_kontrolle_letzte) : "",
+        "Nächste Kontrolle": u.fs_kontrolle_naechste ? isoToDe(u.fs_kontrolle_naechste) : "",
+        "Letzte Unterweisung": u.unterweisung_letzte ? isoToDe(u.unterweisung_letzte) : "",
+        "Nächste Unterweisung": u.unterweisung_naechste ? isoToDe(u.unterweisung_naechste) : ""
+      };
+    });
+    exportXlsx(rows, headers, "Fahrer — Führerschein & Unterweisung", null);
   }
 
   function saveForklift() {
@@ -6188,6 +6253,10 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
       notes: (u.notes||"").trim() || null,
       fuehrerschein_klassen: (u.role === "fahrer" && u.fuehrerschein_klassen) ? String(u.fuehrerschein_klassen).trim() || null : null,
       fuehrerschein_ablauf: (u.role === "fahrer" && u.fuehrerschein_ablauf) ? u.fuehrerschein_ablauf : null,
+      fs_kontrolle_letzte: (u.role === "fahrer" && u.fs_kontrolle_letzte) ? u.fs_kontrolle_letzte : null,
+      fs_kontrolle_naechste: (u.role === "fahrer" && u.fs_kontrolle_naechste) ? u.fs_kontrolle_naechste : null,
+      unterweisung_letzte: (u.role === "fahrer" && u.unterweisung_letzte) ? u.unterweisung_letzte : null,
+      unterweisung_naechste: (u.role === "fahrer" && u.unterweisung_naechste) ? u.unterweisung_naechste : null,
       tenant_id: "ltg"
     };
 
@@ -6782,17 +6851,47 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                   )}
 
                   {uEdit.role === "fahrer" && (
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14, padding:"12px", borderRadius:10, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)" }}>
-                      <div style={{ gridColumn:"1 / -1", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>Führerschein</div>
-                      <div>
-                        <div className="label-cap">Klassen</div>
-                        <input className="inp" style={{ width:"100%" }} value={uEdit.fuehrerschein_klassen||""} placeholder="CE, C, BE..."
-                          onChange={function(e){ setUEdit(Object.assign({},uEdit,{fuehrerschein_klassen:e.target.value})); }} />
+                    <div style={{ marginBottom:14, padding:"14px", borderRadius:10, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)" }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.7)", marginBottom:10 }}>Führerschein</div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+                        <div>
+                          <div className="label-cap">Klassen</div>
+                          <input className="inp" style={{ width:"100%" }} value={uEdit.fuehrerschein_klassen||""} placeholder="CE, C, BE..."
+                            onChange={function(e){ setUEdit(Object.assign({},uEdit,{fuehrerschein_klassen:e.target.value})); }} />
+                        </div>
+                        <div>
+                          <div className="label-cap">Gültig bis</div>
+                          <DeDateInput value={isoToDe(uEdit.fuehrerschein_ablauf)}
+                            onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{fuehrerschein_ablauf: iso||""})); }} />
+                        </div>
                       </div>
-                      <div>
-                        <div className="label-cap">Gültig bis</div>
-                        <DeDateInput value={isoToDe(uEdit.fuehrerschein_ablauf)}
-                          onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{fuehrerschein_ablauf: iso||""})); }} />
+
+                      <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.7)", marginBottom:10 }}>Führerscheinkontrolle <span style={{ fontWeight:400, fontSize:11, color:"rgba(255,255,255,0.4)" }}>(Halterhaftung, i.d.R. halbjährlich)</span></div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+                        <div>
+                          <div className="label-cap">Letzte Kontrolle</div>
+                          <DeDateInput value={isoToDe(uEdit.fs_kontrolle_letzte)}
+                            onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{fs_kontrolle_letzte: iso||""})); }} />
+                        </div>
+                        <div>
+                          <div className="label-cap">Nächste Kontrolle</div>
+                          <DeDateInput value={isoToDe(uEdit.fs_kontrolle_naechste)}
+                            onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{fs_kontrolle_naechste: iso||""})); }} />
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.7)", marginBottom:10 }}>Fahrerunterweisung <span style={{ fontWeight:400, fontSize:11, color:"rgba(255,255,255,0.4)" }}>(UVV / §12 ArbSchG, jährlich)</span></div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                        <div>
+                          <div className="label-cap">Letzte Unterweisung</div>
+                          <DeDateInput value={isoToDe(uEdit.unterweisung_letzte)}
+                            onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{unterweisung_letzte: iso||""})); }} />
+                        </div>
+                        <div>
+                          <div className="label-cap">Nächste Unterweisung</div>
+                          <DeDateInput value={isoToDe(uEdit.unterweisung_naechste)}
+                            onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setUEdit(Object.assign({},uEdit,{unterweisung_naechste: iso||""})); }} />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -6879,31 +6978,66 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
           {mTab === "fahrer" && (
             <div>
               <div className="panel">
-                <div className="panel-hd"><div className="panel-title">Fahrer ({(function(){ return dbUsers.filter(function(u){ return u.role === "fahrer"; }).length; })()})</div></div>
+                <div className="panel-hd">
+                  <div className="panel-title">Fahrer ({(function(){ return dbUsers.filter(function(u){ return u.role === "fahrer"; }).length; })()})</div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button className="btn-outline btn-small no-print" onClick={exportFahrer} title="PDF / Drucken">📄 PDF</button>
+                    <button className="btn-outline btn-small no-print" onClick={exportFahrerXlsx} title="Excel-Datei"
+                      style={{ borderColor:"rgba(34,197,94,0.4)", color:"#22c55e" }}>📊 Excel</button>
+                  </div>
+                </div>
                 <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", padding:"0 0 12px" }}>
-                  Fahrer registrieren sich selbst in der Fahrer-App mit dem gemeinsamen PIN. Hier können sie deaktiviert werden.
+                  Fahrer registrieren sich selbst in der Fahrer-App mit dem gemeinsamen PIN. Führerschein-Daten hier per ✎ pflegen.
+                  {selDrivers.length > 0
+                    ? " Export: " + selDrivers.length + " ausgewählt."
+                    : " Export: alle Fahrer (keine Auswahl)."}
                 </div>
                 {(function(){
                   var fahrer = dbUsers.filter(function(u){ return u.role === "fahrer"; });
                   if (fahrer.length === 0) return <div className="empty">Noch keine Fahrer registriert</div>;
+                  var allIds = fahrer.map(function(u){ return u.id; });
                   return (
                     <table className="tbl">
-                      <thead><tr><th>Name</th><th>Niederlassung</th><th>Letzter Login</th><th>Status</th><th></th></tr></thead>
+                      <thead><tr>
+                        <th style={{ width:36 }}>
+                          <input type="checkbox"
+                            checked={selDrivers.length === allIds.length && allIds.length > 0}
+                            onChange={function(){ toggleAllDrivers(allIds); }} />
+                        </th>
+                        <th>Name</th><th>FS-Klassen</th><th>FS gültig bis</th><th>Nächste Kontrolle</th><th>Nächste Unterweisung</th><th>Status</th><th></th>
+                      </tr></thead>
                       <tbody>
                         {fahrer.map(function(u){
                           var nied = (dbNiederlassungen.find(function(n){ return n.id === u.niederlassung_id; })||{}).name || u.niederlassung_id || "—";
+                          function dCell(val, soonDays) {
+                            if (!val) return <span style={{ color:"rgba(255,255,255,0.3)" }}>—</span>;
+                            var ms = new Date(val).getTime();
+                            var dd = isNaN(ms) ? null : Math.round((ms - Date.now())/86400000);
+                            var clr = dd === null ? "rgba(255,255,255,0.85)" : (dd<0?"#ef4444":dd<soonDays?"#ffa500":"rgba(255,255,255,0.85)");
+                            return <span style={{ color:clr, fontWeight:600 }}>{isoToDe(val)}{dd!==null && dd<soonDays ? (dd<0?" ("+Math.abs(dd)+"d überf.)":" (in "+dd+"d)") : ""}</span>;
+                          }
+                          var checked = selDrivers.indexOf(u.id) !== -1;
                           return (
-                            <tr key={u.id} style={{ opacity: u.active ? 1 : 0.45 }}>
+                            <tr key={u.id} style={{ opacity: u.active ? 1 : 0.45, background: checked ? "rgba(255,165,0,0.06)" : "transparent" }}>
+                              <td><input type="checkbox" checked={checked} onChange={function(){ toggleDriver(u.id); }} /></td>
                               <td>
                                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                   <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,165,0,0.15)", border:"1px solid rgba(255,165,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:"#ffa500" }}>{u.avatar||"??"}</div>
-                                  <strong>{u.name}</strong>
+                                  <div>
+                                    <strong>{u.name}</strong>
+                                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{nied}</div>
+                                  </div>
                                 </div>
                               </td>
-                              <td style={{ fontSize:12 }}>{nied}</td>
-                              <td style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>{u.last_login ? fmtDateTime(u.last_login) : "—"}</td>
+                              <td style={{ fontSize:12 }}>{u.fuehrerschein_klassen || <span style={{ color:"rgba(255,255,255,0.3)" }}>—</span>}</td>
+                              <td style={{ fontSize:12 }}>{dCell(u.fuehrerschein_ablauf, 30)}</td>
+                              <td style={{ fontSize:12 }}>{dCell(u.fs_kontrolle_naechste, 30)}</td>
+                              <td style={{ fontSize:12 }}>{dCell(u.unterweisung_naechste, 30)}</td>
                               <td style={{ fontSize:12, color: u.active ? "#22c55e" : "#ef4444", fontWeight:700 }}>{u.active ? "Aktiv" : "Inaktiv"}</td>
-                              <td><button className="btn-secondary btn-small" onClick={function(){ toggleActive(u); }}>{u.active ? "🚫 Deaktivieren" : "✅ Aktivieren"}</button></td>
+                              <td style={{ whiteSpace:"nowrap" }}>
+                                <button className="btn-secondary btn-small" title="Führerschein bearbeiten" onClick={function(){ setUEdit(Object.assign({},u,{rate_per_hour: u.rate_per_hour ? String(u.rate_per_hour) : "" })); }}>✎</button>
+                                <button className="btn-secondary btn-small" style={{ marginLeft:6 }} onClick={function(){ toggleActive(u); }}>{u.active ? "🚫" : "✅"}</button>
+                              </td>
                             </tr>
                           );
                         })}
@@ -7486,7 +7620,7 @@ function AppShell({ user, onLogout }) {
       sbGet("inspections",        "select=*&order=created_at.desc&limit=300"),
       sbGet("invoices",           "select=*&order=date.desc&limit=300"),
       sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
-      sbGet("users",              "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen&order=name.asc&limit=300"),
+      sbGet("users",              "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen,fs_kontrolle_letzte,fs_kontrolle_naechste,unterweisung_letzte,unterweisung_naechste&order=name.asc&limit=300"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
