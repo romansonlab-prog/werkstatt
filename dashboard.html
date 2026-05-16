@@ -808,11 +808,10 @@ function exportJobs(jobs, title, dateLabel) {
   printHtml(html, title);
 }
 
-// Excel-версия exportJobs — те же данные, с Fahrzeit
+// Excel-версия exportJobs
 function exportJobsXlsx(jobs, title, dateLabel) {
-  var headers = ["Datum", "Fahrzeug", "Mechaniker", "Typ", "Beschreibung", "Arbeitszeit (min)", "Fahrzeit (min)", "Kosten (€)", "Status"];
+  var headers = ["Datum", "Fahrzeug", "Mechaniker", "Typ", "Beschreibung", "Arbeitszeit (min)", "Kosten (€)", "Status"];
   var rows = jobs.map(function(j){
-    var travelMin = (parseInt(j.travel_to_min||0)||0) + (parseInt(j.travel_back_min||0)||0);
     return {
       "Datum": j.date || "",
       "Fahrzeug": j.plate || "",
@@ -820,7 +819,6 @@ function exportJobsXlsx(jobs, title, dateLabel) {
       "Typ": WORK_TYPES[j.work_type] || j.work_type || "",
       "Beschreibung": j.description || "",
       "Arbeitszeit (min)": parseInt(j.work_min||0) || 0,
-      "Fahrzeit (min)": travelMin,
       "Kosten (€)": j.cost ? Number(Number(j.cost).toFixed(2)) : 0,
       "Status": statusDE(j.status)
     };
@@ -1889,18 +1887,10 @@ function Eingang({ alerts, jobs, onRefresh, loading }) {
 
                       {/* Zeiten */}
                       <div style={{ marginBottom:14,
-                        display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+                        display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                         <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
                           <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>{fmtMin(linkedJob.work_min||0)}</div>
                           <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", marginTop:2 }}>Arbeit</div>
-                        </div>
-                        <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
-                          <div style={{ fontSize:16, fontWeight:800, color:"rgba(255,165,0,0.9)" }}>
-                            {(linkedJob.travel_to_min||0)+(linkedJob.travel_back_min||0) > 0
-                              ? fmtMin((linkedJob.travel_to_min||0)+(linkedJob.travel_back_min||0))
-                              : "—"}
-                          </div>
-                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", marginTop:2 }}>Fahrzeit</div>
                         </div>
                         <div style={{ background:"rgba(255,165,0,0.1)", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
                           <div style={{ fontSize:16, fontWeight:800, color:"#ffa500" }}>
@@ -2508,7 +2498,7 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
           var inProgress = mj.filter(function(j){ return j.status==="inProgress"; }).length;
           var paused = mj.filter(function(j){ return j.status==="paused"; }).length;
           var totalMin = mj.reduce(function(s,j){ return s+(parseInt(j.work_min||0)||0); }, 0);
-          var totalTravelMin = mj.reduce(function(s,j){ return s+(parseInt(j.travel_to_min||0)||0)+(parseInt(j.travel_back_min||0)||0); }, 0);
+          // Вариант 1: поездка входит в work_min, раздельного учёта дороги нет
           var totalCost = mj.reduce(function(s,j){ return s+(Number(j.cost)||0); }, 0);
           var isExp = expanded === mech.id;
 
@@ -2521,7 +2511,7 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
               {/* ЗАГОЛОВОК МЕХАНИКА - горизонтальная строка */}
               <div style={{
                 display:"grid",
-                gridTemplateColumns:"220px 1fr 1fr 1fr 1fr 140px",
+                gridTemplateColumns:"220px 1fr 1fr 1fr 140px",
                 alignItems:"center",
                 gap:0
               }}>
@@ -2554,13 +2544,6 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                   <div style={{ fontSize:22, fontWeight:700, color:"#fff", lineHeight:1 }}>{fmtMin(totalMin)}</div>
                   <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Arbeitszeit</div>
                 </div>
-                {/* FAHRZEIT */}
-                {totalTravelMin > 0 && (
-                  <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
-                    <div style={{ fontSize:22, fontWeight:700, color:"rgba(255,165,0,0.8)", lineHeight:1 }}>{fmtMin(totalTravelMin)}</div>
-                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:0.5, marginTop:4 }}>Fahrzeit</div>
-                  </div>
-                )}
                 {/* KOSTEN */}
                 <div style={{ borderLeft:"1px solid rgba(255,255,255,0.07)", padding:"0 24px", textAlign:"center" }}>
                   <div style={{ fontSize:22, fontWeight:700, color:"#ffa500", lineHeight:1 }}>{totalCost.toFixed(0)} €</div>
@@ -2585,7 +2568,7 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                         <thead>
                           <tr>
                             <th>Fahrzeug</th><th>Typ</th><th>Standort</th>
-                            <th>Beschreibung</th><th>Arbeit</th><th>Fahrt</th><th>Pause</th><th>Kosten</th><th>Status</th><th></th>
+                            <th>Beschreibung</th><th>Arbeit</th><th>Pause</th><th>Kosten</th><th>Status</th><th></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2603,11 +2586,6 @@ function Mechaniker({ jobs, alerts, onRefresh, loading }) {
                                 <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{j.location||"—"}</td>
                                 <td style={{ fontSize:12, maxWidth:220, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{j.description||"—"}</td>
                                 <td>{fmtMin(j.work_min||0)}</td>
-                                <td style={{ color: (j.travel_to_min||0)+(j.travel_back_min||0) > 0 ? "rgba(255,165,0,0.8)" : "rgba(255,255,255,0.3)" }}>
-                                  {(j.travel_to_min||0)+(j.travel_back_min||0) > 0
-                                    ? fmtMin((j.travel_to_min||0)+(j.travel_back_min||0))
-                                    : "—"}
-                                </td>
                                 <td style={{ color: jPauseMin > 0 ? "rgba(255,165,0,0.8)" : "rgba(255,255,255,0.3)" }}>
                                   {jPauseMin > 0 ? fmtMin(jPauseMin) : (jPauses.length > 0 ? "läuft" : "—")}
                                 </td>
@@ -4916,9 +4894,8 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
       }
 
       // Лист 6 — Alle Aufträge (полный список)
-      var jobSheet = [["Datum", "Fahrzeug", "Mechaniker", "Typ", "Beschreibung", "Arbeitszeit (min)", "Fahrzeit (min)", "Kosten (€)", "Status"]];
+      var jobSheet = [["Datum", "Fahrzeug", "Mechaniker", "Typ", "Beschreibung", "Arbeitszeit (min)", "Kosten (€)", "Status"]];
       mJobs.forEach(function(j){
-        var travelMin = (parseInt(j.travel_to_min||0)||0) + (parseInt(j.travel_back_min||0)||0);
         jobSheet.push([
           j.date || (j.created_at || "").slice(0, 10),
           j.plate || "",
@@ -4926,12 +4903,11 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
           WORK_TYPES[j.work_type] || j.work_type || "",
           j.description || "",
           parseInt(j.work_min||0) || 0,
-          travelMin,
           (Number(j.labor_cost)||0) + (Number(j.parts_cost)||0),
           statusDE(j.status)
         ]);
       });
-      addSheet("Alle Aufträge", jobSheet, [12, 14, 18, 16, 40, 16, 14, 12, 14], 0);
+      addSheet("Alle Aufträge", jobSheet, [12, 14, 18, 16, 40, 16, 12, 14], 0);
 
       var fname = "WerkFlow_Monatsbericht_" + m.label.replace(/ /g, "_") + ".xlsx";
       XLSX.writeFile(wb, fname);
@@ -5958,6 +5934,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
     { k:"stock",      label:"📦 Lager" },
     { k:"users",      label:"👥 Mitarbeiter" },
     { k:"standorte",  label:"📍 Standorte" },
+    { k:"benachrichtigungen", label:"🔔 Benachrichtigungen" },
   ];
 
   var VEH_TYPE_OPTS = [
@@ -6572,6 +6549,176 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
       {tab === "standorte" && (
         <StandorteSettings niedList={niedList} showMsg={showMsg} />
       )}
+
+      {tab === "benachrichtigungen" && (
+        <BenachrichtigungenSettings niedList={niedList} showMsg={showMsg} />
+      )}
+    </div>
+  );
+}
+
+// === BENACHRICHTIGUNGEN SETTINGS ===
+// Управление email-получателями уведомлений (по филиалам).
+// Edge Function send-push читает notification_settings и шлёт письма.
+function BenachrichtigungenSettings({ niedList, showMsg }) {
+  var _list = useState([]); var list = _list[0]; var setList = _list[1];
+  var _ld = useState(true); var loading = _ld[0]; var setLoading = _ld[1];
+  var _email = useState(""); var email = _email[0]; var setEmail = _email[1];
+  var _nied = useState(""); var nied = _nied[0]; var setNied = _nied[1];
+  var _ev = useState("all"); var ev = _ev[0]; var setEv = _ev[1];
+  var _busy = useState(false); var busy = _busy[0]; var setBusy = _busy[1];
+
+  function load() {
+    setLoading(true);
+    fetch(SB_URL + "/rest/v1/notification_settings?select=*&order=created_at.desc", {
+      headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
+    }).then(function(r){ return r.json(); }).then(function(rows){
+      setList(Array.isArray(rows) ? rows : []); setLoading(false);
+    }).catch(function(){ setList([]); setLoading(false); });
+  }
+  useEffect(function(){ load(); }, []);
+
+  function validEmail(e) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((e||"").trim());
+  }
+
+  function add() {
+    if (!validEmail(email)) { showMsg && showMsg("❌ Ungültige E-Mail"); return; }
+    setBusy(true);
+    var rec = {
+      id: "ns_" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+      email: email.trim(),
+      niederlassung_id: nied || null,
+      events: ev,
+      active: true,
+      tenant_id: "ltg"
+    };
+    fetch(SB_URL + "/rest/v1/notification_settings", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "apikey":SB_KEY,
+        "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
+      body: JSON.stringify(rec)
+    }).then(function(r){
+      setBusy(false);
+      if (r.ok) { setEmail(""); setNied(""); setEv("all"); showMsg && showMsg("✅ E-Mail hinzugefügt"); load(); }
+      else showMsg && showMsg("❌ Fehler beim Speichern");
+    }).catch(function(){ setBusy(false); showMsg && showMsg("❌ Netzwerkfehler"); });
+  }
+
+  function toggleActive(row) {
+    fetch(SB_URL + "/rest/v1/notification_settings?id=eq." + encodeURIComponent(row.id), {
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json", "apikey":SB_KEY,
+        "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
+      body: JSON.stringify({ active: !row.active })
+    }).then(function(r){ if (r.ok) load(); });
+  }
+
+  function remove(row) {
+    if (!window.confirm("E-Mail " + row.email + " wirklich entfernen?")) return;
+    fetch(SB_URL + "/rest/v1/notification_settings?id=eq." + encodeURIComponent(row.id), {
+      method:"DELETE",
+      headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" }
+    }).then(function(r){ if (r.ok) { showMsg && showMsg("✅ Entfernt"); load(); } });
+  }
+
+  function niedName(id) {
+    if (!id) return "Alle Niederlassungen";
+    var n = (niedList || []).find(function(x){ return x.id === id; });
+    return n ? n.name : id;
+  }
+
+  return (
+    <div>
+      <div style={{ padding:"14px 16px", borderRadius:10, marginBottom:20,
+        background:"rgba(255,165,0,0.06)", border:"1px solid rgba(255,165,0,0.2)",
+        fontSize:13, color:"rgba(255,255,255,0.7)", lineHeight:1.5 }}>
+        E-Mail-Empfänger für Benachrichtigungen bei neuen Meldungen.
+        Pro Niederlassung können verschiedene Adressen hinterlegt werden.
+        <br/><span style={{ color:"rgba(255,255,255,0.45)" }}>
+          Hinweis: E-Mail-Versand wird aktiv, sobald der Resend-Zugang eingerichtet ist. Push funktioniert bereits.
+        </span>
+      </div>
+
+      {/* Форма добавления */}
+      <div className="panel" style={{ marginBottom:20 }}>
+        <div style={{ fontSize:14, fontWeight:700, marginBottom:14, color:"rgba(255,255,255,0.8)" }}>
+          E-Mail hinzufügen
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12, marginBottom:14 }}>
+          <input className="input-dark" type="email" placeholder="email@firma.de"
+            value={email} onChange={function(e){ setEmail(e.target.value); }} />
+          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            <select className="input-dark" value={nied} style={{ flex:"1 1 200px" }}
+              onChange={function(e){ setNied(e.target.value); }}>
+              <option value="">Alle Niederlassungen</option>
+              {(niedList || []).map(function(n){
+                return <option key={n.id} value={n.id}>{n.name}</option>;
+              })}
+            </select>
+            <select className="input-dark" value={ev} style={{ flex:"1 1 160px" }}
+              onChange={function(e){ setEv(e.target.value); }}>
+              <option value="all">Alle Meldungen</option>
+              <option value="sos">Nur SOS / Unfall</option>
+            </select>
+          </div>
+        </div>
+        <button className="btn-primary btn-small" onClick={add} disabled={busy}>
+          {busy ? "Speichert..." : "+ Hinzufügen"}
+        </button>
+      </div>
+
+      {/* Список */}
+      {loading
+        ? <div className="empty" style={{ padding:30 }}>Lädt...</div>
+        : list.length === 0
+          ? <div className="empty" style={{ padding:30, textAlign:"center" }}>
+              Noch keine E-Mail-Empfänger. Oben hinzufügen.
+            </div>
+          : (
+            <div className="panel" style={{ padding:0, overflow:"hidden" }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>E-Mail</th>
+                    <th>Niederlassung</th>
+                    <th>Meldungen</th>
+                    <th style={{ textAlign:"center" }}>Aktiv</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map(function(row){
+                    return (
+                      <tr key={row.id} style={{ opacity: row.active ? 1 : 0.45 }}>
+                        <td><b>{row.email}</b></td>
+                        <td style={{ color:"rgba(255,255,255,0.6)" }}>{niedName(row.niederlassung_id)}</td>
+                        <td style={{ color:"rgba(255,255,255,0.6)" }}>
+                          {row.events === "sos" ? "Nur SOS / Unfall" : "Alle Meldungen"}
+                        </td>
+                        <td style={{ textAlign:"center" }}>
+                          <button type="button" onClick={function(){ toggleActive(row); }}
+                            style={{ width:44, height:24, borderRadius:12, border:0, cursor:"pointer",
+                              background: row.active ? "var(--accent, #ffa500)" : "rgba(255,255,255,0.15)",
+                              position:"relative", transition:"background 0.2s" }}>
+                            <span style={{ position:"absolute", top:3, left: row.active ? 23 : 3,
+                              width:18, height:18, borderRadius:"50%", background:"#fff",
+                              transition:"left 0.2s" }}></span>
+                          </button>
+                        </td>
+                        <td style={{ textAlign:"right" }}>
+                          <button className="btn-outline btn-small"
+                            style={{ borderColor:"rgba(239,68,68,0.4)", color:"#ef4444" }}
+                            onClick={function(){ remove(row); }}>Entfernen</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+      }
     </div>
   );
 }

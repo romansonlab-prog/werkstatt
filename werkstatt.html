@@ -2494,8 +2494,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     return fresh;
   });
   var stageId = _sstage[0]; var setStageId = _sstage[1];
-  var _stt = useState(_draft.travelTo || 0); var travelTo = _stt[0]; var setTravelTo = _stt[1];
-  var _stb = useState(_draft.travelBack || 0); var travelBack = _stb[0]; var setTravelBack = _stb[1];
+  // Вариант 1: поездка = работа, единый таймер work_min. Раздельный учёт дороги убран.
   var _swm = useState(_draft.workMin || 0); var workMin = _swm[0]; var setWorkMin = _swm[1];
   var _scoll = useState(_draft.colleague || false); var colleague = _scoll[0]; var setColleague = _scoll[1];
   var _scn = useState(_draft.colleagueName || ""); var colleagueName = _scn[0]; var setColleagueName = _scn[1];
@@ -2873,8 +2872,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
           status: "paused",
           paused_at: new Date().toISOString(),
           pause_log: JSON.stringify(newLog),
-          travel_to_min: travelTo,
-          travel_back_min: travelBack,
           work_min: workMin,
           parts_type: partsType,
           parts_note: partsNote || null,
@@ -2893,7 +2890,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         creatingJobRef.current = false;
         clearTimerKeys();
         setPauseModal(false); setPauseReason("");
-        setDescription(""); setPhotos([]); setTravelTo(0); setTravelBack(0); setWorkMin(0);
+        setDescription(""); setPhotos([]); setWorkMin(0);
         setPartsType("none"); setShopItems([{ id:"SI0", lieferschein:"", datum:todayIso(), lieferschein_foto:"", positionen:[{ id:"PS0", bez:"", preis:"" }] }]);
         setVehicle(null); setColleague(false); setColleagueName("");
         setTireNewSn(""); setTireOldSn("");
@@ -2929,8 +2926,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         location: location,
         workType: workType,
         description: description,
-        travelTo: travelTo,
-        travelBack: travelBack,
         workMin: workMin,
         colleague: colleague,
         colleagueName: colleagueName,
@@ -2942,7 +2937,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         photoUrls: photos.filter(function(p){ return p.url && !p.uploading; }).map(function(p){ return p.url; })
       }));
     } catch(e) {}
-  }, [vehicleType, vehicle, location, workType, description, travelTo, travelBack,
+  }, [vehicleType, vehicle, location, workType, description,
       workMin, colleague, colleagueName, partsType, shopItems, fremdItems, tireNewSn, tireOldSn, photos]);
 
   useEffect(function() {
@@ -2963,8 +2958,6 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     if (prefill.continueJobId) {
       jobIdRef.current = prefill.continueJobId;
       creatingJobRef.current = false;
-      setTravelTo(prefill.travel_to_min || 0);
-      setTravelBack(prefill.travel_back_min || 0);
       setWorkMin(prefill.work_min || 0);
       if (prefill.parts_type) setPartsType(prefill.parts_type);
       if (prefill.parts_items) {
@@ -3037,7 +3030,21 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
               {VEHICLE_TYPES.map(function(vt) { return <option key={vt[0]} value={vt[0]}>{vt[1]}</option>; })}
             </select>
             <div className="label-cap">Standort</div>
-            <StandortPicker value={location} onChange={setLocation} locations={locations} />
+            {(prefill && prefill.location && njCoords(prefill.location))
+              ? (
+                <div style={{ padding:"14px 16px", borderRadius:12,
+                  background:"rgba(255,165,0,0.07)", border:"1px solid rgba(255,165,0,0.25)",
+                  display:"flex", alignItems:"flex-start", gap:10 }}>
+                  <span style={{ fontSize:16, flexShrink:0 }}>📍</span>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:11, color:"rgba(255,165,0,0.8)", fontWeight:700,
+                      textTransform:"uppercase", letterSpacing:0.5, marginBottom:3 }}>Einsatzort</div>
+                    <div style={{ fontSize:14, color:"#fff", lineHeight:1.4 }}>{cleanAddr(prefill.location)}</div>
+                  </div>
+                </div>
+              )
+              : <StandortPicker value={location} onChange={setLocation} locations={locations} />
+            }
           </div>
           <div>
             <div className="label-cap">Kennzeichen / Nr.</div>
@@ -3881,7 +3888,6 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         "<td>" + (j.location || "") + "</td>" +
         "<td>" + (j.description ? j.description.slice(0,80) : "") + "</td>" +
         "<td>" + fmtMin(j.work_min || 0) + "</td>" +
-        "<td>" + fmtMin((j.travel_to_min||0)+(j.travel_back_min||0)) + "</td>" +
         "<td>" + pauseInfo + "</td>" +
         "<td>" + (j.cost ? Number(j.cost).toFixed(2) + " EUR" : "—") + "</td>" +
         "<td style='color:" + statusColor + ";font-weight:bold'>" + statusDE + "</td>" +
@@ -3907,7 +3913,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       "<div class='sum-item'><div class='sum-val'>" + fmtMin(totalPause) + "</div><div class='sum-lab'>Pausen</div></div>" +
       "<div class='sum-item'><div class='sum-val'>" + totalCost.toFixed(2) + " EUR</div><div class='sum-lab'>Gesamtkosten</div></div>" +
       "</div>" +
-      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Fahrzeit</th><th>Pausen</th><th>Kosten</th><th>Status</th></tr></thead>" +
+      "<table><thead><tr><th>Fahrzeug</th><th>Typ</th><th>Standort</th><th>Beschreibung</th><th>Arbeitszeit</th><th>Pausen</th><th>Kosten</th><th>Status</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></body></html>";
 
     var fileName = "Tagesbericht_" + user.name.replace(/ /g,"_") + "_" + date + ".html";
