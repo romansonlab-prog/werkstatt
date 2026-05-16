@@ -1490,9 +1490,9 @@ function TimerBox({ label, value, setValue, onFirstStart, storageKey }) {
   function applyManual() {
     var hh = parseInt(h || "0", 10) || 0;
     var mm = parseInt(m || "0", 10) || 0;
-    if (mm < 0 || mm > 59) { alert("Ungültige Minuten."); return; }
+    if (mm < 0 || mm > 59) { showToast("Ungültige Minuten."); return; }
     var total = hh * 60 + mm;
-    if (total > 24 * 60) { alert("Maximal 24 Stunden."); return; }
+    if (total > 24 * 60) { showToast("Maximal 24 Stunden."); return; }
     if (onFirstStart) onFirstStart();
     // Если таймер шёл — останавливаем его, ручной ввод заменяет результат
     if (active) {
@@ -1993,7 +1993,7 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
         preis: found ? String(found.price||found.preis||"") : ""
       };
       setShopItems(shopItems.concat([newItem]));
-      if (!found) alert("Barcode " + code + " nicht im Lager gefunden. Bitte manuell ausfüllen.");
+      if (!found) showToast("Barcode " + code + " nicht im Lager gefunden. Bitte manuell ausfüllen.");
     } else if (scanTarget) {
       // Обновляем существующую позицию
       setShopItems(shopItems.map(function(s){
@@ -2004,7 +2004,7 @@ function TeilePicker({ partsType, setPartsType, shopItems, setShopItems, stock, 
           preis: found ? String(found.price||found.preis||s.preis) : s.preis
         });
       }));
-      if (!found) alert("Barcode " + code + " nicht im Lager gefunden.");
+      if (!found) showToast("Barcode " + code + " nicht im Lager gefunden.");
     }
     setScanTarget(null);
   }
@@ -2384,7 +2384,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
   function startAuftrag() {
     if (savingRef.current) return;
     if (!vehicle || !vehicle.plate) {
-      alert("Bitte zuerst Fahrzeug auswählen.");
+      showToast("Bitte zuerst Fahrzeug auswählen.");
       return;
     }
 
@@ -2399,7 +2399,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       });
       if (openOnSamePlate) {
         var st = openOnSamePlate.status === "paused" ? "pausiert" : "in Arbeit";
-        alert("Für " + vehicle.plate + " läuft bereits ein Auftrag (" + st + ").\nBitte zuerst diesen abschließen oder weiterarbeiten.");
+        showToast("Für " + vehicle.plate + " läuft bereits ein Auftrag (" + st + ")");
         return;
       }
     }
@@ -2478,7 +2478,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       if (stillUploading) {
         setSaving(false);
         savingRef.current = false;
-        alert("Bitte warten — Fotos werden noch hochgeladen.");
+        showToast("Bitte warten — Fotos werden noch hochgeladen.");
         return;
       }
 
@@ -2502,7 +2502,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
         })
         .catch(function(e){
           console.error(e);
-          alert("Fehler: " + (e.message || e));
+          showToast("Fehler: " + (e.message || e));
           setSaving(false);
           savingRef.current = false;
         });
@@ -2518,7 +2518,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     if (stillUploadingNew) {
       setSaving(false);
       savingRef.current = false;
-      alert("Bitte warten — Fotos werden noch hochgeladen.");
+      showToast("Bitte warten — Fotos werden noch hochgeladen.");
       return;
     }
 
@@ -2609,7 +2609,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     })
     .catch(function(e) {
       console.error(e);
-      alert("Fehler: " + (e.message || e));
+      showToast("Fehler: " + (e.message || e));
       setSaving(false);
       savingRef.current = false;
     });
@@ -2620,10 +2620,10 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
   function pauseJob() {
     if (savingRef.current) return;
     if (!jobIdRef.current) {
-      alert("Auftrag noch nicht gestartet — bitte zuerst einen Timer starten.");
+      showToast("Auftrag noch nicht gestartet — bitte zuerst einen Timer starten.");
       return;
     }
-    if (!pauseReason.trim()) { alert("Bitte Grund angeben."); return; }
+    if (!pauseReason.trim()) { showToast("Bitte Grund angeben."); return; }
     savingRef.current = true;
     setSaving(true);
 
@@ -2725,7 +2725,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       })
       .catch(function(e) {
         console.error(e);
-        alert("Fehler: " + (e.message || e));
+        showToast("Fehler: " + (e.message || e));
         setSaving(false);
         savingRef.current = false;
       });
@@ -3133,7 +3133,7 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
     var a = modal.alert;
     var action = modal.action;
     if ((action === "reject" || action === "defer") && !reason.trim()) {
-      alert("Bitte Grund angeben.");
+      showToast("Bitte Grund angeben.");
       return;
     }
     setUpdating(true);
@@ -3150,7 +3150,7 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
           }
           onRefresh();
         })
-        .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
+        .catch(function(e) { showToast("Fehler: " + e.message); setUpdating(false); });
       return;
     }
 
@@ -3162,7 +3162,7 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
     }
     sbPatch("alerts", a.id, patch)
       .then(function() { setUpdating(false); setModal(null); onRefresh(); })
-      .catch(function(e) { alert("Fehler: " + e.message); setUpdating(false); });
+      .catch(function(e) { showToast("Fehler: " + e.message); setUpdating(false); });
   }
 
   function doCreate(a) {
@@ -3189,7 +3189,7 @@ function Eingang({ alerts, user, onCreate, onStatusChange, loading, onRefresh })
       })
       .catch(function(e) {
         setUpdating(false);
-        alert("Fehler: " + e.message);
+        showToast("Fehler: " + e.message);
       });
   }
 
@@ -3734,7 +3734,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
   // Подтверждение паузы — пишем pause_log, status=paused, фиксируем work_min
   function confirmPause() {
     if (!pauseModalJob) return;
-    if (!pauseReasonInput.trim()) { alert("Bitte Grund angeben."); return; }
+    if (!pauseReasonInput.trim()) { showToast("Bitte Grund angeben."); return; }
     var job = pauseModalJob;
     setUpdating(true);
 
@@ -3776,7 +3776,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       if (onRefresh) onRefresh();
     }).catch(function(e){
       setUpdating(false);
-      alert("Fehler: " + (e.message || e));
+      showToast("Fehler: " + (e.message || e));
     });
   }
 
@@ -3807,7 +3807,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       if (onRefresh) onRefresh();
     }).catch(function(e){
       setUpdating(false);
-      alert("Fehler: " + (e.message || e));
+      showToast("Fehler: " + (e.message || e));
     });
   }
 
@@ -3843,7 +3843,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       showToast("Auftrag abgeschlossen — " + fmtMin(workMin) + " · " + laborCost.toFixed(2) + " €");
     }).catch(function(e){
       setUpdating(false);
-      alert("Fehler: " + (e.message || e));
+      showToast("Fehler: " + (e.message || e));
     });
   }
 
@@ -4383,7 +4383,7 @@ function DUAuflieger({ user, vehicles, onRefresh }) {
   }
 
   function save() {
-    if (!plate || !plate.plate) { alert("Bitte Fahrzeug auswählen."); return; }
+    if (!plate || !plate.plate) { showToast("Bitte Fahrzeug auswählen."); return; }
     var res = calcResult();
     if (res === "incomplete") {
       if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
@@ -4415,7 +4415,7 @@ function DUAuflieger({ user, vehicles, onRefresh }) {
         setErgaenzt(""); setBemerk(""); setView("list");
         loadList();
       })
-      .catch(function(e) { setSaving(false); alert("Fehler: " + (e.message || e)); });
+      .catch(function(e) { setSaving(false); showToast("Fehler: " + (e.message || e)); });
   }
 
   if (view === "form") {
@@ -4890,6 +4890,18 @@ function AppShell({ user, onLogout }) {
     });
   }
 
+  // Реакция на потерю/возврат сети
+  useEffect(function() {
+    function onOnline() { loadAll(); }
+    function onOffline() { setDbOk(false); }
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return function(){
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
+
   // Realtime подписка на alerts (с heartbeat и переподключением)
   useEffect(function() {
     loadAll();
@@ -4983,6 +4995,21 @@ function AppShell({ user, onLogout }) {
   return (
     <div style={{ position:"relative", minHeight:"100vh", minHeight:"100dvh", maxWidth:480, margin:"0 auto" }}>
       <Bg />
+      {dbOk === false && (
+        <div onClick={function(){ loadAll(); }}
+          style={{ position:"fixed", top:0, left:0, right:0, zIndex:9998,
+            maxWidth:480, margin:"0 auto",
+            background:"linear-gradient(90deg, #b91c1c, #dc2626)", color:"#fff",
+            padding:"11px 16px", display:"flex", alignItems:"center", justifyContent:"center",
+            gap:10, fontSize:13, fontWeight:700, cursor:"pointer",
+            boxShadow:"0 4px 18px rgba(0,0,0,0.4)" }}>
+          <span style={{ fontSize:16 }}>⚠</span>
+          <span>Keine Verbindung — Internet prüfen</span>
+          <span style={{ padding:"3px 10px", borderRadius:7, background:"rgba(255,255,255,0.2)", fontSize:12, fontWeight:800 }}>
+            ↻
+          </span>
+        </div>
+      )}
       <div className="app-wrap">
         <div className="app-top">
           <div>

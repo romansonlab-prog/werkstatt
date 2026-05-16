@@ -199,6 +199,21 @@ const LOCS = [
   { id:"jd",   name:"John Deere" },
 ];
 
+// Генерация уникального ID записи БД. Префикс сохраняем для читаемости,
+// хвост — UUID вместо timestamp, чтобы исключить коллизию при
+// одновременном создании записей с нескольких устройств.
+function genId(prefix) {
+  var uuid;
+  try {
+    if (window.crypto && window.crypto.randomUUID) {
+      uuid = window.crypto.randomUUID();
+    }
+  } catch(e) {}
+  if (!uuid) {
+    uuid = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 11);
+  }
+  return (prefix || "") + uuid;
+}
 function sbGet(table, query) {
   return fetch(SB_URL + "/rest/v1/" + table + (query ? "?" + query : ""), {
     headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
@@ -213,6 +228,15 @@ function sbPost(table, body) {
     headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY, "Prefer":"return=minimal" },
     body:JSON.stringify(body)
   }).then(function(r){ if (!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
+}
+
+// Понятное сообщение об ошибке: сетевые сбои → дружелюбный текст
+function netErrMsg(e) {
+  var msg = (e && (e.message || e)) ? String(e.message || e) : "";
+  var isNet = !navigator.onLine
+    || /failed to fetch|networkerror|load failed|err_|fetch/i.test(msg);
+  if (isNet) return "Keine Internetverbindung — bitte später erneut senden.";
+  return "Fehler: " + (msg || "Unbekannt");
 }
 
 function sbStatus(id) {
@@ -492,7 +516,6 @@ function StaplerInput({ onSelect }) {
       {found && (
         <div className="fork-card">
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-            <span style={{ fontSize:18 }}>🏗</span>
             <div style={{ fontWeight:900, fontSize:17, color:"#22c55e" }}>Stapler {found.nummer}</div>
           </div>
           <div style={{ fontWeight:800, fontSize:14, marginBottom:6 }}>{found.hersteller || ""} {found.model || ""}</div>
@@ -649,7 +672,7 @@ function ReportForm({ user, onSent }) {
     if (!ok || snd) return;
     sendingRef.current = true;
     setSnd(true);
-    var id = "ST" + Date.now();
+    var id = genId("ST");
     var locPreset = LOCS.find(function(l){ return l.id === loc; });
     var locFinal = locPreset ? locPreset.name : locV;
     var plate = fk ? (fk.nummer || fk.plate || fk.id || "") : "";
@@ -669,7 +692,7 @@ function ReportForm({ user, onSent }) {
       sendingRef.current = false;
       setSnd(false);
       onSent({ alertId:id, location:locFinal, forklift:fk, urg:urg, desc:dsc });
-    }).catch(function(e){ alert("Fehler: " + (e.message || e)); sendingRef.current = false; setSnd(false); });
+    }).catch(function(e){ alert(netErrMsg(e)); sendingRef.current = false; setSnd(false); });
   }
 
   return (
@@ -686,11 +709,11 @@ function ReportForm({ user, onSent }) {
         </div>
 
         <div style={{ fontSize:28, fontWeight:900, lineHeight:1.1, marginBottom:20 }}>
-          🏗 Stapler <span style={{ color:"#ffa500" }}>Störung</span>
+          Stapler <span style={{ color:"#ffa500" }}>Störung</span>
         </div>
 
         <div className="glass-panel">
-          <div className="label-cap">🚜 STAPLER NUMMER</div>
+          <div className="label-cap">STAPLER NUMMER</div>
           <div style={{ color:"rgba(255,255,255,0.55)", fontSize:12, marginBottom:10 }}>Dreistellige Nummer eingeben — Daten werden geladen</div>
           <StaplerInput onSelect={setFk} />
         </div>
@@ -852,7 +875,7 @@ function SentScreen({ sentData, onReset, onLogout }) {
           </div>
           {fk && (
             <div style={{ fontWeight:800, fontSize:15, marginBottom:4 }}>
-              🏗 Stapler {fk.nummer || fk.plate || ""}
+              Stapler {fk.nummer || fk.plate || ""}
               {fk.hersteller ? " · " + fk.hersteller : ""}
               {fk.model ? " " + fk.model : ""}
             </div>
@@ -888,7 +911,7 @@ function App() {
       window.introJs().setOptions({
         steps: [
           { intro: "<strong>Willkommen in WerkFlow Stapler!</strong><br/>Kurze Einführung in die App." },
-          { intro: "🏗 <strong>Meldung senden</strong><br/>Technische Probleme am Stapler hier melden." },
+          { intro: "<strong>Meldung senden</strong><br/>Technische Probleme am Stapler hier melden." },
           { intro: "⚡ <strong>Dringend</strong><br/>Bei kritischen Problemen 'Dringend' wählen — Werkstatt wird sofort benachrichtigt." },
           { intro: "✅ <strong>Status</strong><br/>Nach dem Senden siehst du ob die Werkstatt die Meldung bearbeitet." }
         ],
@@ -951,7 +974,7 @@ function App() {
 
   function loginFallback(fullName, nied) {
     var u = {
-      id: "st_" + Date.now(),
+      id: genId("st_"),
       name: fullName,
       avatar: fullName.split(" ").map(function(w){ return w[0]||""; }).join("").slice(0,2).toUpperCase(),
       role: "stapler",

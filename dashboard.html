@@ -374,6 +374,16 @@ function sbGet(table, query) {
     .catch(function(){ return []; });
 }
 
+// Отдельная проверка живости соединения с Supabase.
+// Лёгкий запрос (HEAD-подобный, 1 строка) — отвечает быстро.
+// true = соединение есть, false = сеть/Supabase недоступны.
+function sbPing() {
+  return fetch(SB_URL + "/rest/v1/jobs?select=id&limit=1", {
+    headers:{ "apikey":SB_KEY, "Authorization":"Bearer " + SB_KEY }
+  }).then(function(r){ return r.ok || r.status === 206; })
+    .catch(function(){ return false; });
+}
+
 function sbPatch(table, id, body) {
   return fetch(SB_URL + "/rest/v1/" + table + "?id=eq." + encodeURIComponent(id), {
     method:"PATCH",
@@ -1946,24 +1956,29 @@ function JobDetailModal({ job, onClose }) {
 
     var partsHtml = parts.length
       ? "<h3 style='margin-top:24px'>Teile / Lieferscheine</h3>" +
-        "<table style='width:100%;border-collapse:collapse;margin-top:8px'><thead><tr style='background:#f0f4ff'>" +
-        "<th style='padding:8px;border:1px solid #ccc;text-align:left'>Lieferschein-Nr.</th>" +
-        "<th style='padding:8px;border:1px solid #ccc;text-align:left'>Datum</th>" +
-        "<th style='padding:8px;border:1px solid #ccc;text-align:right'>Preis</th>" +
-        "<th style='padding:8px;border:1px solid #ccc;text-align:center'>Foto</th>" +
-        "</tr></thead><tbody>" +
         parts.map(function(p){
-          var fotoCell = p.lieferschein_foto
-            ? "<img src='" + p.lieferschein_foto + "' style='max-width:140px;max-height:100px;object-fit:contain'/>"
-            : "—";
-          return "<tr>" +
-            "<td style='padding:8px;border:1px solid #ccc'>" + (p.lieferschein || "—") + "</td>" +
-            "<td style='padding:8px;border:1px solid #ccc'>" + (p.datum || "—") + "</td>" +
-            "<td style='padding:8px;border:1px solid #ccc;text-align:right'>" + (p.preis ? p.preis + " €" : "—") + "</td>" +
-            "<td style='padding:8px;border:1px solid #ccc;text-align:center'>" + fotoCell + "</td>" +
-          "</tr>";
-        }).join("") +
-        "</tbody></table>"
+          var positionen = Array.isArray(p.positionen) ? p.positionen : null;
+          var fotoBlock = p.lieferschein_foto
+            ? "<img src='" + p.lieferschein_foto + "' style='max-width:220px;max-height:160px;object-fit:contain;border:1px solid #ccc;margin-top:8px'/>"
+            : "";
+          var head = "<div style='font-weight:700;margin-top:16px;font-size:14px'>" +
+            (p.lieferschein ? "Lieferschein Nr. " + p.lieferschein : "Lieferschein") +
+            (p.datum ? " <span style='color:#888;font-weight:400'>· " + p.datum + "</span>" : "") + "</div>";
+          var rows;
+          if (positionen) {
+            rows = "<table style='width:100%;border-collapse:collapse;margin-top:6px'><tbody>" +
+              positionen.map(function(pos){
+                return "<tr>" +
+                  "<td style='padding:6px 10px;border-bottom:1px solid #eee'>" + (pos.bez || "Position") + "</td>" +
+                  "<td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap'>" + (pos.preis ? pos.preis + " €" : "—") + "</td>" +
+                "</tr>";
+              }).join("") + "</tbody></table>";
+          } else {
+            rows = "<div style='padding:6px 0'>" + [p.typ, p.name].filter(Boolean).join(" · ") +
+              (p.preis ? " — " + p.preis + " €" : "") + "</div>";
+          }
+          return head + rows + fotoBlock;
+        }).join("")
       : "";
 
     var pauseHtml = pauses.length
@@ -2096,16 +2111,21 @@ function JobDetailModal({ job, onClose }) {
             </div>
           )}
 
-          {/* Teile / Lieferscheine с фото */}
+          {/* Teile / Lieferscheine с позициями и фото */}
           {parts.length > 0 && (
             <div style={{ marginBottom:18 }}>
               <div style={{ fontSize:11, color:"#ffa500", textTransform:"uppercase", letterSpacing:0.5, marginBottom:8, fontWeight:700 }}>
                 Teile / Lieferscheine ({parts.length})
               </div>
               {parts.map(function(p, i){
+                // Новая структура: p.positionen[]. Старая: p.preis/p.typ/p.name напрямую.
+                var positionen = Array.isArray(p.positionen) ? p.positionen : null;
+                var lsSumVal = positionen
+                  ? positionen.reduce(function(s, pos){ return s + (parseFloat((pos.preis||"0").toString().replace(",",".")) || 0); }, 0)
+                  : (parseFloat((p.preis||"0").toString().replace(",",".")) || 0);
                 return (
-                  <div key={p.id || i} style={{ display:"flex", gap:12, padding:"10px 12px",
-                    background:"rgba(255,255,255,0.03)", borderRadius:8, marginBottom:8, alignItems:"center" }}>
+                  <div key={p.id || i} style={{ display:"flex", gap:12, padding:"12px",
+                    background:"rgba(255,255,255,0.03)", borderRadius:8, marginBottom:8 }}>
                     {p.lieferschein_foto
                       ? <a href={p.lieferschein_foto} target="_blank" rel="noopener" style={{ flexShrink:0 }}>
                           <img src={p.lieferschein_foto} alt="Lieferschein"
@@ -2117,18 +2137,32 @@ function JobDetailModal({ job, onClose }) {
                           fontSize:11, color:"rgba(255,255,255,0.3)", flexShrink:0 }}>kein Foto</div>
                     }
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>
-                        {p.lieferschein ? "Nr. " + p.lieferschein : (p.name || p.typ || "—")}
+                      <div style={{ fontSize:13, fontWeight:700, marginBottom:4, display:"flex", justifyContent:"space-between", gap:8 }}>
+                        <span>{p.lieferschein ? "LS Nr. " + p.lieferschein : "Lieferschein"}</span>
+                        <span style={{ color:"#ffa500" }}>{lsSumVal.toFixed(2)} €</span>
                       </div>
-                      {(p.typ || p.name) && (p.typ + " " + (p.name || "")).trim() && (
-                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.55)", marginBottom:2 }}>
-                          {[p.typ, p.name].filter(Boolean).join(" · ")}
-                        </div>
+                      {p.datum && (
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:6 }}>{p.datum}</div>
                       )}
-                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{p.datum || ""}</div>
-                    </div>
-                    <div style={{ fontSize:14, fontWeight:800, color:"#ffa500" }}>
-                      {p.preis ? p.preis + " €" : "—"}
+                      {positionen
+                        ? positionen.map(function(pos, pi){
+                            return (
+                              <div key={pos.id || pi} style={{ display:"flex", justifyContent:"space-between",
+                                fontSize:12, color:"rgba(255,255,255,0.7)", padding:"3px 0", gap:8,
+                                borderTop: pi > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                                <span>{pos.bez || ("Position " + (pi+1))}</span>
+                                <span style={{ fontWeight:600, whiteSpace:"nowrap" }}>{pos.preis ? pos.preis + " €" : "—"}</span>
+                              </div>
+                            );
+                          })
+                        : (
+                          /* старый формат — одна цена */
+                          <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>
+                            {[p.typ, p.name].filter(Boolean).join(" · ") || "Position"}
+                            {p.preis ? " — " + p.preis + " €" : ""}
+                          </div>
+                        )
+                      }
                     </div>
                   </div>
                 );
@@ -6883,11 +6917,31 @@ function AppShell({ user, onLogout }) {
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
       setInvoices(r[7]); setPlans(r[8]);
-      setDbOk(true); setLoading(false);
+      setLoading(false);
+      // Проверяем реальное состояние соединения (sbGet глотает ошибки и возвращает [],
+      // поэтому отдельным ping определяем: данных нет потому что их нет, или потому что нет сети)
+      sbPing().then(function(alive){ setDbOk(alive); });
     }).catch(function(e){ console.error(e); setDbOk(false); setLoading(false); });
   }
 
   useEffect(function(){ loadAll(); }, []);
+
+  // Реакция на потерю/возврат сети: при возврате — авто-перезагрузка данных
+  useEffect(function(){
+    function onOnline() {
+      sbPing().then(function(alive){
+        setDbOk(alive);
+        if (alive) loadAll();
+      });
+    }
+    function onOffline() { setDbOk(false); }
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return function(){
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
 
   useEffect(function(){
     // Realtime WebSocket — подписка на alerts + jobs + inspections
@@ -7022,9 +7076,27 @@ function AppShell({ user, onLogout }) {
 
   return (
     <div className="dash-layout">
+      {/* === Баннер: нет соединения с сервером === */}
+      {dbOk === false && (
+        <div className="no-print" onClick={function(){ sbPing().then(function(a){ setDbOk(a); if(a) loadAll(); }); }}
+          style={{ position:"fixed", top:0, left:0, right:0, zIndex:9998,
+            background:"linear-gradient(90deg, #b91c1c, #dc2626)", color:"#fff",
+            padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"center",
+            gap:14, fontSize:14, fontWeight:700, cursor:"pointer",
+            boxShadow:"0 4px 20px rgba(0,0,0,0.4)", letterSpacing:0.3 }}>
+          <span style={{ fontSize:18 }}>⚠</span>
+          <span>Keine Verbindung zum Server — Internet prüfen. Daten könnten veraltet sein.</span>
+          <span style={{ marginLeft:8, padding:"4px 14px", borderRadius:8,
+            background:"rgba(255,255,255,0.2)", fontSize:13, fontWeight:800 }}>
+            ↻ Erneut versuchen
+          </span>
+        </div>
+      )}
+
       {/* === SOS UNFALL — мигающий баннер сверху если есть открытые SOS === */}
       {sosAlerts.length > 0 && (
-        <div className="sos-banner no-print" onClick={function(){ setSec("eingang"); }}>
+        <div className="sos-banner no-print" onClick={function(){ setSec("eingang"); }}
+          style={dbOk === false ? { marginTop:46 } : {}}>
           <span className="sos-banner-icon">🚨</span>
           <span>SOS UNFALL — {sosAlerts.length} aktive Meldung{sosAlerts.length !== 1 ? "en" : ""}!</span>
           <span style={{ marginLeft:"auto", fontSize:14, fontWeight:700, opacity:0.9 }}>

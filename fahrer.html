@@ -509,6 +509,21 @@ lv:{
 function getT(lang) { return T[LANG_MAP[lang]] || T.de; }
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
+// Генерация уникального ID записи БД. Префикс сохраняем для читаемости,
+// хвост — UUID вместо timestamp, чтобы исключить коллизию при
+// одновременном создании записей с нескольких устройств.
+function genId(prefix) {
+  var uuid;
+  try {
+    if (window.crypto && window.crypto.randomUUID) {
+      uuid = window.crypto.randomUUID();
+    }
+  } catch(e) {}
+  if (!uuid) {
+    uuid = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 11);
+  }
+  return (prefix || "") + uuid;
+}
 function sbGet(table, q) {
   return fetch(SB_URL+"/rest/v1/"+table+(q?"?"+q:""), {
     headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
@@ -522,6 +537,18 @@ function sbPost(table, body) {
     headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal"},
     body:JSON.stringify(body)
   }).then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
+}
+
+// Понятное сообщение об ошибке для водителя.
+// Сетевые сбои (нет интернета) → дружелюбный текст вместо "Failed to fetch".
+function netErrMsg(e) {
+  var msg = (e && (e.message || e)) ? String(e.message || e) : "";
+  var isNet = !navigator.onLine
+    || /failed to fetch|networkerror|load failed|err_|fetch/i.test(msg);
+  if (isNet) {
+    return "Keine Internetverbindung — bitte später erneut senden.";
+  }
+  return "Fehler: " + (msg || "Unbekannt");
 }
 function sbPatch(table, col, val, body) {
   return fetch(SB_URL+"/rest/v1/"+table+"?"+col+"=eq."+encodeURIComponent(val), {
@@ -978,13 +1005,13 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
     if(!allDone||!sel||!sel.plate||sending) return;
     sendingRef.current = true;
     setSending(true); setErrMsg("");
-    var alertId="I"+Date.now();
+    var alertId=genId("I");
     var badItems=items.filter(function(c){ return chk[c.k]==="fail"; }).map(function(c){ return c.label; });
     var defText=badItems.join(", ");
     if(notes) defText=defText?defText+" — "+notes:notes;
     var prefix=vType==="truck"?"LKW":"Auflieger";
     var saveVeh=sel.isNew
-      ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:vType,mileage:0}).catch(function(){})
+      ? sbPost("vehicles",{id:genId("v_"),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:vType,mileage:0}).catch(function(){})
       : Promise.resolve(true);
     saveVeh
       .then(function(){ return compressAll(photos); })
@@ -1028,7 +1055,7 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
         // Если есть мангели — дополнительно шлём алерт в Eingang механикам
         if(hasFault){
           return sbPost("alerts",{
-            id:"IA"+Date.now(),
+            id:genId("IA"),
             type:"inspection_mangel",
             plate:sel.plate,
             location:"Werkstatt",
@@ -1045,7 +1072,7 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
         return true;
       })
       .then(function(){ sendingRef.current = false; setSending(false); setDone(true); })
-      .catch(function(e){ sendingRef.current = false; setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
+      .catch(function(e){ sendingRef.current = false; setSending(false); setErrMsg(netErrMsg(e)); });
   }
 
   if(done){
@@ -1254,9 +1281,9 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
     if(!ok||sending) return;
     sendingRef.current = true;
     setSending(true); setErrMsg("");
-    var alertId="A"+Date.now();
+    var alertId=genId("A");
     var saveVeh=sel.isNew
-      ? sbPost("vehicles",{id:"v_"+Date.now(),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:"truck",mileage:0}).catch(function(){})
+      ? sbPost("vehicles",{id:genId("v_"),plate:sel.plate,brand:(sel.brand||"").split(" ")[0]||"",model:(sel.brand||"").split(" ").slice(1).join(" "),type:"truck",mileage:0}).catch(function(){})
       : Promise.resolve(true);
     // SOS Unfall = особый уровень срочности (выше чем "urgent")
     // Логика: тип поломки "sos" автоматически даёт urgency="sos"
@@ -1281,7 +1308,7 @@ function BreakdownScreen({ driverName, driverNied, lang, setLang, onBack }) {
         sendingRef.current = false;
         setSending(false); setSent(true);
       })
-      .catch(function(e){ sendingRef.current = false; setSending(false); setErrMsg("Fehler: "+(e.message||e)); });
+      .catch(function(e){ sendingRef.current = false; setSending(false); setErrMsg(netErrMsg(e)); });
   }
 
   if(sent){
@@ -1473,8 +1500,8 @@ function App() {
       window.introJs().setOptions({
         steps: [
           { intro: "<strong>Willkommen in WerkFlow Fahrer!</strong><br/>Kurze Einführung in die App." },
-          { intro: "🚛 <strong>LKW Inspektion</strong><br/>Vor jeder Fahrt Fahrzeug prüfen und Mängel melden." },
-          { intro: "🚜 <strong>Auflieger Inspektion</strong><br/>Auflieger vor dem Ankuppeln prüfen." },
+          { intro: "<strong>LKW Inspektion</strong><br/>Vor jeder Fahrt Fahrzeug prüfen und Mängel melden." },
+          { intro: "<strong>Auflieger Inspektion</strong><br/>Auflieger vor dem Ankuppeln prüfen." },
           { intro: "🚨 <strong>Panne / Defekt</strong><br/>Bei Problemen unterwegs hier Meldung erstatten." },
           { intro: "✅ <strong>Fertig!</strong><br/>Alle Meldungen gehen sofort an die Werkstatt." }
         ],

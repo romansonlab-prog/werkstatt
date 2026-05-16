@@ -214,6 +214,15 @@ function sbInsert(table, body) {
   }).then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error(t); }); return true; });
 }
 
+// Понятное сообщение об ошибке: сетевые сбои → дружелюбный текст
+function netErrMsg(e) {
+  var msg = (e && (e.message || e)) ? String(e.message || e) : "";
+  var isNet = !navigator.onLine
+    || /failed to fetch|networkerror|load failed|err_|fetch/i.test(msg);
+  if (isNet) return "Keine Internetverbindung — bitte später erneut senden.";
+  return "Fehler: " + (msg || "Unbekannt");
+}
+
 function Bg() { return <div className="bg-image"></div>; }
 
 function Logo({ sm }) {
@@ -490,7 +499,7 @@ function WaschApp({ user, onLogout }) {
       })
       .catch(function(e){
         setSaving(false);
-        setMsg("Fehler: "+(e.message||e));
+        setMsg(netErrMsg(e));
       });
   }
 
