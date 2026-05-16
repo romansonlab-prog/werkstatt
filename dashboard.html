@@ -6781,6 +6781,15 @@ function Vergleich({ jobs, invoices, vehicles }) {
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
+  // Свёрнутые группы меню. По умолчанию свёрнуты все кроме OPERATIV
+  // (там стартовый раздел Übersicht) — минимум визуального шума.
+  var _scg = useState({ "FUHRPARK":true, "FINANZEN":true, "LOGISTIK":true, "BERICHTE & SYSTEM":true });
+  var collapsedGroups = _scg[0]; var setCollapsedGroups = _scg[1];
+  function toggleGroup(g) {
+    var next = Object.assign({}, collapsedGroups);
+    next[g] = !next[g];
+    setCollapsedGroups(next);
+  }
   var _sj = useState([]); var jobs = _sj[0]; var setJobs = _sj[1];
   var _sa = useState([]); var alerts = _sa[0]; var setAlerts = _sa[1];
   var _sv = useState([]); var vehicles = _sv[0]; var setVehicles = _sv[1];
@@ -7088,25 +7097,47 @@ function AppShell({ user, onLogout }) {
         </div>
 
         <div className="sidebar-nav">
-          {NAV.map(function(n, idx){
-            var showGroup = idx === 0 || NAV[idx-1].g !== n.g;
-            return (
-              <React.Fragment key={n.k}>
-                {showGroup && (
-                  <div style={{ padding:"14px 20px 6px", fontSize:10, fontWeight:800,
-                    letterSpacing:1.2, color:"rgba(255,255,255,0.3)", textTransform:"uppercase",
-                    marginTop: idx === 0 ? 0 : 8 }}>
-                    {n.g}
-                  </div>
-                )}
-                <button className={"nav-item" + (sec===n.k ? " active" : "")} onClick={function(){ setSec(n.k); }}>
-                  <span style={{ display:"flex", alignItems:"center", flexShrink:0 }}>{n.ic}</span>
-                  <span>{n.label}</span>
-                  {n.badge > 0 && <span className={"nav-badge " + (n.badgeCls||"")}>{n.badge}</span>}
-                </button>
-              </React.Fragment>
-            );
-          })}
+          {(function(){
+            // Группа активного раздела всегда раскрыта (текущий пункт виден)
+            var activeGroup = (NAV.find(function(x){ return x.k === sec; }) || {}).g;
+            function isGroupCollapsed(g) {
+              return collapsedGroups[g] === true && g !== activeGroup;
+            }
+            var out = [];
+            NAV.forEach(function(n, idx){
+              var firstInGroup = idx === 0 || NAV[idx-1].g !== n.g;
+              if (firstInGroup) {
+                var collapsed = isGroupCollapsed(n.g);
+                out.push(
+                  <button key={"grp_" + n.g} type="button"
+                    onClick={function(){ toggleGroup(n.g); }}
+                    style={{ display:"flex", alignItems:"center", gap:8, width:"100%",
+                      padding:"14px 20px 6px", border:0, background:"transparent",
+                      cursor:"pointer", textAlign:"left",
+                      marginTop: idx === 0 ? 0 : 8 }}>
+                    <span style={{ fontSize:9, color:"rgba(255,255,255,0.35)",
+                      display:"inline-block",
+                      transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
+                    <span style={{ fontSize:10, fontWeight:800, letterSpacing:1.2,
+                      color:"rgba(255,255,255,0.3)", textTransform:"uppercase" }}>
+                      {n.g}
+                    </span>
+                  </button>
+                );
+              }
+              if (!isGroupCollapsed(n.g)) {
+                out.push(
+                  <button key={n.k} className={"nav-item" + (sec===n.k ? " active" : "")}
+                    onClick={function(){ setSec(n.k); }}>
+                    <span style={{ display:"flex", alignItems:"center", flexShrink:0 }}>{n.ic}</span>
+                    <span>{n.label}</span>
+                    {n.badge > 0 && <span className={"nav-badge " + (n.badgeCls||"")}>{n.badge}</span>}
+                  </button>
+                );
+              }
+            });
+            return out;
+          })()}
         </div>
         <div className="sidebar-footer">
           <div className="sidebar-user">
