@@ -194,6 +194,7 @@ function speechLang(lang){ return SPEECH_LANG[lang] || "de-DE"; }
 var T = {
 de:{
   label:"Fahrer",reg:"ERSTE ANMELDUNG",fn:"Vorname",ln:"Nachname",cont:"Weiter",pin:"PIN EINGEBEN",login:"Anmelden",
+  chatTitle:"CHAT",chatSub:"Fuhrparkleiter",chatEmpty:"Noch keine Nachrichten",chatPh:"Nachricht eingeben oder sprechen...",chatSpeak:"Sprechen",chatStop:"Stopp",chatSend:"SENDEN",chatFrom:"FUHRPARKLEITER",
   inspTruck:"LKW Inspektion",inspTrailer:"Auflieger Inspektion",repBreak:"Störung melden",
   back:"Zurück",vehPh:"Kennzeichen eingeben oder wählen",brandPh:"Marke / Modell",kmPh:"Kilometerstand (optional)",
   okH:"OK",nOkH:"NICHT OK",inspected:"geprüft",faultShort:"Mangel",
@@ -231,6 +232,7 @@ de:{
 },
 ru:{
   label:"Водитель",reg:"ПЕРВЫЙ ВХОД",fn:"Имя",ln:"Фамилия",cont:"Далее",pin:"ВВЕДИТЕ PIN",login:"Войти",
+  chatTitle:"ЧАТ",chatSub:"Логист",chatEmpty:"Пока нет сообщений",chatPh:"Напишите или скажите сообщение...",chatSpeak:"Говорить",chatStop:"Стоп",chatSend:"ОТПРАВИТЬ",chatFrom:"ЛОГИСТ",
   inspTruck:"Осмотр LKW",inspTrailer:"Осмотр полуприцепа",repBreak:"Поломка / Авария",
   back:"Назад",vehPh:"Введите или выберите номер",brandPh:"Марка / Модель",kmPh:"Пробег (не обязательно)",
   okH:"OK",nOkH:"НЕ OK",inspected:"проверено",faultShort:"Замечания",
@@ -268,6 +270,7 @@ ru:{
 },
 en:{
   label:"Driver",reg:"FIRST LOGIN",fn:"First name",ln:"Last name",cont:"Continue",pin:"ENTER PIN",login:"Login",
+  chatTitle:"CHAT",chatSub:"Fleet Manager",chatEmpty:"No messages yet",chatPh:"Type or speak a message...",chatSpeak:"Speak",chatStop:"Stop",chatSend:"SEND",chatFrom:"FLEET MANAGER",
   inspTruck:"Truck Inspection",inspTrailer:"Trailer Inspection",repBreak:"Report Issue",
   back:"Back",vehPh:"Enter or select plate",brandPh:"Brand / Model",kmPh:"Mileage (optional)",
   okH:"OK",nOkH:"NOT OK",inspected:"checked",faultShort:"Defect",
@@ -305,6 +308,7 @@ en:{
 },
 uk:{
   label:"Водій",reg:"ПЕРШИЙ ВХІД",fn:"Ім'я",ln:"Прізвище",cont:"Далі",pin:"ВВЕДІТЬ PIN",login:"Увійти",
+  chatTitle:"ЧАТ",chatSub:"Логіст",chatEmpty:"Поки немає повідомлень",chatPh:"Напишіть або скажіть повідомлення...",chatSpeak:"Говорити",chatStop:"Стоп",chatSend:"НАДІСЛАТИ",chatFrom:"ЛОГІСТ",
   inspTruck:"Огляд вантажівки",inspTrailer:"Огляд напівпричепа",repBreak:"Поломка / Аварія",
   back:"Назад",vehPh:"Введіть або оберіть номер",brandPh:"Марка / Модель",kmPh:"Пробіг (не обов'язково)",
   okH:"OK",nOkH:"НЕ OK",inspected:"перевірено",faultShort:"Зауваження",
@@ -342,6 +346,7 @@ uk:{
 },
 ro:{
   label:"Șofer",reg:"PRIMA AUTENTIFICARE",fn:"Prenume",ln:"Nume",cont:"Continuă",pin:"INTRODUCEȚI PIN",login:"Autentificare",
+  chatTitle:"CHAT",chatSub:"Manager flotă",chatEmpty:"Niciun mesaj încă",chatPh:"Scrieți sau vorbiți un mesaj...",chatSpeak:"Vorbește",chatStop:"Stop",chatSend:"TRIMITE",chatFrom:"MANAGER FLOTĂ",
   inspTruck:"Inspecție Camion",inspTrailer:"Inspecție Semiremorcă",repBreak:"Raportează Problema",
   back:"Înapoi",vehPh:"Introduceți sau selectați numărul",brandPh:"Marcă / Model",kmPh:"Kilometraj (opțional)",
   okH:"OK",nOkH:"NU OK",inspected:"verificat",faultShort:"Defect",
@@ -374,6 +379,7 @@ ro:{
 },
 hu:{
   label:"Sofőr",reg:"ELSŐ BEJELENTKEZÉS",fn:"Keresztnév",ln:"Vezetéknév",cont:"Tovább",pin:"PIN MEGADÁSA",login:"Bejelentkezés",
+  chatTitle:"CSEVEGÉS",chatSub:"Flottamenedzser",chatEmpty:"Még nincs üzenet",chatPh:"Írjon vagy mondjon egy üzenetet...",chatSpeak:"Beszéd",chatStop:"Állj",chatSend:"KÜLDÉS",chatFrom:"FLOTTAMENEDZSER",
   inspTruck:"Tehergépkocsi ellenőrzés",inspTrailer:"Pótkocsi ellenőrzés",repBreak:"Probléma bejelentése",
   back:"Vissza",vehPh:"Rendszám megadása vagy választása",brandPh:"Márka / Modell",kmPh:"Kilométeróra állás (opcionális)",
   okH:"OK",nOkH:"NEM OK",inspected:"ellenőrizve",faultShort:"Hiba",
@@ -403,6 +409,7 @@ hu:{
 },
 cs:{
   label:"Řidič",reg:"PRVNÍ PŘIHLÁŠENÍ",fn:"Jméno",ln:"Příjmení",cont:"Pokračovat",pin:"ZADEJTE PIN",login:"Přihlásit",
+  chatTitle:"CHAT",chatSub:"Vedoucí vozového parku",chatEmpty:"Zatím žádné zprávy",chatPh:"Napište nebo řekněte zprávu...",chatSpeak:"Mluvit",chatStop:"Stop",chatSend:"ODESLAT",chatFrom:"VEDOUCÍ VOZOVÉHO PARKU",
   inspTruck:"Kontrola nákladáku",inspTrailer:"Kontrola přívěsu",repBreak:"Nahlásit problém",
   back:"Zpět",vehPh:"Zadejte nebo vyberte SPZ",brandPh:"Značka / Model",kmPh:"Stav km (nepovinné)",
   okH:"OK",nOkH:"NENÍ OK",inspected:"zkontrolováno",faultShort:"Závada",
@@ -432,6 +439,7 @@ cs:{
 },
 lt:{
   label:"Vairuotojas",reg:"PIRMASIS PRISIJUNGIMAS",fn:"Vardas",ln:"Pavardė",cont:"Toliau",pin:"ĮVESKITE PIN",login:"Prisijungti",
+  chatTitle:"POKALBIS",chatSub:"Parko vadovas",chatEmpty:"Kol kas nėra žinučių",chatPh:"Parašykite arba pasakykite žinutę...",chatSpeak:"Kalbėti",chatStop:"Stop",chatSend:"SIŲSTI",chatFrom:"PARKO VADOVAS",
   inspTruck:"Sunkvežimio patikra",inspTrailer:"Puspriekabės patikra",repBreak:"Pranešti apie gedimą",
   back:"Atgal",vehPh:"Įveskite arba pasirinkite numerį",brandPh:"Markė / Modelis",kmPh:"Rida (neprivaloma)",
   okH:"OK",nOkH:"NE OK",inspected:"patikrinta",faultShort:"Defektas",
@@ -469,6 +477,7 @@ lt:{
 },
 lv:{
   label:"Šoferis",reg:"PIRMĀ PIETEIKŠANĀS",fn:"Vārds",ln:"Uzvārds",cont:"Tālāk",pin:"IEVADIET PIN",login:"Pieteikties",
+  chatTitle:"TĒRZĒŠANA",chatSub:"Autoparka vadītājs",chatEmpty:"Pagaidām nav ziņojumu",chatPh:"Rakstiet vai sakiet ziņojumu...",chatSpeak:"Runāt",chatStop:"Stop",chatSend:"SŪTĪT",chatFrom:"AUTOPARKA VADĪTĀJS",
   inspTruck:"Kravas auto pārbaude",inspTrailer:"Puspiekabes pārbaude",repBreak:"Ziņot par bojājumu",
   back:"Atpakaļ",vehPh:"Ievadiet vai izvēlieties numuru",brandPh:"Marka / Modelis",kmPh:"Nobraukums (nav obligāts)",
   okH:"OK",nOkH:"NAV OK",inspected:"pārbaudīts",faultShort:"Defekts",
@@ -1170,8 +1179,8 @@ function MainMenu({ lang, setLang, onPick }) {
               </svg>
             </div>
             <div style={{ flex:1,textAlign:"left" }}>
-              <div style={{ fontSize:18,fontWeight:800 }}>Chat</div>
-              <div style={{ fontSize:13,color:"rgba(255,255,255,0.55)" }}>Fuhrparkleiter</div>
+              <div style={{ fontSize:18,fontWeight:800 }}>{t.chatTitle}</div>
+              <div style={{ fontSize:13,color:"rgba(255,255,255,0.55)" }}>{t.chatSub}</div>
             </div>
             <span style={{ color:active==="chat"?"#ffa500":"rgba(255,255,255,0.4)",fontSize:22 }}>›</span>
           </button>
@@ -1834,43 +1843,54 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var hasVoice = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   return (
-    <div className="scrn" style={{ height:"100dvh", minHeight:"100dvh", maxHeight:"100dvh", overflow:"hidden", paddingBottom:"env(safe-area-inset-bottom)" }}>
+    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:100,
+      background:"#0a1730", display:"flex", flexDirection:"column",
+      maxWidth:480, margin:"0 auto", overflow:"hidden" }}>
       <Bg />
-      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
+      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column",
+        minHeight:0, padding:"env(safe-area-inset-top) 16px env(safe-area-inset-bottom)" }}>
+
         {/* Шапка */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, paddingTop:8, paddingBottom:12, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, paddingTop:10, paddingBottom:12,
+          flexShrink:0, borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
           <button onClick={onBack} aria-label="Zurück"
-            style={{ flexShrink:0, width:44, height:44, display:"flex", alignItems:"center", justifyContent:"center",
-              background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.18)", borderRadius:12,
-              color:"#fff", fontSize:24, fontWeight:800, cursor:"pointer", lineHeight:1 }}>‹</button>
+            style={{ flexShrink:0, width:48, height:48, display:"flex", alignItems:"center", justifyContent:"center",
+              background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.16)", borderRadius:10,
+              color:"#fff", cursor:"pointer", padding:0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:22, fontWeight:900, color:"#ffa500" }}>Chat</div>
-            <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)" }}>Fuhrparkleiter</div>
+            <div style={{ fontSize:20, fontWeight:800, color:"#fff", letterSpacing:"0.5px" }}>{t.chatTitle}</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>{t.chatSub}</div>
           </div>
           <LangSwitcher lang={lang} setLang={setLang} />
         </div>
 
-        {/* Лента сообщений */}
-        <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"4px 2px", minHeight:0,
-          display:"flex", flexDirection:"column", gap:10 }}>
+        {/* Лента сообщений (двусторонний чат: водитель справа, FPL/шеф слева) */}
+        <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"14px 2px", minHeight:0,
+          display:"flex", flexDirection:"column", gap:12 }}>
           {loading && <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20, fontSize:14 }}>...</div>}
           {!loading && msgs.length === 0 && (
-            <div style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:30, fontSize:14 }}>
-              Noch keine Nachrichten
+            <div style={{ textAlign:"center", color:"rgba(255,255,255,0.35)", padding:"40px 20px", fontSize:14 }}>
+              {t.chatEmpty}
             </div>
           )}
           {msgs.map(function(m){
             var mine = m.sender_role === "fahrer";
-            var shown = mine ? m.text_original : (m.text_driver || m.text_original);
+            // Водитель видит сообщения шефа на своём языке (text_driver), свои — как написал
+            var shown = mine ? m.text_original : (m.text_driver || m.text_de || m.text_original);
             return (
               <div key={m.id} style={{ display:"flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
-                <div style={{ maxWidth:"80%", padding:"10px 14px", borderRadius:14,
-                  background: mine ? "linear-gradient(180deg,#ffa500,#ff8c00)" : "rgba(255,255,255,0.08)",
+                <div style={{ maxWidth:"82%", padding:"12px 16px",
+                  borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                  background: mine ? "#ffa500" : "rgba(255,255,255,0.1)",
                   color: mine ? "#0a1730" : "#fff",
-                  border: mine ? "none" : "1px solid rgba(255,255,255,0.12)" }}>
-                  <div style={{ fontSize:15, fontWeight:600, lineHeight:1.4, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
-                  <div style={{ fontSize:10, marginTop:4, opacity:0.6 }}>
-                    {mine ? "" : "FPL · "}
+                  border: mine ? "none" : "1px solid rgba(255,255,255,0.14)" }}>
+                  {!mine && <div style={{ fontSize:11, fontWeight:800, color:"#ffa500", marginBottom:3, letterSpacing:"0.5px" }}>{t.chatFrom}</div>}
+                  <div style={{ fontSize:16, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
+                  <div style={{ fontSize:11, marginTop:5, opacity:0.55, textAlign:"right" }}>
                     {m.created_at ? new Date(m.created_at).toLocaleString(LANG_MAP[lang]||"de", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : ""}
                   </div>
                 </div>
@@ -1879,59 +1899,83 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
           })}
         </div>
 
-        {/* Ввод — формат как в мессенджерах */}
-        <div style={{ display:"flex", gap:8, alignItems:"flex-end", paddingTop:10, paddingBottom:6, flexShrink:0 }}>
-          {/* Поле + иконки внутри (скрепка/камера — задел на будущее) */}
-          <div style={{ flex:1, display:"flex", alignItems:"flex-end", gap:6,
-            background:"rgba(20,40,80,0.7)", border:"1px solid rgba(255,255,255,0.15)",
-            borderRadius:22, padding:"4px 6px 4px 14px", minWidth:0 }}>
-            <textarea value={txt}
-              onChange={function(e){ setTxt(e.target.value); }}
-              onInput={function(e){
-                var el = e.target;
-                el.style.height = "auto";
-                el.style.height = Math.min(el.scrollHeight, 130) + "px";
-              }}
-              placeholder={voice ? "..." : "Nachricht"}
-              rows={1}
-              style={{ flex:1, padding:"9px 0", borderRadius:0, resize:"none",
-                border:"none", background:"transparent", outline:"none",
-                color:"#fff", fontSize:16, fontFamily:"inherit", lineHeight:1.35,
-                maxHeight:130, minHeight:24, boxSizing:"border-box" }} />
-            {/* Скрепка (задел — фото/файлы позже) */}
+        {/* Панель ввода: поле на всю ширину → ряд из 3 кнопок → Senden */}
+        <div style={{ flexShrink:0, paddingTop:12, paddingBottom:8,
+          borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+
+          {/* Поле ввода — на всю ширину, до 15+ строк */}
+          <textarea value={txt}
+            onChange={function(e){ setTxt(e.target.value); }}
+            onInput={function(e){
+              var el = e.target;
+              el.style.height = "auto";
+              el.style.height = Math.min(el.scrollHeight, 360) + "px";
+            }}
+            placeholder={voice ? (t.chatSpeak + "...") : t.chatPh}
+            rows={2}
+            style={{ width:"100%", padding:"14px 16px", borderRadius:12, resize:"none",
+              border:"1px solid rgba(255,255,255,0.18)", background:"rgba(255,255,255,0.06)",
+              color:"#fff", fontSize:17, fontFamily:"inherit", lineHeight:1.4,
+              minHeight:56, maxHeight:360, boxSizing:"border-box", outline:"none",
+              marginBottom:10 }} />
+
+          {/* Ряд из 3 кнопок: скрепка · камера · микрофон */}
+          <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+            {/* Скрепка — задел на будущее (файлы) */}
             <button title="Anhang" disabled
-              style={{ flexShrink:0, width:38, height:38, borderRadius:19, border:"none",
-                background:"transparent", color:"rgba(255,255,255,0.35)", fontSize:19,
-                cursor:"not-allowed", padding:0 }}>📎</button>
-            {/* Камера (задел — фото позже) */}
+              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
+                background:"rgba(255,255,255,0.04)", color:"rgba(255,255,255,0.3)",
+                cursor:"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {/* Камера — задел на будущее (фото) */}
             <button title="Kamera" disabled
-              style={{ flexShrink:0, width:38, height:38, borderRadius:19, border:"none",
-                background:"transparent", color:"rgba(255,255,255,0.35)", fontSize:18,
-                cursor:"not-allowed", padding:0 }}>📷</button>
+              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
+                background:"rgba(255,255,255,0.04)", color:"rgba(255,255,255,0.3)",
+                cursor:"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </button>
+            {/* Микрофон — крупнее, активный */}
+            {hasVoice
+              ? <button onClick={toggleVoice} aria-label="Sprache" title="Sprache"
+                  style={{ flex:1.6, height:52, borderRadius:10, border:"none",
+                    background: voice ? "#ef4444" : "rgba(255,165,0,0.18)",
+                    color: voice ? "#fff" : "#ffa500", cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                    fontSize:15, fontWeight:800, padding:0,
+                    animation: voice ? "voicePulse 1s infinite" : "none" }}>
+                  {voice
+                    ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+                    : <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>}
+                  <span>{voice ? t.chatStop : t.chatSpeak}</span>
+                </button>
+              : <div style={{ flex:1.6 }}></div>}
           </div>
-          {/* Если есть текст — кнопка отправки. Иначе — кнопка записи голоса (как WhatsApp) */}
-          {txt.trim()
-            ? <button onClick={sendMessage} disabled={sending} aria-label="Senden"
-                style={{ flexShrink:0, width:52, height:52, borderRadius:26, border:"none",
-                  background: sending ? "rgba(255,165,0,0.4)" : "linear-gradient(180deg,#ffa500,#ff8c00)",
-                  color:"#0a1730", fontSize:24, fontWeight:900, cursor:"pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center" }}>
-                {sending ? "·" : "↑"}
-              </button>
-            : (hasVoice
-                ? <button onClick={toggleVoice} aria-label="Sprachnachricht"
-                    style={{ flexShrink:0, width:52, height:52, borderRadius:26, border:"none",
-                      background: voice ? "#ef4444" : "linear-gradient(180deg,#ffa500,#ff8c00)",
-                      color:"#fff", fontSize:24, cursor:"pointer",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      animation: voice ? "voicePulse 1s infinite" : "none" }}>
-                    {voice ? "■" : "🎤"}
-                  </button>
-                : <button onClick={sendMessage} disabled aria-label="Senden"
-                    style={{ flexShrink:0, width:52, height:52, borderRadius:26, border:"none",
-                      background:"rgba(255,165,0,0.4)", color:"#0a1730", fontSize:24,
-                      fontWeight:900, cursor:"not-allowed",
-                      display:"flex", alignItems:"center", justifyContent:"center" }}>↑</button>)}
+
+          {/* Кнопка Senden — на всю ширину, заметная */}
+          <button onClick={sendMessage} disabled={sending || !txt.trim()}
+            style={{ width:"100%", height:56, borderRadius:12, border:"none",
+              background: (sending || !txt.trim()) ? "rgba(255,165,0,0.3)" : "#ffa500",
+              color:"#0a1730", fontSize:18, fontWeight:800, letterSpacing:"0.5px",
+              cursor: (sending || !txt.trim()) ? "not-allowed" : "pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+            {sending
+              ? "..."
+              : <span>{t.chatSend}</span>}
+            {!sending && txt.trim() && (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
         </div>
       </div>
     </div>
