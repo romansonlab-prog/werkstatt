@@ -8948,18 +8948,18 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
     return "DE";
   }
 
-  // При открытии диалога — помечаем входящие прочитанными
+  // Помечаем входящие прочитанными — при открытии диалога И при новых сообщениях в уже открытом
+  var unreadInCurrent = selDriver
+    ? msgs.filter(function(m){ return m.driver_id===selDriver && m.sender_role==="fahrer" && !m.read_by_fpl; }).length
+    : 0;
   useEffect(function(){
-    if (!selDriver) return;
-    var unread = msgs.filter(function(m){ return m.driver_id===selDriver && m.sender_role==="fahrer" && !m.read_by_fpl; });
-    if (unread.length) {
-      fetch(SB_URL + "/rest/v1/messages?driver_id=eq." + encodeURIComponent(selDriver) + "&sender_role=eq.fahrer&read_by_fpl=eq.false", {
-        method:"PATCH",
-        headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
-        body: JSON.stringify({ read_by_fpl: true })
-      }).then(function(){ if (onRefresh) onRefresh(); }).catch(function(){});
-    }
-  }, [selDriver]);
+    if (!selDriver || unreadInCurrent === 0) return;
+    fetch(SB_URL + "/rest/v1/messages?driver_id=eq." + encodeURIComponent(selDriver) + "&sender_role=eq.fahrer&read_by_fpl=eq.false", {
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+      body: JSON.stringify({ read_by_fpl: true })
+    }).then(function(){ if (onRefresh) onRefresh(); }).catch(function(){});
+  }, [selDriver, unreadInCurrent]);
 
   useEffect(function(){
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
