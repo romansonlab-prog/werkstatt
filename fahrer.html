@@ -44,8 +44,6 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
-    html.chat-open,body.chat-open{overflow:hidden!important;height:100%!important}
-    body.chat-open #root{height:100%!important;min-height:0!important;overflow:hidden!important}
     :root{
       --accent:#ffa500;--accent-dark:#cc7a00;--accent-glow:rgba(255,165,0,0.35);
       --bg-base:#080e1a;--bg-card:rgba(13,25,52,0.85);--bg-input:rgba(6,15,38,0.9);
@@ -84,11 +82,11 @@
     .slider-grip span{width:3px;height:22px;background:#0a1730;border-radius:2px}
     .slider-marks{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-around;padding:0 90px 0 80px;pointer-events:none}
     .slider-mark{width:2px;height:24px;background:rgba(255,255,255,0.2);border-radius:2px}
-    .menu-card{display:flex;align-items:center;gap:14px;padding:18px;border:1px solid rgba(255,255,255,0.10);border-radius:18px;background:rgba(20,40,80,0.55);backdrop-filter:blur(12px);width:100%}
+    .menu-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid rgba(255,255,255,0.10);border-radius:16px;background:rgba(20,40,80,0.55);backdrop-filter:blur(12px);width:100%}
     .menu-card.sel{border-color:#ffa500;box-shadow:0 0 0 1px #ffa500,0 8px 28px rgba(255,165,0,0.25)}
     .menu-card.danger{border-color:rgba(255,59,48,0.55);background:rgba(60,20,30,0.55)}
     .menu-card.danger.sel{box-shadow:0 0 0 1px #ff3b30}
-    .menu-icon{width:54px;height:54px;border-radius:14px;background:rgba(255,165,0,0.10);display:flex;align-items:center;justify-content:center;color:#ffa500;flex-shrink:0}
+    .menu-icon{width:46px;height:46px;border-radius:12px;background:rgba(255,165,0,0.10);display:flex;align-items:center;justify-content:center;color:#ffa500;flex-shrink:0}
     .menu-card.danger .menu-icon{background:rgba(255,59,48,0.10);color:#ff3b30}
     .insp-row{display:flex;align-items:center;gap:8px;padding:10px;border-radius:12px;background:rgba(20,40,80,0.50);border:1px solid rgba(255,255,255,0.08);margin-bottom:8px}
     .insp-tag{width:50px;flex-shrink:0;background:#ffa500;color:#0a1730;font-weight:800;font-size:11px;padding:7px 0;text-align:center;border-radius:8px;letter-spacing:0.5px}
@@ -1131,11 +1129,11 @@ function MainMenu({ lang, setLang, onPick }) {
       <OfflineQueueBadge />
       <div style={{ position:"relative",zIndex:2,flex:1,display:"flex",flexDirection:"column" }}>
         <div style={{ position:"absolute",top:0,right:0,zIndex:10 }}><LangSwitcher lang={lang} setLang={setLang} /></div>
-        <div style={{ marginTop:"34vh" }}>
-          <Logo size={40} />
-          <div style={{ color:"#ffa500",fontSize:36,fontWeight:900,marginTop:8 }}>{t.label}</div>
+        <div style={{ marginTop:"18vh" }}>
+          <Logo size={36} />
+          <div style={{ color:"#ffa500",fontSize:30,fontWeight:900,marginTop:6 }}>{t.label}</div>
         </div>
-        <div style={{ marginTop:"auto",paddingBottom:24,display:"flex",flexDirection:"column",gap:14 }}>
+        <div style={{ marginTop:"auto",paddingBottom:20,display:"flex",flexDirection:"column",gap:10 }}>
           <button className={"menu-card"+(active==="lkw"?" sel":"")} onClick={function(){ pick("lkw"); }}>
             <div className="menu-icon">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -1736,7 +1734,6 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var voiceRef = useRef(null);
   var scrollRef = useRef(null);
   var pollRef = useRef(null);
-  var _vh = useState(0); var vh = _vh[0]; var setVh = _vh[1];
 
   function driverId(){
     var s = (driverName||"").trim().toLowerCase()
@@ -1775,31 +1772,9 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
 
   // Первичная загрузка + polling каждые 8 сек (как принято в проекте)
   useEffect(function(){
-    document.documentElement.classList.add("chat-open");
-    document.body.classList.add("chat-open");
-    // Реальная видимая высота через visualViewport (учитывает адресную строку и клавиатуру)
-    function applyVh(){
-      var h = (window.visualViewport && window.visualViewport.height)
-        ? window.visualViewport.height
-        : window.innerHeight;
-      setVh(Math.round(h));
-    }
-    applyVh();
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", applyVh);
-      window.visualViewport.addEventListener("scroll", applyVh);
-    }
-    window.addEventListener("resize", applyVh);
     loadMessages();
     pollRef.current = setInterval(function(){ loadMessages(); }, 8000);
     return function(){
-      document.documentElement.classList.remove("chat-open");
-      document.body.classList.remove("chat-open");
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener("resize", applyVh);
-        window.visualViewport.removeEventListener("scroll", applyVh);
-      }
-      window.removeEventListener("resize", applyVh);
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
@@ -1870,14 +1845,14 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var hasVoice = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   return (
-    <div style={{ position:"fixed", top:0, left:0, right:0,
-      height: vh ? (vh + "px") : "100%",
-      zIndex:100, background:"#0a1730", overflow:"hidden" }}>
+    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0,
+      zIndex:100, background:"#0a1730", overflow:"hidden",
+      display:"flex", flexDirection:"column" }}>
       <Bg />
-      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0,
-        zIndex:2, display:"flex", flexDirection:"column",
-        maxWidth:480, margin:"0 auto",
-        padding:"env(safe-area-inset-top) 16px 0" }}>
+      <div style={{ position:"relative", zIndex:2, flex:1, minHeight:0,
+        display:"flex", flexDirection:"column",
+        width:"100%", maxWidth:480, margin:"0 auto",
+        padding:"env(safe-area-inset-top) 16px 0", boxSizing:"border-box" }}>
 
         {/* Шапка */}
         <div style={{ display:"flex", alignItems:"center", gap:12, paddingTop:10, paddingBottom:12,
