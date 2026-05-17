@@ -10,8 +10,7 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
+
 
   <!-- === Sentry/Glitchtip Error Monitoring ===
        Активация: подставь DSN в SENTRY_DSN ниже (отдельный проект на каждое приложение).
@@ -121,13 +120,6 @@
     .lang-menu{position:absolute;top:calc(100% + 6px);right:0;padding:8px;background:#0d1f3d;border:1px solid rgba(255,165,0,0.5);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.6);display:grid;grid-template-columns:repeat(3,1fr);gap:6px;z-index:50;width:170px}
     .lang-menu button{width:100%;padding:10px 0;text-align:center;border:1px solid rgba(255,255,255,0.18);border-radius:8px;font-weight:700;font-size:13px;background:transparent;color:#fff}
     .lang-menu button.on{background:#ffa500;border-color:#ffa500;color:#0a1730}
-    .introjs-tooltip{background:#0f1e3d!important;border:1px solid rgba(255,165,0,0.3)!important;color:#fff!important;border-radius:14px!important;max-width:280px!important}
-    .introjs-tooltiptext{color:rgba(255,255,255,0.85)!important;font-size:14px!important;line-height:1.5!important}
-    .introjs-button{background:rgba(255,165,0,0.15)!important;border:1px solid rgba(255,165,0,0.4)!important;color:#ffa500!important;border-radius:8px!important;font-weight:700!important}
-    .introjs-button:hover{background:rgba(255,165,0,0.3)!important}
-    .introjs-skipbutton{color:rgba(255,255,255,0.4)!important}
-    .introjs-progressbar{background:#ffa500!important}
-    .introjs-progress{background:rgba(255,255,255,0.1)!important}
     @keyframes voicePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.03)}}
   </style>
   <link rel="manifest" href="manifest-fahrer.json" />
@@ -206,8 +198,6 @@ de:{
   descLabel:"Beschreibung",descPh:"Was ist passiert?",
   urgLabel:"Dringlichkeit",urgYes:"SOFORTIGE HILFE",urgNo:"KANN WARTEN",
   sendBtn:"STÖRUNG MELDEN",sentBreak:"Gemeldet!",sentBreakDesc:"Werkstatt benachrichtigt",newRep:"Neue Meldung",req:"Pflichtfeld",
-  kmWarn:"Letzter Wert: {prev} km — aktueller Wert ist kleiner. Bitte prüfen.",
-  kmConfirm:"KM-Stand ({new}) ist kleiner als zuletzt ({prev} km).\nTrotzdem senden?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Reifen und Luftdruck"},
     {k:"lgt",tag:"LGT",label:"Beleuchtung und Blinker"},
@@ -246,8 +236,6 @@ ru:{
   descLabel:"Описание",descPh:"Что случилось?",
   urgLabel:"Срочность",urgYes:"НУЖНА ПОМОЩЬ",urgNo:"МОЖЕТ ПОДОЖДАТЬ",
   sendBtn:"СООБЩИТЬ О ПРОБЛЕМЕ",sentBreak:"Отправлено!",sentBreakDesc:"Механики уведомлены",newRep:"Новое сообщение",req:"обязательное поле",
-  kmWarn:"Последнее значение: {prev} км — текущее меньше. Проверьте.",
-  kmConfirm:"Пробег ({new} км) меньше предыдущего ({prev} км).\nВсё равно отправить?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Шины и давление"},
     {k:"lgt",tag:"LGT",label:"Освещение"},
@@ -286,8 +274,6 @@ en:{
   descLabel:"Description",descPh:"What happened?",
   urgLabel:"Urgency",urgYes:"IMMEDIATE HELP",urgNo:"CAN WAIT",
   sendBtn:"REPORT ISSUE",sentBreak:"Reported!",sentBreakDesc:"Workshop notified",newRep:"New report",req:"required",
-  kmWarn:"Last value: {prev} km — current value is lower. Please check.",
-  kmConfirm:"Mileage ({new} km) is lower than last entry ({prev} km).\nSend anyway?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Tires and pressure"},
     {k:"lgt",tag:"LGT",label:"Lights and indicators"},
@@ -326,8 +312,6 @@ uk:{
   descLabel:"Опис",descPh:"Що сталося?",
   urgLabel:"Терміновість",urgYes:"ПОТРІБНА ДОПОМОГА",urgNo:"МОЖЕ ЗАЧЕКАТИ",
   sendBtn:"ПОВІДОМИТИ",sentBreak:"Надіслано!",sentBreakDesc:"Механіки повідомлені",newRep:"Нове повідомлення",req:"обов'язкове",
-  kmWarn:"Останнє значення: {prev} км — поточне менше. Перевірте.",
-  kmConfirm:"Пробіг ({new} км) менший за попередній ({prev} км).\nВсе одно надіслати?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Шини та тиск"},
     {k:"lgt",tag:"LGT",label:"Освітлення"},
@@ -366,8 +350,6 @@ ro:{
   descLabel:"Descriere",descPh:"Ce s-a întâmplat?",
   urgLabel:"Urgență",urgYes:"AJUTOR IMEDIAT",urgNo:"POATE AȘTEPTA",
   sendBtn:"RAPORTEAZĂ",sentBreak:"Trimis!",sentBreakDesc:"Atelierul notificat",newRep:"Raport nou",req:"obligatoriu",
-  kmWarn:"Ultima valoare: {prev} km — valoarea curentă este mai mică. Verificați.",
-  kmConfirm:"Kilometrajul ({new} km) este mai mic decât ultima înregistrare ({prev} km).\nTrimiteți oricum?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Anvelope și presiune"},
     {k:"lgt",tag:"LGT",label:"Iluminat"},
@@ -401,8 +383,6 @@ hu:{
   descLabel:"Leírás",descPh:"Mi történt?",
   urgLabel:"Sürgősség",urgYes:"AZONNALI SEGÍTSÉG",urgNo:"VÁRHAT",
   sendBtn:"BEJELENTÉS",sentBreak:"Elküldve!",sentBreakDesc:"Műhely értesítve",newRep:"Új jelentés",req:"kötelező",
-  kmWarn:"Utolsó érték: {prev} km — a jelenlegi kisebb. Kérjük ellenőrizze.",
-  kmConfirm:"A kilométeróra ({new} km) kisebb, mint az utolsó bejegyzés ({prev} km).\nMégis elküldi?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Gumik és nyomás"},{k:"lgt",tag:"LGT",label:"Világítás"},
     {k:"bra",tag:"BRA",label:"Fékek"},{k:"ste",tag:"STE",label:"Kormányzás"},
@@ -433,8 +413,6 @@ cs:{
   descLabel:"Popis",descPh:"Co se stalo?",
   urgLabel:"Naléhavost",urgYes:"NUTNÁ POMOC",urgNo:"MŮŽE POČKAT",
   sendBtn:"NAHLÁSIT",sentBreak:"Odesláno!",sentBreakDesc:"Dílna informována",newRep:"Nová zpráva",req:"povinné",
-  kmWarn:"Poslední hodnota: {prev} km — aktuální hodnota je nižší. Zkontrolujte prosím.",
-  kmConfirm:"Stav km ({new} km) je nižší než poslední záznam ({prev} km).\nOdeslat přesto?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Pneumatiky a tlak"},{k:"lgt",tag:"LGT",label:"Osvětlení"},
     {k:"bra",tag:"BRA",label:"Brzdy"},{k:"ste",tag:"STE",label:"Řízení"},
@@ -465,8 +443,6 @@ lt:{
   descLabel:"Aprašymas",descPh:"Kas nutiko?",
   urgLabel:"Skubumas",urgYes:"REIKIA PAGALBOS",urgNo:"GALI PALAUKTI",
   sendBtn:"PRANEŠTI",sentBreak:"Išsiųsta!",sentBreakDesc:"Dirbtuvės informuotos",newRep:"Naujas pranešimas",req:"privaloma",
-  kmWarn:"Paskutinė reikšmė: {prev} km — dabartinė yra mažesnė. Patikrinkite.",
-  kmConfirm:"Rida ({new} km) mažesnė nei paskutinis įrašas ({prev} km).\nVis tiek siųsti?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Padangos ir slėgis"},
     {k:"lgt",tag:"LGT",label:"Apšvietimas ir posūkiai"},
@@ -505,8 +481,6 @@ lv:{
   descLabel:"Apraksts",descPh:"Kas notika?",
   urgLabel:"Steidzamība",urgYes:"NEPIECIEŠAMA PALĪDZĪBA",urgNo:"VAR PAGAIDĪT",
   sendBtn:"ZIŅOT",sentBreak:"Nosūtīts!",sentBreakDesc:"Darbnīca informēta",newRep:"Jauns ziņojums",req:"obligāts",
-  kmWarn:"Pēdējā vērtība: {prev} km — pašreizējā ir mazāka. Lūdzu pārbaudiet.",
-  kmConfirm:"Nobraukums ({new} km) ir mazāks par pēdējo ierakstu ({prev} km).\nTomēr nosūtīt?",
   truckChecks:[
     {k:"tyr",tag:"TYR",label:"Riepas un spiediens"},
     {k:"lgt",tag:"LGT",label:"Apgaismojums un pagriezieni"},
@@ -1228,8 +1202,8 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
   var sendingRef = useRef(false);
 
   useEffect(function(){
-    sbGet("vehicles","type=eq."+vType+"&select=id,plate,brand,model,mileage&order=plate").then(function(rows){
-      setVehicles(rows.map(function(r){ return {id:r.id,plate:r.plate,brand:(r.brand||"")+(r.model?" "+r.model:""),type:vType,mileage:r.mileage||0}; }));
+    sbGet("vehicles","type=eq."+vType+"&select=id,plate,brand,model&order=plate").then(function(rows){
+      setVehicles(rows.map(function(r){ return {id:r.id,plate:r.plate,brand:(r.brand||"")+(r.model?" "+r.model:""),type:vType}; }));
     });
   },[vType]);
 
@@ -1241,18 +1215,6 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
   function submit(){
     if(sendingRef.current) return;
     if(!allDone||!sel||!sel.plate||sending) return;
-    // Валидация пробега: предупреждаем если меньше предыдущего
-    if (km && !sel.isNew) {
-      var kmNum = parseInt(km, 10);
-      var prevKm = sel.mileage ? parseInt(sel.mileage, 10) : 0;
-      if (kmNum > 0 && prevKm > 0 && kmNum < prevKm) {
-        if (!window.confirm(
-          (t.kmConfirm
-            ? t.kmConfirm.replace("{new}", kmNum.toLocaleString("de-DE")).replace("{prev}", prevKm.toLocaleString("de-DE"))
-            : "KM-Stand (" + kmNum.toLocaleString("de-DE") + ") ist kleiner als zuletzt (" + prevKm.toLocaleString("de-DE") + " km).\nTrotzdem senden?")
-        )) return;
-      }
-    }
     sendingRef.current = true;
     setSending(true); setErrMsg("");
     var alertId=genId("I");
@@ -1362,20 +1324,6 @@ function InspectionScreen({ kind, driverName, driverNied, lang, setLang, onBack 
               style={{ paddingRight:46 }} />
             <span style={{ position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"rgba(255,255,255,0.4)",fontWeight:700,pointerEvents:"none" }}>km</span>
           </div>
-          {(function(){
-            if (!km || !sel || sel.isNew) return null;
-            var kmNum = parseInt(km, 10);
-            var prevKm = sel.mileage ? parseInt(sel.mileage, 10) : 0;
-            if (!kmNum || !prevKm || kmNum >= prevKm) return null;
-            return (
-              <div style={{ marginTop:8, padding:"8px 12px", borderRadius:8,
-                background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.35)",
-                color:"#ef4444", fontSize:13, fontWeight:600 }}>
-                {t.kmWarn ? t.kmWarn.replace("{prev}", prevKm.toLocaleString("de-DE"))
-                  : "Letzter Wert: " + prevKm.toLocaleString("de-DE") + " km — aktueller Wert ist kleiner. Bitte prüfen."}
-              </div>
-            );
-          })()}
         </div>
 
         <div className="insp-hd">
@@ -2041,35 +1989,6 @@ function App() {
   var _dynPin=useState(null); var dynPin=_dynPin[0]; var setDynPin=_dynPin[1];
 
   function setLang(v){ setLangRaw(v); try{ localStorage.setItem("werkflow_fahrer_lang",v); }catch(e){} }
-
-  // Onboarding — один раз после входа
-  useEffect(function(){
-    if (stg !== "menu") return;
-    var key = "werkflow_onboarding_fahrer_v1";
-    if (localStorage.getItem(key)) return;
-    var t = setTimeout(function(){
-      if (!window.introJs) return;
-      window.introJs().setOptions({
-        steps: [
-          { intro: "<strong>Willkommen in WerkFlow Fahrer!</strong><br/>Kurze Einführung in die App." },
-          { intro: "<strong>LKW Inspektion</strong><br/>Vor jeder Fahrt Fahrzeug prüfen und Mängel melden." },
-          { intro: "<strong>Auflieger Inspektion</strong><br/>Auflieger vor dem Ankuppeln prüfen." },
-          { intro: "🚨 <strong>Panne / Defekt</strong><br/>Bei Problemen unterwegs hier Meldung erstatten." },
-          { intro: "✅ <strong>Fertig!</strong><br/>Alle Meldungen gehen sofort an die Werkstatt." }
-        ],
-        showProgress: true,
-        showBullets: false,
-        exitOnOverlayClick: true,
-        doneLabel: "Los gehts!",
-        nextLabel: "Weiter →",
-        prevLabel: "← Zurück",
-        skipLabel: "Überspringen"
-      }).oncomplete(function(){ localStorage.setItem(key,"1"); })
-        .onexit(function(){ localStorage.setItem(key,"1"); })
-        .start();
-    }, 1500);
-    return function(){ clearTimeout(t); };
-  }, [stg]);
 
   function nameToId(fullName){
     var s = (fullName||"").trim().toLowerCase()
