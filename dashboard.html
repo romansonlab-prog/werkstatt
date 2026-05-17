@@ -1551,6 +1551,25 @@ function translateToDE(text) {
     .catch(function(){ return text; });
 }
 
+// Маппинг кодов приложения водителя → коды DeepL
+var DEEPL_LANG_DASH = {"DE":"DE","RU":"RU","GB":"EN-GB","UA":"UK","RO":"RO","HU":"HU","CZ":"CS","LT":"LT","LV":"LV"};
+// Перевод на язык водителя (FPL пишет DE → водитель читает на своём)
+function translateToLang(text, appLang) {
+  if (!text || !text.trim()) return Promise.resolve(text);
+  var target = DEEPL_LANG_DASH[appLang] || "EN";
+  return fetch("https://vtswzvrflqoueowylidy.supabase.co/functions/v1/translate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + SB_KEY
+    },
+    body: JSON.stringify({ text: text, target_lang: target })
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ return (d && d.translated) ? d.translated : text; })
+    .catch(function(){ return text; });
+}
+
 // === EINGANG ===
 function Eingang({ alerts, jobs, onRefresh, loading }) {
   var _sf = useState("all"); var filter = _sf[0]; var setFilter = _sf[1];
@@ -7705,6 +7724,7 @@ function Vergleich({ jobs, invoices, vehicles }) {
 // === APP SHELL ===
 function AppShell({ user, onLogout }) {
   var _sec = useState("uebersicht"); var sec = _sec[0]; var setSec = _sec[1];
+  var _chatOpen = useState(false); var chatOpen = _chatOpen[0]; var setChatOpen = _chatOpen[1];
   // Классический аккордеон: одновременно раскрыта только ОДНА группа.
   // Стартово открыта OPERATIV (там Übersicht). Клик по другому заголовку
   // раскрывает его и автоматически сворачивает предыдущий.
@@ -7724,6 +7744,7 @@ function AppShell({ user, onLogout }) {
   var _splans = useState([]); var plans = _splans[0]; var setPlans = _splans[1];
   var _sau = useState([]); var allUsers = _sau[0]; var setAllUsers = _sau[1];
   var _stk = useState([]); var tasks = _stk[0]; var setTasks = _stk[1];
+  var _smsg = useState([]); var messages = _smsg[0]; var setMessages = _smsg[1];
   var _sload = useState(false); var loading = _sload[0]; var setLoading = _sload[1];
   var _sdb = useState(null); var dbOk = _sdb[0]; var setDbOk = _sdb[1];
   var _sshift = useState(todayIso()); var shiftDate = _sshift[0]; var setShiftDate = _sshift[1];
@@ -7786,12 +7807,14 @@ function AppShell({ user, onLogout }) {
       sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
       sbGet("users",              "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen,fs_kontrolle_letzte,fs_kontrolle_naechste,unterweisung_letzte,unterweisung_naechste&order=name.asc&limit=300"),
       sbGet("tasks",              "select=*&order=created_at.desc&limit=500"),
+      sbGet("messages",           "select=*&order=created_at.asc&limit=1000"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
       setInvoices(r[7]); setPlans(r[8]);
       setAllUsers(r[9] || []);
       setTasks(r[10] || []);
+      setMessages(r[11] || []);
       setLoading(false);
       // Проверяем реальное состояние соединения (sbGet глотает ошибки и возвращает [],
       // поэтому отдельным ping определяем: данных нет потому что их нет, или потому что нет сети)
@@ -7918,6 +7941,7 @@ function AppShell({ user, onLogout }) {
 
   var openAlerts = fAlerts.filter(function(a){ return a.status !== "done" && a.status !== "rejected"; });
   var openTasks = (tasks || []).filter(function(t){ return t.status !== "erledigt"; }).length;
+  var unreadMsgs = (messages || []).filter(function(m){ return m.sender_role === "fahrer" && !m.read_by_fpl; }).length;
   var lowStock = fStock.filter(function(s){ return s.qty<=(s.min_qty||0); }).length;
   var overduePlans = fPlans.filter(function(p){
     if (!p.next_service_date) return false;
@@ -8137,6 +8161,56 @@ function AppShell({ user, onLogout }) {
           {sec === "settings"    && <Einstellungen vehicles={fVehicles} forklifts={fForklifts} stock={fStock} onRefresh={loadAll} loading={loading} niedList={niedList} />}
         </div>
       </div>
+
+      {/* === ФЛАЖОК ЧАТА — виден на всех разделах, справа выше центра === */}
+      <button onClick={function(){ setChatOpen(true); }}
+        title="Fahrer-Chat"
+        className="no-print"
+        style={{ position:"fixed", right:0, top:"32%", zIndex:9990,
+          display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+          padding:"14px 10px", border:"none", cursor:"pointer",
+          borderRadius:"12px 0 0 12px",
+          background: unreadMsgs > 0 ? "linear-gradient(180deg,#ff6b35,#e8590c)" : "linear-gradient(180deg,#1e3a5f,#152a47)",
+          color:"#fff", boxShadow:"-4px 4px 16px rgba(0,0,0,0.4)",
+          borderLeft: unreadMsgs > 0 ? "3px solid #ffa500" : "3px solid rgba(255,255,255,0.2)" }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.5px",
+          writingMode:"vertical-rl", transform:"rotate(180deg)" }}>CHAT</span>
+        {unreadMsgs > 0 && (
+          <span style={{ position:"absolute", top:-6, left:-10,
+            background:"#ef4444", color:"#fff", borderRadius:999,
+            minWidth:24, height:24, display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:12, fontWeight:800, padding:"0 6px",
+            border:"2px solid #0a1730", boxShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>
+            {unreadMsgs > 99 ? "99+" : unreadMsgs}
+          </span>
+        )}
+      </button>
+
+      {/* === ОВЕРЛЕЙ ЧАТА === */}
+      {chatOpen && (
+        <div className="no-print" style={{ position:"fixed", inset:0, zIndex:9995,
+          background:"rgba(5,12,26,0.97)", display:"flex", flexDirection:"column",
+          padding:"20px 24px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexShrink:0 }}>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>WerkFlow · Fahrer-Chat</div>
+            <button onClick={function(){ setChatOpen(false); }}
+              style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)",
+                borderRadius:10, color:"#fff", padding:"8px 18px", fontSize:14, fontWeight:700,
+                cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+              Schließen
+            </button>
+          </div>
+          <div style={{ flex:1, minHeight:0, overflow:"auto" }}>
+            <FahrerChat messages={messages} users={fAllUsers} currentUser={user} onRefresh={loadAll} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -8642,6 +8716,210 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
 
         <div style={{ marginTop:16, padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,0.04)", fontSize:12, color:"rgba(255,255,255,0.4)", lineHeight:1.6 }}>
           💡 Aufgaben erscheinen beim Mechaniker im Eingang (werkstatt) bzw. beim Fahrer in der Fahrer-App. Priorität kann jederzeit direkt in der Liste geändert werden.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FahrerChat({ messages, users, currentUser, onRefresh }) {
+  var _sel = useState(null); var selDriver = _sel[0]; var setSelDriver = _sel[1];
+  var _txt = useState(""); var txt = _txt[0]; var setTxt = _txt[1];
+  var _sending = useState(false); var sending = _sending[0]; var setSending = _sending[1];
+  var scrollRef = useRef(null);
+
+  var msgs = messages || [];
+
+  // Группируем сообщения по водителям → список диалогов
+  var dialogs = (function(){
+    var byDriver = {};
+    msgs.forEach(function(m){
+      var did = m.driver_id || "?";
+      if (!byDriver[did]) byDriver[did] = { driver_id: did, driver_name: m.driver_name || did, list: [], unread: 0, last: null };
+      byDriver[did].list.push(m);
+      if (m.sender_role === "fahrer" && !m.read_by_fpl) byDriver[did].unread++;
+      byDriver[did].last = m;
+    });
+    var arr = Object.keys(byDriver).map(function(k){ return byDriver[k]; });
+    // Сортировка: непрочитанные сверху, потом по времени последнего
+    arr.sort(function(a,b){
+      if ((b.unread>0) !== (a.unread>0)) return (b.unread>0?1:0) - (a.unread>0?1:0);
+      var ta = a.last && a.last.created_at ? new Date(a.last.created_at).getTime() : 0;
+      var tb = b.last && b.last.created_at ? new Date(b.last.created_at).getTime() : 0;
+      return tb - ta;
+    });
+    return arr;
+  })();
+
+  var current = selDriver ? dialogs.find(function(d){ return d.driver_id === selDriver; }) : null;
+  var thread = current ? current.list.slice().sort(function(a,b){
+    return new Date(a.created_at||0) - new Date(b.created_at||0);
+  }) : [];
+
+  // Язык выбранного водителя (из users.chat_lang или последнего его сообщения)
+  function driverLang(did){
+    var u = (users || []).find(function(x){ return x.id === did; });
+    if (u && u.chat_lang) return u.chat_lang;
+    var lastFromDriver = null;
+    msgs.forEach(function(m){ if (m.driver_id===did && m.sender_role==="fahrer") lastFromDriver = m; });
+    if (lastFromDriver && lastFromDriver.driver_lang) return lastFromDriver.driver_lang;
+    if (lastFromDriver && lastFromDriver.lang_original) return lastFromDriver.lang_original;
+    return "DE";
+  }
+
+  // При открытии диалога — помечаем входящие прочитанными
+  useEffect(function(){
+    if (!selDriver) return;
+    var unread = msgs.filter(function(m){ return m.driver_id===selDriver && m.sender_role==="fahrer" && !m.read_by_fpl; });
+    if (unread.length) {
+      fetch(SB_URL + "/rest/v1/messages?driver_id=eq." + encodeURIComponent(selDriver) + "&sender_role=eq.fahrer&read_by_fpl=eq.false", {
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+        body: JSON.stringify({ read_by_fpl: true })
+      }).then(function(){ if (onRefresh) onRefresh(); }).catch(function(){});
+    }
+  }, [selDriver]);
+
+  useEffect(function(){
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [thread.length, selDriver]);
+
+  function sendReply() {
+    var body = (txt||"").trim();
+    if (!body || sending || !current) return;
+    setSending(true);
+    var dLang = driverLang(current.driver_id);
+    // FPL пишет на DE. Переводим на язык водителя.
+    translateToLang(body, dLang).then(function(translated){
+      var payload = {
+        tenant_id: "ltg",
+        driver_id: current.driver_id,
+        driver_name: current.driver_name,
+        sender_role: "fpl",
+        sender_id: currentUser ? currentUser.id : null,
+        sender_name: currentUser ? currentUser.name : "FPL",
+        text_original: body,
+        lang_original: "DE",
+        text_de: body,
+        text_driver: translated,
+        driver_lang: dLang,
+        is_broadcast: false,
+        read_by_driver: false,
+        read_by_fpl: true
+      };
+      return fetch(SB_URL + "/rest/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+        body: JSON.stringify(payload)
+      });
+    }).then(function(){
+      setTxt(""); setSending(false);
+      if (onRefresh) onRefresh();
+    }).catch(function(){ setSending(false); });
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <h1 style={{ fontSize:24, fontWeight:800, margin:0 }}>Fahrer-Chat</h1>
+        <button className="btn-secondary btn-small" onClick={onRefresh}>↻ Aktualisieren</button>
+      </div>
+      <div style={{ display:"flex", gap:16, height:"calc(100vh - 160px)", minHeight:420 }}>
+
+        {/* Список диалогов */}
+        <div style={{ width:300, flexShrink:0, overflowY:"auto",
+          background:"rgba(255,255,255,0.03)", borderRadius:12, border:"1px solid rgba(255,255,255,0.08)" }}>
+          {dialogs.length === 0 && (
+            <div style={{ padding:24, textAlign:"center", color:"rgba(255,255,255,0.4)", fontSize:13 }}>
+              Noch keine Nachrichten von Fahrern
+            </div>
+          )}
+          {dialogs.map(function(d){
+            var sel = selDriver === d.driver_id;
+            var preview = d.last ? (d.last.sender_role==="fahrer" ? d.last.text_de : d.last.text_original) : "";
+            return (
+              <div key={d.driver_id} onClick={function(){ setSelDriver(d.driver_id); }}
+                style={{ padding:"12px 14px", cursor:"pointer",
+                  borderBottom:"1px solid rgba(255,255,255,0.06)",
+                  background: sel ? "rgba(255,165,0,0.12)" : "transparent" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                  <span style={{ fontWeight:700, fontSize:14, color:"#fff" }}>{d.driver_name}</span>
+                  {d.unread > 0 && (
+                    <span style={{ background:"#ffa500", color:"#0a1730", borderRadius:999,
+                      fontSize:11, fontWeight:800, padding:"1px 7px" }}>{d.unread}</span>
+                  )}
+                </div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:3,
+                  whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {(d.last && d.last.sender_role==="fpl" ? "Sie: " : "") + (preview||"")}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Окно переписки */}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0,
+          background:"rgba(255,255,255,0.03)", borderRadius:12, border:"1px solid rgba(255,255,255,0.08)" }}>
+          {!current ? (
+            <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+              color:"rgba(255,255,255,0.4)", fontSize:14 }}>
+              Fahrer links auswählen
+            </div>
+          ) : (
+            <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
+              <div style={{ padding:"14px 18px", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontWeight:800, fontSize:16, color:"#fff" }}>{current.driver_name}</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)" }}>
+                  Sprache des Fahrers: {driverLang(current.driver_id)} · Sie schreiben auf Deutsch
+                </div>
+              </div>
+              <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:18,
+                display:"flex", flexDirection:"column", gap:10, minHeight:0 }}>
+                {thread.map(function(m){
+                  var fromFpl = m.sender_role === "fpl";
+                  // FPL читает всё на немецком: text_de (или оригинал если сам писал на DE)
+                  var shown = fromFpl ? m.text_original : (m.text_de || m.text_original);
+                  return (
+                    <div key={m.id} style={{ display:"flex", justifyContent: fromFpl ? "flex-end" : "flex-start" }}>
+                      <div style={{ maxWidth:"75%", padding:"10px 14px",
+                        borderRadius: fromFpl ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                        background: fromFpl ? "#ffa500" : "rgba(255,255,255,0.1)",
+                        color: fromFpl ? "#0a1730" : "#fff",
+                        border: fromFpl ? "none" : "1px solid rgba(255,255,255,0.14)" }}>
+                        {!fromFpl && <div style={{ fontSize:11, fontWeight:800, color:"#ffa500", marginBottom:3 }}>{current.driver_name}</div>}
+                        <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
+                        {!fromFpl && m.text_original && m.text_original !== shown && (
+                          <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginTop:4, fontStyle:"italic" }}>
+                            Original ({m.lang_original}): {m.text_original}
+                          </div>
+                        )}
+                        <div style={{ fontSize:11, marginTop:5, opacity:0.55, textAlign:"right" }}>
+                          {m.created_at ? new Date(m.created_at).toLocaleString("de-DE", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : ""}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ padding:14, borderTop:"1px solid rgba(255,255,255,0.08)", display:"flex", gap:10, alignItems:"flex-end" }}>
+                <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
+                  onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendReply(); } }}
+                  placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
+                  rows={2}
+                  style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
+                    border:"1px solid rgba(255,255,255,0.18)", background:"rgba(255,255,255,0.06)",
+                    color:"#fff", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
+                    maxHeight:140, boxSizing:"border-box", outline:"none" }} />
+                <button onClick={sendReply} disabled={sending || !txt.trim()}
+                  style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
+                    background: (sending||!txt.trim()) ? "rgba(255,165,0,0.4)" : "#ffa500",
+                    color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
+                  {sending ? "..." : "Senden"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
