@@ -1734,6 +1734,10 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var voiceRef = useRef(null);
   var scrollRef = useRef(null);
   var pollRef = useRef(null);
+  var _photos = useState([]); var pendingPhotos = _photos[0]; var setPendingPhotos = _photos[1];
+  var _lightbox = useState(null); var lightboxUrl = _lightbox[0]; var setLightboxUrl = _lightbox[1];
+  var galleryInputRef = useRef(null);
+  var cameraInputRef = useRef(null);
 
   function driverId(){
     var s = (driverName||"").trim().toLowerCase()
@@ -1784,12 +1788,79 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [msgs.length]);
 
+  // --- ФОТО: загрузка в chat-photos ---
+  function uploadChatPhoto(b64, msgId, idx) {
+    if (!b64) return Promise.resolve(null);
+    return compressPhoto(b64, 1200, 0.78)
+      .then(function(compressed) {
+        return fetch(compressed).then(function(r) { return r.blob(); });
+      })
+      .then(function(blob) {
+        var ext = (blob.type && blob.type.indexOf("png") !== -1) ? "png" : "jpg";
+        var path = "ltg/" + msgId + "/photo_" + idx + "." + ext;
+        return fetch(SB_URL + "/storage/v1/object/chat-photos/" + path, {
+          method: "POST",
+          headers: {
+            "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
+            "Content-Type": blob.type || "image/jpeg",
+            "x-upsert": "true"
+          },
+          body: blob
+        }).then(function(r) {
+          if (!r.ok) return null;
+          return SB_URL + "/storage/v1/object/public/chat-photos/" + path;
+        });
+      })
+      .catch(function() { return null; });
+  }
+
+  function handleFileInput(e) {
+    var files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    var remaining = 5 - pendingPhotos.length;
+    if (remaining <= 0) return;
+    files = files.slice(0, remaining);
+    var readers = files.map(function(file) {
+      return new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(ev) { resolve(ev.target.result); };
+        reader.onerror = function() { resolve(null); };
+        reader.readAsDataURL(file);
+      });
+    });
+    Promise.all(readers).then(function(results) {
+      var valid = results.filter(Boolean);
+      setPendingPhotos(function(prev) { return prev.concat(valid).slice(0, 5); });
+    });
+    // Сбрасываем input чтобы можно было выбрать тот же файл снова
+    e.target.value = "";
+  }
+
+  function removePhoto(idx) {
+    setPendingPhotos(function(prev) {
+      return prev.filter(function(_, i) { return i !== idx; });
+    });
+  }
+
   function sendMessage() {
     var body = (txt || "").trim();
-    if (!body || sending) return;
+    var hasPhotos = pendingPhotos.length > 0;
+    if (!body && !hasPhotos) return;
+    if (sending) return;
     setSending(true);
-    // Водитель пишет на своём языке. Переводим на DE для FPL.
-    translateText(body, "DE").then(function(de){
+    var msgId = "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    // Загружаем фото параллельно, потом шлём сообщение
+    var photoPromise = hasPhotos
+      ? Promise.all(pendingPhotos.map(function(b64, i) { return uploadChatPhoto(b64, msgId, i); }))
+          .then(function(urls) { return urls.filter(Boolean); })
+      : Promise.resolve([]);
+    var textPromise = body
+      ? translateText(body, "DE")
+      : Promise.resolve("");
+    Promise.all([photoPromise, textPromise]).then(function(results) {
+      var photoUrls = results[0];
+      var de = results[1];
       var payload = {
         tenant_id: "ltg",
         driver_id: DID,
@@ -1797,21 +1868,24 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
         sender_role: "fahrer",
         sender_id: DID,
         sender_name: driverName,
-        text_original: body,
+        text_original: body || "",
         lang_original: lang,
-        text_de: de,
-        text_driver: body,        // оригинал уже на языке водителя
+        text_de: de || "",
+        text_driver: body || "",
         driver_lang: lang,
         is_broadcast: false,
-        read_by_driver: true,     // своё сообщение прочитано
-        read_by_fpl: false
+        read_by_driver: true,
+        read_by_fpl: false,
+        photo_urls: photoUrls.length ? photoUrls : null
+        // video_url: null  — задел под видео, не активен
       };
       return sbPost("messages", payload);
-    }).then(function(){
+    }).then(function() {
       setTxt("");
+      setPendingPhotos([]);
       setSending(false);
       loadMessages();
-    }).catch(function(){
+    }).catch(function() {
       setSending(false);
     });
   }
@@ -1885,6 +1959,8 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
             var mine = m.sender_role === "fahrer";
             // Водитель видит сообщения шефа на своём языке (text_driver), свои — как написал
             var shown = mine ? m.text_original : (m.text_driver || m.text_de || m.text_original);
+            var mPhotos = [];
+            try { mPhotos = Array.isArray(m.photo_urls) ? m.photo_urls : (m.photo_urls ? JSON.parse(m.photo_urls) : []); } catch(e) {}
             return (
               <div key={m.id} style={{ display:"flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
                 <div style={{ maxWidth:"82%", padding:"12px 16px",
@@ -1893,7 +1969,21 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
                   color: mine ? "#0a1730" : "#fff",
                   border: mine ? "none" : "1px solid rgba(255,255,255,0.14)" }}>
                   {!mine && <div style={{ fontSize:11, fontWeight:800, color:"#ffa500", marginBottom:3, letterSpacing:"0.5px" }}>{t.chatFrom}</div>}
-                  <div style={{ fontSize:16, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
+                  {shown ? <div style={{ fontSize:16, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div> : null}
+                  {mPhotos.length > 0 && (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop: shown ? 8 : 0 }}>
+                      {mPhotos.map(function(url, pi) {
+                        return (
+                          <img key={pi} src={url} alt=""
+                            onClick={function() { setLightboxUrl(url); }}
+                            style={{ width: mPhotos.length === 1 ? "100%" : "calc(50% - 2px)",
+                              maxWidth:220, height: mPhotos.length === 1 ? "auto" : 90,
+                              objectFit:"cover", borderRadius:8, cursor:"pointer",
+                              border: mine ? "none" : "1px solid rgba(255,255,255,0.2)" }} />
+                        );
+                      })}
+                    </div>
+                  )}
                   <div style={{ fontSize:11, marginTop:5, opacity:0.55, textAlign:"right" }}>
                     {m.created_at ? new Date(m.created_at).toLocaleString(LANG_MAP[lang]||"de", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : ""}
                   </div>
@@ -1902,6 +1992,25 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
             );
           })}
         </div>
+
+        {/* Лайтбокс — просмотр фото во весь экран */}
+        {lightboxUrl && (
+          <div onClick={function() { setLightboxUrl(null); }}
+            style={{ position:"fixed", inset:0, zIndex:200,
+              background:"rgba(0,0,0,0.92)", display:"flex",
+              alignItems:"center", justifyContent:"center", padding:16 }}>
+            <img src={lightboxUrl} alt=""
+              style={{ maxWidth:"100%", maxHeight:"100%", borderRadius:10,
+                objectFit:"contain", boxShadow:"0 8px 40px rgba(0,0,0,0.6)" }} />
+            <button onClick={function() { setLightboxUrl(null); }}
+              style={{ position:"absolute", top:20, right:20, width:40, height:40,
+                borderRadius:999, border:"none", background:"rgba(255,255,255,0.15)",
+                color:"#fff", fontSize:22, fontWeight:900, cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Панель ввода: поле на всю ширину → ряд из 3 кнопок → Senden */}
         <div style={{ flexShrink:0, paddingTop:12,
@@ -1924,22 +2033,81 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
               minHeight:56, maxHeight:360, boxSizing:"border-box", outline:"none",
               marginBottom:10 }} />
 
-          {/* Ряд из 3 кнопок: скрепка · камера · микрофон */}
+          {/* Hidden file inputs: галерея и камера */}
+          <input ref={galleryInputRef} type="file" accept="image/*" multiple
+            style={{ display:"none" }} onChange={handleFileInput} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+            style={{ display:"none" }} onChange={handleFileInput} />
+
+          {/* Превью выбранных фото */}
+          {pendingPhotos.length > 0 && (
+            <div style={{ display:"flex", gap:8, marginBottom:10, overflowX:"auto", paddingBottom:4 }}>
+              {pendingPhotos.map(function(b64, i) {
+                return (
+                  <div key={i} style={{ position:"relative", flexShrink:0 }}>
+                    <img src={b64} alt=""
+                      style={{ width:64, height:64, objectFit:"cover", borderRadius:8,
+                        border:"2px solid rgba(255,165,0,0.6)" }} />
+                    <button onClick={function() { removePhoto(i); }}
+                      style={{ position:"absolute", top:-6, right:-6, width:20, height:20,
+                        borderRadius:999, border:"none", background:"#ef4444",
+                        color:"#fff", fontSize:12, fontWeight:900,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        cursor:"pointer", padding:0, lineHeight:1 }}>
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+              {pendingPhotos.length < 5 && (
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)",
+                  alignSelf:"center", flexShrink:0 }}>
+                  {pendingPhotos.length}/5
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ряд из 3 кнопок: галерея · камера · микрофон */}
           <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-            {/* Скрепка — задел на будущее (файлы) */}
-            <button title="Anhang" disabled
-              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
-                background:"rgba(255,255,255,0.04)", color:"rgba(255,255,255,0.3)",
-                cursor:"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+            {/* Галерея — выбор из файлов */}
+            <button title="Foto aus Galerie" onClick={function() {
+                if (pendingPhotos.length >= 5) return;
+                if (galleryInputRef.current) galleryInputRef.current.click();
+              }}
+              style={{ flex:1, height:52, borderRadius:10,
+                border: pendingPhotos.length >= 5
+                  ? "1px solid rgba(255,255,255,0.1)"
+                  : "1px solid rgba(255,255,255,0.22)",
+                background: pendingPhotos.length >= 5
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(255,255,255,0.08)",
+                color: pendingPhotos.length >= 5
+                  ? "rgba(255,255,255,0.25)"
+                  : "rgba(255,255,255,0.8)",
+                cursor: pendingPhotos.length >= 5 ? "not-allowed" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            {/* Камера — задел на будущее (фото) */}
-            <button title="Kamera" disabled
-              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
-                background:"rgba(255,255,255,0.04)", color:"rgba(255,255,255,0.3)",
-                cursor:"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+            {/* Камера телефона */}
+            <button title="Foto aufnehmen" onClick={function() {
+                if (pendingPhotos.length >= 5) return;
+                if (cameraInputRef.current) cameraInputRef.current.click();
+              }}
+              style={{ flex:1, height:52, borderRadius:10,
+                border: pendingPhotos.length >= 5
+                  ? "1px solid rgba(255,255,255,0.1)"
+                  : "1px solid rgba(255,255,255,0.22)",
+                background: pendingPhotos.length >= 5
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(255,255,255,0.08)",
+                color: pendingPhotos.length >= 5
+                  ? "rgba(255,255,255,0.25)"
+                  : "rgba(255,255,255,0.8)",
+                cursor: pendingPhotos.length >= 5 ? "not-allowed" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
@@ -1966,16 +2134,16 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
           </div>
 
           {/* Кнопка Senden — на всю ширину, заметная */}
-          <button onClick={sendMessage} disabled={sending || !txt.trim()}
+          <button onClick={sendMessage} disabled={sending || (!txt.trim() && pendingPhotos.length === 0)}
             style={{ width:"100%", height:56, borderRadius:12, border:"none",
-              background: (sending || !txt.trim()) ? "rgba(255,165,0,0.3)" : "#ffa500",
+              background: (sending || (!txt.trim() && pendingPhotos.length === 0)) ? "rgba(255,165,0,0.3)" : "#ffa500",
               color:"#0a1730", fontSize:18, fontWeight:800, letterSpacing:"0.5px",
-              cursor: (sending || !txt.trim()) ? "not-allowed" : "pointer",
+              cursor: (sending || (!txt.trim() && pendingPhotos.length === 0)) ? "not-allowed" : "pointer",
               display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
             {sending
               ? "..."
               : <span>{t.chatSend}</span>}
-            {!sending && txt.trim() && (
+            {!sending && (txt.trim() || pendingPhotos.length > 0) && (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
