@@ -1171,14 +1171,32 @@ function ErsteAnmeldung({ onContinue }) {
 
 // === п.1: PIN — только при первой регистрации, потом только слайдер ===
 // п.3: стрелка "назад" → возврат на ErsteAnmeldung
+var WS_PIN_LOCK_KEY = "werkflow_ws_pin_lock";
+function getWsPinLock() {
+  try { var v = localStorage.getItem(WS_PIN_LOCK_KEY); return v ? JSON.parse(v) : {attempts:0,until:0}; } catch(e) { return {attempts:0,until:0}; }
+}
+function setWsPinLock(obj) { try { localStorage.setItem(WS_PIN_LOCK_KEY, JSON.stringify(obj)); } catch(e) {} }
+function clearWsPinLock() { try { localStorage.removeItem(WS_PIN_LOCK_KEY); } catch(e) {} }
+
 function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack, hideBack }) {
   var _s0 = useState(""); var pin = _s0[0]; var setPin = _s0[1];
   var _s1 = useState(false); var err = _s1[0]; var setErr = _s1[1];
+  var _lock = useState(0); var lockUntil = _lock[0]; var setLockUntil = _lock[1];
+  var _tick = useState(0); var setTick = _tick[1];
+
+  useEffect(function(){
+    var lock = getWsPinLock();
+    if (lock.until > Date.now()) setLockUntil(lock.until);
+    var iv = setInterval(function(){ setTick(function(x){ return x+1; }); }, 1000);
+    return function(){ clearInterval(iv); };
+  }, []);
+
+  var isLocked = lockUntil > Date.now();
+  var lockSecsLeft = isLocked ? Math.ceil((lockUntil - Date.now()) / 1000) : 0;
 
   function check(nx){
     var fb = fallbackPin || APP_PIN;
     var personal = (users||[]).find(function(u){
-      // active отфильтрован на сервере через ?active=eq.true
       if (!u.pin || u.pin !== nx) return false;
       if (((u.app_access||[]).indexOf("werkstatt")) === -1) return false;
       return true;
@@ -1189,16 +1207,21 @@ function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack, hideBac
   }
 
   function press(d) {
-    if (pin.length >= 4) return;
+    if (isLocked || pin.length >= 4) return;
     setErr(false);
     var next = pin + d;
     setPin(next);
     if (next.length === 4) {
       setTimeout(function() {
         var r = check(next);
-        if (r && r.kind === "personal") onPersonal(r.user);
-        else if (r && r.kind === "fallback") onFallback();
+        if (r && r.kind === "personal") { clearWsPinLock(); onPersonal(r.user); }
+        else if (r && r.kind === "fallback") { clearWsPinLock(); onFallback(); }
         else {
+          var lock = getWsPinLock();
+          var attempts = (lock.attempts||0) + 1;
+          var until = attempts >= 5 ? Date.now() + 30000 : 0;
+          setWsPinLock({attempts:attempts, until:until});
+          if (until) setLockUntil(until);
           setErr(true);
           setTimeout(function() { setPin(""); setErr(false); }, 650);
         }
@@ -1206,7 +1229,7 @@ function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack, hideBac
     }
   }
 
-  function del() { setPin(function(p) { return p.slice(0,-1); }); setErr(false); }
+  function del() { if (isLocked) return; setPin(function(p) { return p.slice(0,-1); }); setErr(false); }
 
   return (
     <div className="scrn">
@@ -1218,18 +1241,25 @@ function PinScreen({ users, fallbackPin, onPersonal, onFallback, onBack, hideBac
         <Logo />
         <Powered />
         <div style={{ marginTop:40, color:"#ffa500", fontSize:36, fontWeight:900 }}>Werkstatt</div>
-        <div style={{ marginTop:10, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>PIN eingeben</div>
+        <div style={{ marginTop:10, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:4, fontSize:12, fontWeight:800 }}>
+          {isLocked ? ("Gesperrt — " + lockSecsLeft + "s") : "PIN eingeben"}
+        </div>
         <div style={{ display:"flex", gap:18, margin:"28px 0 32px" }}>
           {[0,1,2,3].map(function(i) {
             return <div key={i} className={"pin-dot" + (i < pin.length ? " filled" : "") + (err ? " error" : "")}></div>;
           })}
         </div>
+        {isLocked && (
+          <div style={{ fontSize:13, color:"#ef4444", fontWeight:700, marginBottom:16, textAlign:"center" }}>
+            Zu viele Versuche — bitte warten
+          </div>
+        )}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 70px)", gap:16, justifyContent:"center" }}>
           {[1,2,3,4,5,6,7,8,9].map(function(d) {
-            return <button key={d} className="keypad-btn" onClick={function(){ press(String(d)); }}>{d}</button>;
+            return <button key={d} className="keypad-btn" disabled={isLocked} onClick={function(){ press(String(d)); }}>{d}</button>;
           })}
           <div></div>
-          <button className="keypad-btn" onClick={function(){ press("0"); }}>0</button>
+          <button className="keypad-btn" disabled={isLocked} onClick={function(){ press("0"); }}>0</button>
           <button className="keypad-btn" onClick={del}>⌫</button>
         </div>
       </div>
@@ -5041,18 +5071,6 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
 
   function save() {
     if (!plate || !plate.plate) { showToast("Bitte Fahrzeug auswählen."); return; }
-    // Валидация пробега: предупреждаем если меньше предыдущего
-    if (km) {
-      var kmNum = parseInt(km, 10);
-      var prevInsp = (duList || []).filter(function(i){
-        return i.plate === plate.plate && i.km_stand && parseInt(i.km_stand, 10) > 0;
-      }).sort(function(a, b){
-        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-      })[0];
-      if (prevInsp && kmNum < parseInt(prevInsp.km_stand, 10)) {
-        if (!window.confirm("KM-Stand (" + kmNum.toLocaleString("de-DE") + ") ist kleiner als beim letzten Eintrag (" + parseInt(prevInsp.km_stand, 10).toLocaleString("de-DE") + " km).\nTrotzdem speichern?")) return;
-      }
-    }
     var res = calcResult();
     if (res === "incomplete") {
       if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
@@ -5126,28 +5144,6 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
           <div className="label-cap">KM-Stand</div>
           <input className="input-dark" value={km} placeholder="z.B. 245000"
             onChange={function(e){ setKm(e.target.value.replace(/\D/g,"")); }} />
-          {(function(){
-            if (!km || !plate || !plate.plate) return null;
-            var kmNum = parseInt(km, 10);
-            if (!kmNum) return null;
-            var prevInsp = (duList || []).filter(function(i){
-              return i.plate === plate.plate && i.km_stand && parseInt(i.km_stand, 10) > 0;
-            }).sort(function(a, b){
-              return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-            })[0];
-            if (!prevInsp) return null;
-            var prevKm = parseInt(prevInsp.km_stand, 10);
-            if (kmNum < prevKm) {
-              return (
-                <div style={{ marginTop:8, padding:"8px 12px", borderRadius:8,
-                  background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.35)",
-                  color:"#ef4444", fontSize:13, fontWeight:600 }}>
-                  Letzter Wert: {prevKm.toLocaleString("de-DE")} km — aktueller Wert ist kleiner. Bitte prüfen.
-                </div>
-              );
-            }
-            return null;
-          })()}
         </div>
 
         {DU_SECTIONS.map(function(sec) {

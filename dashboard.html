@@ -1017,11 +1017,27 @@ function urgBadge(u) {
 // Без селектора юзеров. Юзер вводит свой PIN, мы ищем его в users по
 // app_access='dashboard' & active=true. Fallback PIN отсутствует — для
 // дашборда только персональный логин.
+var DASH_PIN_LOCK_KEY = "werkflow_dash_pin_lock";
+function getDashPinLock() {
+  try { var v = localStorage.getItem(DASH_PIN_LOCK_KEY); return v ? JSON.parse(v) : {attempts:0,until:0}; } catch(e) { return {attempts:0,until:0}; }
+}
+function setDashPinLock(obj) { try { localStorage.setItem(DASH_PIN_LOCK_KEY, JSON.stringify(obj)); } catch(e) {} }
+function clearDashPinLock() { try { localStorage.removeItem(DASH_PIN_LOCK_KEY); } catch(e) {} }
+
 function PinLogin({ onLogin }) {
   var _sp = useState(""); var pin = _sp[0]; var setPin = _sp[1];
   var _se = useState(false); var err = _se[0]; var setErr = _se[1];
   var _users = useState(null); var dbUsers = _users[0]; var setDbUsers = _users[1];
   var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
+  var _lock = useState(0); var lockUntil = _lock[0]; var setLockUntil = _lock[1];
+  var _tick = useState(0); var setTick = _tick[1];
+
+  useEffect(function(){
+    var lock = getDashPinLock();
+    if (lock.until > Date.now()) setLockUntil(lock.until);
+    var iv = setInterval(function(){ setTick(function(x){ return x+1; }); }, 1000);
+    return function(){ clearInterval(iv); };
+  }, []);
 
   useEffect(function(){
     sbGet("users","active=eq.true&select=id,name,avatar,role,niederlassung_id,scope_level,pin,app_access").then(function(r){
@@ -1031,32 +1047,31 @@ function PinLogin({ onLogin }) {
     });
   }, []);
 
+  var isLocked = lockUntil > Date.now();
+  var lockSecsLeft = isLocked ? Math.ceil((lockUntil - Date.now()) / 1000) : 0;
+
   function tryLogin(nx){
-    if (dbUsers === null) {
-      setTimeout(function(){ tryLogin(nx); }, 150);
-      return;
-    }
+    if (isLocked) return;
+    if (dbUsers === null) { setTimeout(function(){ tryLogin(nx); }, 150); return; }
     var found = (dbUsers||[]).find(function(u){
-      // active уже отфильтрован на сервере через ?active=eq.true,
-      // поэтому здесь не проверяем (поле может не быть в select)
       if (!u.pin || u.pin !== nx) return false;
       if (((u.app_access||[]).indexOf("dashboard")) === -1) return false;
       return true;
     });
     if (found) {
+      clearDashPinLock();
       // сохраняем расширенный объект сессии и обновляем last_login
       var sessUser = {
         id: found.id, name: found.name, avatar: found.avatar||"??",
         role: found.role, niederlassung_id: found.niederlassung_id, scope_level: found.scope_level,
         app_access: found.app_access||[], tenant_id: "ltg",
-        pin: found.pin // нужен для совместимости с существующим кодом дашборда
+        pin: found.pin, login_at: Date.now()
       };
       fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(found.id), {
         method:"PATCH",
         headers:{ "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Prefer":"return=minimal" },
         body:JSON.stringify({ last_login: new Date().toISOString() })
       }).catch(function(){});
-      // Push-подписка только для шефа и Fuhrparkleiter — они получают напоминания о Fristen
       if (found.role === "chef" || found.role === "fpl") {
         pushSubscribe({
           userId: found.id, userName: found.name, role: found.role,
@@ -1065,20 +1080,23 @@ function PinLogin({ onLogin }) {
       }
       onLogin(sessUser);
     } else {
+      var lock = getDashPinLock();
+      var attempts = (lock.attempts||0) + 1;
+      var until = attempts >= 5 ? Date.now() + 30000 : 0;
+      setDashPinLock({attempts: attempts, until: until});
+      if (until) setLockUntil(until);
       setErr(true); setMsg("Falscher PIN");
       setTimeout(function(){ setPin(""); setErr(false); setMsg(""); }, 900);
     }
   }
 
   function press(d) {
-    if (pin.length >= 4) return;
+    if (isLocked || pin.length >= 4) return;
     setErr(false);
     var next = pin + d; setPin(next);
-    if (next.length === 4) {
-      setTimeout(function(){ tryLogin(next); }, 120);
-    }
+    if (next.length === 4) { setTimeout(function(){ tryLogin(next); }, 120); }
   }
-  function del() { setPin(function(p){ return p.slice(0,-1); }); setErr(false); setMsg(""); }
+  function del() { if (isLocked) return; setPin(function(p){ return p.slice(0,-1); }); setErr(false); setMsg(""); }
 
   return (
     <div className="login-wrap">
@@ -1092,16 +1110,21 @@ function PinLogin({ onLogin }) {
         </div>
         <div className="login-card">
           <div style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.5)", textAlign:"center", textTransform:"uppercase", letterSpacing:2, marginBottom:14 }}>
-            {dbUsers === null ? "Lade..." : "PIN eingeben"}
+            {dbUsers === null ? "Lade..." : isLocked ? "Gesperrt" : "PIN eingeben"}
           </div>
           <div className="pin-row">
             {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot" + (i < pin.length ? " on" : "") + (err ? " err" : "")}></div>; })}
           </div>
-          {msg && <div style={{ textAlign:"center", color:"#ef4444", fontSize:12, fontWeight:700, marginTop:4, marginBottom:6 }}>{msg}</div>}
+          {isLocked && (
+            <div style={{ textAlign:"center", color:"#ef4444", fontSize:12, fontWeight:700, marginTop:4, marginBottom:6 }}>
+              Zu viele Versuche — bitte {lockSecsLeft}s warten
+            </div>
+          )}
+          {!isLocked && msg && <div style={{ textAlign:"center", color:"#ef4444", fontSize:12, fontWeight:700, marginTop:4, marginBottom:6 }}>{msg}</div>}
           <div className="keypad">
-            {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="kkey" onClick={function(){ press(String(d)); }}>{d}</button>; })}
+            {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="kkey" disabled={isLocked} onClick={function(){ press(String(d)); }}>{d}</button>; })}
             <div></div>
-            <button className="kkey" onClick={function(){ press("0"); }}>0</button>
+            <button className="kkey" disabled={isLocked} onClick={function(){ press("0"); }}>0</button>
             <button className="kkey" onClick={del} style={{ fontSize:18 }}>⌫</button>
           </div>
         </div>
@@ -6385,7 +6408,15 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
 
     setSaving(true);
     return sbUpsert("users", payload)
-      .then(function(){ setSaving(false); showMsg("✅ Mitarbeiter gespeichert"); setUEdit(undefined); return loadUsers(); })
+      .then(function(){
+        setSaving(false);
+        showMsg("✅ Mitarbeiter gespeichert");
+        if (!u.id && pin) {
+          window.alert("Neuer Mitarbeiter: " + u.name.trim() + "\n\nPIN: " + pin + "\n\nBitte PIN mitteilen und sicher aufbewahren!");
+        }
+        setUEdit(undefined);
+        return loadUsers();
+      })
       .catch(function(e){ setSaving(false); showMsg("Fehler: "+(e.message||e)); throw e; });
   }
 
@@ -6485,6 +6516,7 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
     { k:"users",      label:"👥 Mitarbeiter" },
     { k:"standorte",  label:"📍 Standorte" },
     { k:"benachrichtigungen", label:"🔔 Benachrichtigungen" },
+    { k:"unternehmen", label:"🏢 Unternehmen" },
   ];
 
   var VEH_TYPE_OPTS = [
@@ -6856,7 +6888,8 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
                     </select>
                   </div>
                   <button className="btn-primary" onClick={function(){
-                    setUEdit({ name:"", avatar:"", role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung", pin:"", app_access:["werkstatt"], active:true, rate_per_hour:"25", notes:"" });
+                    var autoPin = genPin4();
+                    setUEdit({ name:"", avatar:"", role:"mechaniker", niederlassung_id:"hockenheim", scope_level:"niederlassung", pin:autoPin, app_access:["werkstatt"], active:true, rate_per_hour:"25", notes:"", _newPin:autoPin });
                   }}>+ Neuer Mitarbeiter</button>
                 </div>
               </div>
@@ -7260,6 +7293,106 @@ function Einstellungen({ vehicles, forklifts, stock, onRefresh, loading, niedLis
 
       {tab === "benachrichtigungen" && (
         <BenachrichtigungenSettings niedList={niedList} showMsg={showMsg} />
+      )}
+
+      {tab === "unternehmen" && (
+        <div>
+          <div className="panel" style={{ marginBottom:16 }}>
+            <div className="panel-hd"><div className="panel-title">Unternehmensidentität</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              <div>
+                <div className="label-cap">Unternehmensname</div>
+                <input className="inp" style={{ width:"100%" }}
+                  defaultValue={settingValue("company_name") || "WerkFlow"}
+                  placeholder="LTG Landauer Transportgesellschaft Doll KG"
+                  onBlur={function(e){
+                    var v = e.target.value.trim();
+                    if (!v) return;
+                    var existing = (dbSettings||[]).find(function(x){ return x.key === "company_name"; });
+                    if (existing) {
+                      sbPatchBy("app_settings","key","company_name",{value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                    } else {
+                      sbUpsert("app_settings",{key:"company_name",value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                    }
+                  }} />
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Wird im Login-Screen angezeigt</div>
+              </div>
+              <div>
+                <div className="label-cap">Hauptfarbe (Hex)</div>
+                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                  <input className="inp" style={{ flex:1 }}
+                    defaultValue={settingValue("brand_color") || "#ffa500"}
+                    placeholder="#ffa500"
+                    onBlur={function(e){
+                      var v = e.target.value.trim();
+                      if (!/^#[0-9a-fA-F]{6}$/.test(v)) { showMsg("Ungültige Farbe — Format: #ffffff"); return; }
+                      var existing = (dbSettings||[]).find(function(x){ return x.key === "brand_color"; });
+                      if (existing) {
+                        sbPatchBy("app_settings","key","brand_color",{value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                      } else {
+                        sbUpsert("app_settings",{key:"brand_color",value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                      }
+                    }} />
+                  <div style={{ width:36, height:36, borderRadius:8, border:"1px solid rgba(255,255,255,0.2)",
+                    background: settingValue("brand_color") || "#ffa500", flexShrink:0 }}></div>
+                </div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Akzentfarbe für Buttons und Highlights</div>
+              </div>
+              <div>
+                <div className="label-cap">Standort</div>
+                <input className="inp" style={{ width:"100%" }}
+                  defaultValue={settingValue("company_location") || ""}
+                  placeholder="Hockenheim, Deutschland"
+                  onBlur={function(e){
+                    var v = e.target.value.trim();
+                    var existing = (dbSettings||[]).find(function(x){ return x.key === "company_location"; });
+                    if (existing) {
+                      sbPatchBy("app_settings","key","company_location",{value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                    } else {
+                      sbUpsert("app_settings",{key:"company_location",value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                    }
+                  }} />
+              </div>
+              <div>
+                <div className="label-cap">Kontakt E-Mail</div>
+                <input className="inp" style={{ width:"100%" }}
+                  defaultValue={settingValue("company_email") || ""}
+                  placeholder="info@unternehmen.de"
+                  onBlur={function(e){
+                    var v = e.target.value.trim();
+                    var existing = (dbSettings||[]).find(function(x){ return x.key === "company_email"; });
+                    if (existing) {
+                      sbPatchBy("app_settings","key","company_email",{value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                    } else {
+                      sbUpsert("app_settings",{key:"company_email",value:v,updated_at:new Date().toISOString()}).then(function(){ loadSettings(); showMsg("✅ Gespeichert"); });
+                    }
+                  }} />
+              </div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd"><div className="panel-title">Systeminfo</div></div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              {[
+                ["Supabase Projekt",  "vtswzvrflqoueowylidy"],
+                ["Deployment",        "werkstatt-nine.vercel.app"],
+                ["Tenant ID",         "ltg"],
+                ["Archivierung",      "Jobs 2J · Nachrichten 6M · Inspektionen 3J"],
+                ["Push-System",       "VAPID · Edge Function send-push"],
+                ["DB Indizes",        "20 Performance-Indizes aktiv"],
+              ].map(function(row){
+                return (
+                  <div key={row[0]} style={{ padding:"10px 12px", background:"rgba(255,255,255,0.04)",
+                    borderRadius:8, border:"1px solid rgba(255,255,255,0.08)" }}>
+                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:3, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{row[0]}</div>
+                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.75)", fontFamily:"monospace" }}>{row[1]}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -7796,18 +7929,18 @@ function AppShell({ user, onLogout }) {
   function loadAll() {
     setLoading(true);
     Promise.all([
-      sbGet("jobs",               "select=*&order=created_at.desc&limit=500"),
-      sbGet("alerts",             "select=*&order=created_at.desc&limit=200"),
-      sbGet("vehicles",           "select=*&order=plate.asc&limit=500"),
-      sbGet("forklifts",          "select=*&order=nummer.asc&limit=200"),
-      sbGet("stock",              "select=*&order=name.asc&limit=300"),
-      sbGet("wash_orders",        "select=*&order=created_at.desc&limit=300"),
-      sbGet("inspections",        "select=*&order=created_at.desc&limit=300"),
-      sbGet("invoices",           "select=*&order=date.desc&limit=300"),
-      sbGet("maintenance_plans",  "select=*&order=next_service_date.asc&limit=300"),
-      sbGet("users",              "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen,fs_kontrolle_letzte,fs_kontrolle_naechste,unterweisung_letzte,unterweisung_naechste&order=name.asc&limit=300"),
-      sbGet("tasks",              "select=*&order=created_at.desc&limit=500"),
-      sbGet("messages",           "select=*&order=created_at.asc&limit=1000"),
+      sbGet("jobs",              "select=id,status,mechanic,colleague,vehicle_type,plate,location,work_type,description,date,created_at,updated_at,finished_at,started_at,paused_at,pause_note,pause_log,labor_cost,parts_cost,parts_items,parts_type,parts_supplier,parts_note,parts_date,parts_invoice,photo_urls,incoming_photo_urls,alert_id,task_id,task_row_index,source,source_app,source_type,asset_type,asset_label,urgency,assigned_mechanic_name,tenant_id,vehicle_home_niederlassung_id,workshop_niederlassung_id,contract_id,travel_to_min,travel_back_min,work_min,tire_new_sn,tire_old_sn,tire_condition,cost&order=created_at.desc&limit=500"),
+      sbGet("alerts",            "select=id,type,status,plate,vehicle_type,location,description,photo_urls,created_at,updated_at,tenant_id,niederlassung_id,report_id,work_type&order=created_at.desc&limit=200"),
+      sbGet("vehicles",          "select=id,plate,brand,model,type,mileage,tuev,au,sp,uvv,insurance,next_service,home_niederlassung_id,current_niederlassung_id,tenant_id,notes&order=plate.asc&limit=500"),
+      sbGet("forklifts",         "select=id,nummer,type,standort,status,tuev,uvv,notes,tenant_id&order=nummer.asc&limit=200"),
+      sbGet("stock",             "select=id,name,quantity,unit,min_quantity,niederlassung_id,tenant_id&order=name.asc&limit=300"),
+      sbGet("wash_orders",       "select=id,plate_number,wash_type_id,status,work_date,created_at,worker_id,niederlassung_id,wash_number,daily_archive_id&order=created_at.desc&limit=300"),
+      sbGet("inspections",       "select=id,type,plate,brand,driver,result,status,created_at,date,km_stand,tenant_id,niederlassung_id,defects,defects_de,mangel,acknowledged,mechanic_id,mechanic_name&order=created_at.desc&limit=300"),
+      sbGet("invoices",          "select=id,date,vendor,amount,description,vehicle_plate,job_id,tenant_id,niederlassung_id&order=date.desc&limit=300"),
+      sbGet("maintenance_plans", "select=*&order=next_service_date.asc&limit=300"),
+      sbGet("users",             "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen,fs_kontrolle_letzte,fs_kontrolle_naechste,unterweisung_letzte,unterweisung_naechste,chat_lang,pin&order=name.asc&limit=300"),
+      sbGet("tasks",             "select=id,title,status,priority,assignee_id,created_at,updated_at,due_date,tenant_id,vehicle_plate,notes&order=created_at.desc&limit=500"),
+      sbGet("messages",          "select=id,driver_id,driver_name,sender_role,sender_name,text_original,text_de,text_driver,lang_original,driver_lang,photo_urls,created_at,read_by_driver,read_by_fpl,tenant_id&order=created_at.asc&limit=1000"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
       setStock(r[4]); setWashOrders(r[5]); setInspections(r[6]);
@@ -8726,10 +8859,7 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
   var _sel = useState(null); var selDriver = _sel[0]; var setSelDriver = _sel[1];
   var _txt = useState(""); var txt = _txt[0]; var setTxt = _txt[1];
   var _sending = useState(false); var sending = _sending[0]; var setSending = _sending[1];
-  var _photos = useState([]); var pendingPhotos = _photos[0]; var setPendingPhotos = _photos[1];
-  var _lightbox = useState(null); var lightboxUrl = _lightbox[0]; var setLightboxUrl = _lightbox[1];
   var scrollRef = useRef(null);
-  var fileInputRef = useRef(null);
 
   var msgs = messages || [];
 
@@ -8821,125 +8951,6 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
     }).catch(function(){ setSending(false); });
   }
 
-  // --- Compress photo on client (FPL side) ---
-  function compressChatPhoto(b64, maxWidth, quality) {
-    maxWidth = maxWidth || 1400;
-    quality = quality || 0.80;
-    return new Promise(function(resolve) {
-      var img = new Image();
-      img.onload = function() {
-        var w = img.width, h = img.height;
-        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-        var canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        var ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      img.onerror = function() { resolve(b64); };
-      img.src = b64;
-    });
-  }
-
-  function uploadFplPhoto(b64, msgId, idx) {
-    if (!b64) return Promise.resolve(null);
-    return compressChatPhoto(b64)
-      .then(function(compressed) {
-        return fetch(compressed).then(function(r) { return r.blob(); });
-      })
-      .then(function(blob) {
-        var ext = (blob.type && blob.type.indexOf("png") !== -1) ? "png" : "jpg";
-        var path = "ltg/" + msgId + "/photo_" + idx + "." + ext;
-        return fetch(SB_URL + "/storage/v1/object/chat-photos/" + path, {
-          method: "POST",
-          headers: {
-            "apikey": SB_KEY,
-            "Authorization": "Bearer " + SB_KEY,
-            "Content-Type": blob.type || "image/jpeg",
-            "x-upsert": "true"
-          },
-          body: blob
-        }).then(function(r) {
-          if (!r.ok) return null;
-          return SB_URL + "/storage/v1/object/public/chat-photos/" + path;
-        });
-      })
-      .catch(function() { return null; });
-  }
-
-  function handleFileInput(e) {
-    var files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    var remaining = 5 - pendingPhotos.length;
-    files = files.slice(0, remaining);
-    var readers = files.map(function(file) {
-      return new Promise(function(resolve) {
-        var reader = new FileReader();
-        reader.onload = function(ev) { resolve(ev.target.result); };
-        reader.onerror = function() { resolve(null); };
-        reader.readAsDataURL(file);
-      });
-    });
-    Promise.all(readers).then(function(results) {
-      var valid = results.filter(Boolean);
-      setPendingPhotos(function(prev) { return prev.concat(valid).slice(0, 5); });
-    });
-    e.target.value = "";
-  }
-
-  function removePhoto(idx) {
-    setPendingPhotos(function(prev) { return prev.filter(function(_, i) { return i !== idx; }); });
-  }
-
-  function sendWithPhotos() {
-    var body = (txt || "").trim();
-    var hasPhotos = pendingPhotos.length > 0;
-    if (!body && !hasPhotos) return;
-    if (sending || !current) return;
-    setSending(true);
-    var msgId = "chat_fpl_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-    var dLang = driverLang(current.driver_id);
-    var photoPromise = hasPhotos
-      ? Promise.all(pendingPhotos.map(function(b64, i) { return uploadFplPhoto(b64, msgId, i); }))
-          .then(function(urls) { return urls.filter(Boolean); })
-      : Promise.resolve([]);
-    var textPromise = body
-      ? translateToLang(body, dLang)
-      : Promise.resolve("");
-    Promise.all([photoPromise, textPromise]).then(function(results) {
-      var photoUrls = results[0];
-      var translated = results[1];
-      var payload = {
-        tenant_id: "ltg",
-        driver_id: current.driver_id,
-        driver_name: current.driver_name,
-        sender_role: "fpl",
-        sender_id: currentUser ? currentUser.id : null,
-        sender_name: currentUser ? currentUser.name : "FPL",
-        text_original: body || "",
-        lang_original: "DE",
-        text_de: body || "",
-        text_driver: translated || "",
-        driver_lang: dLang,
-        is_broadcast: false,
-        read_by_driver: false,
-        read_by_fpl: true,
-        photo_urls: photoUrls.length ? photoUrls : null
-        // video_url: null  — задел под видео, не активен
-      };
-      return fetch(SB_URL + "/rest/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Prefer": "return=minimal" },
-        body: JSON.stringify(payload)
-      });
-    }).then(function() {
-      setTxt("");
-      setPendingPhotos([]);
-      setSending(false);
-      if (onRefresh) onRefresh();
-    }).catch(function() { setSending(false); });
-  }
-
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
@@ -9004,9 +9015,8 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                 display:"flex", flexDirection:"column", gap:10, minHeight:0, background:"#f1f5f9" }}>
                 {thread.map(function(m){
                   var fromFpl = m.sender_role === "fpl";
+                  // FPL читает всё на немецком: text_de (или оригинал если сам писал на DE)
                   var shown = fromFpl ? m.text_original : (m.text_de || m.text_original);
-                  var mPhotos = [];
-                  try { mPhotos = Array.isArray(m.photo_urls) ? m.photo_urls : (m.photo_urls ? JSON.parse(m.photo_urls) : []); } catch(e) {}
                   return (
                     <div key={m.id} style={{ display:"flex", justifyContent: fromFpl ? "flex-end" : "flex-start" }}>
                       <div style={{ maxWidth:"75%", padding:"10px 14px",
@@ -9015,24 +9025,10 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                         color: fromFpl ? "#0a1730" : "#1e293b",
                         border: fromFpl ? "none" : "1.5px solid #3b82f6" }}>
                         {!fromFpl && <div style={{ fontSize:11, fontWeight:800, color:"#2563eb", marginBottom:3 }}>{current.driver_name}</div>}
-                        {shown ? <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div> : null}
+                        <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
                         {!fromFpl && m.text_original && m.text_original !== shown && (
                           <div style={{ fontSize:12, color:"#64748b", marginTop:4, fontStyle:"italic" }}>
                             Original ({m.lang_original}): {m.text_original}
-                          </div>
-                        )}
-                        {mPhotos.length > 0 && (
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop: shown ? 8 : 0 }}>
-                            {mPhotos.map(function(url, pi) {
-                              return (
-                                <img key={pi} src={url} alt=""
-                                  onClick={function() { setLightboxUrl(url); }}
-                                  style={{ width: mPhotos.length === 1 ? "100%" : "calc(50% - 2px)",
-                                    maxWidth:260, height: mPhotos.length === 1 ? "auto" : 100,
-                                    objectFit:"cover", borderRadius:6, cursor:"pointer",
-                                    border: fromFpl ? "none" : "1px solid #dbeafe" }} />
-                              );
-                            })}
                           </div>
                         )}
                         <div style={{ fontSize:11, marginTop:5, opacity:0.6, textAlign:"right" }}>
@@ -9043,89 +9039,21 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                   );
                 })}
               </div>
-
-              {/* Лайтбокс */}
-              {lightboxUrl && (
-                <div onClick={function() { setLightboxUrl(null); }}
-                  style={{ position:"fixed", inset:0, zIndex:10100,
-                    background:"rgba(0,0,0,0.88)", display:"flex",
-                    alignItems:"center", justifyContent:"center", padding:24 }}>
-                  <img src={lightboxUrl} alt=""
-                    style={{ maxWidth:"90%", maxHeight:"90%", borderRadius:10,
-                      objectFit:"contain", boxShadow:"0 8px 40px rgba(0,0,0,0.5)" }} />
-                  <button onClick={function() { setLightboxUrl(null); }}
-                    style={{ position:"absolute", top:24, right:24, width:44, height:44,
-                      borderRadius:999, border:"none", background:"rgba(255,255,255,0.15)",
-                      color:"#fff", fontSize:24, fontWeight:900, cursor:"pointer",
-                      display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
-                    ×
-                  </button>
-                </div>
-              )}
-
-              {/* Панель ввода */}
-              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", background:"#fff" }}>
-                {/* Hidden file input */}
-                <input ref={fileInputRef} type="file" accept="image/*" multiple
-                  style={{ display:"none" }} onChange={handleFileInput} />
-
-                {/* Превью фото */}
-                {pendingPhotos.length > 0 && (
-                  <div style={{ display:"flex", gap:8, marginBottom:10, overflowX:"auto", paddingBottom:4 }}>
-                    {pendingPhotos.map(function(b64, i) {
-                      return (
-                        <div key={i} style={{ position:"relative", flexShrink:0 }}>
-                          <img src={b64} alt=""
-                            style={{ width:60, height:60, objectFit:"cover", borderRadius:6,
-                              border:"2px solid #3b82f6" }} />
-                          <button onClick={function() { removePhoto(i); }}
-                            style={{ position:"absolute", top:-6, right:-6, width:18, height:18,
-                              borderRadius:999, border:"none", background:"#ef4444",
-                              color:"#fff", fontSize:11, fontWeight:900,
-                              display:"flex", alignItems:"center", justifyContent:"center",
-                              cursor:"pointer", padding:0 }}>
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                    <div style={{ fontSize:11, color:"#94a3b8", alignSelf:"center", flexShrink:0 }}>
-                      {pendingPhotos.length}/5
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display:"flex", gap:10, alignItems:"flex-end" }}>
-                  <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
-                    onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendWithPhotos(); } }}
-                    placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
-                    rows={2}
-                    style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
-                      border:"1.5px solid #3b82f6", background:"#f8fafc",
-                      color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
-                      maxHeight:140, boxSizing:"border-box", outline:"none" }} />
-                  <button onClick={function() {
-                      if (pendingPhotos.length < 5 && fileInputRef.current) fileInputRef.current.click();
-                    }}
-                    title="Foto anhängen"
-                    style={{ flexShrink:0, width:48, height:48, borderRadius:10,
-                      border: pendingPhotos.length >= 5 ? "1.5px solid #e2e8f0" : "1.5px solid #3b82f6",
-                      background: pendingPhotos.length > 0 ? "#dbeafe" : "#fff",
-                      color: pendingPhotos.length >= 5 ? "#cbd5e1" : "#3b82f6",
-                      cursor: pendingPhotos.length >= 5 ? "not-allowed" : "pointer",
-                      display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                  <button onClick={sendWithPhotos}
-                    disabled={sending || (!txt.trim() && pendingPhotos.length === 0)}
-                    style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
-                      background: (sending || (!txt.trim() && pendingPhotos.length === 0)) ? "rgba(255,165,0,0.5)" : "#ffa500",
-                      color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
-                    {sending ? "..." : "Senden"}
-                  </button>
-                </div>
+              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", display:"flex", gap:10, alignItems:"flex-end", background:"#fff" }}>
+                <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
+                  onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendReply(); } }}
+                  placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
+                  rows={2}
+                  style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
+                    border:"1.5px solid #3b82f6", background:"#f8fafc",
+                    color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
+                    maxHeight:140, boxSizing:"border-box", outline:"none" }} />
+                <button onClick={sendReply} disabled={sending || !txt.trim()}
+                  style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
+                    background: (sending||!txt.trim()) ? "rgba(255,165,0,0.5)" : "#ffa500",
+                    color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
+                  {sending ? "..." : "Senden"}
+                </button>
               </div>
             </div>
           )}
@@ -9145,7 +9073,11 @@ function App() {
       var saved = localStorage.getItem("werkflow_dash_user");
       if (saved) {
         var u = JSON.parse(saved);
-        if (u && u.id) { setUser(u); setStage("app"); return; }
+        var THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        if (u && u.id && u.login_at && (Date.now() - u.login_at) < THIRTY_DAYS) {
+          setUser(u); setStage("app"); return;
+        }
+        try { localStorage.removeItem("werkflow_dash_user"); } catch(e2) {}
       }
     } catch(e) {}
     setStage("pin");
