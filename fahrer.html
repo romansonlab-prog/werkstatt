@@ -44,7 +44,8 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
-    body.chat-open{overflow:hidden;position:fixed;width:100%;height:100%}
+    html.chat-open,body.chat-open{overflow:hidden!important;height:100%!important}
+    body.chat-open #root{height:100%!important;min-height:0!important;overflow:hidden!important}
     :root{
       --accent:#ffa500;--accent-dark:#cc7a00;--accent-glow:rgba(255,165,0,0.35);
       --bg-base:#080e1a;--bg-card:rgba(13,25,52,0.85);--bg-input:rgba(6,15,38,0.9);
@@ -1774,6 +1775,7 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
 
   // Первичная загрузка + polling каждые 8 сек (как принято в проекте)
   useEffect(function(){
+    document.documentElement.classList.add("chat-open");
     document.body.classList.add("chat-open");
     // Реальная видимая высота через visualViewport (учитывает адресную строку и клавиатуру)
     function applyVh(){
@@ -1791,6 +1793,7 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
     loadMessages();
     pollRef.current = setInterval(function(){ loadMessages(); }, 8000);
     return function(){
+      document.documentElement.classList.remove("chat-open");
       document.body.classList.remove("chat-open");
       if (window.visualViewport) {
         window.visualViewport.removeEventListener("resize", applyVh);
