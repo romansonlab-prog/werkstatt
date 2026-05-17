@@ -706,7 +706,8 @@ const VEHICLE_TYPES = [
 const WORK_TYPES = [
   ["repair","Reparatur"],
   ["tireChange","Reifenwechsel"],
-  ["emergency","Notruf"]
+  ["emergency","Notruf"],
+  ["intern","Interne Arbeit"]
 ];
 
 // Standort Liste — fallback если БД не загрузилась
@@ -3341,6 +3342,9 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
   var _snav = useState(null); var navOpen = _snav[0]; var setNavOpen = _snav[1];
   var _tsel = useState([]); var tSel = _tsel[0]; var setTSel = _tsel[1];
+  var _intern = useState(null); var internRow = _intern[0]; var setInternRow = _intern[1];
+  var _internMin = useState(""); var internMin = _internMin[0]; var setInternMin = _internMin[1];
+  var _internBusy = useState(false); var internBusy = _internBusy[0]; var setInternBusy = _internBusy[1];
 
   // Задачи для механиков: открытые сверху, отсортированы по приоритету
   function tPrioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
@@ -3359,17 +3363,72 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
       .then(function(){ onRefresh(); });
   }
 
-  // Отметить ОДНУ строку задания выполненной. Если все строки done — задание целиком erledigt.
-  function rowDone(t, ix) {
+  // Пометить строку done (+ опц. данные) и если все done → задание erledigt.
+  function markRowDoneState(t, ix, extra) {
     var items = (t.items || []).map(function(it, i){
       if (i !== ix) return it;
-      return Object.assign({}, it, { done: true });
+      return Object.assign({}, it, Object.assign({ done: true }, extra || {}));
     });
     var allDone = items.every(function(it){ return it.done; });
     var patch = { items: items, updated_at: new Date().toISOString() };
     if (allDone) { patch.status = "erledigt"; patch.done_at = new Date().toISOString(); }
-    sbPatch("tasks", t.id, patch).then(function(){ onRefresh(); });
+    return sbPatch("tasks", t.id, patch);
   }
+
+  // Отметить ОДНУ строку задания выполненной (строка без техники, без учёта времени).
+  function rowDone(t, ix) {
+    markRowDoneState(t, ix, null).then(function(){ onRefresh(); });
+  }
+
+  // Открыть мини-форму "сколько времени" для Interne Arbeit (строка без техники)
+  function openInternForm(t, ix) {
+    setInternRow({ task: t, ix: ix });
+    setInternMin("");
+  }
+  // Подтвердить Interne Arbeit: создать job без машины (work_type=intern) + пометить строку
+  function confirmIntern() {
+    if (!internRow) return;
+    var mins = parseInt(internMin, 10);
+    if (isNaN(mins) || mins <= 0) return;
+    setInternBusy(true);
+    var t = internRow.task; var ix = internRow.ix;
+    var row = (t.items && t.items[ix]) ? t.items[ix] : { text: t.title || "" };
+    var nowIso = new Date().toISOString();
+    var jobId = "J" + Date.now();
+    var jobBody = {
+      id: jobId,
+      tenant_id: "ltg",
+      plate: "",
+      vehicle_type: "",
+      work_type: "intern",
+      description: row.text || "Interne Arbeit",
+      location: "Werkstatt",
+      mechanic: (user && user.name) ? user.name : "",
+      mechanic_id: (user && user.id) ? user.id : null,
+      status: "done",
+      work_min: mins,
+      labor_cost: 0,
+      cost: 0,
+      date: todayIso(),
+      created_at: nowIso,
+      source: "task",
+      task_id: t.id,
+      task_row_index: ix,
+      workshop_niederlassung_id: (user && user.niederlassung_id) ? user.niederlassung_id : null
+    };
+    sbInsert("jobs", jobBody, true).then(function(){
+      return markRowDoneState(t, ix, { job_id: jobId });
+    }).then(function(){
+      setInternBusy(false);
+      setInternRow(null);
+      setInternMin("");
+      onRefresh();
+    }).catch(function(e){
+      setInternBusy(false);
+      alert("Fehler: " + (e && e.message ? e.message : e));
+    });
+  }
+
   // Снять отметку со строки (вернуть в работу). Задание тоже снова offen.
   function rowUndone(t, ix) {
     var items = (t.items || []).map(function(it, i){
@@ -3614,12 +3673,19 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
                           → Auftrag
                         </button>
                       )}
-                      <button type="button" onClick={function(){ rowDone(t, ix); }}
-                        style={{ flex:1, padding:"11px 8px", borderRadius:9,
-                          border:"1.5px solid rgba(34,197,94,0.5)", background:"rgba(34,197,94,0.1)",
-                          color:"#22c55e", fontSize:14, fontWeight:700, cursor:"pointer" }}>
-                        ✓ Erledigt
-                      </button>
+                      {hasVeh
+                        ? <button type="button" onClick={function(){ rowDone(t, ix); }}
+                            style={{ flex:1, padding:"11px 8px", borderRadius:9,
+                              border:"1.5px solid rgba(34,197,94,0.5)", background:"rgba(34,197,94,0.1)",
+                              color:"#22c55e", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                            ✓ Erledigt
+                          </button>
+                        : <button type="button" onClick={function(){ openInternForm(t, ix); }}
+                            style={{ flex:1, padding:"11px 8px", borderRadius:9,
+                              border:"1.5px solid rgba(34,197,94,0.5)", background:"rgba(34,197,94,0.1)",
+                              color:"#22c55e", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                            ✓ Erledigt + Zeit
+                          </button>}
                     </div>
                   )}
                   {it.done && (
@@ -3655,6 +3721,52 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
             );
           })}
         </details>
+      )}
+
+      {/* Мини-форма: время для Interne Arbeit (строка без техники) */}
+      {internRow && (
+        <div onClick={function(){ if(!internBusy){ setInternRow(null); } }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:9999,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={function(e){ e.stopPropagation(); }}
+            style={{ background:"#0f274e", borderRadius:16, padding:20, maxWidth:340, width:"100%",
+              border:"1px solid rgba(255,255,255,0.15)" }}>
+            <div style={{ fontSize:16, fontWeight:800, color:"#ffa500", marginBottom:6 }}>Interne Arbeit</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", marginBottom:14 }}>
+              {(internRow.task.items && internRow.task.items[internRow.ix]) ? internRow.task.items[internRow.ix].text : ""}
+            </div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:6 }}>Wie lange? (Minuten)</div>
+            <input type="number" inputMode="numeric" value={internMin} autoFocus
+              onChange={function(e){ setInternMin(e.target.value); }}
+              placeholder="z.B. 30"
+              style={{ width:"100%", padding:"12px", borderRadius:10, fontSize:18, fontWeight:700,
+                border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)",
+                color:"#fff", marginBottom:8, boxSizing:"border-box" }} />
+            <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+              {[15,30,45,60,90,120].map(function(m){
+                return <button key={m} type="button" onClick={function(){ setInternMin(String(m)); }}
+                  style={{ flex:"1 0 28%", padding:"8px 4px", borderRadius:8,
+                    border:"1px solid rgba(255,255,255,0.2)",
+                    background: String(m)===internMin ? "rgba(255,165,0,0.2)" : "rgba(255,255,255,0.05)",
+                    color: String(m)===internMin ? "#ffa500" : "rgba(255,255,255,0.7)",
+                    fontSize:13, fontWeight:700, cursor:"pointer" }}>{m} min</button>;
+              })}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button type="button" disabled={internBusy} onClick={function(){ setInternRow(null); }}
+                style={{ flex:1, padding:"12px", borderRadius:10, border:"1px solid rgba(255,255,255,0.2)",
+                  background:"transparent", color:"rgba(255,255,255,0.7)", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                Abbrechen
+              </button>
+              <button type="button" disabled={internBusy || !internMin} onClick={confirmIntern}
+                style={{ flex:2, padding:"12px", borderRadius:10, border:"none",
+                  background:"linear-gradient(180deg,#22c55e,#16a34a)", color:"#fff",
+                  fontSize:14, fontWeight:800, cursor:"pointer", opacity:(internBusy||!internMin)?0.5:1 }}>
+                {internBusy ? "..." : "✓ Erledigt + im Bericht"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* === MELDUNGEN (Notrufe von Fahrern) === */}
@@ -4167,7 +4279,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         ? pLog.map(function(p){ return p.reason + (p.minutes ? " (" + fmtMin(p.minutes) + ")" : ""); }).join("; ")
         : "—";
       return "<tr>" +
-        "<td>" + (j.plate || "—") + "</td>" +
+        "<td>" + (j.plate || (j.work_type === "intern" ? "<i>Interne Arbeit</i>" : "—")) + "</td>" +
         "<td>" + (labelFrom(WORK_TYPES, j.work_type) || "") + "</td>" +
         "<td>" + (j.location || "") + "</td>" +
         "<td>" + (j.description ? j.description.slice(0,80) : "") + "</td>" +
@@ -4387,7 +4499,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         style={{ cursor:"pointer" }}>
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:8 }}>
           <div>
-            <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || "Ohne Kennzeichen"}</div>
+            <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || (j.work_type === "intern" ? "Interne Arbeit" : "Ohne Kennzeichen")}</div>
             <div className="meta" style={{ marginTop:4 }}>📍 {j.location || "Werkstatt"} · {labelFrom(WORK_TYPES, j.work_type)}</div>
           </div>
           <span style={{
