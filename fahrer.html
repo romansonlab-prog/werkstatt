@@ -749,6 +749,27 @@ function uploadPhotoEarly(b64) {
   }).catch(function(){ return null; });
 }
 
+// Загрузка фото в чат (отдельный бакет chat-photos)
+function uploadChatPhoto(b64, did, idx) {
+  if (!b64) return Promise.resolve(null);
+  return compressPhoto(b64, 1200, 0.78).then(function(c){
+    return fetch(c).then(function(r){ return r.blob(); }).then(function(blob){
+      var ext = blob.type && blob.type.indexOf("png")!==-1 ? "png" : "jpg";
+      var path = did + "/" + Date.now() + "_" + idx + "." + ext;
+      return fetch(SB_URL+"/storage/v1/object/chat-photos/"+path, {
+        method:"POST",
+        headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":blob.type||"image/jpeg","x-upsert":"true"},
+        body:blob
+      }).then(function(r){ return r.ok ? (SB_URL+"/storage/v1/object/public/chat-photos/"+path) : null; });
+    });
+  }).catch(function(){ return null; });
+}
+function uploadAllChatPhotos(photos, did) {
+  if (!photos || !photos.length) return Promise.resolve([]);
+  return Promise.all(photos.map(function(p,i){ return uploadChatPhoto(p, did, i); }))
+    .then(function(urls){ return urls.filter(Boolean); });
+}
+
 // ── COMMON ────────────────────────────────────────────────────────────────────
 function Bg() { return <div className="bg-image"></div>; }
 
@@ -986,18 +1007,50 @@ function ErsteAnmeldung({ lang, setLang, onNext }) {
 }
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
+var PIN_LOCK_KEY = "werkflow_fahrer_pin_lock";
+function getPinLock() {
+  try { var v = localStorage.getItem(PIN_LOCK_KEY); return v ? JSON.parse(v) : {attempts:0,until:0}; } catch(e) { return {attempts:0,until:0}; }
+}
+function setPinLock(obj) { try { localStorage.setItem(PIN_LOCK_KEY, JSON.stringify(obj)); } catch(e) {} }
+function clearPinLock() { try { localStorage.removeItem(PIN_LOCK_KEY); } catch(e) {} }
+
 function PinScreen({ lang, setLang, onOk, dynPin }) {
   var _p=useState(""); var p=_p[0]; var setP=_p[1];
   var _e=useState(false); var err=_e[0]; var setErr=_e[1];
+  var _lock=useState(0); var lockUntil=_lock[0]; var setLockUntil=_lock[1];
+  var _tick=useState(0); var setTick=_tick[1];
   var t=getT(lang);
+
+  useEffect(function(){
+    var lock = getPinLock();
+    if (lock.until > Date.now()) setLockUntil(lock.until);
+    var iv = setInterval(function(){ setTick(function(x){ return x+1; }); }, 1000);
+    return function(){ clearInterval(iv); };
+  }, []);
+
+  var isLocked = lockUntil > Date.now();
+  var lockSecsLeft = isLocked ? Math.ceil((lockUntil - Date.now()) / 1000) : 0;
+
   function check(val){
     if (!dynPin) return false; // PIN из БД ещё не загружен
     return val === dynPin;
   }
+  function handleResult(val){
+    if (check(val)) { clearPinLock(); onOk(); }
+    else {
+      var lock = getPinLock();
+      var attempts = (lock.attempts||0) + 1;
+      var until = attempts >= 5 ? Date.now() + 30000 : 0;
+      setPinLock({attempts:attempts, until:until});
+      if (until) setLockUntil(until);
+      setErr(true);
+      setTimeout(function(){ setP(""); setErr(false); }, 700);
+    }
+  }
   function press(d){
-    if(p.length>=4) return; setErr(false);
+    if(isLocked || p.length>=4) return; setErr(false);
     var nx=p+d; setP(nx);
-    if(nx.length===4) setTimeout(function(){ if(check(nx)) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } },150);
+    if(nx.length===4) setTimeout(function(){ handleResult(nx); },150);
   }
   return (
     <div className="scrn" style={{ paddingTop:"max(env(safe-area-inset-top),50px)" }}>
@@ -1012,19 +1065,24 @@ function PinScreen({ lang, setLang, onOk, dynPin }) {
             ⚠ PIN wird geladen... Bitte Internet prüfen
           </div>
         )}
+        {isLocked && (
+          <div style={{ marginTop:18, padding:"12px 14px", borderRadius:10, background:"rgba(239,68,68,0.15)", border:"1px solid rgba(239,68,68,0.5)", fontSize:14, color:"#fca5a5", textAlign:"center", fontWeight:700 }}>
+            Zu viele Versuche — bitte {lockSecsLeft}s warten
+          </div>
+        )}
         <div style={{ display:"flex",justifyContent:"center",gap:14,marginTop:24 }}>
           {[0,1,2,3].map(function(i){ return <div key={i} className={"pin-dot"+(i<p.length?" on":"")+(err?" err":"")}></div>; })}
         </div>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(3,68px)",gap:14,maxWidth:260,width:"100%",margin:"24px auto 0",justifyContent:"center" }}>
-          {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="keypad-btn" disabled={!dynPin} onClick={function(){ press(String(d)); }}>{d}</button>; })}
+          {[1,2,3,4,5,6,7,8,9].map(function(d){ return <button key={d} className="keypad-btn" disabled={!dynPin||isLocked} onClick={function(){ press(String(d)); }}>{d}</button>; })}
           <div></div>
-          <button className="keypad-btn" disabled={!dynPin} onClick={function(){ press("0"); }}>0</button>
+          <button className="keypad-btn" disabled={!dynPin||isLocked} onClick={function(){ press("0"); }}>0</button>
           <button className="keypad-btn" onClick={function(){ setP(function(x){ return x.slice(0,-1); }); setErr(false); }}>⌫</button>
         </div>
         <div style={{ flex:1 }}></div>
-        <button onClick={function(){ if(check(p)) onOk(); else{ setErr(true); setTimeout(function(){ setP(""); setErr(false); },700); } }}
-          disabled={p.length!==4 || !dynPin}
-          style={{ width:"100%",padding:18,background:"transparent",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:14,color:"#fff",fontSize:17,fontWeight:600,opacity:(p.length===4&&dynPin)?1:0.5,marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
+        <button onClick={function(){ if(!isLocked) handleResult(p); }}
+          disabled={p.length!==4 || !dynPin || isLocked}
+          style={{ width:"100%",padding:18,background:"transparent",border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:14,color:"#fff",fontSize:17,fontWeight:600,opacity:(p.length===4&&dynPin&&!isLocked)?1:0.5,marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",gap:10 }}>
           {t.login} <span style={{ fontSize:20 }}>→</span>
         </button>
       </div>
@@ -1723,6 +1781,10 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var _sending = useState(false); var sending = _sending[0]; var setSending = _sending[1];
   var _loading = useState(true); var loading = _loading[0]; var setLoading = _loading[1];
   var _voice = useState(false); var voice = _voice[0]; var setVoice = _voice[1];
+  var _photos = useState([]); var photos = _photos[0]; var setPhotos = _photos[1];
+  var _lightbox = useState(null); var lightbox = _lightbox[0]; var setLightbox = _lightbox[1];
+  var galleryRef = useRef(null);
+  var cameraRef = useRef(null);
   var voiceRef = useRef(null);
   var scrollRef = useRef(null);
   var pollRef = useRef(null);
@@ -1762,11 +1824,52 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
     }).catch(function(){});
   }, [lang]);
 
-  // Первичная загрузка + polling каждые 8 сек (как принято в проекте)
+  // Realtime: WebSocket подписка на новые сообщения (вместо polling 8 сек)
   useEffect(function(){
     loadMessages();
-    pollRef.current = setInterval(function(){ loadMessages(); }, 8000);
+    var wsState = {ws:null, hb:null, reconnect:null, dead:false};
+
+    function connect() {
+      if (wsState.dead) return;
+      try {
+        var wsUrl = SB_URL.replace("https://","wss://").replace("http://","ws://")
+          + "/realtime/v1/websocket?apikey=" + SB_KEY + "&vsn=1.0.0";
+        var ws = new WebSocket(wsUrl);
+        wsState.ws = ws;
+        ws.onopen = function(){
+          ws.send(JSON.stringify({
+            topic: "realtime:public:messages:driver_id=eq." + DID,
+            event: "phx_join", payload: {}, ref: "1"
+          }));
+          wsState.hb = setInterval(function(){
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ topic:"phoenix", event:"heartbeat", payload:{}, ref:"hb" }));
+            }
+          }, 25000);
+        };
+        ws.onmessage = function(e){
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.event === "INSERT" || msg.event === "UPDATE") loadMessages();
+          } catch(err){}
+        };
+        ws.onclose = function(){
+          if (wsState.hb) clearInterval(wsState.hb);
+          if (!wsState.dead) { wsState.reconnect = setTimeout(connect, 4000); }
+        };
+        ws.onerror = function(){ ws.close(); };
+      } catch(e){}
+    }
+
+    connect();
+    // Fallback polling 60 сек на случай если WS недоступен
+    pollRef.current = setInterval(function(){ loadMessages(); }, 60000);
+
     return function(){
+      wsState.dead = true;
+      if (wsState.ws) { try { wsState.ws.close(); } catch(e){} }
+      if (wsState.hb) clearInterval(wsState.hb);
+      if (wsState.reconnect) clearTimeout(wsState.reconnect);
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
@@ -1776,12 +1879,34 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [msgs.length]);
 
+  function handleFileInput(e) {
+    var files = e.target.files;
+    if (!files || !files.length) return;
+    var arr = Array.prototype.slice.call(files, 0, 5 - photos.length);
+    arr.forEach(function(file){
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        setPhotos(function(prev){ return prev.length >= 5 ? prev : prev.concat([ev.target.result]); });
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  }
+  function removePhoto(i) {
+    setPhotos(function(prev){ return prev.filter(function(_,idx){ return idx !== i; }); });
+  }
+
   function sendMessage() {
     var body = (txt || "").trim();
-    if (!body || sending) return;
+    if ((!body && !photos.length) || sending) return;
     setSending(true);
-    // Водитель пишет на своём языке. Переводим на DE для FPL.
-    translateText(body, "DE").then(function(de){
+    var photosToSend = photos.slice();
+    Promise.all([
+      body ? translateText(body, "DE") : Promise.resolve(""),
+      uploadAllChatPhotos(photosToSend, DID)
+    ]).then(function(res){
+      var de = res[0];
+      var urls = res[1] || [];
       var payload = {
         tenant_id: "ltg",
         driver_id: DID,
@@ -1789,18 +1914,20 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
         sender_role: "fahrer",
         sender_id: DID,
         sender_name: driverName,
-        text_original: body,
+        text_original: body || "",
         lang_original: lang,
-        text_de: de,
-        text_driver: body,        // оригинал уже на языке водителя
+        text_de: de || "",
+        text_driver: body || "",
         driver_lang: lang,
+        photo_urls: urls,
         is_broadcast: false,
-        read_by_driver: true,     // своё сообщение прочитано
+        read_by_driver: true,
         read_by_fpl: false
       };
       return sbPost("messages", payload);
     }).then(function(){
       setTxt("");
+      setPhotos([]);
       setSending(false);
       loadMessages();
     }).catch(function(){
@@ -1885,7 +2012,21 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
                   color: mine ? "#0a1730" : "#fff",
                   border: mine ? "none" : "1px solid rgba(255,255,255,0.14)" }}>
                   {!mine && <div style={{ fontSize:11, fontWeight:800, color:"#ffa500", marginBottom:3, letterSpacing:"0.5px" }}>{t.chatFrom}</div>}
-                  <div style={{ fontSize:16, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
+                  {(function(){
+                    var ph = m.photo_urls;
+                    if (typeof ph === "string") { try { ph = JSON.parse(ph); } catch(e){ ph = []; } }
+                    if (!ph || !ph.length) return null;
+                    return (
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom: shown ? 8 : 0 }}>
+                        {ph.map(function(u, pi){
+                          return <img key={pi} src={u} alt="" onClick={function(){ setLightbox(u); }}
+                            style={{ width:110, height:110, objectFit:"cover", borderRadius:10, cursor:"pointer",
+                              border: mine ? "1px solid rgba(10,23,48,0.2)" : "1px solid rgba(255,255,255,0.15)" }} />;
+                        })}
+                      </div>
+                    );
+                  })()}
+                  {shown && <div style={{ fontSize:16, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>}
                   <div style={{ fontSize:11, marginTop:5, opacity:0.55, textAlign:"right" }}>
                     {m.created_at ? new Date(m.created_at).toLocaleString(LANG_MAP[lang]||"de", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : ""}
                   </div>
@@ -1899,6 +2040,27 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
         <div style={{ flexShrink:0, paddingTop:12,
           paddingBottom:"calc(env(safe-area-inset-bottom) + 10px)",
           borderTop:"1px solid rgba(255,255,255,0.1)" }}>
+
+          {/* Превью выбранных фото */}
+          {photos.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
+              {photos.map(function(p, i){
+                return (
+                  <div key={i} style={{ position:"relative" }}>
+                    <img src={p} alt="" style={{ width:64, height:64, objectFit:"cover", borderRadius:8, border:"1px solid rgba(255,255,255,0.2)" }} />
+                    <button onClick={function(){ removePhoto(i); }}
+                      style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%",
+                        background:"#ef4444", color:"#fff", border:"none", fontSize:14, fontWeight:800,
+                        cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0, lineHeight:1 }}>×</button>
+                  </div>
+                );
+              })}
+              <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", alignSelf:"center", marginLeft:4 }}>{photos.length}/5</div>
+            </div>
+          )}
+
+          <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handleFileInput} />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={handleFileInput} />
 
           {/* Поле ввода — на всю ширину, до 15+ строк */}
           <textarea value={txt}
@@ -1918,20 +2080,24 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
 
           {/* Ряд из 3 кнопок: скрепка · камера · микрофон */}
           <div style={{ display:"flex", gap:10, marginBottom:10 }}>
-            {/* Скрепка — задел на будущее (файлы) */}
-            <button title="Anhang" disabled
-              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
-                background:"rgba(255,255,255,0.04)", color:"rgba(255,255,255,0.3)",
-                cursor:"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+            {/* Скрепка — выбор из галереи */}
+            <button title="Anhang" onClick={function(){ if (photos.length < 5 && galleryRef.current) galleryRef.current.click(); }}
+              disabled={photos.length >= 5}
+              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.14)",
+                background: photos.length >= 5 ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.07)",
+                color: photos.length >= 5 ? "rgba(255,255,255,0.25)" : "#fff",
+                cursor: photos.length >= 5 ? "not-allowed" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            {/* Камера — задел на будущее (фото) */}
-            <button title="Kamera" disabled
-              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.12)",
-                background:"rgba(255,255,255,0.04)", color:"rgba(255,255,255,0.3)",
-                cursor:"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+            {/* Камера — снять фото */}
+            <button title="Kamera" onClick={function(){ if (photos.length < 5 && cameraRef.current) cameraRef.current.click(); }}
+              disabled={photos.length >= 5}
+              style={{ flex:1, height:52, borderRadius:10, border:"1px solid rgba(255,255,255,0.14)",
+                background: photos.length >= 5 ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.07)",
+                color: photos.length >= 5 ? "rgba(255,255,255,0.25)" : "#fff",
+                cursor: photos.length >= 5 ? "not-allowed" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
@@ -1958,16 +2124,16 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
           </div>
 
           {/* Кнопка Senden — на всю ширину, заметная */}
-          <button onClick={sendMessage} disabled={sending || !txt.trim()}
+          <button onClick={sendMessage} disabled={sending || (!txt.trim() && photos.length === 0)}
             style={{ width:"100%", height:56, borderRadius:12, border:"none",
-              background: (sending || !txt.trim()) ? "rgba(255,165,0,0.3)" : "#ffa500",
+              background: (sending || (!txt.trim() && photos.length === 0)) ? "rgba(255,165,0,0.3)" : "#ffa500",
               color:"#0a1730", fontSize:18, fontWeight:800, letterSpacing:"0.5px",
-              cursor: (sending || !txt.trim()) ? "not-allowed" : "pointer",
+              cursor: (sending || (!txt.trim() && photos.length === 0)) ? "not-allowed" : "pointer",
               display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
             {sending
               ? "..."
               : <span>{t.chatSend}</span>}
-            {!sending && txt.trim() && (
+            {!sending && (txt.trim() || photos.length > 0) && (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -1975,6 +2141,17 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
           </button>
         </div>
       </div>
+      {lightbox && (
+        <div onClick={function(){ setLightbox(null); }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", zIndex:10100,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <img src={lightbox} alt="" style={{ maxWidth:"100%", maxHeight:"100%", borderRadius:8 }} />
+          <button onClick={function(){ setLightbox(null); }}
+            style={{ position:"absolute", top:"calc(env(safe-area-inset-top) + 16px)", right:20, width:44, height:44,
+              borderRadius:"50%", background:"rgba(255,255,255,0.15)", color:"#fff", border:"none",
+              fontSize:24, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2040,6 +2217,12 @@ function App() {
         try {
           var parsed = JSON.parse(sn);
           if (parsed && parsed.name) {
+            // Срок сессии — 30 дней
+            var THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+            if (parsed.login_at && (Date.now() - parsed.login_at) > THIRTY_DAYS) {
+              try { localStorage.removeItem(SESS_KEY); } catch(e2) {}
+              setStg("register"); return;
+            }
             setName(parsed.name);
             setUserNied(parsed.niederlassung_id || "");
             // Старая сессия без niederlassung_id — форсим перерегистрацию
@@ -2071,7 +2254,7 @@ function App() {
   );
   if(stg==="pin") return (
     <PinScreen lang={lang} setLang={setLang} dynPin={dynPin} onOk={function(){
-      try{ localStorage.setItem(SESS_KEY, JSON.stringify({ name: name, niederlassung_id: userNied })); }catch(e){}
+      try{ localStorage.setItem(SESS_KEY, JSON.stringify({ name: name, niederlassung_id: userNied, login_at: Date.now() })); }catch(e){}
       registerOrUpdateDriver(name, userNied);
       setStg("menu");
     }} />

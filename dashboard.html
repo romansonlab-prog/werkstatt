@@ -8859,7 +8859,55 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
   var _sel = useState(null); var selDriver = _sel[0]; var setSelDriver = _sel[1];
   var _txt = useState(""); var txt = _txt[0]; var setTxt = _txt[1];
   var _sending = useState(false); var sending = _sending[0]; var setSending = _sending[1];
+  var _photos = useState([]); var photos = _photos[0]; var setPhotos = _photos[1];
+  var _lightbox = useState(null); var lightbox = _lightbox[0]; var setLightbox = _lightbox[1];
+  var fileRef = useRef(null);
   var scrollRef = useRef(null);
+
+  function compressChatPhoto(b64) {
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height, mx = 1400;
+        if (w > mx) { h = Math.round(h * mx / w); w = mx; }
+        var cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(cv.toDataURL("image/jpeg", 0.80));
+      };
+      img.onerror = function(){ resolve(b64); };
+      img.src = b64;
+    });
+  }
+  function uploadFplPhoto(b64, did, idx) {
+    return compressChatPhoto(b64).then(function(c){
+      return fetch(c).then(function(r){ return r.blob(); }).then(function(blob){
+        var ext = blob.type && blob.type.indexOf("png")!==-1 ? "png" : "jpg";
+        var path = did + "/fpl_" + Date.now() + "_" + idx + "." + ext;
+        return fetch(SB_URL+"/storage/v1/object/chat-photos/"+path, {
+          method:"POST",
+          headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":blob.type||"image/jpeg","x-upsert":"true"},
+          body:blob
+        }).then(function(r){ return r.ok ? (SB_URL+"/storage/v1/object/public/chat-photos/"+path) : null; });
+      });
+    }).catch(function(){ return null; });
+  }
+  function handleFileInput(e) {
+    var files = e.target.files;
+    if (!files || !files.length) return;
+    var arr = Array.prototype.slice.call(files, 0, 5 - photos.length);
+    arr.forEach(function(file){
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        setPhotos(function(prev){ return prev.length >= 5 ? prev : prev.concat([ev.target.result]); });
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  }
+  function removePhoto(i) {
+    setPhotos(function(prev){ return prev.filter(function(_,idx){ return idx !== i; }); });
+  }
 
   var msgs = messages || [];
 
@@ -8919,11 +8967,18 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
 
   function sendReply() {
     var body = (txt||"").trim();
-    if (!body || sending || !current) return;
+    if ((!body && photos.length === 0) || sending || !current) return;
     setSending(true);
     var dLang = driverLang(current.driver_id);
-    // FPL пишет на DE. Переводим на язык водителя.
-    translateToLang(body, dLang).then(function(translated){
+    var photosToSend = photos.slice();
+    var did = current.driver_id;
+    Promise.all([
+      body ? translateToLang(body, dLang) : Promise.resolve(""),
+      Promise.all(photosToSend.map(function(p,i){ return uploadFplPhoto(p, did, i); }))
+        .then(function(urls){ return urls.filter(Boolean); })
+    ]).then(function(res){
+      var translated = res[0];
+      var urls = res[1] || [];
       var payload = {
         tenant_id: "ltg",
         driver_id: current.driver_id,
@@ -8931,11 +8986,12 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
         sender_role: "fpl",
         sender_id: currentUser ? currentUser.id : null,
         sender_name: currentUser ? currentUser.name : "FPL",
-        text_original: body,
+        text_original: body || "",
         lang_original: "DE",
-        text_de: body,
-        text_driver: translated,
+        text_de: body || "",
+        text_driver: translated || "",
         driver_lang: dLang,
+        photo_urls: urls,
         is_broadcast: false,
         read_by_driver: false,
         read_by_fpl: true
@@ -8946,7 +9002,7 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
         body: JSON.stringify(payload)
       });
     }).then(function(){
-      setTxt(""); setSending(false);
+      setTxt(""); setPhotos([]); setSending(false);
       if (onRefresh) onRefresh();
     }).catch(function(){ setSending(false); });
   }
@@ -9025,7 +9081,21 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                         color: fromFpl ? "#0a1730" : "#1e293b",
                         border: fromFpl ? "none" : "1.5px solid #3b82f6" }}>
                         {!fromFpl && <div style={{ fontSize:11, fontWeight:800, color:"#2563eb", marginBottom:3 }}>{current.driver_name}</div>}
-                        <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
+                        {(function(){
+                          var ph = m.photo_urls;
+                          if (typeof ph === "string") { try { ph = JSON.parse(ph); } catch(e){ ph = []; } }
+                          if (!ph || !ph.length) return null;
+                          return (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom: shown ? 8 : 0 }}>
+                              {ph.map(function(u, pi){
+                                return <img key={pi} src={u} alt="" onClick={function(){ setLightbox(u); }}
+                                  style={{ width:120, height:120, objectFit:"cover", borderRadius:8, cursor:"pointer",
+                                    border: fromFpl ? "1px solid rgba(10,23,48,0.2)" : "1px solid #3b82f6" }} />;
+                              })}
+                            </div>
+                          );
+                        })()}
+                        {shown && <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>}
                         {!fromFpl && m.text_original && m.text_original !== shown && (
                           <div style={{ fontSize:12, color:"#64748b", marginTop:4, fontStyle:"italic" }}>
                             Original ({m.lang_original}): {m.text_original}
@@ -9039,26 +9109,68 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                   );
                 })}
               </div>
-              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", display:"flex", gap:10, alignItems:"flex-end", background:"#fff" }}>
-                <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
-                  onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendReply(); } }}
-                  placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
-                  rows={2}
-                  style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
-                    border:"1.5px solid #3b82f6", background:"#f8fafc",
-                    color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
-                    maxHeight:140, boxSizing:"border-box", outline:"none" }} />
-                <button onClick={sendReply} disabled={sending || !txt.trim()}
-                  style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
-                    background: (sending||!txt.trim()) ? "rgba(255,165,0,0.5)" : "#ffa500",
-                    color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
-                  {sending ? "..." : "Senden"}
-                </button>
+              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", background:"#fff" }}>
+                {photos.length > 0 && (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
+                    {photos.map(function(p, i){
+                      return (
+                        <div key={i} style={{ position:"relative" }}>
+                          <img src={p} alt="" style={{ width:60, height:60, objectFit:"cover", borderRadius:8, border:"1px solid #cbd5e1" }} />
+                          <button onClick={function(){ removePhoto(i); }}
+                            style={{ position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%",
+                              background:"#ef4444", color:"#fff", border:"none", fontSize:13, fontWeight:800,
+                              cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0, lineHeight:1 }}>×</button>
+                        </div>
+                      );
+                    })}
+                    <div style={{ fontSize:11, color:"#64748b", alignSelf:"center", marginLeft:4 }}>{photos.length}/5</div>
+                  </div>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handleFileInput} />
+                <div style={{ display:"flex", gap:10, alignItems:"flex-end" }}>
+                  <button onClick={function(){ if (photos.length < 5 && fileRef.current) fileRef.current.click(); }}
+                    disabled={photos.length >= 5}
+                    title="Foto anhängen"
+                    style={{ flexShrink:0, width:48, height:48, borderRadius:10,
+                      border:"1.5px solid #3b82f6", background: photos.length >= 5 ? "#f1f5f9" : "#fff",
+                      color: photos.length >= 5 ? "#94a3b8" : "#1e3a5f",
+                      cursor: photos.length >= 5 ? "not-allowed" : "pointer",
+                      display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
+                    onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendReply(); } }}
+                    placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
+                    rows={2}
+                    style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
+                      border:"1.5px solid #3b82f6", background:"#f8fafc",
+                      color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
+                      maxHeight:140, boxSizing:"border-box", outline:"none" }} />
+                  <button onClick={sendReply} disabled={sending || (!txt.trim() && photos.length === 0)}
+                    style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
+                      background: (sending || (!txt.trim() && photos.length === 0)) ? "rgba(255,165,0,0.5)" : "#ffa500",
+                      color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
+                    {sending ? "..." : "Senden"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+      {lightbox && (
+        <div onClick={function(){ setLightbox(null); }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.9)", zIndex:10100,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <img src={lightbox} alt="" style={{ maxWidth:"100%", maxHeight:"100%", borderRadius:8 }} />
+          <button onClick={function(){ setLightbox(null); }}
+            style={{ position:"absolute", top:24, right:24, width:44, height:44, borderRadius:"50%",
+              background:"rgba(255,255,255,0.15)", color:"#fff", border:"none", fontSize:24,
+              cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+        </div>
+      )}
     </div>
   );
 }
