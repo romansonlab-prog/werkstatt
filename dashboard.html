@@ -8252,7 +8252,7 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
 
   // Типы техники для строк задания (компактный список под реальность LTG)
   var ROW_TYPES = [
-    ["truck","LKW"], ["trailer","Auflieger/DU"], ["stapler","Stapler"], ["sonstiges","Sonstiges"]
+    ["truck","LKW"], ["trailer","Auflieger"], ["du","DU (Prüfung)"], ["stapler","Stapler"], ["sonstiges","Sonstiges"]
   ];
   function rowTypeLabel(k) {
     var o = ROW_TYPES.find(function(x){ return x[0] === k; });

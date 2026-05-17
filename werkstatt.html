@@ -3336,7 +3336,7 @@ function playAlertSound() {
 }
 
 // === EINGANG (с taken_by, Ablehnen, Zurückstellen) ===
-function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, loading, onRefresh }) {
+function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onStatusChange, loading, onRefresh }) {
   var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
   var _smodal = useState(null); var modal = _smodal[0]; var setModal = _smodal[1];
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
@@ -3650,6 +3650,7 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
             {/* Строки задания */}
             {items.map(function(it, ix){
               var hasVeh = it.plate && String(it.plate).trim().length > 0;
+              var isDU = it.vehicle_type === "du";
               return (
                 <div key={ix} style={{
                   padding:"10px 12px", marginBottom:8, borderRadius:10,
@@ -3660,19 +3661,27 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
                     <span style={{ color: it.done ? "#22c55e" : "#ffa500", fontSize:15, fontWeight:800, flexShrink:0 }}>{it.done ? "✓" : (ix+1)+"."}</span>
                     <div style={{ flex:1, minWidth:0 }}>
                       {hasVeh && <span style={{ fontWeight:800, color:"#ffa500", marginRight:6, fontSize:15 }}>{it.plate}</span>}
+                      {isDU && <span style={{ fontSize:11, fontWeight:800, color:"#60a5fa", marginRight:6, border:"1px solid rgba(96,165,250,0.5)", borderRadius:5, padding:"1px 5px" }}>DU</span>}
                       <span style={{ fontWeight:600, fontSize:15, textDecoration: it.done ? "line-through" : "none", color: it.done ? "rgba(255,255,255,0.5)" : "#fff" }}>{it.text}</span>
                     </div>
                   </div>
                   {!it.done && (
                     <div style={{ display:"flex", gap:8 }}>
-                      {hasVeh && (
-                        <button type="button" onClick={function(){ rowToJob(t, ix); }}
-                          style={{ flex:1, padding:"11px 8px", borderRadius:9, border:"none",
-                            background:"linear-gradient(180deg,#ffa500,#ff8c00)", color:"#0a1730",
-                            fontSize:14, fontWeight:800, cursor:"pointer" }}>
-                          → Auftrag
-                        </button>
-                      )}
+                      {isDU && hasVeh
+                        ? <button type="button" onClick={function(){ if(onTaskToDU) onTaskToDU(t, ix); }}
+                            style={{ flex:1, padding:"11px 8px", borderRadius:9, border:"none",
+                              background:"linear-gradient(180deg,#3b82f6,#2563eb)", color:"#fff",
+                              fontSize:14, fontWeight:800, cursor:"pointer" }}>
+                            → DU durchführen
+                          </button>
+                        : hasVeh
+                          ? <button type="button" onClick={function(){ rowToJob(t, ix); }}
+                              style={{ flex:1, padding:"11px 8px", borderRadius:9, border:"none",
+                                background:"linear-gradient(180deg,#ffa500,#ff8c00)", color:"#0a1730",
+                                fontSize:14, fontWeight:800, cursor:"pointer" }}>
+                              → Auftrag
+                            </button>
+                          : null}
                       {hasVeh
                         ? <button type="button" onClick={function(){ rowDone(t, ix); }}
                             style={{ flex:1, padding:"11px 8px", borderRadius:9,
@@ -4902,7 +4911,7 @@ function buildDuResults(sections) {
   return results;
 }
 
-function DUAuflieger({ user, vehicles, onRefresh }) {
+function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed }) {
   var _sview = useState("list"); var view = _sview[0]; var setView = _sview[1];
   var _slist = useState([]); var duList = _slist[0]; var setDuList = _slist[1];
   var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
@@ -4912,10 +4921,23 @@ function DUAuflieger({ user, vehicles, onRefresh }) {
   var _sergaenzt = useState(""); var ergaenzt = _sergaenzt[0]; var setErgaenzt = _sergaenzt[1];
   var _sbemerk = useState(""); var bemerk = _sbemerk[0]; var setBemerk = _sbemerk[1];
   var _ssaving = useState(false); var saving = _ssaving[0]; var setSaving = _ssaving[1];
+  var _slink = useState(null); var taskLink = _slink[0]; var setTaskLink = _slink[1];
 
   useEffect(function() {
     loadList();
   }, []);
+
+  // Пришли из задания (строка типа DU) — открываем форму сразу с предзаполненным прицепом
+  useEffect(function() {
+    if (taskPrefill && taskPrefill.plate) {
+      setPlate({ plate: taskPrefill.plate });
+      setKm(""); setResults(buildDuResults(DU_SECTIONS));
+      setErgaenzt(""); setBemerk("");
+      setTaskLink({ task_id: taskPrefill.task_id, task_row_index: taskPrefill.task_row_index });
+      setView("form");
+      if (onTaskConsumed) onTaskConsumed();
+    }
+  }, [taskPrefill ? (taskPrefill.task_id + "_" + taskPrefill.task_row_index) : null]);
 
   function loadList() {
     setLoading(true);
@@ -5044,11 +5066,33 @@ function DUAuflieger({ user, vehicles, onRefresh }) {
     };
     sbInsert("inspections", payload, true)
       .then(function() {
+        // Если DU пришёл из задания — помечаем связанную строку выполненной
+        if (taskLink && taskLink.task_id) {
+          var tl = taskLink;
+          return sbSelect("tasks", "select=*&id=eq." + encodeURIComponent(tl.task_id) + "&limit=1").then(function(res){
+            var tk = res && res[0];
+            if (!tk) return true;
+            var items = (tk.items && tk.items.length) ? tk.items.slice() : [];
+            var rIx = tl.task_row_index;
+            if (typeof rIx === "number" && items[rIx]) {
+              items[rIx] = Object.assign({}, items[rIx], { done: true, du_id: id });
+            }
+            var allDone = items.length > 0 && items.every(function(it){ return it.done; });
+            var patch = { items: items, updated_at: new Date().toISOString() };
+            if (allDone) { patch.status = "erledigt"; patch.done_at = new Date().toISOString(); }
+            return sbPatch("tasks", tl.task_id, patch);
+          });
+        }
+        return true;
+      })
+      .then(function() {
         setSaving(false);
+        setTaskLink(null);
         exportPdf(payload);
         setPlate(null); setKm(""); setResults(buildDuResults(DU_SECTIONS));
         setErgaenzt(""); setBemerk(""); setView("list");
         loadList();
+        if (onRefresh) onRefresh();
       })
       .catch(function(e) { setSaving(false); showToast("Fehler: " + (e.message || e)); });
   }
@@ -5587,6 +5631,7 @@ function AppShell({ user, onLogout }) {
   var _slocs = useState([]); var dbLocations = _slocs[0]; var setDbLocations = _slocs[1];
   var _sloading = useState(false); var loading = _sloading[0]; var setLoading = _sloading[1];
   var _sprefill = useState(null); var prefill = _sprefill[0]; var setPrefill = _sprefill[1];
+  var _sduPre = useState(null); var duTaskPrefill = _sduPre[0]; var setDuTaskPrefill = _sduPre[1];
   var _sdbOk = useState(null); var dbOk = _sdbOk[0]; var setDbOk = _sdbOk[1];
   var _ssos = useState(null); var sosAlert = _ssos[0]; var setSosAlert = _ssos[1];
   var prevAlertCount = useRef(0);
@@ -5754,6 +5799,19 @@ function AppShell({ user, onLogout }) {
     setTab("new");
   }
 
+  // Строка типа DU из задания → открываем форму DU-проверки с предзаполненным прицепом.
+  // duTaskPrefill сообщает DUAuflieger: открыть форму сразу + при сохранении пометить строку задачи.
+  function createDUFromTask(t, ix) {
+    var items2 = (t.items && t.items.length) ? t.items : [{ plate:t.plate||"", text:t.title||"" }];
+    var row2 = items2[ix] || items2[0];
+    setDuTaskPrefill({
+      plate: row2.plate || "",
+      task_id: t.id,
+      task_row_index: ix
+    });
+    setTab("du");
+  }
+
   function acceptSos(a) {
     setSosAlert(null);
     var p = Object.assign({}, a, {
@@ -5833,7 +5891,7 @@ function AppShell({ user, onLogout }) {
           />
         )}
         {tab === "eingang" && (
-          <Eingang alerts={alerts} tasks={tasks} user={user} onCreate={createFromAlert} onTaskToJob={createFromTask} loading={loading} onRefresh={loadAll} />
+          <Eingang alerts={alerts} tasks={tasks} user={user} onCreate={createFromAlert} onTaskToJob={createFromTask} onTaskToDU={createDUFromTask} loading={loading} onRefresh={loadAll} />
         )}
         {tab === "jobs" && (
           <MeineAuftraege jobs={jobs} user={user} onRefresh={loadAll} loading={loading}
@@ -5853,7 +5911,8 @@ function AppShell({ user, onLogout }) {
           <Lager stock={stock} loading={loading} onRefresh={loadAll} />
         )}
         {tab === "du" && (
-          <DUAuflieger user={user} vehicles={vehicles} onRefresh={loadAll} />
+          <DUAuflieger user={user} vehicles={vehicles} onRefresh={loadAll}
+            taskPrefill={duTaskPrefill} onTaskConsumed={function(){ setDuTaskPrefill(null); }} />
         )}
         {tab === "archiv" && (
           <Archiv jobs={jobs} user={user} />
