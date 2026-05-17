@@ -7930,16 +7930,16 @@ function AppShell({ user, onLogout }) {
     setLoading(true);
     Promise.all([
       sbGet("jobs",              "select=id,status,mechanic,colleague,vehicle_type,plate,location,work_type,description,date,created_at,updated_at,finished_at,started_at,paused_at,pause_note,pause_log,labor_cost,parts_cost,parts_items,parts_type,parts_supplier,parts_note,parts_date,parts_invoice,photo_urls,incoming_photo_urls,alert_id,task_id,task_row_index,source,source_app,source_type,asset_type,asset_label,urgency,assigned_mechanic_name,tenant_id,vehicle_home_niederlassung_id,workshop_niederlassung_id,contract_id,travel_to_min,travel_back_min,work_min,tire_new_sn,tire_old_sn,tire_condition,cost&order=created_at.desc&limit=500"),
-      sbGet("alerts",            "select=id,type,status,plate,vehicle_type,location,description,photo_urls,created_at,updated_at,tenant_id,niederlassung_id,report_id,work_type&order=created_at.desc&limit=200"),
+      sbGet("alerts",            "select=id,type,status,plate,location,description,urgency,photo_urls,created_at,tenant_id,niederlassung_id,target_workshop_niederlassung_id,report_id,taken_by,taken_by_name&order=created_at.desc&limit=200"),
       sbGet("vehicles",          "select=id,plate,brand,model,type,mileage,tuev,au,sp,uvv,insurance,next_service,home_niederlassung_id,current_niederlassung_id,tenant_id,notes&order=plate.asc&limit=500"),
-      sbGet("forklifts",         "select=id,nummer,type,standort,status,tuev,uvv,notes,tenant_id&order=nummer.asc&limit=200"),
-      sbGet("stock",             "select=id,name,quantity,unit,min_quantity,niederlassung_id,tenant_id&order=name.asc&limit=300"),
-      sbGet("wash_orders",       "select=id,plate_number,wash_type_id,status,work_date,created_at,worker_id,niederlassung_id,wash_number,daily_archive_id&order=created_at.desc&limit=300"),
+      sbGet("forklifts",         "select=id,nummer,hersteller,model,baujahr,standort,einsatzort,betrieb_std,uvv_datum,aktiv,notes,tenant_id,home_niederlassung_id,current_niederlassung_id&order=nummer.asc&limit=200"),
+      sbGet("stock",             "select=id,name,category,qty:quantity,unit,min_qty,location,niederlassung_id,tenant_id&order=name.asc&limit=300"),
+      sbGet("wash_orders",       "select=id,plate_number,wash_type_id,wash_type_name,status,work_date,created_at,washer_id,washer_name,worker_name,price_eur,niederlassung_id,wash_number,daily_archive_id&order=created_at.desc&limit=300"),
       sbGet("inspections",       "select=id,type,plate,brand,driver,result,status,created_at,date,km_stand,tenant_id,niederlassung_id,defects,defects_de,mangel,acknowledged,mechanic_id,mechanic_name&order=created_at.desc&limit=300"),
-      sbGet("invoices",          "select=id,date,vendor,amount,description,vehicle_plate,job_id,tenant_id,niederlassung_id&order=date.desc&limit=300"),
+      sbGet("invoices",          "select=id,date,supplier,amount,items,invoice_nr,mechanic,vehicle_id,job_id,paid,photo_url,tenant_id,niederlassung_id&order=date.desc&limit=300"),
       sbGet("maintenance_plans", "select=*&order=next_service_date.asc&limit=300"),
       sbGet("users",             "active=eq.true&select=id,name,role,niederlassung_id,fuehrerschein_ablauf,fuehrerschein_klassen,fs_kontrolle_letzte,fs_kontrolle_naechste,unterweisung_letzte,unterweisung_naechste,chat_lang,pin&order=name.asc&limit=300"),
-      sbGet("tasks",             "select=id,title,status,priority,assignee_id,created_at,updated_at,due_date,tenant_id,vehicle_plate,notes&order=created_at.desc&limit=500"),
+      sbGet("tasks",             "select=id,title,status,priority,assignee_id,assignee_name,assignee_role,created_at,updated_at,due_date,done_at,tenant_id,plate,items,linked_job_id&order=created_at.desc&limit=500"),
       sbGet("messages",          "select=id,driver_id,driver_name,sender_role,sender_name,text_original,text_de,text_driver,lang_original,driver_lang,photo_urls,created_at,read_by_driver,read_by_fpl,tenant_id&order=created_at.asc&limit=1000"),
     ]).then(function(r){
       setJobs(r[0]); setAlerts(r[1]); setVehicles(r[2]); setForklifts(r[3]);
