@@ -3538,7 +3538,10 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
   return (
     <div>
       <div className="page-title">Ein<span style={{ color:"#ffa500" }}>gang</span></div>
-      <button className="outline-btn" type="button" style={{ marginBottom:14, padding:13 }} onClick={onRefresh}>
+      <button type="button" onClick={onRefresh}
+        style={{ width:"100%", padding:"10px", marginBottom:14, borderRadius:10,
+          border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.05)",
+          color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
         {loading ? "Lädt..." : "↻ Aktualisieren"}
       </button>
 
@@ -3568,50 +3571,64 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
         var checked = tSel.indexOf(t.id) !== -1;
         var dd = t.due_date ? Math.round((new Date(t.due_date).getTime() - Date.now())/86400000) : null;
         var items = (t.items && t.items.length) ? t.items : [{ plate:"", text:(t.title||""), done:false }];
+        var doneCount = items.filter(function(it){ return it.done; }).length;
         return (
-          <div key={t.id} className="alert-card" style={{ borderLeft:"4px solid "+tPrioColor(t.priority), background: checked ? "rgba(255,165,0,0.08)" : "" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10, marginBottom:8 }}>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <span style={{ fontSize:11, fontWeight:800, color:tPrioColor(t.priority), textTransform:"uppercase" }}>{tPrioLabel(t.priority)}</span>
-                </div>
-                <div className="meta" style={{ marginTop:4 }}>
-                  von {t.created_by_name || "FPL"}
-                  {t.due_date ? " · fällig " + tIsoToDe(t.due_date) + (dd!==null && dd<0 ? " (überfällig)" : dd!==null && dd<3 ? " (in "+dd+"d)" : "") : ""}
+          <div key={t.id} className="alert-card" style={{ borderLeft:"4px solid "+tPrioColor(t.priority), padding:14, background: checked ? "rgba(255,165,0,0.08)" : "" }}>
+            {/* Шапка задания */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, marginBottom:10, paddingBottom:10, borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <span style={{ fontSize:11, fontWeight:800, color:tPrioColor(t.priority), textTransform:"uppercase", letterSpacing:"0.5px" }}>{tPrioLabel(t.priority)}</span>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:3 }}>
+                  {(t.created_by_name || "FPL")}
+                  {t.due_date ? " · " + tIsoToDe(t.due_date) + (dd!==null && dd<0 ? " ⚠ überfällig" : dd!==null && dd<3 ? " (in "+dd+"d)" : "") : ""}
+                  {items.length > 1 ? " · " + doneCount + "/" + items.length + " erledigt" : ""}
                 </div>
               </div>
               <input type="checkbox" checked={checked} onChange={function(){ tToggleSel(t.id); }}
-                style={{ width:20, height:20, marginTop:4 }} />
+                style={{ width:22, height:22, flexShrink:0 }} />
             </div>
+
+            {/* Строки задания */}
             {items.map(function(it, ix){
               var hasVeh = it.plate && String(it.plate).trim().length > 0;
               return (
-                <div key={ix} style={{ padding:"10px 0", borderTop: ix>0 ? "1px solid rgba(255,255,255,0.08)" : "none", opacity: it.done ? 0.5 : 1 }}>
-                  <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
-                    <span style={{ color: it.done ? "#22c55e" : "#ffa500", fontSize:16, lineHeight:"20px" }}>{it.done ? "✓" : "•"}</span>
-                    <div style={{ flex:1 }}>
-                      {hasVeh && <span style={{ fontWeight:800, color:"#ffa500", marginRight:6 }}>{it.plate}</span>}
-                      <span style={{ fontWeight:600, fontSize:15, textDecoration: it.done ? "line-through" : "none" }}>{it.text}</span>
+                <div key={ix} style={{
+                  padding:"10px 12px", marginBottom:8, borderRadius:10,
+                  background: it.done ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)",
+                  border:"1px solid " + (it.done ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)")
+                }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: it.done ? 0 : 10 }}>
+                    <span style={{ color: it.done ? "#22c55e" : "#ffa500", fontSize:15, fontWeight:800, flexShrink:0 }}>{it.done ? "✓" : (ix+1)+"."}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      {hasVeh && <span style={{ fontWeight:800, color:"#ffa500", marginRight:6, fontSize:15 }}>{it.plate}</span>}
+                      <span style={{ fontWeight:600, fontSize:15, textDecoration: it.done ? "line-through" : "none", color: it.done ? "rgba(255,255,255,0.5)" : "#fff" }}>{it.text}</span>
                     </div>
                   </div>
                   {!it.done && (
-                    <div style={{ display:"flex", gap:8, marginTop:8, paddingLeft:24 }}>
-                      {hasVeh
-                        ? <button className="primary-btn" type="button" style={{ flex:1, padding:9, fontSize:13 }}
-                            onClick={function(){ rowToJob(t, ix); }}>
-                            → Als Auftrag
-                          </button>
-                        : null}
-                      <button className={hasVeh ? "outline-btn" : "primary-btn"} type="button" style={{ flex:1, padding:9, fontSize:13 }}
-                        onClick={function(){ rowDone(t, ix); }}>
+                    <div style={{ display:"flex", gap:8 }}>
+                      {hasVeh && (
+                        <button type="button" onClick={function(){ rowToJob(t, ix); }}
+                          style={{ flex:1, padding:"11px 8px", borderRadius:9, border:"none",
+                            background:"linear-gradient(180deg,#ffa500,#ff8c00)", color:"#0a1730",
+                            fontSize:14, fontWeight:800, cursor:"pointer" }}>
+                          → Auftrag
+                        </button>
+                      )}
+                      <button type="button" onClick={function(){ rowDone(t, ix); }}
+                        style={{ flex:1, padding:"11px 8px", borderRadius:9,
+                          border:"1.5px solid rgba(34,197,94,0.5)", background:"rgba(34,197,94,0.1)",
+                          color:"#22c55e", fontSize:14, fontWeight:700, cursor:"pointer" }}>
                         ✓ Erledigt
                       </button>
                     </div>
                   )}
                   {it.done && (
-                    <div style={{ paddingLeft:24, marginTop:4 }}>
-                      <button className="mini-btn" type="button" onClick={function(){ rowUndone(t, ix); }}>↩ Öffnen</button>
-                    </div>
+                    <button type="button" onClick={function(){ rowUndone(t, ix); }}
+                      style={{ marginTop:6, padding:"6px 12px", borderRadius:8,
+                        border:"1px solid rgba(255,255,255,0.2)", background:"transparent",
+                        color:"rgba(255,255,255,0.6)", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                      ↩ Wieder öffnen
+                    </button>
                   )}
                 </div>
               );
