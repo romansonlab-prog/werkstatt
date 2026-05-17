@@ -3455,7 +3455,7 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
       onRefresh();
     }).catch(function(e){
       setInternBusy(false);
-      alert("Fehler: " + (e && e.message ? e.message : e));
+      showToast("Fehler: " + (e && e.message ? e.message : e));
     });
   }
 
@@ -4951,6 +4951,7 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
   var _sergaenzt = useState(""); var ergaenzt = _sergaenzt[0]; var setErgaenzt = _sergaenzt[1];
   var _sbemerk = useState(""); var bemerk = _sbemerk[0]; var setBemerk = _sbemerk[1];
   var _ssaving = useState(false); var saving = _ssaving[0]; var setSaving = _ssaving[1];
+  var duSavingRef = useRef(false);
   var _slink = useState(null); var taskLink = _slink[0]; var setTaskLink = _slink[1];
 
   useEffect(function() {
@@ -5071,10 +5072,12 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
 
   function save() {
     if (!plate || !plate.plate) { showToast("Bitte Fahrzeug auswählen."); return; }
+    if (duSavingRef.current) return;
     var res = calcResult();
     if (res === "incomplete") {
       if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
     }
+    duSavingRef.current = true;
     setSaving(true);
     var id = genId("DU");
     var payload = {
@@ -5116,6 +5119,7 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
         return true;
       })
       .then(function() {
+        duSavingRef.current = false;
         setSaving(false);
         setTaskLink(null);
         exportPdf(payload);
@@ -5124,7 +5128,7 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
         loadList();
         if (onRefresh) onRefresh();
       })
-      .catch(function(e) { setSaving(false); showToast("Fehler: " + (e.message || e)); });
+      .catch(function(e) { duSavingRef.current = false; setSaving(false); showToast("Fehler: " + (e.message || e)); });
   }
 
   if (view === "form") {
