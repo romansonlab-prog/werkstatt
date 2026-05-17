@@ -8238,7 +8238,7 @@ function InfoBar() {
 }
 
 function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
-  var _nt = useState({ assignee:"", priority:"normal", due_date:"" });
+  var _nt = useState({ assignee:"", priority:"normal", due_date: todayIso() });
   var nt = _nt[0]; var setNt = _nt[1];
   var _rows = useState([{ plate:"", vtype:"truck", text:"" }]);
   var rows = _rows[0]; var setRows = _rows[1];
@@ -8291,12 +8291,25 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
   function prioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
 
   function createTask() {
-    var validRows = rows.filter(function(r){ return (r.text||"").trim().length > 0; });
-    if (validRows.length === 0) { showMsg("Mindestens eine Zeile mit Beschreibung"); return; }
+    // Строка "начата" если введён Kennzeichen ИЛИ текст. Полностью пустые — игнор молча.
+    var startedRows = [];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var hasPlate = (r.plate||"").trim().length > 0;
+      var hasText = (r.text||"").trim().length > 0;
+      if (!hasPlate && !hasText) continue; // пустая строка — пропускаем
+      if (!hasText) {
+        // Начата (есть Kennzeichen), но нет описания — НЕ теряем молча, говорим явно
+        showMsg("Zeile " + (i+1) + ": Beschreibung fehlt (\"Was ist zu tun?\")");
+        return;
+      }
+      startedRows.push(r);
+    }
+    if (startedRows.length === 0) { showMsg("Mindestens eine Zeile mit Beschreibung"); return; }
     if (!nt.assignee) { showMsg("Bitte Person wählen"); return; }
     setSaving(true);
     var a = assignees.find(function(u){ return u.id === nt.assignee; });
-    var items = validRows.map(function(r){
+    var items = startedRows.map(function(r){
       return {
         plate: (r.plate||"").trim(),
         vehicle_type: r.vtype || "sonstiges",
@@ -8326,7 +8339,7 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
     };
     sbUpsert("tasks", body).then(function(){
       setSaving(false);
-      setNt({ assignee:"", priority:"normal", due_date:"" });
+      setNt({ assignee:"", priority:"normal", due_date: todayIso() });
       setRows([{ plate:"", vtype:"truck", text:"" }]);
       showMsg("Aufgabe erstellt");
       onRefresh();
@@ -8446,39 +8459,46 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
           </div>
 
           <div style={{ overflowX:"auto", marginBottom:10 }}>
-            <table className="tbl" style={{ minWidth:600 }}>
+            <table className="tbl" style={{ minWidth:680, width:"100%", tableLayout:"fixed" }}>
               <thead>
                 <tr>
-                  <th style={{ width:140 }}>Kennzeichen</th>
-                  <th style={{ width:140 }}>Typ</th>
+                  <th style={{ width:130 }}>Kennzeichen</th>
+                  <th style={{ width:130 }}>Typ</th>
                   <th>Was ist zu tun? *</th>
-                  <th style={{ width:40 }}></th>
+                  <th style={{ width:56 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map(function(r, ix){
                   return (
                     <tr key={ix}>
-                      <td>
-                        <input className="inp" style={{ width:"100%" }} value={r.plate}
+                      <td style={{ padding:"6px 4px" }}>
+                        <input className="inp" style={{ width:"100%", boxSizing:"border-box" }} value={r.plate}
                           placeholder="leer = allgemein"
                           onChange={function(e){ setRowField(ix, "plate", e.target.value); }} />
                       </td>
-                      <td>
-                        <select className="inp" style={{ width:"100%" }} value={r.vtype}
+                      <td style={{ padding:"6px 4px" }}>
+                        <select className="inp" value={r.vtype}
+                          style={{ width:"100%", boxSizing:"border-box",
+                            border: r.vtype === "du" ? "2px solid #60a5fa" : undefined,
+                            color: r.vtype === "du" ? "#60a5fa" : undefined,
+                            fontWeight: r.vtype === "du" ? 800 : undefined }}
                           onChange={function(e){ setRowField(ix, "vtype", e.target.value); }}>
                           {ROW_TYPES.map(function(o){ return <option key={o[0]} value={o[0]}>{o[1]}</option>; })}
                         </select>
                       </td>
-                      <td>
-                        <input className="inp" style={{ width:"100%" }} value={r.text}
+                      <td style={{ padding:"6px 4px" }}>
+                        <input className="inp" style={{ width:"100%", boxSizing:"border-box" }} value={r.text}
                           placeholder="z.B. Bremsen prüfen, Öl wechseln"
                           onChange={function(e){ setRowField(ix, "text", e.target.value); }} />
                       </td>
-                      <td style={{ textAlign:"center" }}>
+                      <td style={{ textAlign:"center", padding:"6px 4px", verticalAlign:"middle" }}>
                         {rows.length > 1 && (
-                          <button className="btn-danger btn-small" title="Zeile entfernen"
-                            onClick={function(){ removeRow(ix); }}>✕</button>
+                          <button title="Zeile entfernen"
+                            onClick={function(){ removeRow(ix); }}
+                            style={{ width:34, height:34, borderRadius:8, border:"1px solid rgba(239,68,68,0.4)",
+                              background:"rgba(239,68,68,0.12)", color:"#ef4444", fontSize:14, fontWeight:700,
+                              cursor:"pointer", padding:0, lineHeight:1 }}>✕</button>
                         )}
                       </td>
                     </tr>
