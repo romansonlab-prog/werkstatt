@@ -2588,6 +2588,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       source: prefill ? "eingang" : "werkstatt",
       alert_id: prefill && prefill.id ? prefill.id : null,
       task_id: prefill && prefill.task_id ? prefill.task_id : null,
+      task_row_index: (prefill && typeof prefill.task_row_index === "number") ? prefill.task_row_index : null,
       workshop_niederlassung_id: workshopNied,
       tenant_id: "ltg",
       created_at: new Date().toISOString()
@@ -2781,6 +2782,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       source: prefill ? "eingang" : "werkstatt",
       alert_id: prefill && prefill.id ? prefill.id : null,
       task_id: prefill && prefill.task_id ? prefill.task_id : null,
+      task_row_index: (prefill && typeof prefill.task_row_index === "number") ? prefill.task_row_index : null,
       incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
       workshop_niederlassung_id: workshopNied,
       tenant_id: "ltg",
@@ -3356,6 +3358,31 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
     sbPatch("tasks", t.id, { status:"offen", done_at:null, updated_at:new Date().toISOString() })
       .then(function(){ onRefresh(); });
   }
+
+  // Отметить ОДНУ строку задания выполненной. Если все строки done — задание целиком erledigt.
+  function rowDone(t, ix) {
+    var items = (t.items || []).map(function(it, i){
+      if (i !== ix) return it;
+      return Object.assign({}, it, { done: true });
+    });
+    var allDone = items.every(function(it){ return it.done; });
+    var patch = { items: items, updated_at: new Date().toISOString() };
+    if (allDone) { patch.status = "erledigt"; patch.done_at = new Date().toISOString(); }
+    sbPatch("tasks", t.id, patch).then(function(){ onRefresh(); });
+  }
+  // Снять отметку со строки (вернуть в работу). Задание тоже снова offen.
+  function rowUndone(t, ix) {
+    var items = (t.items || []).map(function(it, i){
+      if (i !== ix) return it;
+      return Object.assign({}, it, { done: false });
+    });
+    sbPatch("tasks", t.id, { items: items, status:"offen", done_at:null, updated_at:new Date().toISOString() })
+      .then(function(){ onRefresh(); });
+  }
+  // Взять строку с техникой как заказ. onTaskToJob получает задачу + индекс строки.
+  function rowToJob(t, ix) {
+    if (onTaskToJob) onTaskToJob(t, ix);
+  }
   function tToggleSel(id) {
     var c = tSel.slice(); var i = c.indexOf(id);
     if (i === -1) c.push(id); else c.splice(i, 1);
@@ -3540,28 +3567,15 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
       {openTasks.map(function(t) {
         var checked = tSel.indexOf(t.id) !== -1;
         var dd = t.due_date ? Math.round((new Date(t.due_date).getTime() - Date.now())/86400000) : null;
-        var items = (t.items && t.items.length) ? t.items : null;
+        var items = (t.items && t.items.length) ? t.items : [{ plate:"", text:(t.title||""), done:false }];
         return (
           <div key={t.id} className="alert-card" style={{ borderLeft:"4px solid "+tPrioColor(t.priority), background: checked ? "rgba(255,165,0,0.08)" : "" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10, marginBottom:8 }}>
               <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <span style={{ fontSize:11, fontWeight:800, color:tPrioColor(t.priority), textTransform:"uppercase" }}>{tPrioLabel(t.priority)}</span>
-                  {t.plate && <span style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>· {t.plate}</span>}
                 </div>
-                {items
-                  ? <div style={{ marginTop:2 }}>
-                      {items.map(function(it, ix){
-                        return (
-                          <div key={ix} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"3px 0", fontSize:15, fontWeight:600 }}>
-                            <span style={{ color:"#ffa500" }}>•</span>
-                            <span>{it.text}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  : <div style={{ fontWeight:700, fontSize:15 }}>{t.title}</div>}
-                <div className="meta" style={{ marginTop:6 }}>
+                <div className="meta" style={{ marginTop:4 }}>
                   von {t.created_by_name || "FPL"}
                   {t.due_date ? " · fällig " + tIsoToDe(t.due_date) + (dd!==null && dd<0 ? " (überfällig)" : dd!==null && dd<3 ? " (in "+dd+"d)" : "") : ""}
                 </div>
@@ -3569,18 +3583,39 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, l
               <input type="checkbox" checked={checked} onChange={function(){ tToggleSel(t.id); }}
                 style={{ width:20, height:20, marginTop:4 }} />
             </div>
-            <div style={{ display:"flex", gap:8, marginTop:10 }}>
-              {t.plate
-                ? <button className="primary-btn" type="button" style={{ flex:1, padding:11 }}
-                    onClick={function(){ if (onTaskToJob) onTaskToJob(t); }}>
-                    → Als Auftrag übernehmen
-                  </button>
-                : null}
-              <button className={t.plate ? "outline-btn" : "primary-btn"} type="button" style={{ flex:1, padding:11 }}
-                onClick={function(){ taskDone(t); }}>
-                ✓ Erledigt
-              </button>
-            </div>
+            {items.map(function(it, ix){
+              var hasVeh = it.plate && String(it.plate).trim().length > 0;
+              return (
+                <div key={ix} style={{ padding:"10px 0", borderTop: ix>0 ? "1px solid rgba(255,255,255,0.08)" : "none", opacity: it.done ? 0.5 : 1 }}>
+                  <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
+                    <span style={{ color: it.done ? "#22c55e" : "#ffa500", fontSize:16, lineHeight:"20px" }}>{it.done ? "✓" : "•"}</span>
+                    <div style={{ flex:1 }}>
+                      {hasVeh && <span style={{ fontWeight:800, color:"#ffa500", marginRight:6 }}>{it.plate}</span>}
+                      <span style={{ fontWeight:600, fontSize:15, textDecoration: it.done ? "line-through" : "none" }}>{it.text}</span>
+                    </div>
+                  </div>
+                  {!it.done && (
+                    <div style={{ display:"flex", gap:8, marginTop:8, paddingLeft:24 }}>
+                      {hasVeh
+                        ? <button className="primary-btn" type="button" style={{ flex:1, padding:9, fontSize:13 }}
+                            onClick={function(){ rowToJob(t, ix); }}>
+                            → Als Auftrag
+                          </button>
+                        : null}
+                      <button className={hasVeh ? "outline-btn" : "primary-btn"} type="button" style={{ flex:1, padding:9, fontSize:13 }}
+                        onClick={function(){ rowDone(t, ix); }}>
+                        ✓ Erledigt
+                      </button>
+                    </div>
+                  )}
+                  {it.done && (
+                    <div style={{ paddingLeft:24, marginTop:4 }}>
+                      <button className="mini-btn" type="button" onClick={function(){ rowUndone(t, ix); }}>↩ Öffnen</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}
@@ -4295,7 +4330,20 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         sbPatch("alerts", job.alert_id, { status: "done" }).catch(function(){});
       }
       if (job.task_id) {
-        sbPatch("tasks", job.task_id, { status: "erledigt", done_at: new Date().toISOString(), linked_job_id: job.id, updated_at: new Date().toISOString() }).catch(function(){});
+        // Помечаем КОНКРЕТНУЮ строку задания (task_row_index). Если все строки done — задание erledigt.
+        var trIx = (typeof job.task_row_index === "number") ? job.task_row_index : null;
+        sbSelect("tasks", "select=*&id=eq." + encodeURIComponent(job.task_id) + "&limit=1").then(function(res){
+          var tk = res && res[0];
+          if (!tk) return;
+          var items = (tk.items && tk.items.length) ? tk.items.slice() : [];
+          if (trIx !== null && items[trIx]) {
+            items[trIx] = Object.assign({}, items[trIx], { done: true, job_id: job.id });
+          }
+          var allDone = items.length > 0 && items.every(function(it){ return it.done; });
+          var patch = { items: items, linked_job_id: job.id, updated_at: new Date().toISOString() };
+          if (allDone || items.length === 0) { patch.status = "erledigt"; patch.done_at = new Date().toISOString(); }
+          sbPatch("tasks", job.task_id, patch).catch(function(){});
+        }).catch(function(){});
       }
       if (onRefresh) onRefresh();
       showToast("Auftrag abgeschlossen — " + fmtMin(workMin) + " · " + laborCost.toFixed(2) + " €");
@@ -5557,18 +5605,21 @@ function AppShell({ user, onLogout }) {
 
   // Задача → заказ: предзаполняем форму, описание = пункты чек-листа.
   // task_id связывает заказ с задачей — при сохранении заказа задача станет erledigt.
-  function createFromTask(t) {
-    var desc = (t.items && t.items.length)
-      ? t.items.map(function(it){ return "- " + it.text; }).join("\n")
-      : (t.title || "");
+  function createFromTask(t, ix) {
+    var items = (t.items && t.items.length) ? t.items : [{ plate:t.plate||"", text:t.title||"", vehicle_type:"truck" }];
+    var row = items[ix] || items[0];
+    var vt = row.vehicle_type === "stapler" ? "stapler"
+           : row.vehicle_type === "trailer" ? "trailer"
+           : "truck";
     var p = {
-      plate: t.plate || "",
-      vehicle_type: "truck",
+      plate: row.plate || "",
+      vehicle_type: vt,
       work_type: "repair",
-      description: desc,
+      description: row.text || "",
       location: "Werkstatt",
       photo_urls: [],
-      task_id: t.id
+      task_id: t.id,
+      task_row_index: ix
     };
     setPrefill(p);
     setTab("new");

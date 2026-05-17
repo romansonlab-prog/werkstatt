@@ -8238,8 +8238,10 @@ function InfoBar() {
 }
 
 function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
-  var _nt = useState({ title:"", assignee:"", plate:"", priority:"normal", due_date:"" });
+  var _nt = useState({ assignee:"", priority:"normal", due_date:"" });
   var nt = _nt[0]; var setNt = _nt[1];
+  var _rows = useState([{ plate:"", vtype:"truck", text:"" }]);
+  var rows = _rows[0]; var setRows = _rows[1];
   var _sv = useState(false); var saving = _sv[0]; var setSaving = _sv[1];
   var _flt = useState("offen"); var flt = _flt[0]; var setFlt = _flt[1];
   var _fp = useState("all"); var fPerson = _fp[0]; var setFPerson = _fp[1];
@@ -8247,6 +8249,29 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
   var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
 
   function showMsg(m) { setMsg(m); setTimeout(function(){ setMsg(""); }, 2500); }
+
+  // Типы техники для строк задания (компактный список под реальность LTG)
+  var ROW_TYPES = [
+    ["truck","LKW"], ["trailer","Auflieger/DU"], ["stapler","Stapler"], ["sonstiges","Sonstiges"]
+  ];
+  function rowTypeLabel(k) {
+    var o = ROW_TYPES.find(function(x){ return x[0] === k; });
+    return o ? o[1] : k;
+  }
+
+  function addRow() { setRows(rows.concat([{ plate:"", vtype:"truck", text:"" }])); }
+  function removeRow(ix) {
+    if (rows.length === 1) return;
+    setRows(rows.filter(function(_, i){ return i !== ix; }));
+  }
+  function setRowField(ix, field, val) {
+    setRows(rows.map(function(r, i){
+      if (i !== ix) return r;
+      var nr = Object.assign({}, r);
+      nr[field] = val;
+      return nr;
+    }));
+  }
 
   // Кандидаты-исполнители: механики + водители
   var assignees = (users || []).filter(function(u){
@@ -8266,15 +8291,25 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
   function prioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
 
   function createTask() {
-    var raw = (nt.title || "").replace(/\r/g, "");
-    var lines = raw.split("\n").map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
-    if (lines.length === 0) { showMsg("Beschreibung fehlt"); return; }
+    var validRows = rows.filter(function(r){ return (r.text||"").trim().length > 0; });
+    if (validRows.length === 0) { showMsg("Mindestens eine Zeile mit Beschreibung"); return; }
     if (!nt.assignee) { showMsg("Bitte Person wählen"); return; }
     setSaving(true);
     var a = assignees.find(function(u){ return u.id === nt.assignee; });
-    // Первая строка = заголовок (для списков/PDF). Все строки = пункты чек-листа.
-    var items = lines.map(function(s){ return { text: s, done: false }; });
-    var titleText = lines.length === 1 ? lines[0] : (lines[0] + " (+" + (lines.length - 1) + " weitere)");
+    var items = validRows.map(function(r){
+      return {
+        plate: (r.plate||"").trim(),
+        vehicle_type: r.vtype || "sonstiges",
+        text: (r.text||"").trim(),
+        done: false,
+        job_id: null
+      };
+    });
+    // Заголовок-обёртка для списков/PDF
+    var first = items[0];
+    var titleText = (first.plate ? first.plate + ": " : "") + first.text +
+      (items.length > 1 ? " (+" + (items.length - 1) + " weitere)" : "");
+    // plate задачи = первая техника (для совместимости со списками); основное — в items
     var body = {
       tenant_id: "ltg",
       title: titleText,
@@ -8282,7 +8317,7 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
       assignee_id: nt.assignee,
       assignee_name: a ? a.name : null,
       assignee_role: a ? a.role : null,
-      plate: nt.plate.trim() || null,
+      plate: first.plate || null,
       priority: nt.priority,
       due_date: nt.due_date || null,
       status: "offen",
@@ -8291,7 +8326,8 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
     };
     sbUpsert("tasks", body).then(function(){
       setSaving(false);
-      setNt({ title:"", assignee:"", plate:"", priority:"normal", due_date:"" });
+      setNt({ assignee:"", priority:"normal", due_date:"" });
+      setRows([{ plate:"", vtype:"truck", text:"" }]);
       showMsg("Aufgabe erstellt");
       onRefresh();
     }).catch(function(e){ setSaving(false); showMsg("Fehler: " + (e.message||e)); });
@@ -8347,31 +8383,37 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
 
   function taskItemsText(t) {
     if (!t.items || !t.items.length) return t.title || "";
-    return t.items.map(function(it){ return (it.done ? "[x] " : "[ ] ") + it.text; }).join(" | ");
+    return t.items.map(function(it){
+      var pfx = it.done ? "[x] " : "[ ] ";
+      var veh = it.plate ? (it.plate + ": ") : "";
+      return pfx + veh + it.text;
+    }).join(" | ");
   }
   function exportPdf() {
     var rows = forExport().map(function(t){
       var itemsHtml = (t.items && t.items.length)
-        ? t.items.map(function(it){ return (it.done ? "☑" : "☐") + " " + it.text; }).join("<br>")
+        ? t.items.map(function(it){
+            var veh = it.plate ? ("<b>"+it.plate+"</b> — ") : "";
+            return (it.done ? "☑" : "☐") + " " + veh + it.text;
+          }).join("<br>")
         : (t.title || "—");
       return "<tr><td>"+itemsHtml+"</td><td>"+(t.assignee_name||"—")+"</td>"+
-        "<td>"+(t.plate||"—")+"</td><td>"+prioLabel(t.priority)+"</td>"+
+        "<td>"+prioLabel(t.priority)+"</td>"+
         "<td>"+(t.due_date ? isoToDe(t.due_date) : "—")+"</td>"+
         "<td>"+(t.status === "erledigt" ? "Erledigt" : "Offen")+"</td></tr>";
     }).join("");
     var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Aufgaben</title>"+baseReportStyle()+"</head><body>"+
       "<h1>WerkFlow — Aufgaben</h1><h2>"+forExport().length+" Aufgaben · Stand: "+new Date().toLocaleDateString("de-DE")+"</h2>"+
-      "<table><thead><tr><th>Aufgabe</th><th>Zugewiesen</th><th>Fahrzeug</th><th>Priorität</th><th>Fällig</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
+      "<table><thead><tr><th>Aufgabe (Technik + Tätigkeit)</th><th>Zugewiesen</th><th>Priorität</th><th>Fällig</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>"+
       "<button onclick='window.print()' style='background:#0a1730;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer'>🖨 Drucken / PDF</button></body></html>";
     printHtml(html, "Aufgaben");
   }
   function exportXls() {
-    var headers = ["Aufgabe","Zugewiesen","Fahrzeug","Priorität","Fällig","Status","Erstellt von"];
+    var headers = ["Aufgabe","Zugewiesen","Priorität","Fällig","Status","Erstellt von"];
     var rows = forExport().map(function(t){
       return {
         "Aufgabe": taskItemsText(t),
         "Zugewiesen": t.assignee_name || "",
-        "Fahrzeug": t.plate || "",
         "Priorität": prioLabel(t.priority),
         "Fällig": t.due_date ? isoToDe(t.due_date) : "",
         "Status": t.status === "erledigt" ? "Erledigt" : "Offen",
@@ -8396,15 +8438,57 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
 
         {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.3)", fontSize:13, color:"#22c55e" }}>{msg}</div>}
 
-        {/* Форма создания */}
+        {/* Форма создания — таблица строк */}
         <div style={{ padding:"16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", marginBottom:20 }}>
-          <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>Neue Aufgabe</div>
-          <div style={{ marginBottom:10 }}>
-            <div className="label-cap">Was ist zu tun? * <span style={{ fontWeight:400, color:"rgba(255,255,255,0.4)", textTransform:"none" }}>— jede Zeile = ein Punkt (wie auf dem Zettel)</span></div>
-            <textarea className="inp" style={{ width:"100%", minHeight:90, resize:"vertical", fontFamily:"inherit", lineHeight:1.5 }} value={nt.title}
-              placeholder={"Bremsen prüfen\nÖl wechseln\nScheinwerfer kontrollieren"}
-              onChange={function(e){ setNt(Object.assign({},nt,{title:e.target.value})); }} />
+          <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>Neue Aufgabe</div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:12 }}>
+            Pro Zeile: Technik + was zu tun ist. Mehrere Fahrzeuge in einer Aufgabe möglich (wie auf dem Zettel). Technik leer = allgemeine Arbeit.
           </div>
+
+          <div style={{ overflowX:"auto", marginBottom:10 }}>
+            <table className="tbl" style={{ minWidth:600 }}>
+              <thead>
+                <tr>
+                  <th style={{ width:140 }}>Kennzeichen</th>
+                  <th style={{ width:140 }}>Typ</th>
+                  <th>Was ist zu tun? *</th>
+                  <th style={{ width:40 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(function(r, ix){
+                  return (
+                    <tr key={ix}>
+                      <td>
+                        <input className="inp" style={{ width:"100%" }} value={r.plate}
+                          placeholder="leer = allgemein"
+                          onChange={function(e){ setRowField(ix, "plate", e.target.value); }} />
+                      </td>
+                      <td>
+                        <select className="inp" style={{ width:"100%" }} value={r.vtype}
+                          onChange={function(e){ setRowField(ix, "vtype", e.target.value); }}>
+                          {ROW_TYPES.map(function(o){ return <option key={o[0]} value={o[0]}>{o[1]}</option>; })}
+                        </select>
+                      </td>
+                      <td>
+                        <input className="inp" style={{ width:"100%" }} value={r.text}
+                          placeholder="z.B. Bremsen prüfen, Öl wechseln"
+                          onChange={function(e){ setRowField(ix, "text", e.target.value); }} />
+                      </td>
+                      <td style={{ textAlign:"center" }}>
+                        {rows.length > 1 && (
+                          <button className="btn-danger btn-small" title="Zeile entfernen"
+                            onClick={function(){ removeRow(ix); }}>✕</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <button className="btn-outline btn-small" style={{ marginBottom:14 }} onClick={addRow}>+ Zeile</button>
+
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
             <div>
               <div className="label-cap">Wer? *</div>
@@ -8415,12 +8499,6 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
                   return <option key={u.id} value={u.id}>{u.name} ({u.role === "fahrer" ? "Fahrer" : "Mechaniker"})</option>;
                 })}
               </select>
-            </div>
-            <div>
-              <div className="label-cap">Fahrzeug (optional)</div>
-              <input className="inp" style={{ width:"100%" }} value={nt.plate}
-                placeholder="Kennzeichen, leer = allgemein"
-                onChange={function(e){ setNt(Object.assign({},nt,{plate:e.target.value})); }} />
             </div>
             <div>
               <div className="label-cap">Priorität</div>
@@ -8463,9 +8541,8 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
                 <th style={{ width:36 }}>
                   <input type="checkbox" checked={sel.length === list.length && list.length > 0} onChange={toggleAll} />
                 </th>
-                <th>Aufgabe</th>
+                <th>Aufgabe (Technik + Tätigkeit)</th>
                 <th>Zugewiesen</th>
-                <th>Fahrzeug</th>
                 <th>Priorität</th>
                 <th>Fällig</th>
                 <th>Status</th>
@@ -8474,7 +8551,7 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
             </thead>
             <tbody>
               {list.length === 0
-                ? <tr><td colSpan="8" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Aufgaben</td></tr>
+                ? <tr><td colSpan="7" style={{ textAlign:"center", color:"rgba(255,255,255,0.4)", padding:20 }}>Keine Aufgaben</td></tr>
                 : list.map(function(t){
                     var checked = sel.indexOf(t.id) !== -1;
                     var done = t.status === "erledigt";
@@ -8483,21 +8560,25 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
                       <tr key={t.id} style={{ opacity: done ? 0.55 : 1, background: checked ? "rgba(255,165,0,0.06)" : "transparent" }}>
                         <td><input type="checkbox" checked={checked} onChange={function(){ toggleSel(t.id); }} /></td>
                         <td style={{ fontWeight:600 }}>
-                          {t.title}
-                          {t.items && t.items.length > 1 && (
-                            <div style={{ marginTop:4, fontSize:11, color:"rgba(255,255,255,0.5)", fontWeight:400 }}>
-                              {t.items.map(function(it, ix){
-                                return <div key={ix}>{it.done ? "☑" : "☐"} {it.text}</div>;
-                              })}
-                            </div>
-                          )}
+                          {t.items && t.items.length
+                            ? <div>
+                                {t.items.map(function(it, ix){
+                                  return (
+                                    <div key={ix} style={{ padding:"2px 0", fontSize:13 }}>
+                                      <span style={{ color: it.done ? "#22c55e" : "rgba(255,255,255,0.4)" }}>{it.done ? "☑" : "☐"}</span>
+                                      {it.plate ? <strong style={{ color:"#ffa500", margin:"0 6px" }}>{it.plate}</strong> : <span style={{ margin:"0 6px", color:"rgba(255,255,255,0.4)", fontWeight:400 }}>allg.</span>}
+                                      {it.text}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            : <span>{t.title}</span>}
                           {t.linked_job_id && <div style={{ marginTop:3, fontSize:10, color:"#22c55e" }}>→ als Auftrag übernommen</div>}
                         </td>
                         <td style={{ fontSize:12 }}>
                           {t.assignee_name||"—"}
                           <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)" }}>{t.assignee_role === "fahrer" ? "Fahrer" : "Mechaniker"}</div>
                         </td>
-                        <td style={{ fontSize:12 }}>{t.plate || <span style={{ color:"rgba(255,255,255,0.3)" }}>—</span>}</td>
                         <td>
                           <select value={t.priority} disabled={done}
                             onChange={function(e){ changePriority(t, e.target.value); }}
