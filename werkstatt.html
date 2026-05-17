@@ -5041,6 +5041,18 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
 
   function save() {
     if (!plate || !plate.plate) { showToast("Bitte Fahrzeug auswählen."); return; }
+    // Валидация пробега: предупреждаем если меньше предыдущего
+    if (km) {
+      var kmNum = parseInt(km, 10);
+      var prevInsp = (duList || []).filter(function(i){
+        return i.plate === plate.plate && i.km_stand && parseInt(i.km_stand, 10) > 0;
+      }).sort(function(a, b){
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      })[0];
+      if (prevInsp && kmNum < parseInt(prevInsp.km_stand, 10)) {
+        if (!window.confirm("KM-Stand (" + kmNum.toLocaleString("de-DE") + ") ist kleiner als beim letzten Eintrag (" + parseInt(prevInsp.km_stand, 10).toLocaleString("de-DE") + " km).\nTrotzdem speichern?")) return;
+      }
+    }
     var res = calcResult();
     if (res === "incomplete") {
       if (!window.confirm("Nicht alle Punkte ausgefüllt. Trotzdem speichern?")) return;
@@ -5114,6 +5126,28 @@ function DUAuflieger({ user, vehicles, onRefresh, taskPrefill, onTaskConsumed })
           <div className="label-cap">KM-Stand</div>
           <input className="input-dark" value={km} placeholder="z.B. 245000"
             onChange={function(e){ setKm(e.target.value.replace(/\D/g,"")); }} />
+          {(function(){
+            if (!km || !plate || !plate.plate) return null;
+            var kmNum = parseInt(km, 10);
+            if (!kmNum) return null;
+            var prevInsp = (duList || []).filter(function(i){
+              return i.plate === plate.plate && i.km_stand && parseInt(i.km_stand, 10) > 0;
+            }).sort(function(a, b){
+              return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            })[0];
+            if (!prevInsp) return null;
+            var prevKm = parseInt(prevInsp.km_stand, 10);
+            if (kmNum < prevKm) {
+              return (
+                <div style={{ marginTop:8, padding:"8px 12px", borderRadius:8,
+                  background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.35)",
+                  color:"#ef4444", fontSize:13, fontWeight:600 }}>
+                  Letzter Wert: {prevKm.toLocaleString("de-DE")} km — aktueller Wert ist kleiner. Bitte prüfen.
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
 
         {DU_SECTIONS.map(function(sec) {
