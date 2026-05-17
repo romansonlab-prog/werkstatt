@@ -8247,8 +8247,10 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
   var _fp = useState("all"); var fPerson = _fp[0]; var setFPerson = _fp[1];
   var _sel = useState([]); var sel = _sel[0]; var setSel = _sel[1];
   var _msg = useState(""); var msg = _msg[0]; var setMsg = _msg[1];
+  var _msgErr = useState(false); var msgErr = _msgErr[0]; var setMsgErr = _msgErr[1];
 
-  function showMsg(m) { setMsg(m); setTimeout(function(){ setMsg(""); }, 2500); }
+  function showMsg(m) { setMsg(m); setMsgErr(false); setTimeout(function(){ setMsg(""); }, 2500); }
+  function showErr(m) { setMsg(m); setMsgErr(true); setTimeout(function(){ setMsg(""); }, 6000); }
 
   // Типы техники для строк задания (компактный список под реальность LTG)
   var ROW_TYPES = [
@@ -8300,13 +8302,13 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
       if (!hasPlate && !hasText) continue; // пустая строка — пропускаем
       if (!hasText) {
         // Начата (есть Kennzeichen), но нет описания — НЕ теряем молча, говорим явно
-        showMsg("Zeile " + (i+1) + ": Beschreibung fehlt (\"Was ist zu tun?\")");
+        showErr("⚠ Zeile " + (i+1) + ": Beschreibung fehlt (\"Was ist zu tun?\")");
         return;
       }
       startedRows.push(r);
     }
-    if (startedRows.length === 0) { showMsg("Mindestens eine Zeile mit Beschreibung"); return; }
-    if (!nt.assignee) { showMsg("Bitte Person wählen"); return; }
+    if (startedRows.length === 0) { showErr("⚠ Mindestens eine Zeile mit Beschreibung"); return; }
+    if (!nt.assignee) { showErr("⚠ Bitte Person wählen"); return; }
     setSaving(true);
     var a = assignees.find(function(u){ return u.id === nt.assignee; });
     var items = startedRows.map(function(r){
@@ -8341,9 +8343,9 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
       setSaving(false);
       setNt({ assignee:"", priority:"normal", due_date: todayIso() });
       setRows([{ plate:"", vtype:"truck", text:"" }]);
-      showMsg("Aufgabe erstellt");
+      showMsg("✓ Aufgabe erstellt");
       onRefresh();
-    }).catch(function(e){ setSaving(false); showMsg("Fehler: " + (e.message||e)); });
+    }).catch(function(e){ setSaving(false); showErr("⚠ Fehler: " + (e.message||e)); });
   }
 
   function changePriority(t, p) {
@@ -8449,7 +8451,10 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
           </div>
         </div>
 
-        {msg && <div style={{ padding:"8px 12px", borderRadius:8, marginBottom:12, background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.3)", fontSize:13, color:"#22c55e" }}>{msg}</div>}
+        {msg && <div style={{ padding:"10px 14px", borderRadius:8, marginBottom:12, fontSize:14, fontWeight:700,
+          background: msgErr ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.1)",
+          border: "1px solid " + (msgErr ? "rgba(239,68,68,0.5)" : "rgba(34,197,94,0.3)"),
+          color: msgErr ? "#ef4444" : "#22c55e" }}>{msg}</div>}
 
         {/* Форма создания — таблица строк */}
         <div style={{ padding:"16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", marginBottom:20 }}>
@@ -8533,9 +8538,12 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
                 onCommit={function(raw, setErr){ var iso=deToIso(raw); if(iso===false){setErr(true);return;} setErr(false); setNt(Object.assign({},nt,{due_date: iso||""})); }} />
             </div>
           </div>
-          <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={createTask}>
-            {saving ? "..." : "+ Aufgabe erstellen"}
-          </button>
+          <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+            <button className="btn-primary" style={{ maxWidth:200 }} disabled={saving} onClick={createTask}>
+              {saving ? "..." : "+ Aufgabe erstellen"}
+            </button>
+            {msg && <span style={{ fontSize:14, fontWeight:700, color: msgErr ? "#ef4444" : "#22c55e" }}>{msg}</span>}
+          </div>
         </div>
 
         {/* Фильтры */}
