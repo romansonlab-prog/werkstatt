@@ -6005,7 +6005,8 @@ function App() {
     var sessUser = {
       id: u.id, name: u.name, avatar: u.avatar || "??",
       role: u.role, niederlassung_id: u.niederlassung_id, scope_level: u.scope_level,
-      app_access: u.app_access||[], tenant_id: "ltg"
+      app_access: u.app_access||[], tenant_id: "ltg",
+      rate: Number(u.rate_per_hour) || 0
     };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(sessUser)); } catch(e) {}
     fetch(SB_URL+"/rest/v1/users?id=eq."+encodeURIComponent(u.id), {
@@ -6059,10 +6060,10 @@ function App() {
     var u = knownUser
       ? { id: knownUser.id, name: fullName, avatar: knownUser.avatar||avatar,
           role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
-          app_access:["werkstatt"], tenant_id:"ltg" }
+          app_access:["werkstatt"], tenant_id:"ltg", rate: Number(knownUser.rate_per_hour) || 0 }
       : { id:genId("wk_"), name:fullName, avatar:avatar,
           role:"mechaniker", niederlassung_id: niedId, scope_level:"niederlassung",
-          app_access:["werkstatt"], tenant_id:"ltg" };
+          app_access:["werkstatt"], tenant_id:"ltg", rate: 0 };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(u)); } catch(e) {}
     registerOrUpdateUser(fullName, niedId, u.id);
     setSavedName(fullName);
@@ -6092,7 +6093,19 @@ function App() {
             try { localStorage.removeItem(SESSION_KEY); } catch(e2) {}
           } else {
             setSavedName(u.name);
-            setUser(u);
+            // Старая сессия без rate — догружаем ставку из БД (Lohn-расчёт)
+            if (u.rate === undefined || u.rate === null) {
+              sbSelect("users", "select=rate_per_hour&id=eq." + encodeURIComponent(u.id))
+                .then(function(rows){
+                  var rate = (rows && rows.length) ? (Number(rows[0].rate_per_hour) || 0) : 0;
+                  var u2 = Object.assign({}, u, { rate: rate });
+                  try { localStorage.setItem(SESSION_KEY, JSON.stringify(u2)); } catch(e3) {}
+                  setUser(u2);
+                })
+                .catch(function(){ setUser(Object.assign({}, u, { rate: 0 })); });
+            } else {
+              setUser(u);
+            }
             setStage("slider");
             return;
           }
