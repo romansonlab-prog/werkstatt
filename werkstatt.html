@@ -2608,8 +2608,8 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var payload = {
       id: newId,
       mechanic: user.id || "roman",
-      vehicle_type: vehicleType,
-      plate: vehicle.plate,
+      vehicle_type: workType === "intern" ? "" : vehicleType,
+      plate: (vehicle && vehicle.plate) ? vehicle.plate : "",
       location: location,
       work_type: workType,
       description: description,
@@ -2645,8 +2645,10 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
   function startAuftrag() {
     if (savingRef.current) return;
     if (!vehicle || !vehicle.plate) {
-      showToast("Bitte zuerst Fahrzeug auswählen.");
-      return;
+      if (workType !== "intern") {
+        showToast("Bitte zuerst Fahrzeug auswählen.");
+        return;
+      }
     }
 
     // Защита от дубля: если для этой машины у этого механика уже есть открытый
@@ -3081,6 +3083,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       )}
 
       {/* Fahrzeug — две колонки: слева Typ+Standort, справа Kennzeichen+Marke */}
+      {workType !== "intern" && (
       <div className="glass-panel" style={{ position:"relative", zIndex: vehDropOpen ? 50 : "auto" }}>
         <div className="panel-title">Fahrzeug</div>
         <div className="grid2" style={{ alignItems:"start" }}>
@@ -3116,6 +3119,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
           </div>
         </div>
       </div>
+      )}
 
       <div className="glass-panel">
         <div className="panel-title">Arbeitstyp</div>
