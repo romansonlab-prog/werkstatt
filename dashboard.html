@@ -8726,7 +8726,10 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
   var _sel = useState(null); var selDriver = _sel[0]; var setSelDriver = _sel[1];
   var _txt = useState(""); var txt = _txt[0]; var setTxt = _txt[1];
   var _sending = useState(false); var sending = _sending[0]; var setSending = _sending[1];
+  var _photos = useState([]); var pendingPhotos = _photos[0]; var setPendingPhotos = _photos[1];
+  var _lightbox = useState(null); var lightboxUrl = _lightbox[0]; var setLightboxUrl = _lightbox[1];
   var scrollRef = useRef(null);
+  var fileInputRef = useRef(null);
 
   var msgs = messages || [];
 
@@ -8818,6 +8821,125 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
     }).catch(function(){ setSending(false); });
   }
 
+  // --- Compress photo on client (FPL side) ---
+  function compressChatPhoto(b64, maxWidth, quality) {
+    maxWidth = maxWidth || 1400;
+    quality = quality || 0.80;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        var canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = function() { resolve(b64); };
+      img.src = b64;
+    });
+  }
+
+  function uploadFplPhoto(b64, msgId, idx) {
+    if (!b64) return Promise.resolve(null);
+    return compressChatPhoto(b64)
+      .then(function(compressed) {
+        return fetch(compressed).then(function(r) { return r.blob(); });
+      })
+      .then(function(blob) {
+        var ext = (blob.type && blob.type.indexOf("png") !== -1) ? "png" : "jpg";
+        var path = "ltg/" + msgId + "/photo_" + idx + "." + ext;
+        return fetch(SB_URL + "/storage/v1/object/chat-photos/" + path, {
+          method: "POST",
+          headers: {
+            "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
+            "Content-Type": blob.type || "image/jpeg",
+            "x-upsert": "true"
+          },
+          body: blob
+        }).then(function(r) {
+          if (!r.ok) return null;
+          return SB_URL + "/storage/v1/object/public/chat-photos/" + path;
+        });
+      })
+      .catch(function() { return null; });
+  }
+
+  function handleFileInput(e) {
+    var files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    var remaining = 5 - pendingPhotos.length;
+    files = files.slice(0, remaining);
+    var readers = files.map(function(file) {
+      return new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(ev) { resolve(ev.target.result); };
+        reader.onerror = function() { resolve(null); };
+        reader.readAsDataURL(file);
+      });
+    });
+    Promise.all(readers).then(function(results) {
+      var valid = results.filter(Boolean);
+      setPendingPhotos(function(prev) { return prev.concat(valid).slice(0, 5); });
+    });
+    e.target.value = "";
+  }
+
+  function removePhoto(idx) {
+    setPendingPhotos(function(prev) { return prev.filter(function(_, i) { return i !== idx; }); });
+  }
+
+  function sendWithPhotos() {
+    var body = (txt || "").trim();
+    var hasPhotos = pendingPhotos.length > 0;
+    if (!body && !hasPhotos) return;
+    if (sending || !current) return;
+    setSending(true);
+    var msgId = "chat_fpl_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    var dLang = driverLang(current.driver_id);
+    var photoPromise = hasPhotos
+      ? Promise.all(pendingPhotos.map(function(b64, i) { return uploadFplPhoto(b64, msgId, i); }))
+          .then(function(urls) { return urls.filter(Boolean); })
+      : Promise.resolve([]);
+    var textPromise = body
+      ? translateToLang(body, dLang)
+      : Promise.resolve("");
+    Promise.all([photoPromise, textPromise]).then(function(results) {
+      var photoUrls = results[0];
+      var translated = results[1];
+      var payload = {
+        tenant_id: "ltg",
+        driver_id: current.driver_id,
+        driver_name: current.driver_name,
+        sender_role: "fpl",
+        sender_id: currentUser ? currentUser.id : null,
+        sender_name: currentUser ? currentUser.name : "FPL",
+        text_original: body || "",
+        lang_original: "DE",
+        text_de: body || "",
+        text_driver: translated || "",
+        driver_lang: dLang,
+        is_broadcast: false,
+        read_by_driver: false,
+        read_by_fpl: true,
+        photo_urls: photoUrls.length ? photoUrls : null
+        // video_url: null  — задел под видео, не активен
+      };
+      return fetch(SB_URL + "/rest/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Prefer": "return=minimal" },
+        body: JSON.stringify(payload)
+      });
+    }).then(function() {
+      setTxt("");
+      setPendingPhotos([]);
+      setSending(false);
+      if (onRefresh) onRefresh();
+    }).catch(function() { setSending(false); });
+  }
+
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
@@ -8882,8 +9004,9 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                 display:"flex", flexDirection:"column", gap:10, minHeight:0, background:"#f1f5f9" }}>
                 {thread.map(function(m){
                   var fromFpl = m.sender_role === "fpl";
-                  // FPL читает всё на немецком: text_de (или оригинал если сам писал на DE)
                   var shown = fromFpl ? m.text_original : (m.text_de || m.text_original);
+                  var mPhotos = [];
+                  try { mPhotos = Array.isArray(m.photo_urls) ? m.photo_urls : (m.photo_urls ? JSON.parse(m.photo_urls) : []); } catch(e) {}
                   return (
                     <div key={m.id} style={{ display:"flex", justifyContent: fromFpl ? "flex-end" : "flex-start" }}>
                       <div style={{ maxWidth:"75%", padding:"10px 14px",
@@ -8892,10 +9015,24 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                         color: fromFpl ? "#0a1730" : "#1e293b",
                         border: fromFpl ? "none" : "1.5px solid #3b82f6" }}>
                         {!fromFpl && <div style={{ fontSize:11, fontWeight:800, color:"#2563eb", marginBottom:3 }}>{current.driver_name}</div>}
-                        <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
+                        {shown ? <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div> : null}
                         {!fromFpl && m.text_original && m.text_original !== shown && (
                           <div style={{ fontSize:12, color:"#64748b", marginTop:4, fontStyle:"italic" }}>
                             Original ({m.lang_original}): {m.text_original}
+                          </div>
+                        )}
+                        {mPhotos.length > 0 && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop: shown ? 8 : 0 }}>
+                            {mPhotos.map(function(url, pi) {
+                              return (
+                                <img key={pi} src={url} alt=""
+                                  onClick={function() { setLightboxUrl(url); }}
+                                  style={{ width: mPhotos.length === 1 ? "100%" : "calc(50% - 2px)",
+                                    maxWidth:260, height: mPhotos.length === 1 ? "auto" : 100,
+                                    objectFit:"cover", borderRadius:6, cursor:"pointer",
+                                    border: fromFpl ? "none" : "1px solid #dbeafe" }} />
+                              );
+                            })}
                           </div>
                         )}
                         <div style={{ fontSize:11, marginTop:5, opacity:0.6, textAlign:"right" }}>
@@ -8906,21 +9043,89 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                   );
                 })}
               </div>
-              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", display:"flex", gap:10, alignItems:"flex-end", background:"#fff" }}>
-                <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
-                  onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendReply(); } }}
-                  placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
-                  rows={2}
-                  style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
-                    border:"1.5px solid #3b82f6", background:"#f8fafc",
-                    color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
-                    maxHeight:140, boxSizing:"border-box", outline:"none" }} />
-                <button onClick={sendReply} disabled={sending || !txt.trim()}
-                  style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
-                    background: (sending||!txt.trim()) ? "rgba(255,165,0,0.5)" : "#ffa500",
-                    color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
-                  {sending ? "..." : "Senden"}
-                </button>
+
+              {/* Лайтбокс */}
+              {lightboxUrl && (
+                <div onClick={function() { setLightboxUrl(null); }}
+                  style={{ position:"fixed", inset:0, zIndex:10100,
+                    background:"rgba(0,0,0,0.88)", display:"flex",
+                    alignItems:"center", justifyContent:"center", padding:24 }}>
+                  <img src={lightboxUrl} alt=""
+                    style={{ maxWidth:"90%", maxHeight:"90%", borderRadius:10,
+                      objectFit:"contain", boxShadow:"0 8px 40px rgba(0,0,0,0.5)" }} />
+                  <button onClick={function() { setLightboxUrl(null); }}
+                    style={{ position:"absolute", top:24, right:24, width:44, height:44,
+                      borderRadius:999, border:"none", background:"rgba(255,255,255,0.15)",
+                      color:"#fff", fontSize:24, fontWeight:900, cursor:"pointer",
+                      display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {/* Панель ввода */}
+              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", background:"#fff" }}>
+                {/* Hidden file input */}
+                <input ref={fileInputRef} type="file" accept="image/*" multiple
+                  style={{ display:"none" }} onChange={handleFileInput} />
+
+                {/* Превью фото */}
+                {pendingPhotos.length > 0 && (
+                  <div style={{ display:"flex", gap:8, marginBottom:10, overflowX:"auto", paddingBottom:4 }}>
+                    {pendingPhotos.map(function(b64, i) {
+                      return (
+                        <div key={i} style={{ position:"relative", flexShrink:0 }}>
+                          <img src={b64} alt=""
+                            style={{ width:60, height:60, objectFit:"cover", borderRadius:6,
+                              border:"2px solid #3b82f6" }} />
+                          <button onClick={function() { removePhoto(i); }}
+                            style={{ position:"absolute", top:-6, right:-6, width:18, height:18,
+                              borderRadius:999, border:"none", background:"#ef4444",
+                              color:"#fff", fontSize:11, fontWeight:900,
+                              display:"flex", alignItems:"center", justifyContent:"center",
+                              cursor:"pointer", padding:0 }}>
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <div style={{ fontSize:11, color:"#94a3b8", alignSelf:"center", flexShrink:0 }}>
+                      {pendingPhotos.length}/5
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display:"flex", gap:10, alignItems:"flex-end" }}>
+                  <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
+                    onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendWithPhotos(); } }}
+                    placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
+                    rows={2}
+                    style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
+                      border:"1.5px solid #3b82f6", background:"#f8fafc",
+                      color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
+                      maxHeight:140, boxSizing:"border-box", outline:"none" }} />
+                  <button onClick={function() {
+                      if (pendingPhotos.length < 5 && fileInputRef.current) fileInputRef.current.click();
+                    }}
+                    title="Foto anhängen"
+                    style={{ flexShrink:0, width:48, height:48, borderRadius:10,
+                      border: pendingPhotos.length >= 5 ? "1.5px solid #e2e8f0" : "1.5px solid #3b82f6",
+                      background: pendingPhotos.length > 0 ? "#dbeafe" : "#fff",
+                      color: pendingPhotos.length >= 5 ? "#cbd5e1" : "#3b82f6",
+                      cursor: pendingPhotos.length >= 5 ? "not-allowed" : "pointer",
+                      display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <button onClick={sendWithPhotos}
+                    disabled={sending || (!txt.trim() && pendingPhotos.length === 0)}
+                    style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
+                      background: (sending || (!txt.trim() && pendingPhotos.length === 0)) ? "rgba(255,165,0,0.5)" : "#ffa500",
+                      color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
+                    {sending ? "..." : "Senden"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
