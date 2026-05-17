@@ -3391,6 +3391,7 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
   var _intern = useState(null); var internRow = _intern[0]; var setInternRow = _intern[1];
   var _internMin = useState(""); var internMin = _internMin[0]; var setInternMin = _internMin[1];
   var _internBusy = useState(false); var internBusy = _internBusy[0]; var setInternBusy = _internBusy[1];
+  var actionBusyRef = useRef(false);
 
   // Задачи для механиков: открытые сверху, отсортированы по приоритету
   function tPrioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
@@ -3583,6 +3584,8 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
       showToast("Bitte Grund angeben.");
       return;
     }
+    if (actionBusyRef.current) return;
+    actionBusyRef.current = true;
     setUpdating(true);
 
     if (action === "take") {
@@ -3590,6 +3593,7 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
       sbPatchConditional("alerts", a.id, "taken_by=is.null",
         { taken_by: user.id, taken_by_name: user.name })
         .then(function(rows) {
+          actionBusyRef.current = false;
           setUpdating(false);
           setModal(null);
           if (rows.length === 0) {
@@ -3597,7 +3601,7 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
           }
           onRefresh();
         })
-        .catch(function(e) { showToast("Fehler: " + e.message); setUpdating(false); });
+        .catch(function(e) { actionBusyRef.current = false; showToast("Fehler: " + e.message); setUpdating(false); });
       return;
     }
 
@@ -3608,8 +3612,8 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
       patch = { status:"pending", reject_reason: reason };
     }
     sbPatch("alerts", a.id, patch)
-      .then(function() { setUpdating(false); setModal(null); onRefresh(); })
-      .catch(function(e) { showToast("Fehler: " + e.message); setUpdating(false); });
+      .then(function() { actionBusyRef.current = false; setUpdating(false); setModal(null); onRefresh(); })
+      .catch(function(e) { actionBusyRef.current = false; showToast("Fehler: " + e.message); setUpdating(false); });
   }
 
   function doCreate(a) {
@@ -4292,6 +4296,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
   // Модалка паузы (запрос причины)
   var _spm = useState(null); var pauseModalJob = _spm[0]; var setPauseModalJob = _spm[1];
   var _spr = useState(""); var pauseReasonInput = _spr[0]; var setPauseReasonInput = _spr[1];
+  var jobActionBusyRef = useRef(false);
 
   var mine = (jobs || []).filter(function(j) { return j.mechanic === (user && user.id); });
 
@@ -4404,6 +4409,8 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
   function confirmPause() {
     if (!pauseModalJob) return;
     if (!pauseReasonInput.trim()) { showToast("Bitte Grund angeben."); return; }
+    if (jobActionBusyRef.current) return;
+    jobActionBusyRef.current = true;
     var job = pauseModalJob;
     setUpdating(true);
 
@@ -4437,6 +4444,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       work_min: workMin,
       labor_cost: laborCost
     }).then(function(){
+      jobActionBusyRef.current = false;
       setUpdating(false);
       setPauseModalJob(null);
       setPauseReasonInput("");
@@ -4444,6 +4452,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       if (openJob && openJob.id === job.id) setOpenJob(null);
       if (onRefresh) onRefresh();
     }).catch(function(e){
+      jobActionBusyRef.current = false;
       setUpdating(false);
       showToast("Fehler: " + (e.message || e));
     });
@@ -4482,6 +4491,8 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
 
   // Финальное завершение через long-press: status=done, фиксируем финальные часы и стоимость
   function handleFertig(job, elapsedSec) {
+    if (jobActionBusyRef.current) return;
+    jobActionBusyRef.current = true;
     setUpdating(true);
     var workMin = Math.round((elapsedSec || jobElapsedSec(job, Date.now())) / 60);
     var laborCost = (user && user.rate) ? Math.round((workMin / 60) * user.rate * 100) / 100 : (Number(job.labor_cost) || 0);
@@ -4530,8 +4541,10 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         }).catch(function(){});
       }
       if (onRefresh) onRefresh();
+      jobActionBusyRef.current = false;
       showToast("Auftrag abgeschlossen — " + fmtMin(workMin) + " · " + laborCost.toFixed(2) + " €");
     }).catch(function(e){
+      jobActionBusyRef.current = false;
       setUpdating(false);
       showToast("Fehler: " + (e.message || e));
     });
