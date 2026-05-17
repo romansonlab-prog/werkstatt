@@ -8192,13 +8192,13 @@ function AppShell({ user, onLogout }) {
       {/* === ОВЕРЛЕЙ ЧАТА === */}
       {chatOpen && (
         <div className="no-print" style={{ position:"fixed", inset:0, zIndex:9995,
-          background:"rgba(5,12,26,0.97)", display:"flex", flexDirection:"column",
+          background:"#e8ebf0", display:"flex", flexDirection:"column",
           padding:"20px 24px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexShrink:0 }}>
-            <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)" }}>WerkFlow · Fahrer-Chat</div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, flexShrink:0 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:"#1e3a5f" }}>WerkFlow · Fahrer-Chat</div>
             <button onClick={function(){ setChatOpen(false); }}
-              style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)",
-                borderRadius:10, color:"#fff", padding:"8px 18px", fontSize:14, fontWeight:700,
+              style={{ background:"#fff", border:"1.5px solid #3b82f6",
+                borderRadius:10, color:"#1e3a5f", padding:"9px 20px", fontSize:14, fontWeight:700,
                 cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
@@ -8821,16 +8821,20 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-        <h1 style={{ fontSize:24, fontWeight:800, margin:0 }}>Fahrer-Chat</h1>
-        <button className="btn-secondary btn-small" onClick={onRefresh}>↻ Aktualisieren</button>
+        <h1 style={{ fontSize:24, fontWeight:800, margin:0, color:"#1e3a5f" }}>Fahrer-Chat</h1>
+        <button onClick={onRefresh}
+          style={{ background:"#fff", border:"1.5px solid #3b82f6", borderRadius:8,
+            color:"#1e3a5f", padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+          ↻ Aktualisieren
+        </button>
       </div>
       <div style={{ display:"flex", gap:16, height:"calc(100vh - 160px)", minHeight:420 }}>
 
         {/* Список диалогов */}
         <div style={{ width:300, flexShrink:0, overflowY:"auto",
-          background:"rgba(255,255,255,0.03)", borderRadius:12, border:"1px solid rgba(255,255,255,0.08)" }}>
+          background:"#fff", borderRadius:12, border:"1.5px solid #3b82f6" }}>
           {dialogs.length === 0 && (
-            <div style={{ padding:24, textAlign:"center", color:"rgba(255,255,255,0.4)", fontSize:13 }}>
+            <div style={{ padding:24, textAlign:"center", color:"#64748b", fontSize:13 }}>
               Noch keine Nachrichten von Fahrern
             </div>
           )}
@@ -8840,16 +8844,16 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
             return (
               <div key={d.driver_id} onClick={function(){ setSelDriver(d.driver_id); }}
                 style={{ padding:"12px 14px", cursor:"pointer",
-                  borderBottom:"1px solid rgba(255,255,255,0.06)",
-                  background: sel ? "rgba(255,165,0,0.12)" : "transparent" }}>
+                  borderBottom:"1px solid #e2e8f0",
+                  background: sel ? "#dbeafe" : "transparent" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-                  <span style={{ fontWeight:700, fontSize:14, color:"#fff" }}>{d.driver_name}</span>
+                  <span style={{ fontWeight:700, fontSize:14, color:"#1e293b" }}>{d.driver_name}</span>
                   {d.unread > 0 && (
-                    <span style={{ background:"#ffa500", color:"#0a1730", borderRadius:999,
+                    <span style={{ background:"#ef4444", color:"#fff", borderRadius:999,
                       fontSize:11, fontWeight:800, padding:"1px 7px" }}>{d.unread}</span>
                   )}
                 </div>
-                <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:3,
+                <div style={{ fontSize:12, color:"#64748b", marginTop:3,
                   whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                   {(d.last && d.last.sender_role==="fpl" ? "Sie: " : "") + (preview||"")}
                 </div>
@@ -8860,22 +8864,22 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
 
         {/* Окно переписки */}
         <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0,
-          background:"rgba(255,255,255,0.03)", borderRadius:12, border:"1px solid rgba(255,255,255,0.08)" }}>
+          background:"#fff", borderRadius:12, border:"1.5px solid #3b82f6" }}>
           {!current ? (
             <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-              color:"rgba(255,255,255,0.4)", fontSize:14 }}>
+              color:"#94a3b8", fontSize:14 }}>
               Fahrer links auswählen
             </div>
           ) : (
             <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-              <div style={{ padding:"14px 18px", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
-                <div style={{ fontWeight:800, fontSize:16, color:"#fff" }}>{current.driver_name}</div>
-                <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)" }}>
+              <div style={{ padding:"14px 18px", borderBottom:"1px solid #e2e8f0" }}>
+                <div style={{ fontWeight:800, fontSize:16, color:"#1e293b" }}>{current.driver_name}</div>
+                <div style={{ fontSize:12, color:"#64748b" }}>
                   Sprache des Fahrers: {driverLang(current.driver_id)} · Sie schreiben auf Deutsch
                 </div>
               </div>
               <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:18,
-                display:"flex", flexDirection:"column", gap:10, minHeight:0 }}>
+                display:"flex", flexDirection:"column", gap:10, minHeight:0, background:"#f1f5f9" }}>
                 {thread.map(function(m){
                   var fromFpl = m.sender_role === "fpl";
                   // FPL читает всё на немецком: text_de (или оригинал если сам писал на DE)
@@ -8884,17 +8888,17 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                     <div key={m.id} style={{ display:"flex", justifyContent: fromFpl ? "flex-end" : "flex-start" }}>
                       <div style={{ maxWidth:"75%", padding:"10px 14px",
                         borderRadius: fromFpl ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-                        background: fromFpl ? "#ffa500" : "rgba(255,255,255,0.1)",
-                        color: fromFpl ? "#0a1730" : "#fff",
-                        border: fromFpl ? "none" : "1px solid rgba(255,255,255,0.14)" }}>
-                        {!fromFpl && <div style={{ fontSize:11, fontWeight:800, color:"#ffa500", marginBottom:3 }}>{current.driver_name}</div>}
+                        background: fromFpl ? "#ffa500" : "#fff",
+                        color: fromFpl ? "#0a1730" : "#1e293b",
+                        border: fromFpl ? "none" : "1.5px solid #3b82f6" }}>
+                        {!fromFpl && <div style={{ fontSize:11, fontWeight:800, color:"#2563eb", marginBottom:3 }}>{current.driver_name}</div>}
                         <div style={{ fontSize:15, fontWeight:500, lineHeight:1.45, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{shown}</div>
                         {!fromFpl && m.text_original && m.text_original !== shown && (
-                          <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginTop:4, fontStyle:"italic" }}>
+                          <div style={{ fontSize:12, color:"#64748b", marginTop:4, fontStyle:"italic" }}>
                             Original ({m.lang_original}): {m.text_original}
                           </div>
                         )}
-                        <div style={{ fontSize:11, marginTop:5, opacity:0.55, textAlign:"right" }}>
+                        <div style={{ fontSize:11, marginTop:5, opacity:0.6, textAlign:"right" }}>
                           {m.created_at ? new Date(m.created_at).toLocaleString("de-DE", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : ""}
                         </div>
                       </div>
@@ -8902,18 +8906,18 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
                   );
                 })}
               </div>
-              <div style={{ padding:14, borderTop:"1px solid rgba(255,255,255,0.08)", display:"flex", gap:10, alignItems:"flex-end" }}>
+              <div style={{ padding:14, borderTop:"1px solid #e2e8f0", display:"flex", gap:10, alignItems:"flex-end", background:"#fff" }}>
                 <textarea value={txt} onChange={function(e){ setTxt(e.target.value); }}
                   onKeyDown={function(e){ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendReply(); } }}
                   placeholder="Nachricht auf Deutsch — wird automatisch übersetzt..."
                   rows={2}
                   style={{ flex:1, padding:"12px 14px", borderRadius:10, resize:"none",
-                    border:"1px solid rgba(255,255,255,0.18)", background:"rgba(255,255,255,0.06)",
-                    color:"#fff", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
+                    border:"1.5px solid #3b82f6", background:"#f8fafc",
+                    color:"#1e293b", fontSize:15, fontFamily:"inherit", lineHeight:1.4,
                     maxHeight:140, boxSizing:"border-box", outline:"none" }} />
                 <button onClick={sendReply} disabled={sending || !txt.trim()}
                   style={{ flexShrink:0, padding:"12px 24px", borderRadius:10, border:"none",
-                    background: (sending||!txt.trim()) ? "rgba(255,165,0,0.4)" : "#ffa500",
+                    background: (sending||!txt.trim()) ? "rgba(255,165,0,0.5)" : "#ffa500",
                     color:"#0a1730", fontSize:15, fontWeight:800, cursor:"pointer", height:48 }}>
                   {sending ? "..." : "Senden"}
                 </button>
