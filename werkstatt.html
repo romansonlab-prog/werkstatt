@@ -3428,7 +3428,7 @@ function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onTaskToDU, onSta
     var t = internRow.task; var ix = internRow.ix;
     var row = (t.items && t.items[ix]) ? t.items[ix] : { text: t.title || "" };
     var nowIso = new Date().toISOString();
-    var jobId = "J" + Date.now();
+    var jobId = genId("J");
     var jobBody = {
       id: jobId,
       tenant_id: "ltg",
