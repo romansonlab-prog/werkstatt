@@ -1735,6 +1735,7 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var voiceRef = useRef(null);
   var scrollRef = useRef(null);
   var pollRef = useRef(null);
+  var _vh = useState(0); var vh = _vh[0]; var setVh = _vh[1];
 
   function driverId(){
     var s = (driverName||"").trim().toLowerCase()
@@ -1774,10 +1775,28 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   // Первичная загрузка + polling каждые 8 сек (как принято в проекте)
   useEffect(function(){
     document.body.classList.add("chat-open");
+    // Реальная видимая высота через visualViewport (учитывает адресную строку и клавиатуру)
+    function applyVh(){
+      var h = (window.visualViewport && window.visualViewport.height)
+        ? window.visualViewport.height
+        : window.innerHeight;
+      setVh(Math.round(h));
+    }
+    applyVh();
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", applyVh);
+      window.visualViewport.addEventListener("scroll", applyVh);
+    }
+    window.addEventListener("resize", applyVh);
     loadMessages();
     pollRef.current = setInterval(function(){ loadMessages(); }, 8000);
     return function(){
       document.body.classList.remove("chat-open");
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", applyVh);
+        window.visualViewport.removeEventListener("scroll", applyVh);
+      }
+      window.removeEventListener("resize", applyVh);
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
@@ -1848,13 +1867,14 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var hasVoice = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   return (
-    <div style={{ position:"fixed", top:0, left:0, right:0, height:"100%",
+    <div style={{ position:"fixed", top:0, left:0, right:0,
+      height: vh ? (vh + "px") : "100%",
       zIndex:100, background:"#0a1730", overflow:"hidden" }}>
       <Bg />
       <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0,
         zIndex:2, display:"flex", flexDirection:"column",
         maxWidth:480, margin:"0 auto",
-        padding:"env(safe-area-inset-top) 16px env(safe-area-inset-bottom)" }}>
+        padding:"env(safe-area-inset-top) 16px 0" }}>
 
         {/* Шапка */}
         <div style={{ display:"flex", alignItems:"center", gap:12, paddingTop:10, paddingBottom:12,
@@ -1906,7 +1926,8 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
         </div>
 
         {/* Панель ввода: поле на всю ширину → ряд из 3 кнопок → Senden */}
-        <div style={{ flexShrink:0, paddingTop:12, paddingBottom:8,
+        <div style={{ flexShrink:0, paddingTop:12,
+          paddingBottom:"calc(env(safe-area-inset-bottom) + 10px)",
           borderTop:"1px solid rgba(255,255,255,0.1)" }}>
 
           {/* Поле ввода — на всю ширину, до 15+ строк */}
