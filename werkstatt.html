@@ -2587,6 +2587,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       started_at: new Date().toISOString(),
       source: prefill ? "eingang" : "werkstatt",
       alert_id: prefill && prefill.id ? prefill.id : null,
+      task_id: prefill && prefill.task_id ? prefill.task_id : null,
       workshop_niederlassung_id: workshopNied,
       tenant_id: "ltg",
       created_at: new Date().toISOString()
@@ -2779,6 +2780,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       tire_condition: workType === "tireChange" ? tireNewCond : null,
       source: prefill ? "eingang" : "werkstatt",
       alert_id: prefill && prefill.id ? prefill.id : null,
+      task_id: prefill && prefill.task_id ? prefill.task_id : null,
       incoming_photo_urls: JSON.stringify(prefill ? normalizeUrls(prefill.photo_urls) : []),
       workshop_niederlassung_id: workshopNied,
       tenant_id: "ltg",
@@ -3331,7 +3333,7 @@ function playAlertSound() {
 }
 
 // === EINGANG (с taken_by, Ablehnen, Zurückstellen) ===
-function Eingang({ alerts, tasks, user, onCreate, onStatusChange, loading, onRefresh }) {
+function Eingang({ alerts, tasks, user, onCreate, onTaskToJob, onStatusChange, loading, onRefresh }) {
   var _sreason = useState(""); var reason = _sreason[0]; var setReason = _sreason[1];
   var _smodal = useState(null); var modal = _smodal[0]; var setModal = _smodal[1];
   var _sup = useState(false); var updating = _sup[0]; var setUpdating = _sup[1];
@@ -3538,6 +3540,7 @@ function Eingang({ alerts, tasks, user, onCreate, onStatusChange, loading, onRef
       {openTasks.map(function(t) {
         var checked = tSel.indexOf(t.id) !== -1;
         var dd = t.due_date ? Math.round((new Date(t.due_date).getTime() - Date.now())/86400000) : null;
+        var items = (t.items && t.items.length) ? t.items : null;
         return (
           <div key={t.id} className="alert-card" style={{ borderLeft:"4px solid "+tPrioColor(t.priority), background: checked ? "rgba(255,165,0,0.08)" : "" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
@@ -3546,8 +3549,19 @@ function Eingang({ alerts, tasks, user, onCreate, onStatusChange, loading, onRef
                   <span style={{ fontSize:11, fontWeight:800, color:tPrioColor(t.priority), textTransform:"uppercase" }}>{tPrioLabel(t.priority)}</span>
                   {t.plate && <span style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>· {t.plate}</span>}
                 </div>
-                <div style={{ fontWeight:700, fontSize:15 }}>{t.title}</div>
-                <div className="meta" style={{ marginTop:4 }}>
+                {items
+                  ? <div style={{ marginTop:2 }}>
+                      {items.map(function(it, ix){
+                        return (
+                          <div key={ix} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"3px 0", fontSize:15, fontWeight:600 }}>
+                            <span style={{ color:"#ffa500" }}>•</span>
+                            <span>{it.text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  : <div style={{ fontWeight:700, fontSize:15 }}>{t.title}</div>}
+                <div className="meta" style={{ marginTop:6 }}>
                   von {t.created_by_name || "FPL"}
                   {t.due_date ? " · fällig " + tIsoToDe(t.due_date) + (dd!==null && dd<0 ? " (überfällig)" : dd!==null && dd<3 ? " (in "+dd+"d)" : "") : ""}
                 </div>
@@ -3555,10 +3569,18 @@ function Eingang({ alerts, tasks, user, onCreate, onStatusChange, loading, onRef
               <input type="checkbox" checked={checked} onChange={function(){ tToggleSel(t.id); }}
                 style={{ width:20, height:20, marginTop:4 }} />
             </div>
-            <button className="primary-btn" type="button" style={{ marginTop:10, padding:11 }}
-              onClick={function(){ taskDone(t); }}>
-              ✓ Erledigt
-            </button>
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              {t.plate
+                ? <button className="primary-btn" type="button" style={{ flex:1, padding:11 }}
+                    onClick={function(){ if (onTaskToJob) onTaskToJob(t); }}>
+                    → Als Auftrag übernehmen
+                  </button>
+                : null}
+              <button className={t.plate ? "outline-btn" : "primary-btn"} type="button" style={{ flex:1, padding:11 }}
+                onClick={function(){ taskDone(t); }}>
+                ✓ Erledigt
+              </button>
+            </div>
           </div>
         );
       })}
@@ -4271,6 +4293,9 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
       // До этого момента заявка была 'inProgress' (механик работал).
       if (job.alert_id) {
         sbPatch("alerts", job.alert_id, { status: "done" }).catch(function(){});
+      }
+      if (job.task_id) {
+        sbPatch("tasks", job.task_id, { status: "erledigt", done_at: new Date().toISOString(), linked_job_id: job.id, updated_at: new Date().toISOString() }).catch(function(){});
       }
       if (onRefresh) onRefresh();
       showToast("Auftrag abgeschlossen — " + fmtMin(workMin) + " · " + laborCost.toFixed(2) + " €");
@@ -5513,6 +5538,8 @@ function AppShell({ user, onLogout }) {
   if (dbUser && dbUser.rate_per_hour) myRate = Number(dbUser.rate_per_hour) || 0;
 
   var openAlerts = alerts.filter(function(a) { return a.status !== "done" && a.status !== "rejected" && a.status !== "inProgress"; });
+  var openTaskCount = (tasks || []).filter(function(t){ return t.status !== "erledigt"; }).length;
+  var eingangBadge = openAlerts.length + openTaskCount;
 
   function createFromAlert(a) {
     // Сразу открываем форму заказа с предзаполненными данными из заявки.
@@ -5524,6 +5551,25 @@ function AppShell({ user, onLogout }) {
       work_type: isEmergency ? "emergency" : (a.work_type || "repair"),
       photo_urls: normalizeUrls(a.photo_urls)
     });
+    setPrefill(p);
+    setTab("new");
+  }
+
+  // Задача → заказ: предзаполняем форму, описание = пункты чек-листа.
+  // task_id связывает заказ с задачей — при сохранении заказа задача станет erledigt.
+  function createFromTask(t) {
+    var desc = (t.items && t.items.length)
+      ? t.items.map(function(it){ return "- " + it.text; }).join("\n")
+      : (t.title || "");
+    var p = {
+      plate: t.plate || "",
+      vehicle_type: "truck",
+      work_type: "repair",
+      description: desc,
+      location: "Werkstatt",
+      photo_urls: [],
+      task_id: t.id
+    };
     setPrefill(p);
     setTab("new");
   }
@@ -5607,7 +5653,7 @@ function AppShell({ user, onLogout }) {
           />
         )}
         {tab === "eingang" && (
-          <Eingang alerts={alerts} tasks={tasks} user={user} onCreate={createFromAlert} loading={loading} onRefresh={loadAll} />
+          <Eingang alerts={alerts} tasks={tasks} user={user} onCreate={createFromAlert} onTaskToJob={createFromTask} loading={loading} onRefresh={loadAll} />
         )}
         {tab === "jobs" && (
           <MeineAuftraege jobs={jobs} user={user} onRefresh={loadAll} loading={loading}
@@ -5636,7 +5682,7 @@ function AppShell({ user, onLogout }) {
           <Einstellungen stock={stock} jobs={jobs} user={user} loading={loading} onRefresh={loadAll} onLogout={onLogout} />
         )}
       </div>
-      <BottomNav tab={tab} setTab={setTab} alertCount={openAlerts.length} />
+      <BottomNav tab={tab} setTab={setTab} alertCount={eingangBadge} />
     </div>
   );
 }

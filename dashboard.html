@@ -8266,13 +8266,19 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
   function prioRank(p) { return p === "hoch" ? 0 : p === "normal" ? 1 : 2; }
 
   function createTask() {
-    if (!nt.title.trim()) { showMsg("Beschreibung fehlt"); return; }
+    var raw = (nt.title || "").replace(/\r/g, "");
+    var lines = raw.split("\n").map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+    if (lines.length === 0) { showMsg("Beschreibung fehlt"); return; }
     if (!nt.assignee) { showMsg("Bitte Person wählen"); return; }
     setSaving(true);
     var a = assignees.find(function(u){ return u.id === nt.assignee; });
+    // Первая строка = заголовок (для списков/PDF). Все строки = пункты чек-листа.
+    var items = lines.map(function(s){ return { text: s, done: false }; });
+    var titleText = lines.length === 1 ? lines[0] : (lines[0] + " (+" + (lines.length - 1) + " weitere)");
     var body = {
       tenant_id: "ltg",
-      title: nt.title.trim(),
+      title: titleText,
+      items: items,
       assignee_id: nt.assignee,
       assignee_name: a ? a.name : null,
       assignee_role: a ? a.role : null,
@@ -8339,9 +8345,16 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
     return list.filter(function(t){ return sel.indexOf(t.id) !== -1; });
   }
 
+  function taskItemsText(t) {
+    if (!t.items || !t.items.length) return t.title || "";
+    return t.items.map(function(it){ return (it.done ? "[x] " : "[ ] ") + it.text; }).join(" | ");
+  }
   function exportPdf() {
     var rows = forExport().map(function(t){
-      return "<tr><td>"+(t.title||"—")+"</td><td>"+(t.assignee_name||"—")+"</td>"+
+      var itemsHtml = (t.items && t.items.length)
+        ? t.items.map(function(it){ return (it.done ? "☑" : "☐") + " " + it.text; }).join("<br>")
+        : (t.title || "—");
+      return "<tr><td>"+itemsHtml+"</td><td>"+(t.assignee_name||"—")+"</td>"+
         "<td>"+(t.plate||"—")+"</td><td>"+prioLabel(t.priority)+"</td>"+
         "<td>"+(t.due_date ? isoToDe(t.due_date) : "—")+"</td>"+
         "<td>"+(t.status === "erledigt" ? "Erledigt" : "Offen")+"</td></tr>";
@@ -8356,7 +8369,7 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
     var headers = ["Aufgabe","Zugewiesen","Fahrzeug","Priorität","Fällig","Status","Erstellt von"];
     var rows = forExport().map(function(t){
       return {
-        "Aufgabe": t.title || "",
+        "Aufgabe": taskItemsText(t),
         "Zugewiesen": t.assignee_name || "",
         "Fahrzeug": t.plate || "",
         "Priorität": prioLabel(t.priority),
@@ -8387,9 +8400,9 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
         <div style={{ padding:"16px", borderRadius:12, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", marginBottom:20 }}>
           <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>Neue Aufgabe</div>
           <div style={{ marginBottom:10 }}>
-            <div className="label-cap">Was ist zu tun? *</div>
-            <input className="inp" style={{ width:"100%" }} value={nt.title}
-              placeholder="z.B. Bremsen prüfen, Reifen wechseln, Halle aufräumen..."
+            <div className="label-cap">Was ist zu tun? * <span style={{ fontWeight:400, color:"rgba(255,255,255,0.4)", textTransform:"none" }}>— jede Zeile = ein Punkt (wie auf dem Zettel)</span></div>
+            <textarea className="inp" style={{ width:"100%", minHeight:90, resize:"vertical", fontFamily:"inherit", lineHeight:1.5 }} value={nt.title}
+              placeholder={"Bremsen prüfen\nÖl wechseln\nScheinwerfer kontrollieren"}
               onChange={function(e){ setNt(Object.assign({},nt,{title:e.target.value})); }} />
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
@@ -8469,7 +8482,17 @@ function Aufgaben({ tasks, users, vehicles, currentUser, onRefresh, loading }) {
                     return (
                       <tr key={t.id} style={{ opacity: done ? 0.55 : 1, background: checked ? "rgba(255,165,0,0.06)" : "transparent" }}>
                         <td><input type="checkbox" checked={checked} onChange={function(){ toggleSel(t.id); }} /></td>
-                        <td style={{ fontWeight:600 }}>{t.title}</td>
+                        <td style={{ fontWeight:600 }}>
+                          {t.title}
+                          {t.items && t.items.length > 1 && (
+                            <div style={{ marginTop:4, fontSize:11, color:"rgba(255,255,255,0.5)", fontWeight:400 }}>
+                              {t.items.map(function(it, ix){
+                                return <div key={ix}>{it.done ? "☑" : "☐"} {it.text}</div>;
+                              })}
+                            </div>
+                          )}
+                          {t.linked_job_id && <div style={{ marginTop:3, fontSize:10, color:"#22c55e" }}>→ als Auftrag übernommen</div>}
+                        </td>
                         <td style={{ fontSize:12 }}>
                           {t.assignee_name||"—"}
                           <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)" }}>{t.assignee_role === "fahrer" ? "Fahrer" : "Mechaniker"}</div>
