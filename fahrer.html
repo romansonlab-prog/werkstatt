@@ -44,6 +44,7 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overscroll-behavior:none}
+    body.chat-open{overflow:hidden;position:fixed;width:100%;height:100%}
     :root{
       --accent:#ffa500;--accent-dark:#cc7a00;--accent-glow:rgba(255,165,0,0.35);
       --bg-base:#080e1a;--bg-card:rgba(13,25,52,0.85);--bg-input:rgba(6,15,38,0.9);
@@ -1772,9 +1773,13 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
 
   // Первичная загрузка + polling каждые 8 сек (как принято в проекте)
   useEffect(function(){
+    document.body.classList.add("chat-open");
     loadMessages();
     pollRef.current = setInterval(function(){ loadMessages(); }, 8000);
-    return function(){ if (pollRef.current) clearInterval(pollRef.current); };
+    return function(){
+      document.body.classList.remove("chat-open");
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   // Автопрокрутка вниз при новых сообщениях
@@ -1843,12 +1848,13 @@ function ChatScreen({ driverName, driverNied, lang, setLang, onBack }) {
   var hasVoice = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   return (
-    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:100,
-      background:"#0a1730", display:"flex", flexDirection:"column",
-      maxWidth:480, margin:"0 auto", overflow:"hidden" }}>
+    <div style={{ position:"fixed", top:0, left:0, right:0, height:"100%",
+      zIndex:100, background:"#0a1730", overflow:"hidden" }}>
       <Bg />
-      <div style={{ position:"relative", zIndex:2, flex:1, display:"flex", flexDirection:"column",
-        minHeight:0, padding:"env(safe-area-inset-top) 16px env(safe-area-inset-bottom)" }}>
+      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:0,
+        zIndex:2, display:"flex", flexDirection:"column",
+        maxWidth:480, margin:"0 auto",
+        padding:"env(safe-area-inset-top) 16px env(safe-area-inset-bottom)" }}>
 
         {/* Шапка */}
         <div style={{ display:"flex", alignItems:"center", gap:12, paddingTop:10, paddingBottom:12,
