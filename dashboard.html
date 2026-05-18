@@ -8867,6 +8867,10 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
   var _photos = useState([]); var photos = _photos[0]; var setPhotos = _photos[1];
   var _lightbox = useState(null); var lightbox = _lightbox[0]; var setLightbox = _lightbox[1];
   var _voice = useState(false); var voice = _voice[0]; var setVoice = _voice[1];
+  var _bcOpen = useState(false); var bcOpen = _bcOpen[0]; var setBcOpen = _bcOpen[1];
+  var _bcTxt = useState(""); var bcTxt = _bcTxt[0]; var setBcTxt = _bcTxt[1];
+  var _bcSending = useState(false); var bcSending = _bcSending[0]; var setBcSending = _bcSending[1];
+  var bcSendRef = useRef(false);
   var voiceRef = useRef(null);
   var fileRef = useRef(null);
   var scrollRef = useRef(null);
@@ -8950,18 +8954,32 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
     var byDriver = {};
     msgs.forEach(function(m){
       var did = m.driver_id || "?";
-      if (!byDriver[did]) byDriver[did] = { driver_id: did, driver_name: m.driver_name || did, list: [], unread: 0, last: null };
+      if (!byDriver[did]) byDriver[did] = { driver_id: did, driver_name: m.driver_name || did, list: [], unread: 0, last: null, hasMsgs: true };
       byDriver[did].list.push(m);
       if (m.sender_role === "fahrer" && !m.read_by_fpl) byDriver[did].unread++;
       byDriver[did].last = m;
     });
+    // Добавляем ВСЕХ водителей из адресной книги (users role=fahrer),
+    // даже если переписки ещё нет — шеф может написать первым
+    (users || []).forEach(function(u){
+      if (u.role !== "fahrer") return;
+      if (!byDriver[u.id]) {
+        byDriver[u.id] = { driver_id: u.id, driver_name: u.name || u.id, list: [], unread: 0, last: null, hasMsgs: false };
+      } else if (!byDriver[u.id].driver_name || byDriver[u.id].driver_name === u.id) {
+        byDriver[u.id].driver_name = u.name || u.id;
+      }
+    });
     var arr = Object.keys(byDriver).map(function(k){ return byDriver[k]; });
-    // Сортировка: непрочитанные сверху, потом по времени последнего
+    // Сортировка: непрочитанные сверху, потом с перепиской, потом по алфавиту
     arr.sort(function(a,b){
       if ((b.unread>0) !== (a.unread>0)) return (b.unread>0?1:0) - (a.unread>0?1:0);
-      var ta = a.last && a.last.created_at ? new Date(a.last.created_at).getTime() : 0;
-      var tb = b.last && b.last.created_at ? new Date(b.last.created_at).getTime() : 0;
-      return tb - ta;
+      if (a.hasMsgs !== b.hasMsgs) return (b.hasMsgs?1:0) - (a.hasMsgs?1:0);
+      if (a.hasMsgs && b.hasMsgs) {
+        var ta = a.last && a.last.created_at ? new Date(a.last.created_at).getTime() : 0;
+        var tb = b.last && b.last.created_at ? new Date(b.last.created_at).getTime() : 0;
+        return tb - ta;
+      }
+      return (a.driver_name||"").localeCompare(b.driver_name||"");
     });
     return arr;
   })();
@@ -8998,6 +9016,55 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
   useEffect(function(){
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [thread.length, selDriver]);
+
+  // Рассылка-объявление всем водителям из адресной книги
+  function sendBroadcast() {
+    var body = (bcTxt||"").trim();
+    if (!body || bcSendRef.current) return;
+    var recipients = (users || []).filter(function(u){ return u.role === "fahrer" && u.id; });
+    if (recipients.length === 0) { alert("Keine Fahrer in der Adressliste."); return; }
+    bcSendRef.current = true;
+    setBcSending(true);
+    var nowIso = new Date().toISOString();
+    var rows = recipients.map(function(u){
+      return {
+        tenant_id: "ltg",
+        driver_id: u.id,
+        driver_name: u.name || u.id,
+        sender_role: "fpl",
+        sender_id: currentUser ? currentUser.id : null,
+        sender_name: currentUser ? currentUser.name : "FPL",
+        text_original: body,
+        lang_original: "DE",
+        text_de: body,
+        text_driver: body,
+        driver_lang: "DE",
+        is_broadcast: true,
+        photo_urls: [],
+        read_by_driver: false,
+        read_by_fpl: true,
+        created_at: nowIso
+      };
+    });
+    // Батч-вставка одним запросом (надёжно для 150+ получателей)
+    fetch(SB_URL + "/rest/v1/messages", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Prefer":"return=minimal" },
+      body: JSON.stringify(rows)
+    }).then(function(res){
+      bcSendRef.current = false;
+      setBcSending(false);
+      if (!res.ok) { return res.text().then(function(t){ throw new Error(t); }); }
+      setBcTxt("");
+      setBcOpen(false);
+      alert("Rundnachricht an " + recipients.length + " Fahrer gesendet.");
+      if (onRefresh) onRefresh();
+    }).catch(function(e){
+      bcSendRef.current = false;
+      setBcSending(false);
+      alert("Fehler beim Senden: " + (e.message || e));
+    });
+  }
 
   function sendReply() {
     var body = (txt||"").trim();
@@ -9045,11 +9112,18 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
         <h1 style={{ fontSize:24, fontWeight:800, margin:0, color:"#1e3a5f" }}>Fahrer-Chat</h1>
-        <button onClick={onRefresh}
-          style={{ background:"#fff", border:"1.5px solid #3b82f6", borderRadius:8,
-            color:"#1e3a5f", padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
-          ↻ Aktualisieren
-        </button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={function(){ setBcOpen(true); }}
+            style={{ background:"#ffa500", border:"none", borderRadius:8,
+              color:"#0a1730", padding:"8px 16px", fontSize:13, fontWeight:800, cursor:"pointer" }}>
+            📢 An alle
+          </button>
+          <button onClick={onRefresh}
+            style={{ background:"#fff", border:"1.5px solid #3b82f6", borderRadius:8,
+              color:"#1e3a5f", padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+            ↻ Aktualisieren
+          </button>
+        </div>
       </div>
       <div style={{ display:"flex", gap:16, height:"calc(100vh - 160px)", minHeight:420 }}>
 
@@ -9058,7 +9132,7 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
           background:"#fff", borderRadius:12, border:"1.5px solid #3b82f6" }}>
           {dialogs.length === 0 && (
             <div style={{ padding:24, textAlign:"center", color:"#64748b", fontSize:13 }}>
-              Noch keine Nachrichten von Fahrern
+              Keine Fahrer in der Adressliste
             </div>
           )}
           {dialogs.map(function(d){
@@ -9217,6 +9291,47 @@ function FahrerChat({ messages, users, currentUser, onRefresh }) {
             style={{ position:"absolute", top:24, right:24, width:44, height:44, borderRadius:"50%",
               background:"rgba(255,255,255,0.15)", color:"#fff", border:"none", fontSize:24,
               cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
+        </div>
+      )}
+      {bcOpen && (
+        <div onClick={function(){ if(!bcSending) setBcOpen(false); }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:10200,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={function(e){ e.stopPropagation(); }}
+            style={{ background:"#fff", borderRadius:14, padding:24, width:"100%", maxWidth:520,
+              boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize:19, fontWeight:800, color:"#1e3a5f", marginBottom:6 }}>
+              📢 Rundnachricht an alle Fahrer
+            </div>
+            <div style={{ fontSize:13, color:"#64748b", marginBottom:16 }}>
+              Geht als Ankündigung an {(users||[]).filter(function(u){ return u.role==="fahrer" && u.id; }).length} Fahrer. Fahrer können einzeln antworten.
+            </div>
+            <textarea value={bcTxt}
+              onChange={function(e){ setBcTxt(e.target.value); }}
+              placeholder="Nachricht auf Deutsch eingeben..."
+              rows={5}
+              style={{ width:"100%", padding:"13px 14px", borderRadius:10, resize:"vertical",
+                border:"1.5px solid #3b82f6", background:"#f8fafc", color:"#1e293b",
+                fontSize:15, fontFamily:"inherit", lineHeight:1.5, boxSizing:"border-box",
+                outline:"none", marginBottom:16, minHeight:110 }} />
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={function(){ if(!bcSending){ setBcOpen(false); setBcTxt(""); } }}
+                disabled={bcSending}
+                style={{ flex:1, padding:"13px 12px", borderRadius:10,
+                  border:"1.5px solid #cbd5e1", background:"#fff", color:"#64748b",
+                  fontWeight:700, fontSize:14, cursor: bcSending ? "not-allowed" : "pointer" }}>
+                Abbrechen
+              </button>
+              <button onClick={sendBroadcast}
+                disabled={bcSending || !bcTxt.trim()}
+                style={{ flex:2, padding:"13px 12px", borderRadius:10, border:"none",
+                  background: (bcSending || !bcTxt.trim()) ? "rgba(255,165,0,0.4)" : "#ffa500",
+                  color:"#0a1730", fontWeight:800, fontSize:14,
+                  cursor: (bcSending || !bcTxt.trim()) ? "not-allowed" : "pointer" }}>
+                {bcSending ? "Senden..." : "An alle senden"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
