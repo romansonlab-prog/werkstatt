@@ -725,6 +725,7 @@ function ReportForm({ user, onSent }) {
   var _ph  = useState([]); var ph = _ph[0]; var setPh = _ph[1];
   var _snd = useState(false); var snd = _snd[0]; var setSnd = _snd[1];
   var photoRef = useRef(null);
+  var galleryPhotoRef = useRef(null);
   var sendingRef = useRef(false);
 
   // Автосохранение черновика
@@ -887,9 +888,15 @@ function ReportForm({ user, onSent }) {
         <div className="glass-panel">
           <div className="label-cap">📷 FOTO (optional)</div>
           <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple style={{ display:"none" }} onChange={onFiles} />
-          <button className="photo-box" type="button" onClick={function(){ if (photoRef.current) photoRef.current.click(); }}>
-            📷 Foto aufnehmen
-          </button>
+          <input ref={galleryPhotoRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={onFiles} />
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="photo-box" type="button" style={{ flex:1 }} onClick={function(){ if (photoRef.current) photoRef.current.click(); }}>
+              📷 Aufnehmen
+            </button>
+            <button className="photo-box" type="button" style={{ flex:1 }} onClick={function(){ if (galleryPhotoRef.current) galleryPhotoRef.current.click(); }}>
+              🖼️ Galerie
+            </button>
+          </div>
           {ph.length > 0 && (
             <div className="photo-grid">
               {ph.map(function(src, i){
