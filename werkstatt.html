@@ -707,8 +707,11 @@ const WORK_TYPES = [
   ["repair","Reparatur"],
   ["tireChange","Reifenwechsel"],
   ["emergency","Notruf"],
-  ["intern","Interne Arbeit"]
+  ["intern","Interne Arbeit"],
+  ["fahrt","Fahrt zum Geschäft"]
 ];
+// Типы работ, которые НЕ требуют выбора машины (внутренние / поездки)
+function isNoVehicleType(wt) { return wt === "intern" || wt === "fahrt"; }
 
 // Standort Liste — fallback если БД не загрузилась
 const LOCATIONS_FALLBACK = ["Werkstatt","HOC 1","HOC 2","HOC 3","HOC 4","HOC 5","John Deere Bruchsal"];
@@ -2620,7 +2623,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
     var payload = {
       id: newId,
       mechanic: user.id || "roman",
-      vehicle_type: workType === "intern" ? "" : vehicleType,
+      vehicle_type: isNoVehicleType(workType) ? "" : vehicleType,
       plate: (vehicle && vehicle.plate) ? vehicle.plate : "",
       location: location,
       work_type: workType,
@@ -2657,7 +2660,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
   function startAuftrag() {
     if (savingRef.current) return;
     if (!vehicle || !vehicle.plate) {
-      if (workType !== "intern") {
+      if (!isNoVehicleType(workType)) {
         showToast("Bitte zuerst Fahrzeug auswählen.");
         return;
       }
@@ -3095,7 +3098,7 @@ function NewJob({ vehicles, setVehicles, user, userRate, prefill, jobs, onClear,
       )}
 
       {/* Fahrzeug — две колонки: слева Typ+Standort, справа Kennzeichen+Marke */}
-      {workType !== "intern" && (
+      {!isNoVehicleType(workType) && (
       <div className="glass-panel" style={{ position:"relative", zIndex: vehDropOpen ? 50 : "auto" }}>
         <div className="panel-title">Fahrzeug</div>
         <div className="grid2" style={{ alignItems:"start" }}>
@@ -4074,6 +4077,56 @@ function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter,
 
   if (!job) return null;
 
+  // Режим коррекции (вечерняя проверка перед отчётом) — только для done за сегодня
+  var _em = useState(false); var editMode = _em[0]; var setEditMode = _em[1];
+  var _eMin = useState(""); var eMin = _eMin[0]; var setEMin = _eMin[1];
+  var _eLabor = useState(""); var eLabor = _eLabor[0]; var setELabor = _eLabor[1];
+  var _eParts = useState(""); var eParts = _eParts[0]; var setEParts = _eParts[1];
+  var _eDesc = useState(""); var eDesc = _eDesc[0]; var setEDesc = _eDesc[1];
+  var _eSaving = useState(false); var eSaving = _eSaving[0]; var setESaving = _eSaving[1];
+  var editSaveRef = useRef(false);
+
+  var jobDate = job.date || (job.created_at || "").slice(0,10);
+  var canCorrect = job.status === "done" && jobDate === todayIso();
+
+  function startCorrect() {
+    setEMin(String(job.work_min || 0));
+    setELabor(String(Number(job.labor_cost) || 0));
+    setEParts(String(Number(job.parts_cost) || 0));
+    setEDesc(job.description || "");
+    setEditMode(true);
+  }
+  function saveCorrect() {
+    if (editSaveRef.current) return;
+    var minN = parseInt(eMin, 10);
+    if (isNaN(minN) || minN < 0) { showToast("Zeit ungültig"); return; }
+    var laborN = parsePriceDE(eLabor);
+    var partsN = parsePriceDE(eParts);
+    if (laborN < 0 || partsN < 0) { showToast("Kosten ungültig"); return; }
+    editSaveRef.current = true;
+    setESaving(true);
+    var patch = {
+      work_min: minN,
+      labor_cost: laborN,
+      parts_cost: partsN,
+      cost: Math.round((laborN + partsN) * 100) / 100,
+      description: eDesc,
+      corrected_at: new Date().toISOString()
+    };
+    sbPatch("jobs", job.id, patch).then(function(){
+      editSaveRef.current = false;
+      setESaving(false);
+      setEditMode(false);
+      showToast("Korrektur gespeichert");
+      if (onRefresh) onRefresh();
+      if (onClose) onClose();
+    }).catch(function(e){
+      editSaveRef.current = false;
+      setESaving(false);
+      showToast("Fehler: " + (e.message || e));
+    });
+  }
+
   var pLog = (function(){
     var l = job.pause_log;
     if (typeof l === "string") { try { l = JSON.parse(l); } catch(e) { return []; } }
@@ -4174,12 +4227,73 @@ function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter,
         )}
       </div>
 
-      {job.description && (
+      {editMode ? (
+        <div style={{ background:"rgba(255,165,0,0.06)", border:"1px solid rgba(255,165,0,0.3)",
+          borderRadius:12, padding:16, marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:800, color:"#ffa500", letterSpacing:0.5, marginBottom:12 }}>
+            KORREKTUR — vor dem Bericht prüfen
+          </div>
+
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:12, color:"rgba(255,255,255,0.6)", display:"block", marginBottom:5 }}>Arbeitszeit (Minuten)</label>
+            <input type="number" inputMode="numeric" value={eMin}
+              onChange={function(e){ setEMin(e.target.value); }}
+              style={{ width:"100%", padding:"13px 14px", borderRadius:10, fontSize:16,
+                border:"1.5px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)",
+                color:"#fff", boxSizing:"border-box", outline:"none" }} />
+          </div>
+
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:12, color:"rgba(255,255,255,0.6)", display:"block", marginBottom:5 }}>Lohnkosten (€)</label>
+            <input type="text" inputMode="decimal" value={eLabor}
+              onChange={function(e){ setELabor(e.target.value); }}
+              style={{ width:"100%", padding:"13px 14px", borderRadius:10, fontSize:16,
+                border:"1.5px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)",
+                color:"#fff", boxSizing:"border-box", outline:"none" }} />
+          </div>
+
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:12, color:"rgba(255,255,255,0.6)", display:"block", marginBottom:5 }}>Teilekosten (€)</label>
+            <input type="text" inputMode="decimal" value={eParts}
+              onChange={function(e){ setEParts(e.target.value); }}
+              style={{ width:"100%", padding:"13px 14px", borderRadius:10, fontSize:16,
+                border:"1.5px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)",
+                color:"#fff", boxSizing:"border-box", outline:"none" }} />
+          </div>
+
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:"rgba(255,255,255,0.6)", display:"block", marginBottom:5 }}>Beschreibung</label>
+            <textarea value={eDesc}
+              onChange={function(e){ setEDesc(e.target.value); }}
+              rows={4}
+              style={{ width:"100%", padding:"13px 14px", borderRadius:10, fontSize:15,
+                border:"1.5px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)",
+                color:"#fff", boxSizing:"border-box", outline:"none", resize:"vertical",
+                fontFamily:"inherit", lineHeight:1.5 }} />
+          </div>
+
+          <div style={{ display:"flex", gap:8 }}>
+            <button type="button" onClick={function(){ setEditMode(false); }}
+              style={{ flex:1, padding:"14px 12px", borderRadius:12,
+                border:"1.5px solid rgba(255,255,255,0.2)", background:"transparent",
+                color:"rgba(255,255,255,0.7)", fontWeight:700, fontSize:15, cursor:"pointer" }}>
+              Abbrechen
+            </button>
+            <button type="button" onClick={saveCorrect} disabled={eSaving}
+              style={{ flex:2, padding:"14px 12px", borderRadius:12, border:"none",
+                background: eSaving ? "rgba(255,165,0,0.4)" : "#ffa500",
+                color:"#0a1730", fontWeight:800, fontSize:15,
+                cursor: eSaving ? "not-allowed" : "pointer" }}>
+              {eSaving ? "..." : "Speichern"}
+            </button>
+          </div>
+        </div>
+      ) : (job.description && (
         <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)",
           borderRadius:12, padding:14, marginBottom:14, fontSize:14, lineHeight:1.5, whiteSpace:"pre-wrap" }}>
           {job.description}
         </div>
-      )}
+      ))}
 
       {/* Запчасти */}
       {job.parts_note && (
@@ -4239,12 +4353,22 @@ function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter,
       )}
 
       {/* Кнопки действий — закреплены над BottomNav (BottomNav высота 80px + safe-area) */}
+      {!editMode && (
       <div style={{ position:"fixed", left:0, right:0,
         bottom:"calc(80px + env(safe-area-inset-bottom) + 8px)",
         padding:"12px 14px",
         maxWidth:480, marginLeft:"auto", marginRight:"auto",
         background:"linear-gradient(to top, rgba(7,18,42,0.98) 0%, rgba(7,18,42,0.92) 60%, rgba(7,18,42,0.7) 90%, transparent 100%)",
         display:"flex", gap:8, zIndex:50 }}>
+        {canCorrect && (
+          <button type="button" onClick={startCorrect}
+            style={{ flex:1, padding:"16px 12px", borderRadius:14,
+              border:"2px solid #ffa500", background:"rgba(255,165,0,0.1)",
+              color:"#ffa500", fontFamily:"var(--font-display)", fontWeight:800,
+              fontSize:16, letterSpacing:0.5, cursor:"pointer" }}>
+            ✎ Korrigieren
+          </button>
+        )}
         {/* Ändern — всегда доступна, включая Erledigt */}
         <button type="button"
           onClick={function(){ if (onEdit) onEdit(job); }}
@@ -4282,6 +4406,7 @@ function OpenJobView({ job, user, onClose, onRefresh, onEdit, onPause, onWeiter,
             onComplete={function(){ if (onFertig) onFertig(job, elapsedSec); }} />
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -4339,7 +4464,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         ? pLog.map(function(p){ return p.reason + (p.minutes ? " (" + fmtMin(p.minutes) + ")" : ""); }).join("; ")
         : "—";
       return "<tr>" +
-        "<td>" + (j.plate || (j.work_type === "intern" ? "<i>Interne Arbeit</i>" : "—")) + "</td>" +
+        "<td>" + (j.plate || (isNoVehicleType(j.work_type) ? "<i>" + (labelFrom(WORK_TYPES, j.work_type) || "Ohne Kennzeichen") + "</i>" : "—")) + "</td>" +
         "<td>" + (labelFrom(WORK_TYPES, j.work_type) || "") + "</td>" +
         "<td>" + (j.location || "") + "</td>" +
         "<td>" + (j.description ? j.description.slice(0,80) : "") + "</td>" +
@@ -4567,7 +4692,7 @@ function MeineAuftraege({ jobs, user, onRefresh, loading, onContinueJob }) {
         style={{ cursor:"pointer" }}>
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:8 }}>
           <div>
-            <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || (j.work_type === "intern" ? "Interne Arbeit" : "Ohne Kennzeichen")}</div>
+            <div style={{ fontSize:17, fontWeight:800 }}>{j.plate || (isNoVehicleType(j.work_type) ? (labelFrom(WORK_TYPES, j.work_type) || "Ohne Kennzeichen") : "Ohne Kennzeichen")}</div>
             <div className="meta" style={{ marginTop:4 }}>📍 {j.location || "Werkstatt"} · {labelFrom(WORK_TYPES, j.work_type)}</div>
           </div>
           <span style={{

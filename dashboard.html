@@ -387,7 +387,8 @@ function getMechanicsFromUsers(dbUsers) {
 
 const WORK_TYPES = {
   repair:"Reparatur", maintenance:"Wartung / TO", inspection:"Inspektion",
-  tireChange:"Reifenwechsel", wash:"Waschen", emergency:"Notruf"
+  tireChange:"Reifenwechsel", wash:"Waschen", emergency:"Notruf",
+  intern:"Interne Arbeit", fahrt:"Fahrt zum Geschäft"
 };
 
 const VEH_TYPES = {
@@ -4822,14 +4823,16 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
   var mechArr = Object.keys(byMech).map(function(k) { return byMech[k]; })
     .sort(function(a, b) { return b.jobs - a.jobs; });
 
-  // По типам работ
+  // По типам работ — количество, время, стоимость (для категории "Fahrten" и др.)
   var byType = {};
   mJobs.forEach(function(j) {
     var t = WORK_TYPES[j.work_type] || j.work_type || "Sonstiges";
-    if (!byType[t]) byType[t] = 0;
-    byType[t]++;
+    if (!byType[t]) byType[t] = { count: 0, min: 0, cost: 0 };
+    byType[t].count++;
+    byType[t].min += parseInt(j.work_min || 0) || 0;
+    byType[t].cost += (Number(j.labor_cost) || 0) + (Number(j.parts_cost) || 0);
   });
-  var typeArr = Object.keys(byType).sort(function(a, b) { return byType[b] - byType[a]; });
+  var typeArr = Object.keys(byType).sort(function(a, b) { return byType[b].count - byType[a].count; });
 
   // Топ машины (по затратам)
   var byVeh = {};
@@ -4893,7 +4896,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
       }).join("");
 
       var typeRowsHtml = typeArr.map(function(t) {
-        return "<tr><td>" + t + "</td><td style='text-align:center'>" + byType[t] + "</td><td style='text-align:center'>" + Math.round(byType[t] / Math.max(totalJobs, 1) * 100) + "%</td></tr>";
+        return "<tr><td>" + t + "</td><td style='text-align:center'>" + byType[t].count + "</td><td style='text-align:center'>" + Math.round(byType[t].count / Math.max(totalJobs, 1) * 100) + "%</td><td style='text-align:center'>" + fmtMin(byType[t].min) + "</td><td style='text-align:right'>" + byType[t].cost.toFixed(2) + " €</td></tr>";
       }).join("");
 
       var jobRows = mJobs.slice(0, 300).map(function(j) {
@@ -4965,7 +4968,7 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
 
         (typeArr.length > 0 ? (
           "<h2>📋 Auftragstypen</h2>" +
-          "<table><thead><tr><th>Typ</th><th>Anzahl</th><th>Anteil</th></tr></thead><tbody>" +
+          "<table><thead><tr><th>Typ</th><th>Anzahl</th><th>Anteil</th><th>Zeit</th><th>Kosten</th></tr></thead><tbody>" +
           typeRowsHtml +
           "</tbody></table>"
         ) : "") +
@@ -5096,11 +5099,11 @@ function Monatsbericht({ jobs, washOrders, inspections, alerts }) {
       addSheet("Mechaniker", mechSheet, [22, 12, 10, 18, 16, 16, 16, 14], 0);
 
       // Лист 3 — Auftragstypen
-      var typeSheet = [["Typ", "Anzahl", "Anteil %"]];
+      var typeSheet = [["Typ", "Anzahl", "Anteil %", "Zeit (Min)", "Kosten €"]];
       typeArr.forEach(function(t){
-        typeSheet.push([t, byType[t], Math.round(byType[t] / Math.max(totalJobs, 1) * 100)]);
+        typeSheet.push([t, byType[t].count, Math.round(byType[t].count / Math.max(totalJobs, 1) * 100), byType[t].min, Number(byType[t].cost.toFixed(2))]);
       });
-      addSheet("Auftragstypen", typeSheet, [28, 12, 12], 0);
+      addSheet("Auftragstypen", typeSheet, [28, 12, 12, 14, 14], 0);
 
       // Лист 4 — Top-Fahrzeuge
       var vehSheet = [["Kennzeichen", "Aufträge", "Arbeitszeit (min)", "Kosten (€)"]];
